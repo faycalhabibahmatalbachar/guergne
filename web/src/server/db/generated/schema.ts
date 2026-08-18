@@ -13,6 +13,7 @@ export const motifExoneration = pgEnum("motif_exoneration", ['BOURSE', 'FRATRIE'
 export const natureFrais = pgEnum("nature_frais", ['INSCRIPTION', 'REINSCRIPTION', 'SCOLARITE', 'APE', 'TENUE', 'EXAMEN', 'FOURNITURES', 'TRANSPORT', 'CANTINE', 'AUTRE'])
 export const roleUtilisateur = pgEnum("role_utilisateur", ['SUPER_ADMIN', 'DIRECTION', 'CENSEUR', 'SURVEILLANT', 'SECRETARIAT', 'COMPTABLE', 'ENSEIGNANT', 'PARENT', 'ELEVE'])
 export const sexeType = pgEnum("sexe_type", ['M', 'F'])
+export const statutDossier = pgEnum("statut_dossier", ['BROUILLON', 'A_VALIDER', 'VALIDE', 'INCOMPLET', 'REFUSE'])
 export const statutEcheance = pgEnum("statut_echeance", ['A_PAYER', 'PARTIEL', 'PAYE', 'EN_RETARD', 'EXONERE'])
 export const statutEleve = pgEnum("statut_eleve", ['CANDIDAT', 'PRE_INSCRIT', 'INSCRIT', 'SUSPENDU_DISCIPLINE', 'SUSPENDU_IMPAYE', 'EXCLU', 'TRANSFERE', 'ABANDON', 'DIPLOME', 'ARCHIVE'])
 export const statutEnvoi = pgEnum("statut_envoi", ['EN_ATTENTE', 'ENVOYE', 'ECHOUE', 'LU'])
@@ -364,61 +365,6 @@ export const tuteurs = pgTable("tuteurs", {
 	unique("tuteurs_utilisateur_id_key").on(table.utilisateurId),
 ]);
 
-export const eleves = pgTable("eleves", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	matricule: text().notNull(),
-	nom: text().notNull(),
-	prenom: text().notNull(),
-	sexe: sexeType().notNull(),
-	dateNaissance: date("date_naissance").notNull(),
-	lieuNaissance: text("lieu_naissance"),
-	nationalite: text().default('Tchadienne'),
-	acteNaissanceNumero: text("acte_naissance_numero"),
-	adresse: text(),
-	quartier: text(),
-	photoUrl: text("photo_url"),
-	groupeSanguin: text("groupe_sanguin"),
-	allergies: text(),
-	observationsMedicales: text("observations_medicales"),
-	ecoleOrigine: text("ecole_origine"),
-	statut: statutEleve().default('PRE_INSCRIT').notNull(),
-	datePremiereInscription: date("date_premiere_inscription"),
-	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_eleves_nom").using("btree", table.nom.asc().nullsLast().op("text_ops"), table.prenom.asc().nullsLast().op("text_ops")),
-	index("idx_eleves_recherche").using("gin", sql`to_tsvector('french'::regconfig, ((((matricule || ' '::text) ||`),
-	index("idx_eleves_statut").using("btree", table.statut.asc().nullsLast().op("enum_ops")),
-	unique("eleves_matricule_key").on(table.matricule),
-	check("chk_naissance", sql`date_naissance < CURRENT_DATE`),
-]);
-
-export const eleveTuteur = pgTable("eleve_tuteur", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	eleveId: uuid("eleve_id").notNull(),
-	tuteurId: uuid("tuteur_id").notNull(),
-	lien: lienParente().notNull(),
-	estPrincipal: boolean("est_principal").default(false).notNull(),
-	estResponsableFinancier: boolean("est_responsable_financier").default(false).notNull(),
-	autoriseRetrait: boolean("autorise_retrait").default(true).notNull(),
-	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_eleve_tuteur_eleve").using("btree", table.eleveId.asc().nullsLast().op("uuid_ops")),
-	index("idx_eleve_tuteur_tuteur").using("btree", table.tuteurId.asc().nullsLast().op("uuid_ops")),
-	uniqueIndex("uq_tuteur_principal").using("btree", table.eleveId.asc().nullsLast().op("uuid_ops")).where(sql`est_principal`),
-	foreignKey({
-			columns: [table.eleveId],
-			foreignColumns: [eleves.id],
-			name: "eleve_tuteur_eleve_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.tuteurId],
-			foreignColumns: [tuteurs.id],
-			name: "eleve_tuteur_tuteur_id_fkey"
-		}).onDelete("cascade"),
-	unique("eleve_tuteur_eleve_id_tuteur_id_key").on(table.eleveId, table.tuteurId),
-]);
-
 export const piecesDossier = pgTable("pieces_dossier", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	eleveId: uuid("eleve_id").notNull(),
@@ -441,6 +387,34 @@ export const piecesDossier = pgTable("pieces_dossier", {
 			foreignColumns: [eleves.id],
 			name: "pieces_dossier_eleve_id_fkey"
 		}).onDelete("cascade"),
+]);
+
+export const eleveTuteur = pgTable("eleve_tuteur", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	eleveId: uuid("eleve_id").notNull(),
+	tuteurId: uuid("tuteur_id").notNull(),
+	lien: lienParente().notNull(),
+	estPrincipal: boolean("est_principal").default(false).notNull(),
+	estResponsableFinancier: boolean("est_responsable_financier").default(false).notNull(),
+	autoriseRetrait: boolean("autorise_retrait").default(true).notNull(),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	estTuteurLegal: boolean("est_tuteur_legal").default(false).notNull(),
+	estContactUrgence: boolean("est_contact_urgence").default(false).notNull(),
+}, (table) => [
+	index("idx_eleve_tuteur_eleve").using("btree", table.eleveId.asc().nullsLast().op("uuid_ops")),
+	index("idx_eleve_tuteur_tuteur").using("btree", table.tuteurId.asc().nullsLast().op("uuid_ops")),
+	uniqueIndex("uq_tuteur_principal").using("btree", table.eleveId.asc().nullsLast().op("uuid_ops")).where(sql`est_principal`),
+	foreignKey({
+			columns: [table.eleveId],
+			foreignColumns: [eleves.id],
+			name: "eleve_tuteur_eleve_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.tuteurId],
+			foreignColumns: [tuteurs.id],
+			name: "eleve_tuteur_tuteur_id_fkey"
+		}).onDelete("cascade"),
+	unique("eleve_tuteur_eleve_id_tuteur_id_key").on(table.eleveId, table.tuteurId),
 ]);
 
 export const classes = pgTable("classes", {
@@ -485,43 +459,6 @@ export const classes = pgTable("classes", {
 		}),
 	unique("classes_annee_id_code_key").on(table.anneeId, table.code),
 	check("classes_capacite_max_check", sql`capacite_max > 0`),
-]);
-
-export const inscriptions = pgTable("inscriptions", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	eleveId: uuid("eleve_id").notNull(),
-	anneeId: uuid("annee_id").notNull(),
-	classeId: uuid("classe_id").notNull(),
-	type: typeInscription().default('INSCRIPTION').notNull(),
-	numeroOrdre: smallint("numero_ordre"),
-	dateInscription: date("date_inscription").default(sql`CURRENT_DATE`).notNull(),
-	estRedoublant: boolean("est_redoublant").default(false).notNull(),
-	estBoursier: boolean("est_boursier").default(false).notNull(),
-	dateSortie: date("date_sortie"),
-	motifSortie: text("motif_sortie"),
-	active: boolean().default(true).notNull(),
-	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_inscriptions_annee").using("btree", table.anneeId.asc().nullsLast().op("uuid_ops")),
-	index("idx_inscriptions_classe").using("btree", table.classeId.asc().nullsLast().op("uuid_ops")).where(sql`active`),
-	index("idx_inscriptions_eleve").using("btree", table.eleveId.asc().nullsLast().op("uuid_ops")),
-	foreignKey({
-			columns: [table.anneeId],
-			foreignColumns: [anneesScolaires.id],
-			name: "inscriptions_annee_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.classeId],
-			foreignColumns: [classes.id],
-			name: "inscriptions_classe_id_fkey"
-		}),
-	foreignKey({
-			columns: [table.eleveId],
-			foreignColumns: [eleves.id],
-			name: "inscriptions_eleve_id_fkey"
-		}).onDelete("cascade"),
-	unique("inscriptions_eleve_id_annee_id_key").on(table.eleveId, table.anneeId),
 ]);
 
 export const changementsClasse = pgTable("changements_classe", {
@@ -653,6 +590,62 @@ export const creneauxHoraires = pgTable("creneaux_horaires", {
 }, (table) => [
 	unique("creneaux_horaires_ordre_key").on(table.ordre),
 	check("chk_creneau", sql`heure_fin > heure_debut`),
+]);
+
+export const inscriptions = pgTable("inscriptions", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	eleveId: uuid("eleve_id").notNull(),
+	anneeId: uuid("annee_id").notNull(),
+	classeId: uuid("classe_id").notNull(),
+	type: typeInscription().default('INSCRIPTION').notNull(),
+	numeroOrdre: smallint("numero_ordre"),
+	dateInscription: date("date_inscription").default(sql`CURRENT_DATE`).notNull(),
+	estRedoublant: boolean("est_redoublant").default(false).notNull(),
+	estBoursier: boolean("est_boursier").default(false).notNull(),
+	dateSortie: date("date_sortie"),
+	motifSortie: text("motif_sortie"),
+	active: boolean().default(true).notNull(),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	numeroInscription: text("numero_inscription"),
+	statutDossier: statutDossier("statut_dossier").default('A_VALIDER').notNull(),
+	valideePar: uuid("validee_par"),
+	valideeLe: timestamp("validee_le", { withTimezone: true, mode: 'string' }),
+	observations: text(),
+	etablissementDestination: text("etablissement_destination"),
+	inscriptionPrecedenteId: uuid("inscription_precedente_id"),
+}, (table) => [
+	index("idx_inscriptions_annee").using("btree", table.anneeId.asc().nullsLast().op("uuid_ops")),
+	index("idx_inscriptions_classe").using("btree", table.classeId.asc().nullsLast().op("uuid_ops")).where(sql`active`),
+	index("idx_inscriptions_dossier").using("btree", table.statutDossier.asc().nullsLast().op("enum_ops")).where(sql`(statut_dossier <> 'VALIDE'::statut_dossier)`),
+	index("idx_inscriptions_eleve").using("btree", table.eleveId.asc().nullsLast().op("uuid_ops")),
+	foreignKey({
+			columns: [table.anneeId],
+			foreignColumns: [anneesScolaires.id],
+			name: "inscriptions_annee_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.classeId],
+			foreignColumns: [classes.id],
+			name: "inscriptions_classe_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.eleveId],
+			foreignColumns: [eleves.id],
+			name: "inscriptions_eleve_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.inscriptionPrecedenteId],
+			foreignColumns: [table.id],
+			name: "inscriptions_inscription_precedente_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.valideePar],
+			foreignColumns: [utilisateurs.id],
+			name: "inscriptions_validee_par_fkey"
+		}),
+	unique("inscriptions_eleve_id_annee_id_key").on(table.eleveId, table.anneeId),
+	unique("inscriptions_numero_inscription_key").on(table.numeroInscription),
 ]);
 
 export const seances = pgTable("seances", {
@@ -1824,6 +1817,41 @@ export const parametres = pgTable("parametres", {
 			foreignColumns: [utilisateurs.id],
 			name: "parametres_modifie_par_fkey"
 		}),
+]);
+
+export const eleves = pgTable("eleves", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	matricule: text().notNull(),
+	nom: text().notNull(),
+	prenom: text().notNull(),
+	sexe: sexeType().notNull(),
+	dateNaissance: date("date_naissance").notNull(),
+	lieuNaissance: text("lieu_naissance"),
+	nationalite: text().default('Tchadienne'),
+	acteNaissanceNumero: text("acte_naissance_numero"),
+	adresse: text(),
+	quartier: text(),
+	photoUrl: text("photo_url"),
+	groupeSanguin: text("groupe_sanguin"),
+	allergies: text(),
+	observationsMedicales: text("observations_medicales"),
+	ecoleOrigine: text("ecole_origine"),
+	statut: statutEleve().default('PRE_INSCRIT').notNull(),
+	datePremiereInscription: date("date_premiere_inscription"),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	telephone: text(),
+	email: text(),
+	situationParticuliere: text("situation_particuliere"),
+	urgenceNom: text("urgence_nom"),
+	urgenceTelephone: text("urgence_telephone"),
+	urgenceLien: text("urgence_lien"),
+}, (table) => [
+	index("idx_eleves_nom").using("btree", table.nom.asc().nullsLast().op("text_ops"), table.prenom.asc().nullsLast().op("text_ops")),
+	index("idx_eleves_recherche").using("gin", sql`to_tsvector('french'::regconfig, ((((matricule || ' '::text) ||`),
+	index("idx_eleves_statut").using("btree", table.statut.asc().nullsLast().op("enum_ops")),
+	unique("eleves_matricule_key").on(table.matricule),
+	check("chk_naissance", sql`date_naissance < CURRENT_DATE`),
 ]);
 export const vAssiduitePeriode = pgView("v_assiduite_periode", {	inscriptionId: uuid("inscription_id"),
 	periodeId: uuid("periode_id"),

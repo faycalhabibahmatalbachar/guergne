@@ -7,6 +7,7 @@
  */
 
 export type StatutEleve =
+  | "CANDIDAT"
   | "PRE_INSCRIT"
   | "INSCRIT"
   | "SUSPENDU_DISCIPLINE"
@@ -14,9 +15,11 @@ export type StatutEleve =
   | "EXCLU"
   | "TRANSFERE"
   | "ABANDON"
-  | "DIPLOME";
+  | "DIPLOME"
+  | "ARCHIVE";
 
 export const LIBELLES_STATUT: Record<StatutEleve, string> = {
+  CANDIDAT: "Candidat",
   PRE_INSCRIT: "Pré-inscrit",
   INSCRIT: "Inscrit",
   SUSPENDU_DISCIPLINE: "Suspendu (discipline)",
@@ -25,6 +28,7 @@ export const LIBELLES_STATUT: Record<StatutEleve, string> = {
   TRANSFERE: "Transféré",
   ABANDON: "Abandon",
   DIPLOME: "Diplômé",
+  ARCHIVE: "Archivé",
 };
 
 /**
@@ -34,6 +38,7 @@ export const LIBELLES_STATUT: Record<StatutEleve, string> = {
  * le seul véhicule de l'information : le badge affiche toujours son libellé.
  */
 export const TONS_STATUT: Record<StatutEleve, "succes" | "alerte" | "danger" | "neutre"> = {
+  CANDIDAT: "neutre",
   PRE_INSCRIT: "neutre",
   INSCRIT: "succes",
   SUSPENDU_DISCIPLINE: "alerte",
@@ -42,6 +47,7 @@ export const TONS_STATUT: Record<StatutEleve, "succes" | "alerte" | "danger" | "
   TRANSFERE: "neutre",
   ABANDON: "danger",
   DIPLOME: "neutre",
+  ARCHIVE: "neutre",
 };
 
 export const LIENS_PARENTE = {
@@ -56,3 +62,13 @@ export const LIENS_PARENTE = {
 } as const;
 
 export type LienParente = keyof typeof LIENS_PARENTE;
+
+/** Libellé d'un statut, tolérant à une valeur inconnue venue de la base. */
+export function libelleStatut(statut: string): string {
+  return LIBELLES_STATUT[statut as StatutEleve] ?? statut;
+}
+
+/** Ton visuel d'un statut, avec repli neutre. */
+export function tonStatut(statut: string): "succes" | "alerte" | "danger" | "neutre" {
+  return TONS_STATUT[statut as StatutEleve] ?? "neutre";
+}

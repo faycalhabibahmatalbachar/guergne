@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { LIBELLES_STATUT, type StatutEleve, TONS_STATUT } from "@/lib/eleves-constantes";
+import { libelleStatut, tonStatut } from "@/lib/eleves-constantes";
 
 /**
  * Badge de statut d'un élève.
@@ -16,10 +16,10 @@ const CLASSES: Record<"succes" | "alerte" | "danger" | "neutre", string> = {
   neutre: "border-border bg-muted text-muted-foreground",
 };
 
-export function BadgeStatut({ statut, className }: { statut: StatutEleve; className?: string }) {
+export function BadgeStatut({ statut, className }: { statut: string; className?: string }) {
   return (
-    <Badge variant="outline" className={cn(CLASSES[TONS_STATUT[statut]], "font-medium", className)}>
-      {LIBELLES_STATUT[statut]}
+    <Badge variant="outline" className={cn(CLASSES[tonStatut(statut)], "font-medium", className)}>
+      {libelleStatut(statut)}
     </Badge>
   );
 }
