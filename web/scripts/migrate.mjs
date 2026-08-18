@@ -33,7 +33,7 @@ if (existsSync(envLocal)) {
   }
 }
 
-const url = process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL;
+const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL;
 if (!url) {
   console.error("DATABASE_URL_DIRECT (ou DATABASE_URL) est absente.");
   process.exit(1);

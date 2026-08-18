@@ -79,7 +79,7 @@ const empreinte = await hash(motDePasse, {
 });
 
 const client = new pg.Client({
-  connectionString: process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 await client.connect();

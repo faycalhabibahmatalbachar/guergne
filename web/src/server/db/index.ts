@@ -32,6 +32,18 @@ if (!urlBase) {
 }
 
 /**
+ * Connexion directe (sans pooler), utilisée par les scripts de migration.
+ *
+ * Deux noms coexistent volontairement :
+ *   - `DATABASE_URL_UNPOOLED` est le nom imposé par l'intégration officielle
+ *     Neon ↔ Vercel, qui gère et fait tourner les identifiants toute seule ;
+ *   - `DATABASE_URL_DIRECT` est le nom utilisé en local.
+ * On accepte les deux pour que le même code tourne partout sans adaptation.
+ */
+export const urlDirecte =
+  process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL_DIRECT ?? urlBase;
+
+/**
  * Le pool est mis en cache sur `globalThis` : en développement, le
  * rechargement à chaud de Next.js réévalue les modules à chaque modification,
  * ce qui créerait un nouveau pool à chaque fois et saturerait la base.
