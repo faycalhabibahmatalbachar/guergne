@@ -14,7 +14,7 @@ export const natureFrais = pgEnum("nature_frais", ['INSCRIPTION', 'REINSCRIPTION
 export const roleUtilisateur = pgEnum("role_utilisateur", ['SUPER_ADMIN', 'DIRECTION', 'CENSEUR', 'SURVEILLANT', 'SECRETARIAT', 'COMPTABLE', 'ENSEIGNANT', 'PARENT', 'ELEVE'])
 export const sexeType = pgEnum("sexe_type", ['M', 'F'])
 export const statutEcheance = pgEnum("statut_echeance", ['A_PAYER', 'PARTIEL', 'PAYE', 'EN_RETARD', 'EXONERE'])
-export const statutEleve = pgEnum("statut_eleve", ['PRE_INSCRIT', 'INSCRIT', 'SUSPENDU_DISCIPLINE', 'SUSPENDU_IMPAYE', 'EXCLU', 'TRANSFERE', 'ABANDON', 'DIPLOME'])
+export const statutEleve = pgEnum("statut_eleve", ['CANDIDAT', 'PRE_INSCRIT', 'INSCRIT', 'SUSPENDU_DISCIPLINE', 'SUSPENDU_IMPAYE', 'EXCLU', 'TRANSFERE', 'ABANDON', 'DIPLOME', 'ARCHIVE'])
 export const statutEnvoi = pgEnum("statut_envoi", ['EN_ATTENTE', 'ENVOYE', 'ECHOUE', 'LU'])
 export const statutJustification = pgEnum("statut_justification", ['NON_JUSTIFIEE', 'JUSTIFIEE', 'EN_ATTENTE'])
 export const statutNote = pgEnum("statut_note", ['NOTEE', 'ABSENT', 'ABSENT_ZERO', 'DISPENSE', 'NON_RENDU'])
@@ -130,6 +130,7 @@ export const coefficients = pgTable("coefficients", {
 	poidsComposition: numeric("poids_composition", { precision: 4, scale:  2 }).default('2.00').notNull(),
 	obligatoire: boolean().default(true).notNull(),
 	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	volumeHoraire: numeric("volume_horaire", { precision: 4, scale:  1 }),
 }, (table) => [
 	index("idx_coefficients_lookup").using("btree", table.anneeId.asc().nullsLast().op("uuid_ops"), table.niveauId.asc().nullsLast().op("uuid_ops"), table.serieId.asc().nullsLast().op("uuid_ops")),
 	uniqueIndex("uq_coefficient").using("btree", sql`annee_id`, sql`matiere_id`, sql`niveau_id`, sql`COALESCE(serie_id, '00000000-0000-0000-0000-000000000000'::uuid`),

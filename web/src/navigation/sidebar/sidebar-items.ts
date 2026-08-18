@@ -195,8 +195,6 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/parametres",
         icon: Settings,
         action: "parametre:modifier",
-        badge: "soon",
-        disabled: true,
       },
     ],
   },
