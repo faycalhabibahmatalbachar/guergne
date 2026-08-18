@@ -16,6 +16,7 @@ export const sexeType = pgEnum("sexe_type", ['M', 'F'])
 export const statutDossier = pgEnum("statut_dossier", ['BROUILLON', 'A_VALIDER', 'VALIDE', 'INCOMPLET', 'REFUSE'])
 export const statutEcheance = pgEnum("statut_echeance", ['A_PAYER', 'PARTIEL', 'PAYE', 'EN_RETARD', 'EXONERE'])
 export const statutEleve = pgEnum("statut_eleve", ['CANDIDAT', 'PRE_INSCRIT', 'INSCRIT', 'SUSPENDU_DISCIPLINE', 'SUSPENDU_IMPAYE', 'EXCLU', 'TRANSFERE', 'ABANDON', 'DIPLOME', 'ARCHIVE'])
+export const statutEnseignant = pgEnum("statut_enseignant", ['PERMANENT', 'CONTRACTUEL', 'VACATAIRE', 'STAGIAIRE', 'SUSPENDU', 'RETRAITE', 'DEMISSIONNAIRE'])
 export const statutEnvoi = pgEnum("statut_envoi", ['EN_ATTENTE', 'ENVOYE', 'ECHOUE', 'LU'])
 export const statutJustification = pgEnum("statut_justification", ['NON_JUSTIFIEE', 'JUSTIFIEE', 'EN_ATTENTE'])
 export const statutNote = pgEnum("statut_note", ['NOTEE', 'ABSENT', 'ABSENT_ZERO', 'DISPENSE', 'NON_RENDU'])
@@ -306,36 +307,6 @@ export const codesActivation = pgTable("codes_activation", {
 	index("idx_codes_telephone").using("btree", table.telephone.asc().nullsLast().op("text_ops"), table.creeLe.desc().nullsFirst().op("text_ops")),
 ]);
 
-export const enseignants = pgTable("enseignants", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	utilisateurId: uuid("utilisateur_id"),
-	matricule: text().notNull(),
-	nom: text().notNull(),
-	prenom: text().notNull(),
-	sexe: sexeType(),
-	dateNaissance: date("date_naissance"),
-	telephone: text(),
-	email: text(),
-	adresse: text(),
-	diplome: text(),
-	specialite: text(),
-	dateEmbauche: date("date_embauche"),
-	typeContrat: text("type_contrat"),
-	photoUrl: text("photo_url"),
-	actif: boolean().default(true).notNull(),
-	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_enseignants_actif").using("btree", table.actif.asc().nullsLast().op("bool_ops")),
-	foreignKey({
-			columns: [table.utilisateurId],
-			foreignColumns: [utilisateurs.id],
-			name: "enseignants_utilisateur_id_fkey"
-		}).onDelete("set null"),
-	unique("enseignants_utilisateur_id_key").on(table.utilisateurId),
-	unique("enseignants_matricule_key").on(table.matricule),
-]);
-
 export const tuteurs = pgTable("tuteurs", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	utilisateurId: uuid("utilisateur_id"),
@@ -363,6 +334,42 @@ export const tuteurs = pgTable("tuteurs", {
 			name: "tuteurs_utilisateur_id_fkey"
 		}).onDelete("set null"),
 	unique("tuteurs_utilisateur_id_key").on(table.utilisateurId),
+]);
+
+export const enseignants = pgTable("enseignants", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	utilisateurId: uuid("utilisateur_id"),
+	matricule: text().notNull(),
+	nom: text().notNull(),
+	prenom: text().notNull(),
+	sexe: sexeType(),
+	dateNaissance: date("date_naissance"),
+	telephone: text(),
+	email: text(),
+	adresse: text(),
+	diplome: text(),
+	specialite: text(),
+	dateEmbauche: date("date_embauche"),
+	typeContrat: text("type_contrat"),
+	photoUrl: text("photo_url"),
+	actif: boolean().default(true).notNull(),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	statut: statutEnseignant().default('PERMANENT').notNull(),
+	dateFinContrat: date("date_fin_contrat"),
+	quartier: text(),
+	numeroCnps: text("numero_cnps"),
+	heuresContractuelles: numeric("heures_contractuelles", { precision: 4, scale:  1 }),
+	observations: text(),
+}, (table) => [
+	index("idx_enseignants_actif").using("btree", table.actif.asc().nullsLast().op("bool_ops")),
+	foreignKey({
+			columns: [table.utilisateurId],
+			foreignColumns: [utilisateurs.id],
+			name: "enseignants_utilisateur_id_fkey"
+		}).onDelete("set null"),
+	unique("enseignants_utilisateur_id_key").on(table.utilisateurId),
+	unique("enseignants_matricule_key").on(table.matricule),
 ]);
 
 export const piecesDossier = pgTable("pieces_dossier", {
@@ -461,6 +468,60 @@ export const classes = pgTable("classes", {
 	check("classes_capacite_max_check", sql`capacite_max > 0`),
 ]);
 
+export const emploiDuTemps = pgTable("emploi_du_temps", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	anneeId: uuid("annee_id").notNull(),
+	classeId: uuid("classe_id").notNull(),
+	matiereId: uuid("matiere_id").notNull(),
+	enseignantId: uuid("enseignant_id"),
+	salleId: uuid("salle_id"),
+	jourSemaine: smallint("jour_semaine").notNull(),
+	creneauId: uuid("creneau_id").notNull(),
+	semaineType: char("semaine_type", { length: 1 }),
+	publie: boolean().default(false).notNull(),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	nbCreneaux: smallint("nb_creneaux").default(1).notNull(),
+}, (table) => [
+	index("idx_edt_classe").using("btree", table.classeId.asc().nullsLast().op("int2_ops"), table.jourSemaine.asc().nullsLast().op("int2_ops")),
+	index("idx_edt_enseignant").using("btree", table.enseignantId.asc().nullsLast().op("uuid_ops"), table.jourSemaine.asc().nullsLast().op("uuid_ops")),
+	uniqueIndex("uq_edt_enseignant_creneau").using("btree", sql`annee_id`, sql`enseignant_id`, sql`jour_semaine`, sql`creneau_id`, sql`COALESCE(semaine_type, '*'::bpchar)`).where(sql`(enseignant_id IS NOT NULL)`),
+	uniqueIndex("uq_edt_salle_creneau").using("btree", sql`annee_id`, sql`salle_id`, sql`jour_semaine`, sql`creneau_id`, sql`COALESCE(semaine_type, '*'::bpchar)`).where(sql`(salle_id IS NOT NULL)`),
+	foreignKey({
+			columns: [table.anneeId],
+			foreignColumns: [anneesScolaires.id],
+			name: "emploi_du_temps_annee_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.classeId],
+			foreignColumns: [classes.id],
+			name: "emploi_du_temps_classe_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.creneauId],
+			foreignColumns: [creneauxHoraires.id],
+			name: "emploi_du_temps_creneau_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.enseignantId],
+			foreignColumns: [enseignants.id],
+			name: "emploi_du_temps_enseignant_id_fkey"
+		}).onDelete("set null"),
+	foreignKey({
+			columns: [table.matiereId],
+			foreignColumns: [matieres.id],
+			name: "emploi_du_temps_matiere_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.salleId],
+			foreignColumns: [salles.id],
+			name: "emploi_du_temps_salle_id_fkey"
+		}).onDelete("set null"),
+	unique("uq_edt_classe_creneau").on(table.anneeId, table.classeId, table.jourSemaine, table.creneauId, table.semaineType),
+	check("emploi_du_temps_jour_semaine_check", sql`(jour_semaine >= 1) AND (jour_semaine <= 7)`),
+	check("emploi_du_temps_nb_creneaux_check", sql`(nb_creneaux >= 1) AND (nb_creneaux <= 4)`),
+	check("emploi_du_temps_semaine_type_check", sql`semaine_type = ANY (ARRAY['A'::bpchar, 'B'::bpchar])`),
+]);
+
 export const changementsClasse = pgTable("changements_classe", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	inscriptionId: uuid("inscription_id").notNull(),
@@ -527,58 +588,6 @@ export const affectations = pgTable("affectations", {
 			name: "affectations_matiere_id_fkey"
 		}).onDelete("cascade"),
 	unique("affectations_annee_id_classe_id_matiere_id_key").on(table.anneeId, table.classeId, table.matiereId),
-]);
-
-export const emploiDuTemps = pgTable("emploi_du_temps", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	anneeId: uuid("annee_id").notNull(),
-	classeId: uuid("classe_id").notNull(),
-	matiereId: uuid("matiere_id").notNull(),
-	enseignantId: uuid("enseignant_id"),
-	salleId: uuid("salle_id"),
-	jourSemaine: smallint("jour_semaine").notNull(),
-	creneauId: uuid("creneau_id").notNull(),
-	semaineType: char("semaine_type", { length: 1 }),
-	publie: boolean().default(false).notNull(),
-	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_edt_classe").using("btree", table.classeId.asc().nullsLast().op("int2_ops"), table.jourSemaine.asc().nullsLast().op("int2_ops")),
-	index("idx_edt_enseignant").using("btree", table.enseignantId.asc().nullsLast().op("uuid_ops"), table.jourSemaine.asc().nullsLast().op("uuid_ops")),
-	uniqueIndex("uq_edt_enseignant_creneau").using("btree", sql`annee_id`, sql`enseignant_id`, sql`jour_semaine`, sql`creneau_id`, sql`COALESCE(semaine_type, '*'::bpchar)`).where(sql`(enseignant_id IS NOT NULL)`),
-	uniqueIndex("uq_edt_salle_creneau").using("btree", sql`annee_id`, sql`salle_id`, sql`jour_semaine`, sql`creneau_id`, sql`COALESCE(semaine_type, '*'::bpchar)`).where(sql`(salle_id IS NOT NULL)`),
-	foreignKey({
-			columns: [table.anneeId],
-			foreignColumns: [anneesScolaires.id],
-			name: "emploi_du_temps_annee_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.classeId],
-			foreignColumns: [classes.id],
-			name: "emploi_du_temps_classe_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.creneauId],
-			foreignColumns: [creneauxHoraires.id],
-			name: "emploi_du_temps_creneau_id_fkey"
-		}),
-	foreignKey({
-			columns: [table.enseignantId],
-			foreignColumns: [enseignants.id],
-			name: "emploi_du_temps_enseignant_id_fkey"
-		}).onDelete("set null"),
-	foreignKey({
-			columns: [table.matiereId],
-			foreignColumns: [matieres.id],
-			name: "emploi_du_temps_matiere_id_fkey"
-		}),
-	foreignKey({
-			columns: [table.salleId],
-			foreignColumns: [salles.id],
-			name: "emploi_du_temps_salle_id_fkey"
-		}).onDelete("set null"),
-	unique("uq_edt_classe_creneau").on(table.anneeId, table.classeId, table.jourSemaine, table.creneauId, table.semaineType),
-	check("emploi_du_temps_jour_semaine_check", sql`(jour_semaine >= 1) AND (jour_semaine <= 7)`),
-	check("emploi_du_temps_semaine_type_check", sql`semaine_type = ANY (ARRAY['A'::bpchar, 'B'::bpchar])`),
 ]);
 
 export const creneauxHoraires = pgTable("creneaux_horaires", {
@@ -1819,6 +1828,48 @@ export const parametres = pgTable("parametres", {
 		}),
 ]);
 
+export const remplacements = pgTable("remplacements", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	seanceId: uuid("seance_id"),
+	emploiDuTempsId: uuid("emploi_du_temps_id"),
+	enseignantAbsentId: uuid("enseignant_absent_id").notNull(),
+	enseignantRemplacantId: uuid("enseignant_remplacant_id"),
+	dateCours: date("date_cours").notNull(),
+	motif: text().notNull(),
+	dateRattrapage: date("date_rattrapage"),
+	decidePar: uuid("decide_par"),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_remplacements_absent").using("btree", table.enseignantAbsentId.asc().nullsLast().op("date_ops"), table.dateCours.desc().nullsFirst().op("date_ops")),
+	index("idx_remplacements_date").using("btree", table.dateCours.desc().nullsFirst().op("date_ops")),
+	foreignKey({
+			columns: [table.decidePar],
+			foreignColumns: [utilisateurs.id],
+			name: "remplacements_decide_par_fkey"
+		}),
+	foreignKey({
+			columns: [table.emploiDuTempsId],
+			foreignColumns: [emploiDuTemps.id],
+			name: "remplacements_emploi_du_temps_id_fkey"
+		}).onDelete("set null"),
+	foreignKey({
+			columns: [table.enseignantAbsentId],
+			foreignColumns: [enseignants.id],
+			name: "remplacements_enseignant_absent_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.enseignantRemplacantId],
+			foreignColumns: [enseignants.id],
+			name: "remplacements_enseignant_remplacant_id_fkey"
+		}).onDelete("set null"),
+	foreignKey({
+			columns: [table.seanceId],
+			foreignColumns: [seances.id],
+			name: "remplacements_seance_id_fkey"
+		}).onDelete("cascade"),
+	check("chk_remplacant", sql`enseignant_remplacant_id IS DISTINCT FROM enseignant_absent_id`),
+]);
+
 export const eleves = pgTable("eleves", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	matricule: text().notNull(),
@@ -1853,6 +1904,57 @@ export const eleves = pgTable("eleves", {
 	unique("eleves_matricule_key").on(table.matricule),
 	check("chk_naissance", sql`date_naissance < CURRENT_DATE`),
 ]);
+
+export const enseignantMatieres = pgTable("enseignant_matieres", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	enseignantId: uuid("enseignant_id").notNull(),
+	matiereId: uuid("matiere_id").notNull(),
+	estPrincipale: boolean("est_principale").default(false).notNull(),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_enseignant_matieres_ens").using("btree", table.enseignantId.asc().nullsLast().op("uuid_ops")),
+	index("idx_enseignant_matieres_mat").using("btree", table.matiereId.asc().nullsLast().op("uuid_ops")),
+	uniqueIndex("uq_matiere_principale").using("btree", table.enseignantId.asc().nullsLast().op("uuid_ops")).where(sql`est_principale`),
+	foreignKey({
+			columns: [table.enseignantId],
+			foreignColumns: [enseignants.id],
+			name: "enseignant_matieres_enseignant_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.matiereId],
+			foreignColumns: [matieres.id],
+			name: "enseignant_matieres_matiere_id_fkey"
+		}).onDelete("cascade"),
+	unique("enseignant_matieres_enseignant_id_matiere_id_key").on(table.enseignantId, table.matiereId),
+]);
+
+export const indisponibilites = pgTable("indisponibilites", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	enseignantId: uuid("enseignant_id").notNull(),
+	anneeId: uuid("annee_id").notNull(),
+	jourSemaine: smallint("jour_semaine").notNull(),
+	creneauId: uuid("creneau_id"),
+	motif: text(),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	uniqueIndex("uq_indisponibilite").using("btree", sql`annee_id`, sql`enseignant_id`, sql`jour_semaine`, sql`COALESCE(creneau_id, '00000000-0000-0000-0000-000000000000'::uu`),
+	foreignKey({
+			columns: [table.anneeId],
+			foreignColumns: [anneesScolaires.id],
+			name: "indisponibilites_annee_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.creneauId],
+			foreignColumns: [creneauxHoraires.id],
+			name: "indisponibilites_creneau_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.enseignantId],
+			foreignColumns: [enseignants.id],
+			name: "indisponibilites_enseignant_id_fkey"
+		}).onDelete("cascade"),
+	check("indisponibilites_jour_semaine_check", sql`(jour_semaine >= 1) AND (jour_semaine <= 7)`),
+]);
 export const vAssiduitePeriode = pgView("v_assiduite_periode", {	inscriptionId: uuid("inscription_id"),
 	periodeId: uuid("periode_id"),
 	heuresJustifiees: numeric("heures_justifiees"),
@@ -1876,3 +1978,13 @@ export const vSituationFinanciere = pgView("v_situation_financiere", {	inscripti
 	nbEcheancesEnRetard: bigint("nb_echeances_en_retard", { mode: "number" }),
 	prochaineEcheance: date("prochaine_echeance"),
 }).as(sql`SELECT inscription_id, sum(montant_du_fcfa) AS total_du_fcfa, sum(montant_paye_fcfa) AS total_paye_fcfa, sum(montant_exonere_fcfa) AS total_exonere_fcfa, sum(montant_du_fcfa - montant_paye_fcfa - montant_exonere_fcfa) AS reste_du_fcfa, count(*) FILTER (WHERE statut = 'EN_RETARD'::statut_echeance) AS nb_echeances_en_retard, min(date_limite) FILTER (WHERE statut = ANY (ARRAY['A_PAYER'::statut_echeance, 'PARTIEL'::statut_echeance, 'EN_RETARD'::statut_echeance])) AS prochaine_echeance FROM echeances e GROUP BY inscription_id`);
+
+export const vChargeEnseignant = pgView("v_charge_enseignant", {	enseignantId: uuid("enseignant_id"),
+	anneeId: uuid("annee_id"),
+	heuresContractuelles: numeric("heures_contractuelles", { precision: 4, scale:  1 }),
+	heuresAffectees: numeric("heures_affectees"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	creneauxPlaces: bigint("creneaux_places", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	nbAffectations: bigint("nb_affectations", { mode: "number" }),
+}).as(sql`SELECT e.id AS enseignant_id, a.id AS annee_id, e.heures_contractuelles, COALESCE(sum(DISTINCT af.heures_semaine), 0::numeric) AS heures_affectees, ( SELECT COALESCE(sum(edt.nb_creneaux), 0::bigint) AS "coalesce" FROM emploi_du_temps edt WHERE edt.enseignant_id = e.id AND edt.annee_id = a.id) AS creneaux_places, ( SELECT count(*) AS count FROM affectations x WHERE x.enseignant_id = e.id AND x.annee_id = a.id AND x.active) AS nb_affectations FROM enseignants e CROSS JOIN annees_scolaires a LEFT JOIN affectations af ON af.enseignant_id = e.id AND af.annee_id = a.id AND af.active WHERE e.actif GROUP BY e.id, a.id, e.heures_contractuelles`);

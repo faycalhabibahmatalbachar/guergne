@@ -109,8 +109,6 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/emploi-du-temps",
         icon: CalendarDays,
         action: "emploi_du_temps:lire",
-        badge: "soon",
-        disabled: true,
       },
     ],
   },
@@ -186,8 +184,6 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/personnel",
         icon: UserRoundCog,
         action: "utilisateur:creer",
-        badge: "soon",
-        disabled: true,
       },
       {
         id: "parametres",
