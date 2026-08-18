@@ -142,8 +142,6 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/assiduite",
         icon: BadgeCheck,
         action: "assiduite:lire",
-        badge: "soon",
-        disabled: true,
       },
       {
         id: "discipline",

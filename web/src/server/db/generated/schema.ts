@@ -671,9 +671,17 @@ export const seances = pgTable("seances", {
 	motifNonAssuree: text("motif_non_assuree"),
 	appelEffectue: boolean("appel_effectue").default(false).notNull(),
 	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	appelPar: uuid("appel_par"),
+	appelLe: timestamp("appel_le", { withTimezone: true, mode: 'string' }),
 }, (table) => [
-	index("idx_seances_classe_date").using("btree", table.classeId.asc().nullsLast().op("date_ops"), table.dateSeance.desc().nullsFirst().op("date_ops")),
-	index("idx_seances_enseignant").using("btree", table.enseignantId.asc().nullsLast().op("date_ops"), table.dateSeance.desc().nullsFirst().op("date_ops")),
+	index("idx_seances_appel_manquant").using("btree", table.dateSeance.desc().nullsFirst().op("date_ops")).where(sql`(NOT appel_effectue)`),
+	index("idx_seances_classe_date").using("btree", table.classeId.asc().nullsLast().op("date_ops"), table.dateSeance.desc().nullsFirst().op("uuid_ops")),
+	index("idx_seances_enseignant").using("btree", table.enseignantId.asc().nullsLast().op("uuid_ops"), table.dateSeance.desc().nullsFirst().op("date_ops")),
+	foreignKey({
+			columns: [table.appelPar],
+			foreignColumns: [utilisateurs.id],
+			name: "seances_appel_par_fkey"
+		}),
 	foreignKey({
 			columns: [table.classeId],
 			foreignColumns: [classes.id],
@@ -1105,7 +1113,8 @@ export const absences = pgTable("absences", {
 	index("idx_absences_a_notifier").using("btree", table.creeLe.asc().nullsLast().op("timestamptz_ops")).where(sql`(NOT parents_notifies)`),
 	index("idx_absences_date").using("btree", table.dateAbsence.desc().nullsFirst().op("date_ops")),
 	index("idx_absences_inscription").using("btree", table.inscriptionId.asc().nullsLast().op("date_ops"), table.dateAbsence.desc().nullsFirst().op("date_ops")),
-	index("idx_absences_periode").using("btree", table.periodeId.asc().nullsLast().op("enum_ops"), table.statut.asc().nullsLast().op("uuid_ops")),
+	index("idx_absences_non_justifiees").using("btree", table.inscriptionId.asc().nullsLast().op("uuid_ops")).where(sql`(statut = 'NON_JUSTIFIEE'::statut_justification)`),
+	index("idx_absences_periode").using("btree", table.periodeId.asc().nullsLast().op("uuid_ops"), table.statut.asc().nullsLast().op("uuid_ops")),
 	foreignKey({
 			columns: [table.creneauId],
 			foreignColumns: [creneauxHoraires.id],
@@ -1224,8 +1233,9 @@ export const incidents = pgTable("incidents", {
 	notifieLe: timestamp("notifie_le", { withTimezone: true, mode: 'string' }),
 	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("idx_incidents_gravite").using("btree", table.gravite.asc().nullsLast().op("enum_ops"), table.dateIncident.desc().nullsFirst().op("date_ops")),
-	index("idx_incidents_inscription").using("btree", table.inscriptionId.asc().nullsLast().op("date_ops"), table.dateIncident.desc().nullsFirst().op("uuid_ops")),
+	index("idx_incidents_gravite").using("btree", table.gravite.asc().nullsLast().op("date_ops"), table.dateIncident.desc().nullsFirst().op("date_ops")),
+	index("idx_incidents_inscription").using("btree", table.inscriptionId.asc().nullsLast().op("date_ops"), table.dateIncident.desc().nullsFirst().op("date_ops")),
+	index("idx_incidents_periode").using("btree", table.periodeId.asc().nullsLast().op("uuid_ops"), table.dateIncident.desc().nullsFirst().op("date_ops")),
 	foreignKey({
 			columns: [table.inscriptionId],
 			foreignColumns: [inscriptions.id],
@@ -1261,6 +1271,7 @@ export const sanctions = pgTable("sanctions", {
 	documentUrl: text("document_url"),
 	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
+	index("idx_sanctions_en_cours").using("btree", table.dateFin.asc().nullsLast().op("date_ops")).where(sql`(NOT executee)`),
 	index("idx_sanctions_inscription").using("btree", table.inscriptionId.asc().nullsLast().op("date_ops"), table.dateDebut.desc().nullsFirst().op("date_ops")),
 	foreignKey({
 			columns: [table.incidentId],
@@ -1978,6 +1989,22 @@ export const vSituationFinanciere = pgView("v_situation_financiere", {	inscripti
 	nbEcheancesEnRetard: bigint("nb_echeances_en_retard", { mode: "number" }),
 	prochaineEcheance: date("prochaine_echeance"),
 }).as(sql`SELECT inscription_id, sum(montant_du_fcfa) AS total_du_fcfa, sum(montant_paye_fcfa) AS total_paye_fcfa, sum(montant_exonere_fcfa) AS total_exonere_fcfa, sum(montant_du_fcfa - montant_paye_fcfa - montant_exonere_fcfa) AS reste_du_fcfa, count(*) FILTER (WHERE statut = 'EN_RETARD'::statut_echeance) AS nb_echeances_en_retard, min(date_limite) FILTER (WHERE statut = ANY (ARRAY['A_PAYER'::statut_echeance, 'PARTIEL'::statut_echeance, 'EN_RETARD'::statut_echeance])) AS prochaine_echeance FROM echeances e GROUP BY inscription_id`);
+
+export const vAlertesAssiduite = pgView("v_alertes_assiduite", {	inscriptionId: uuid("inscription_id"),
+	eleveId: uuid("eleve_id"),
+	matricule: text(),
+	nom: text(),
+	prenom: text(),
+	classeId: uuid("classe_id"),
+	classe: text(),
+	periodeId: uuid("periode_id"),
+	periode: text(),
+	heuresNonJustifiees: numeric("heures_non_justifiees"),
+	heuresJustifiees: numeric("heures_justifiees"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	nbRetards: bigint("nb_retards", { mode: "number" }),
+	seuil: integer(),
+}).as(sql`SELECT i.id AS inscription_id, e.id AS eleve_id, e.matricule, e.nom, e.prenom, c.id AS classe_id, c.libelle AS classe, p.id AS periode_id, p.libelle AS periode, COALESCE(sum(a.nb_heures) FILTER (WHERE a.statut <> 'JUSTIFIEE'::statut_justification), 0::numeric) AS heures_non_justifiees, COALESCE(sum(a.nb_heures) FILTER (WHERE a.statut = 'JUSTIFIEE'::statut_justification), 0::numeric) AS heures_justifiees, ( SELECT count(*) AS count FROM retards r WHERE r.inscription_id = i.id AND r.periode_id = p.id) AS nb_retards, ( SELECT etablissement.seuil_alerte_absence_heures FROM etablissement WHERE etablissement.id) AS seuil FROM inscriptions i JOIN eleves e ON e.id = i.eleve_id JOIN classes c ON c.id = i.classe_id JOIN periodes p ON p.annee_id = i.annee_id LEFT JOIN absences a ON a.inscription_id = i.id AND a.periode_id = p.id WHERE i.active GROUP BY i.id, e.id, c.id, p.id HAVING COALESCE(sum(a.nb_heures) FILTER (WHERE a.statut <> 'JUSTIFIEE'::statut_justification), 0::numeric) >= (( SELECT etablissement.seuil_alerte_absence_heures FROM etablissement WHERE etablissement.id))::numeric`);
 
 export const vChargeEnseignant = pgView("v_charge_enseignant", {	enseignantId: uuid("enseignant_id"),
 	anneeId: uuid("annee_id"),

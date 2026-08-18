@@ -163,6 +163,7 @@ export const utilisateursRelations = relations(utilisateurs, ({many}) => ({
 	piecesDossiers: many(piecesDossier),
 	changementsClasses: many(changementsClasse),
 	inscriptions: many(inscriptions),
+	seances: many(seances),
 	evaluations: many(evaluations),
 	notes: many(notes),
 	historiqueNotes: many(historiqueNotes),
@@ -407,6 +408,10 @@ export const affectationsRelations = relations(affectations, ({one}) => ({
 }));
 
 export const seancesRelations = relations(seances, ({one, many}) => ({
+	utilisateur: one(utilisateurs, {
+		fields: [seances.appelPar],
+		references: [utilisateurs.id]
+	}),
 	class: one(classes, {
 		fields: [seances.classeId],
 		references: [classes.id]
