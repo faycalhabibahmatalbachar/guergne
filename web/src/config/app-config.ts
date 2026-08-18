@@ -1,14 +1,17 @@
 import packageJson from "../../package.json";
 
-const currentYear = new Date().getFullYear();
+const anneeCourante = new Date().getFullYear();
 
 export const APP_CONFIG = {
-  name: "Studio Admin",
+  name: "Lycée La Renaissance",
+  nomComplet: "Lycée Guergné La Renaissance",
+  sigle: "LGR",
   version: packageJson.version,
-  copyright: `© ${currentYear}, Studio Admin.`,
+  copyright: `© ${anneeCourante}, Lycée Guergné La Renaissance.`,
+  devise: "FCFA",
   meta: {
-    title: "Studio Admin - Modern Next.js Dashboard Starter Template",
+    title: "Lycée Guergné La Renaissance — Administration",
     description:
-      "Studio Admin is a modern, open-source dashboard starter template built with Next.js 16, Tailwind CSS v4, and shadcn/ui. Perfect for SaaS apps, admin panels, and internal tools—fully customizable and production-ready.",
+      "Plateforme d'administration scolaire du Lycée Guergné La Renaissance : élèves, notes, bulletins, assiduité, discipline et scolarité, de la 6ème à la Terminale.",
   },
 };

@@ -1,28 +1,20 @@
 import {
-  Banknote,
-  Calendar,
-  ChartBar,
-  CheckSquare,
-  Fingerprint,
-  FolderOpen,
-  Forklift,
-  Gauge,
+  BadgeCheck,
+  CalendarDays,
+  FileText,
   GraduationCap,
-  HeartPulse,
-  Kanban,
   LayoutDashboard,
-  ListTodo,
-  Lock,
   type LucideIcon,
-  Mail,
-  MessageSquare,
-  ReceiptText,
-  Server,
-  ShoppingBag,
-  SquareArrowUpRight,
-  UserRound,
+  Megaphone,
+  NotebookPen,
+  Settings,
+  ShieldAlert,
   Users,
+  UserRoundCog,
+  Wallet,
 } from "lucide-react";
+
+import type { Action } from "@/server/guard/permissions";
 
 export type NavBadge = "new" | "soon";
 
@@ -34,6 +26,8 @@ export interface NavSubItem {
   badge?: NavBadge;
   disabled?: boolean;
   newTab?: boolean;
+  /** Action requise pour voir cette entrée. Absente = visible par tous. */
+  action?: Action;
 }
 
 interface NavItemBase {
@@ -43,6 +37,7 @@ interface NavItemBase {
   badge?: NavBadge;
   disabled?: boolean;
   newTab?: boolean;
+  action?: Action;
 }
 
 export interface NavMainLinkItem extends NavItemBase {
@@ -62,178 +57,144 @@ export interface NavGroup {
   items: NavMainItem[];
 }
 
+/**
+ * Navigation de l'administration.
+ *
+ * Chaque entrée porte l'action qu'elle exige. Le menu est filtré côté serveur
+ * en fonction du rôle de l'utilisateur connecté : un comptable ne voit pas
+ * « Notes », un enseignant ne voit pas « Finances ».
+ *
+ * Ce filtrage est un CONFORT D'INTERFACE, jamais une mesure de sécurité :
+ * l'autorisation réelle est vérifiée à chaque requête par `requirePermission`.
+ * Masquer un lien n'a jamais empêché personne de taper l'URL.
+ *
+ * Les entrées marquées « soon » sont des modules planifiés mais non livrés.
+ * Elles sont désactivées, jamais cliquables : un bouton qui ne fait rien est
+ * pire qu'un bouton absent.
+ */
 export const sidebarItems: NavGroup[] = [
   {
     id: 1,
-    label: "Dashboards",
+    label: "Pilotage",
     items: [
       {
-        id: "default",
-        title: "Default",
+        id: "tableau-de-bord",
+        title: "Tableau de bord",
         url: "/dashboard/default",
         icon: LayoutDashboard,
-      },
-      {
-        id: "crm",
-        title: "CRM",
-        url: "/dashboard/crm",
-        icon: ChartBar,
-      },
-      {
-        id: "finance",
-        title: "Finance",
-        url: "/dashboard/finance",
-        icon: Banknote,
-      },
-      {
-        id: "analytics",
-        title: "Analytics",
-        url: "/dashboard/analytics",
-        icon: Gauge,
-      },
-      {
-        id: "productivity",
-        title: "Productivity",
-        url: "/dashboard/productivity",
-        icon: ListTodo,
-      },
-      {
-        id: "ecommerce",
-        title: "E-commerce",
-        url: "/dashboard/ecommerce",
-        icon: ShoppingBag,
-      },
-      {
-        id: "academy",
-        title: "Academy",
-        url: "/dashboard/academy",
-        icon: GraduationCap,
-      },
-      {
-        id: "logistics",
-        title: "Logistics",
-        url: "/dashboard/logistics",
-        icon: Forklift,
-      },
-      {
-        id: "infrastructure",
-        title: "Infrastructure",
-        url: "/dashboard/infrastructure",
-        icon: Server,
-      },
-      {
-        id: "file-manager",
-        title: "File Manager",
-        url: "/dashboard/file-manager",
-        icon: FolderOpen,
-        badge: "new",
-      },
-      {
-        id: "patient-monitoring",
-        title: "Patient Monitoring",
-        url: "/dashboard/patient-monitoring",
-        icon: HeartPulse,
-        badge: "new",
       },
     ],
   },
   {
     id: 2,
-    label: "Pages",
+    label: "Scolarité",
     items: [
       {
-        id: "email",
-        title: "Email",
-        url: "/dashboard/mail",
-        icon: Mail,
+        id: "eleves",
+        title: "Élèves",
+        url: "/dashboard/eleves",
+        icon: GraduationCap,
+        action: "eleve:lire",
       },
       {
-        id: "chat",
-        title: "Chat",
-        url: "/dashboard/chat",
-        icon: MessageSquare,
-      },
-      {
-        id: "calendar",
-        title: "Calendar",
-        url: "/dashboard/calendar",
-        icon: Calendar,
-      },
-      {
-        id: "kanban",
-        title: "Kanban",
-        url: "/dashboard/kanban",
-        icon: Kanban,
-      },
-      {
-        id: "tasks",
-        title: "Tasks",
-        url: "/dashboard/tasks",
-        icon: CheckSquare,
-      },
-      {
-        id: "invoice",
-        title: "Invoice",
-        url: "/dashboard/invoice",
-        icon: ReceiptText,
-      },
-      {
-        id: "profile",
-        title: "Profile",
-        url: "/dashboard/profile",
-        icon: UserRound,
-        badge: "new",
-      },
-      {
-        id: "users",
-        title: "Users",
-        url: "/dashboard/users",
+        id: "classes",
+        title: "Classes",
+        url: "/dashboard/classes",
         icon: Users,
+        action: "classe:lire",
       },
       {
-        id: "roles",
-        title: "Roles",
-        url: "/dashboard/roles",
-        icon: Lock,
-      },
-      {
-        id: "authentication",
-        title: "Authentication",
-        icon: Fingerprint,
-        subItems: [
-          { id: "auth-login-v1", title: "Login v1", url: "/auth/v1/login", newTab: true },
-          { id: "auth-login-v2", title: "Login v2", url: "/auth/v2/login", newTab: true },
-          { id: "auth-register-v1", title: "Register v1", url: "/auth/v1/register", newTab: true },
-          { id: "auth-register-v2", title: "Register v2", url: "/auth/v2/register", newTab: true },
-        ],
+        id: "emploi-du-temps",
+        title: "Emploi du temps",
+        url: "/dashboard/emploi-du-temps",
+        icon: CalendarDays,
+        action: "emploi_du_temps:lire",
+        badge: "soon",
+        disabled: true,
       },
     ],
   },
   {
     id: 3,
-    label: "Legacy",
+    label: "Pédagogie",
     items: [
       {
-        id: "legacy-dashboards",
-        title: "Dashboards",
-        subItems: [
-          { id: "legacy-default", title: "Default V1", url: "/dashboard/default-v1" },
-          { id: "legacy-crm", title: "CRM V1", url: "/dashboard/crm-v1" },
-          { id: "legacy-finance", title: "Finance V1", url: "/dashboard/finance-v1" },
-          { id: "legacy-analytics", title: "Analytics V1", url: "/dashboard/analytics-v1" },
-        ],
+        id: "notes",
+        title: "Notes",
+        url: "/dashboard/notes",
+        icon: NotebookPen,
+        action: "note:lire",
+      },
+      {
+        id: "bulletins",
+        title: "Bulletins",
+        url: "/dashboard/bulletins",
+        icon: FileText,
+        action: "bulletin:lire",
       },
     ],
   },
   {
     id: 4,
-    label: "Misc",
+    label: "Vie scolaire",
     items: [
       {
-        id: "others",
-        title: "Others",
-        url: "/dashboard/coming-soon",
-        icon: SquareArrowUpRight,
+        id: "assiduite",
+        title: "Assiduité",
+        url: "/dashboard/assiduite",
+        icon: BadgeCheck,
+        action: "assiduite:lire",
+        badge: "soon",
+        disabled: true,
+      },
+      {
+        id: "discipline",
+        title: "Discipline",
+        url: "/dashboard/discipline",
+        icon: ShieldAlert,
+        action: "discipline:lire",
+        badge: "soon",
+        disabled: true,
+      },
+      {
+        id: "communication",
+        title: "Communication",
+        url: "/dashboard/communication",
+        icon: Megaphone,
+        action: "annonce:lire",
+        badge: "soon",
+        disabled: true,
+      },
+    ],
+  },
+  {
+    id: 5,
+    label: "Administration",
+    items: [
+      {
+        id: "finances",
+        title: "Finances",
+        url: "/dashboard/finances",
+        icon: Wallet,
+        action: "finance:lire",
+        badge: "soon",
+        disabled: true,
+      },
+      {
+        id: "personnel",
+        title: "Personnel",
+        url: "/dashboard/personnel",
+        icon: UserRoundCog,
+        action: "utilisateur:creer",
+        badge: "soon",
+        disabled: true,
+      },
+      {
+        id: "parametres",
+        title: "Paramètres",
+        url: "/dashboard/parametres",
+        icon: Settings,
+        action: "parametre:modifier",
         badge: "soon",
         disabled: true,
       },
