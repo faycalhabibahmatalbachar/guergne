@@ -1,5 +1,34 @@
 import { relations } from "drizzle-orm/relations";
-import { anneesScolaires, periodes, niveaux, coefficients, matieres, series, evenementsCalendrier, classes, utilisateurs, sessions, jetonsRafraichissement, tuteurs, enseignants, piecesDossier, eleves, eleveTuteur, salles, emploiDuTemps, creneauxHoraires, changementsClasse, inscriptions, affectations, seances, evaluations, notes, historiqueNotes, appreciationsMatiere, moyennesMatiere, moyennesGenerales, conseilsClasse, bulletins, bulletinsAnnuels, devoirs, ressourcesPedagogiques, absences, retards, sortiesAnticipees, incidents, sanctions, conseilsDiscipline, grillesTarifaires, notesConduite, tranches, echeances, messages, paiements, exonerations, annonces, appareils, lecturesAnnonces, convocations, journalAudit, documentsEmis, notifications, historiqueStatuts, parametres, remplacements, enseignantMatieres, indisponibilites, annonceDestinataires } from "./schema";
+import { fichiers, etablissement, anneesScolaires, periodes, niveaux, coefficients, matieres, series, evenementsCalendrier, classes, utilisateurs, sessions, jetonsRafraichissement, tuteurs, enseignants, eleves, eleveTuteur, piecesDossier, emploiDuTemps, creneauxHoraires, salles, changementsClasse, inscriptions, affectations, seances, evaluations, notes, historiqueNotes, appreciationsMatiere, moyennesMatiere, moyennesGenerales, conseilsClasse, bulletins, bulletinsAnnuels, devoirs, ressourcesPedagogiques, absences, retards, sortiesAnticipees, incidents, sanctions, conseilsDiscipline, grillesTarifaires, notesConduite, tranches, annonces, echeances, messages, paiements, exonerations, appareils, lecturesAnnonces, convocations, journalAudit, documentsEmis, notifications, historiqueStatuts, parametres, remplacements, enseignantMatieres, indisponibilites, annonceDestinataires } from "./schema";
+
+export const etablissementRelations = relations(etablissement, ({one}) => ({
+	fichier_cachetId: one(fichiers, {
+		fields: [etablissement.cachetId],
+		references: [fichiers.id],
+		relationName: "etablissement_cachetId_fichiers_id"
+	}),
+	fichier_logoId: one(fichiers, {
+		fields: [etablissement.logoId],
+		references: [fichiers.id],
+		relationName: "etablissement_logoId_fichiers_id"
+	}),
+}));
+
+export const fichiersRelations = relations(fichiers, ({one, many}) => ({
+	etablissements_cachetId: many(etablissement, {
+		relationName: "etablissement_cachetId_fichiers_id"
+	}),
+	etablissements_logoId: many(etablissement, {
+		relationName: "etablissement_logoId_fichiers_id"
+	}),
+	enseignants: many(enseignants),
+	piecesDossiers: many(piecesDossier),
+	utilisateur: one(utilisateurs, {
+		fields: [fichiers.deposePar],
+		references: [utilisateurs.id]
+	}),
+	eleves: many(eleves),
+}));
 
 export const periodesRelations = relations(periodes, ({one, many}) => ({
 	anneesScolaire: one(anneesScolaires, {
@@ -23,8 +52,8 @@ export const anneesScolairesRelations = relations(anneesScolaires, ({many}) => (
 	periodes: many(periodes),
 	coefficients: many(coefficients),
 	evenementsCalendriers: many(evenementsCalendrier),
-	classes: many(classes),
 	emploiDuTemps: many(emploiDuTemps),
+	classes: many(classes),
 	affectations: many(affectations),
 	inscriptions: many(inscriptions),
 	evaluations: many(evaluations),
@@ -110,6 +139,7 @@ export const evenementsCalendrierRelations = relations(evenementsCalendrier, ({o
 
 export const classesRelations = relations(classes, ({one, many}) => ({
 	evenementsCalendriers: many(evenementsCalendrier),
+	emploiDuTemps: many(emploiDuTemps),
 	anneesScolaire: one(anneesScolaires, {
 		fields: [classes.anneeId],
 		references: [anneesScolaires.id]
@@ -130,7 +160,6 @@ export const classesRelations = relations(classes, ({one, many}) => ({
 		fields: [classes.serieId],
 		references: [series.id]
 	}),
-	emploiDuTemps: many(emploiDuTemps),
 	changementsClasses_classeDestinationId: many(changementsClasse, {
 		relationName: "changementsClasse_classeDestinationId_classes_id"
 	}),
@@ -185,6 +214,7 @@ export const utilisateursRelations = relations(utilisateurs, ({many}) => ({
 	incidents: many(incidents),
 	sanctions: many(sanctions),
 	notesConduites: many(notesConduite),
+	annonces: many(annonces),
 	messages_destinataireId: many(messages, {
 		relationName: "messages_destinataireId_utilisateurs_id"
 	}),
@@ -193,7 +223,6 @@ export const utilisateursRelations = relations(utilisateurs, ({many}) => ({
 	}),
 	paiements: many(paiements),
 	exonerations: many(exonerations),
-	annonces: many(annonces),
 	appareils: many(appareils),
 	lecturesAnnonces: many(lecturesAnnonces),
 	convocations: many(convocations),
@@ -203,6 +232,7 @@ export const utilisateursRelations = relations(utilisateurs, ({many}) => ({
 	historiqueStatuts: many(historiqueStatuts),
 	parametres: many(parametres),
 	remplacements: many(remplacements),
+	fichiers: many(fichiers),
 }));
 
 export const jetonsRafraichissementRelations = relations(jetonsRafraichissement, ({one, many}) => ({
@@ -232,12 +262,16 @@ export const tuteursRelations = relations(tuteurs, ({one, many}) => ({
 }));
 
 export const enseignantsRelations = relations(enseignants, ({one, many}) => ({
+	fichier: one(fichiers, {
+		fields: [enseignants.photoId],
+		references: [fichiers.id]
+	}),
 	utilisateur: one(utilisateurs, {
 		fields: [enseignants.utilisateurId],
 		references: [utilisateurs.id]
 	}),
-	classes: many(classes),
 	emploiDuTemps: many(emploiDuTemps),
+	classes: many(classes),
 	affectations: many(affectations),
 	seances: many(seances),
 	appreciationsMatieres: many(appreciationsMatiere),
@@ -254,29 +288,6 @@ export const enseignantsRelations = relations(enseignants, ({one, many}) => ({
 	indisponibilites: many(indisponibilites),
 }));
 
-export const piecesDossierRelations = relations(piecesDossier, ({one}) => ({
-	utilisateur: one(utilisateurs, {
-		fields: [piecesDossier.deposePar],
-		references: [utilisateurs.id]
-	}),
-	eleve: one(eleves, {
-		fields: [piecesDossier.eleveId],
-		references: [eleves.id]
-	}),
-}));
-
-export const elevesRelations = relations(eleves, ({many}) => ({
-	piecesDossiers: many(piecesDossier),
-	eleveTuteurs: many(eleveTuteur),
-	inscriptions: many(inscriptions),
-	messages: many(messages),
-	convocations: many(convocations),
-	documentsEmis: many(documentsEmis),
-	notifications: many(notifications),
-	historiqueStatuts: many(historiqueStatuts),
-	annonceDestinataires: many(annonceDestinataires),
-}));
-
 export const eleveTuteurRelations = relations(eleveTuteur, ({one}) => ({
 	eleve: one(eleves, {
 		fields: [eleveTuteur.eleveId],
@@ -288,9 +299,35 @@ export const eleveTuteurRelations = relations(eleveTuteur, ({one}) => ({
 	}),
 }));
 
-export const sallesRelations = relations(salles, ({many}) => ({
-	classes: many(classes),
-	emploiDuTemps: many(emploiDuTemps),
+export const elevesRelations = relations(eleves, ({one, many}) => ({
+	eleveTuteurs: many(eleveTuteur),
+	piecesDossiers: many(piecesDossier),
+	inscriptions: many(inscriptions),
+	messages: many(messages),
+	convocations: many(convocations),
+	documentsEmis: many(documentsEmis),
+	notifications: many(notifications),
+	historiqueStatuts: many(historiqueStatuts),
+	annonceDestinataires: many(annonceDestinataires),
+	fichier: one(fichiers, {
+		fields: [eleves.photoId],
+		references: [fichiers.id]
+	}),
+}));
+
+export const piecesDossierRelations = relations(piecesDossier, ({one}) => ({
+	utilisateur: one(utilisateurs, {
+		fields: [piecesDossier.deposePar],
+		references: [utilisateurs.id]
+	}),
+	eleve: one(eleves, {
+		fields: [piecesDossier.eleveId],
+		references: [eleves.id]
+	}),
+	fichier: one(fichiers, {
+		fields: [piecesDossier.fichierId],
+		references: [fichiers.id]
+	}),
 }));
 
 export const emploiDuTempsRelations = relations(emploiDuTemps, ({one, many}) => ({
@@ -327,6 +364,11 @@ export const creneauxHorairesRelations = relations(creneauxHoraires, ({many}) =>
 	seances: many(seances),
 	absences: many(absences),
 	indisponibilites: many(indisponibilites),
+}));
+
+export const sallesRelations = relations(salles, ({many}) => ({
+	emploiDuTemps: many(emploiDuTemps),
+	classes: many(classes),
 }));
 
 export const changementsClasseRelations = relations(changementsClasse, ({one}) => ({
@@ -777,6 +819,27 @@ export const tranchesRelations = relations(tranches, ({one, many}) => ({
 	echeances: many(echeances),
 }));
 
+export const annoncesRelations = relations(annonces, ({one, many}) => ({
+	anneesScolaire: one(anneesScolaires, {
+		fields: [annonces.anneeId],
+		references: [anneesScolaires.id]
+	}),
+	class: one(classes, {
+		fields: [annonces.classeId],
+		references: [classes.id]
+	}),
+	niveau: one(niveaux, {
+		fields: [annonces.niveauId],
+		references: [niveaux.id]
+	}),
+	utilisateur: one(utilisateurs, {
+		fields: [annonces.publieePar],
+		references: [utilisateurs.id]
+	}),
+	lecturesAnnonces: many(lecturesAnnonces),
+	annonceDestinataires: many(annonceDestinataires),
+}));
+
 export const echeancesRelations = relations(echeances, ({one, many}) => ({
 	inscription: one(inscriptions, {
 		fields: [echeances.inscriptionId],
@@ -850,27 +913,6 @@ export const exonerationsRelations = relations(exonerations, ({one}) => ({
 		fields: [exonerations.inscriptionId],
 		references: [inscriptions.id]
 	}),
-}));
-
-export const annoncesRelations = relations(annonces, ({one, many}) => ({
-	anneesScolaire: one(anneesScolaires, {
-		fields: [annonces.anneeId],
-		references: [anneesScolaires.id]
-	}),
-	class: one(classes, {
-		fields: [annonces.classeId],
-		references: [classes.id]
-	}),
-	niveau: one(niveaux, {
-		fields: [annonces.niveauId],
-		references: [niveaux.id]
-	}),
-	utilisateur: one(utilisateurs, {
-		fields: [annonces.publieePar],
-		references: [utilisateurs.id]
-	}),
-	lecturesAnnonces: many(lecturesAnnonces),
-	annonceDestinataires: many(annonceDestinataires),
 }));
 
 export const appareilsRelations = relations(appareils, ({one}) => ({

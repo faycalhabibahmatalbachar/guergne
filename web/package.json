@@ -13,9 +13,11 @@
     "prepare": "husky",
     "generate:presets": "ts-node -P tsconfig.scripts.json src/scripts/generate-theme-presets.ts",
     "db:migrate": "node scripts/migrate.mjs",
-    "db:pull": "drizzle-kit pull",
+    "db:pull": "drizzle-kit pull && node scripts/corriger-schema.mjs",
     "compte:creer": "node scripts/creer-compte.mjs",
-    "test": "node --test src/server/domain/*.test.ts"
+    "test": "node --test src/server/domain/*.test.ts",
+    "db:peupler": "node scripts/peupler.mjs",
+    "db:purger": "node scripts/peupler.mjs --purge"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [
@@ -31,6 +33,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@neondatabase/serverless": "^1.1.0",
     "@node-rs/argon2": "^2.1.0",
+    "@react-pdf/renderer": "^4.6.1",
     "@shadcn/react": "^0.3.0",
     "@tanstack/react-table": "^9.1.2",
     "@vercel/analytics": "^2.0.1",

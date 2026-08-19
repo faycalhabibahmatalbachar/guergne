@@ -23,6 +23,7 @@ import { listerClassesCourantes } from "@/server/domain/eleves";
 import { exigerPage } from "@/server/guard";
 
 import { ActionsDossier } from "./_components/actions-dossier";
+import { PhotoEleve } from "./_components/photo-eleve";
 
 export const dynamic = "force-dynamic";
 
@@ -93,10 +94,11 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
       {/* En-tête */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-4">
-          <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-muted font-semibold text-lg">
-            {eleve.prenom.charAt(0)}
-            {eleve.nom.charAt(0)}
-          </div>
+          <PhotoEleve
+            eleveId={eleve.id}
+            photoId={eleve.photoId}
+            nomComplet={`${eleve.prenom} ${eleve.nom}`}
+          />
           <div>
             <h1 className="font-semibold text-2xl tracking-tight">
               {eleve.prenom} {eleve.nom}

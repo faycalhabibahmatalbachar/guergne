@@ -1,5 +1,6 @@
-import { pgTable, text, timestamp, check, boolean, numeric, integer, uniqueIndex, unique, uuid, date, index, foreignKey, smallint, inet, char, time, bigserial, jsonb, pgView, bigint, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, text, timestamp, foreignKey, check, boolean, numeric, integer, uuid, uniqueIndex, unique, date, index, smallint, inet, char, time, bigserial, jsonb, pgView, bigint, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
+import { bytea } from "../types-personnalises";
 
 export const canalNotification = pgEnum("canal_notification", ['PUSH', 'SMS', 'EMAIL', 'IN_APP'])
 export const cibleDiffusion = pgEnum("cible_diffusion", ['TOUS', 'NIVEAU', 'CLASSE', 'ELEVE', 'ENSEIGNANTS', 'PERSONNEL'])
@@ -31,6 +32,7 @@ export const typePeriode = pgEnum("type_periode", ['TRIMESTRE', 'SEMESTRE'])
 export const typePiece = pgEnum("type_piece", ['ACTE_NAISSANCE', 'PHOTO', 'BULLETIN_ANTERIEUR', 'CERTIFICAT_TRANSFERT', 'CERTIFICAT_MEDICAL', 'PIECE_IDENTITE_TUTEUR', 'JUSTIFICATIF_ABSENCE', 'AUTRE'])
 export const typeSalle = pgEnum("type_salle", ['CLASSE', 'LABORATOIRE', 'INFORMATIQUE', 'AMPHI', 'AUTRE'])
 export const typeSanction = pgEnum("type_sanction", ['AVERTISSEMENT_ORAL', 'AVERTISSEMENT_ECRIT', 'RETENUE', 'TRAVAIL_INTERET_GENERAL', 'EXCLUSION_COURS', 'EXCLUSION_TEMPORAIRE', 'CONSEIL_DISCIPLINE', 'EXCLUSION_DEFINITIVE'])
+export const usageFichier = pgEnum("usage_fichier", ['PHOTO_ELEVE', 'PHOTO_ENSEIGNANT', 'PIECE_DOSSIER', 'LOGO_ETABLISSEMENT', 'CACHET_ETABLISSEMENT', 'PIECE_JOINTE', 'JUSTIFICATIF'])
 
 
 export const migrations = pgTable("_migrations", {
@@ -60,7 +62,19 @@ export const etablissement = pgTable("etablissement", {
 	bloquerBulletinSiImpaye: boolean("bloquer_bulletin_si_impaye").default(false).notNull(),
 	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	logoId: uuid("logo_id"),
+	cachetId: uuid("cachet_id"),
 }, (table) => [
+	foreignKey({
+			columns: [table.cachetId],
+			foreignColumns: [fichiers.id],
+			name: "etablissement_cachet_id_fkey"
+		}).onDelete("set null"),
+	foreignKey({
+			columns: [table.logoId],
+			foreignColumns: [fichiers.id],
+			name: "etablissement_logo_id_fkey"
+		}).onDelete("set null"),
 	check("etablissement_id_check", sql`CHECK (id)`),
 ]);
 
@@ -137,6 +151,7 @@ export const coefficients = pgTable("coefficients", {
 }, (table) => [
 	index("idx_coefficients_lookup").using("btree", table.anneeId.asc().nullsLast().op("uuid_ops"), table.niveauId.asc().nullsLast().op("uuid_ops"), table.serieId.asc().nullsLast().op("uuid_ops")),
 	uniqueIndex("uq_coefficient").using("btree", sql`annee_id`, sql`matiere_id`, sql`niveau_id`, sql`COALESCE(serie_id, '00000000-0000-0000-0000-000000000000'::uuid`),
+	uniqueIndex("uq_coefficient_nomme").using("btree", sql`annee_id`, sql`matiere_id`, sql`niveau_id`, sql`COALESCE(serie_id, '00000000-0000-0000-0000-000000000000'::uuid`),
 	foreignKey({
 			columns: [table.anneeId],
 			foreignColumns: [anneesScolaires.id],
@@ -192,6 +207,7 @@ export const salles = pgTable("salles", {
 	capacite: smallint(),
 	batiment: text(),
 	active: boolean().default(true).notNull(),
+	donneesSemees: boolean("donnees_semees").default(false).notNull(),
 }, (table) => [
 	unique("salles_code_key").on(table.code),
 	check("salles_capacite_check", sql`capacite > 0`),
@@ -245,6 +261,7 @@ export const utilisateurs = pgTable("utilisateurs", {
 	verrouilleJusqua: timestamp("verrouille_jusqua", { withTimezone: true, mode: 'string' }),
 	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	donneesSemees: boolean("donnees_semees").default(false).notNull(),
 }, (table) => [
 	index("idx_utilisateurs_role").using("btree", table.role.asc().nullsLast().op("enum_ops")).where(sql`actif`),
 	index("idx_utilisateurs_telephone").using("btree", table.telephone.asc().nullsLast().op("text_ops")).where(sql`(telephone IS NOT NULL)`),
@@ -327,6 +344,7 @@ export const tuteurs = pgTable("tuteurs", {
 	accepteSms: boolean("accepte_sms").default(true).notNull(),
 	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	donneesSemees: boolean("donnees_semees").default(false).notNull(),
 }, (table) => [
 	index("idx_tuteurs_telephone").using("btree", table.telephone.asc().nullsLast().op("text_ops")),
 	foreignKey({
@@ -362,8 +380,16 @@ export const enseignants = pgTable("enseignants", {
 	numeroCnps: text("numero_cnps"),
 	heuresContractuelles: numeric("heures_contractuelles", { precision: 4, scale:  1 }),
 	observations: text(),
+	donneesSemees: boolean("donnees_semees").default(false).notNull(),
+	photoId: uuid("photo_id"),
 }, (table) => [
 	index("idx_enseignants_actif").using("btree", table.actif.asc().nullsLast().op("bool_ops")),
+	index("idx_enseignants_semees").using("btree", table.id.asc().nullsLast().op("uuid_ops")).where(sql`donnees_semees`),
+	foreignKey({
+			columns: [table.photoId],
+			foreignColumns: [fichiers.id],
+			name: "enseignants_photo_id_fkey"
+		}).onDelete("set null"),
 	foreignKey({
 			columns: [table.utilisateurId],
 			foreignColumns: [utilisateurs.id],
@@ -371,30 +397,6 @@ export const enseignants = pgTable("enseignants", {
 		}).onDelete("set null"),
 	unique("enseignants_utilisateur_id_key").on(table.utilisateurId),
 	unique("enseignants_matricule_key").on(table.matricule),
-]);
-
-export const piecesDossier = pgTable("pieces_dossier", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	eleveId: uuid("eleve_id").notNull(),
-	type: typePiece().notNull(),
-	libelle: text().notNull(),
-	fichierUrl: text("fichier_url").notNull(),
-	tailleOctets: integer("taille_octets"),
-	mimeType: text("mime_type"),
-	deposePar: uuid("depose_par"),
-	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_pieces_eleve").using("btree", table.eleveId.asc().nullsLast().op("uuid_ops")),
-	foreignKey({
-			columns: [table.deposePar],
-			foreignColumns: [utilisateurs.id],
-			name: "pieces_dossier_depose_par_fkey"
-		}),
-	foreignKey({
-			columns: [table.eleveId],
-			foreignColumns: [eleves.id],
-			name: "pieces_dossier_eleve_id_fkey"
-		}).onDelete("cascade"),
 ]);
 
 export const eleveTuteur = pgTable("eleve_tuteur", {
@@ -425,48 +427,35 @@ export const eleveTuteur = pgTable("eleve_tuteur", {
 	unique("eleve_tuteur_eleve_id_tuteur_id_key").on(table.eleveId, table.tuteurId),
 ]);
 
-export const classes = pgTable("classes", {
+export const piecesDossier = pgTable("pieces_dossier", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
-	anneeId: uuid("annee_id").notNull(),
-	niveauId: uuid("niveau_id").notNull(),
-	serieId: uuid("serie_id"),
+	eleveId: uuid("eleve_id").notNull(),
+	type: typePiece().notNull(),
 	libelle: text().notNull(),
-	code: text().notNull(),
-	capaciteMax: smallint("capacite_max").default(60).notNull(),
-	salleId: uuid("salle_id"),
-	professeurPrincipalId: uuid("professeur_principal_id"),
-	active: boolean().default(true).notNull(),
+	fichierUrl: text("fichier_url"),
+	tailleOctets: integer("taille_octets"),
+	mimeType: text("mime_type"),
+	deposePar: uuid("depose_par"),
 	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	fichierId: uuid("fichier_id"),
 }, (table) => [
-	index("idx_classes_annee").using("btree", table.anneeId.asc().nullsLast().op("uuid_ops")).where(sql`active`),
-	index("idx_classes_niveau").using("btree", table.niveauId.asc().nullsLast().op("uuid_ops"), table.serieId.asc().nullsLast().op("uuid_ops")),
+	index("idx_pieces_eleve").using("btree", table.eleveId.asc().nullsLast().op("uuid_ops")),
 	foreignKey({
-			columns: [table.anneeId],
-			foreignColumns: [anneesScolaires.id],
-			name: "classes_annee_id_fkey"
+			columns: [table.deposePar],
+			foreignColumns: [utilisateurs.id],
+			name: "pieces_dossier_depose_par_fkey"
+		}),
+	foreignKey({
+			columns: [table.eleveId],
+			foreignColumns: [eleves.id],
+			name: "pieces_dossier_eleve_id_fkey"
 		}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.niveauId],
-			foreignColumns: [niveaux.id],
-			name: "classes_niveau_id_fkey"
-		}),
-	foreignKey({
-			columns: [table.professeurPrincipalId],
-			foreignColumns: [enseignants.id],
-			name: "classes_professeur_principal_id_fkey"
-		}).onDelete("set null"),
-	foreignKey({
-			columns: [table.salleId],
-			foreignColumns: [salles.id],
-			name: "classes_salle_id_fkey"
-		}),
-	foreignKey({
-			columns: [table.serieId],
-			foreignColumns: [series.id],
-			name: "classes_serie_id_fkey"
-		}),
-	unique("classes_annee_id_code_key").on(table.anneeId, table.code),
-	check("classes_capacite_max_check", sql`capacite_max > 0`),
+			columns: [table.fichierId],
+			foreignColumns: [fichiers.id],
+			name: "pieces_dossier_fichier_id_fkey"
+		}).onDelete("cascade"),
+	check("chk_piece_a_un_contenu", sql`(fichier_url IS NOT NULL) OR (fichier_id IS NOT NULL)`),
 ]);
 
 export const emploiDuTemps = pgTable("emploi_du_temps", {
@@ -521,6 +510,52 @@ export const emploiDuTemps = pgTable("emploi_du_temps", {
 	check("emploi_du_temps_jour_semaine_check", sql`(jour_semaine >= 1) AND (jour_semaine <= 7)`),
 	check("emploi_du_temps_nb_creneaux_check", sql`(nb_creneaux >= 1) AND (nb_creneaux <= 4)`),
 	check("emploi_du_temps_semaine_type_check", sql`semaine_type = ANY (ARRAY['A'::bpchar, 'B'::bpchar])`),
+]);
+
+export const classes = pgTable("classes", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	anneeId: uuid("annee_id").notNull(),
+	niveauId: uuid("niveau_id").notNull(),
+	serieId: uuid("serie_id"),
+	libelle: text().notNull(),
+	code: text().notNull(),
+	capaciteMax: smallint("capacite_max").default(60).notNull(),
+	salleId: uuid("salle_id"),
+	professeurPrincipalId: uuid("professeur_principal_id"),
+	active: boolean().default(true).notNull(),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	donneesSemees: boolean("donnees_semees").default(false).notNull(),
+}, (table) => [
+	index("idx_classes_annee").using("btree", table.anneeId.asc().nullsLast().op("uuid_ops")).where(sql`active`),
+	index("idx_classes_niveau").using("btree", table.niveauId.asc().nullsLast().op("uuid_ops"), table.serieId.asc().nullsLast().op("uuid_ops")),
+	index("idx_classes_semees").using("btree", table.id.asc().nullsLast().op("uuid_ops")).where(sql`donnees_semees`),
+	foreignKey({
+			columns: [table.anneeId],
+			foreignColumns: [anneesScolaires.id],
+			name: "classes_annee_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.niveauId],
+			foreignColumns: [niveaux.id],
+			name: "classes_niveau_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.professeurPrincipalId],
+			foreignColumns: [enseignants.id],
+			name: "classes_professeur_principal_id_fkey"
+		}).onDelete("set null"),
+	foreignKey({
+			columns: [table.salleId],
+			foreignColumns: [salles.id],
+			name: "classes_salle_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.serieId],
+			foreignColumns: [series.id],
+			name: "classes_serie_id_fkey"
+		}),
+	unique("classes_annee_id_code_key").on(table.anneeId, table.code),
+	check("classes_capacite_max_check", sql`capacite_max > 0`),
 ]);
 
 export const changementsClasse = pgTable("changements_classe", {
@@ -1349,6 +1384,7 @@ export const grillesTarifaires = pgTable("grilles_tarifaires", {
 	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_grilles_annee_niveau").using("btree", table.anneeId.asc().nullsLast().op("uuid_ops"), table.niveauId.asc().nullsLast().op("uuid_ops")),
+	uniqueIndex("uq_tarif_annee_niveau_nature").using("btree", table.anneeId.asc().nullsLast().op("uuid_ops"), table.niveauId.asc().nullsLast().op("enum_ops"), table.nature.asc().nullsLast().op("uuid_ops")),
 	foreignKey({
 			columns: [table.anneeId],
 			foreignColumns: [anneesScolaires.id],
@@ -1404,6 +1440,7 @@ export const tranches = pgTable("tranches", {
 	dateLimite: date("date_limite").notNull(),
 	pourcentage: numeric({ precision: 5, scale:  2 }).notNull(),
 }, (table) => [
+	uniqueIndex("uq_tranche_annee_numero").using("btree", table.anneeId.asc().nullsLast().op("int2_ops"), table.numero.asc().nullsLast().op("uuid_ops")),
 	foreignKey({
 			columns: [table.anneeId],
 			foreignColumns: [anneesScolaires.id],
@@ -1411,6 +1448,48 @@ export const tranches = pgTable("tranches", {
 		}).onDelete("cascade"),
 	unique("tranches_annee_id_numero_key").on(table.anneeId, table.numero),
 	check("tranches_pourcentage_check", sql`(pourcentage > (0)::numeric) AND (pourcentage <= (100)::numeric)`),
+]);
+
+export const annonces = pgTable("annonces", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	anneeId: uuid("annee_id").notNull(),
+	titre: text().notNull(),
+	contenu: text().notNull(),
+	cible: cibleDiffusion().default('TOUS').notNull(),
+	niveauId: uuid("niveau_id"),
+	classeId: uuid("classe_id"),
+	pieceJointeUrl: text("piece_jointe_url"),
+	epinglee: boolean().default(false).notNull(),
+	publierLe: timestamp("publier_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	expireLe: timestamp("expire_le", { withTimezone: true, mode: 'string' }),
+	publiee: boolean().default(true).notNull(),
+	envoyerPush: boolean("envoyer_push").default(true).notNull(),
+	publieePar: uuid("publiee_par"),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	donneesSemees: boolean("donnees_semees").default(false).notNull(),
+}, (table) => [
+	index("idx_annonces_classe").using("btree", table.classeId.asc().nullsLast().op("uuid_ops")).where(sql`(classe_id IS NOT NULL)`),
+	index("idx_annonces_publication").using("btree", table.publierLe.desc().nullsFirst().op("timestamptz_ops")).where(sql`publiee`),
+	foreignKey({
+			columns: [table.anneeId],
+			foreignColumns: [anneesScolaires.id],
+			name: "annonces_annee_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.classeId],
+			foreignColumns: [classes.id],
+			name: "annonces_classe_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.niveauId],
+			foreignColumns: [niveaux.id],
+			name: "annonces_niveau_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.publieePar],
+			foreignColumns: [utilisateurs.id],
+			name: "annonces_publiee_par_fkey"
+		}),
 ]);
 
 export const echeances = pgTable("echeances", {
@@ -1563,47 +1642,6 @@ export const exonerations = pgTable("exonerations", {
 	check("chk_exoneration_valeur", sql`((pourcentage IS NOT NULL) AND (montant_fcfa IS NULL)) OR ((pourcentage IS NULL) AND (montant_fcfa IS NOT NULL))`),
 	check("exonerations_montant_fcfa_check", sql`montant_fcfa > 0`),
 	check("exonerations_pourcentage_check", sql`(pourcentage > (0)::numeric) AND (pourcentage <= (100)::numeric)`),
-]);
-
-export const annonces = pgTable("annonces", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	anneeId: uuid("annee_id").notNull(),
-	titre: text().notNull(),
-	contenu: text().notNull(),
-	cible: cibleDiffusion().default('TOUS').notNull(),
-	niveauId: uuid("niveau_id"),
-	classeId: uuid("classe_id"),
-	pieceJointeUrl: text("piece_jointe_url"),
-	epinglee: boolean().default(false).notNull(),
-	publierLe: timestamp("publier_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	expireLe: timestamp("expire_le", { withTimezone: true, mode: 'string' }),
-	publiee: boolean().default(true).notNull(),
-	envoyerPush: boolean("envoyer_push").default(true).notNull(),
-	publieePar: uuid("publiee_par"),
-	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_annonces_classe").using("btree", table.classeId.asc().nullsLast().op("uuid_ops")).where(sql`(classe_id IS NOT NULL)`),
-	index("idx_annonces_publication").using("btree", table.publierLe.desc().nullsFirst().op("timestamptz_ops")).where(sql`publiee`),
-	foreignKey({
-			columns: [table.anneeId],
-			foreignColumns: [anneesScolaires.id],
-			name: "annonces_annee_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.classeId],
-			foreignColumns: [classes.id],
-			name: "annonces_classe_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.niveauId],
-			foreignColumns: [niveaux.id],
-			name: "annonces_niveau_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.publieePar],
-			foreignColumns: [utilisateurs.id],
-			name: "annonces_publiee_par_fkey"
-		}),
 ]);
 
 export const appareils = pgTable("appareils", {
@@ -1897,41 +1935,6 @@ export const remplacements = pgTable("remplacements", {
 	check("chk_remplacant", sql`enseignant_remplacant_id IS DISTINCT FROM enseignant_absent_id`),
 ]);
 
-export const eleves = pgTable("eleves", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	matricule: text().notNull(),
-	nom: text().notNull(),
-	prenom: text().notNull(),
-	sexe: sexeType().notNull(),
-	dateNaissance: date("date_naissance").notNull(),
-	lieuNaissance: text("lieu_naissance"),
-	nationalite: text().default('Tchadienne'),
-	acteNaissanceNumero: text("acte_naissance_numero"),
-	adresse: text(),
-	quartier: text(),
-	photoUrl: text("photo_url"),
-	groupeSanguin: text("groupe_sanguin"),
-	allergies: text(),
-	observationsMedicales: text("observations_medicales"),
-	ecoleOrigine: text("ecole_origine"),
-	statut: statutEleve().default('PRE_INSCRIT').notNull(),
-	datePremiereInscription: date("date_premiere_inscription"),
-	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	telephone: text(),
-	email: text(),
-	situationParticuliere: text("situation_particuliere"),
-	urgenceNom: text("urgence_nom"),
-	urgenceTelephone: text("urgence_telephone"),
-	urgenceLien: text("urgence_lien"),
-}, (table) => [
-	index("idx_eleves_nom").using("btree", table.nom.asc().nullsLast().op("text_ops"), table.prenom.asc().nullsLast().op("text_ops")),
-	index("idx_eleves_recherche").using("gin", sql`to_tsvector('french'::regconfig, ((((matricule || ' '::text) ||`),
-	index("idx_eleves_statut").using("btree", table.statut.asc().nullsLast().op("enum_ops")),
-	unique("eleves_matricule_key").on(table.matricule),
-	check("chk_naissance", sql`date_naissance < CURRENT_DATE`),
-]);
-
 export const enseignantMatieres = pgTable("enseignant_matieres", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	enseignantId: uuid("enseignant_id").notNull(),
@@ -2001,6 +2004,73 @@ export const annonceDestinataires = pgTable("annonce_destinataires", {
 			name: "annonce_destinataires_eleve_id_fkey"
 		}).onDelete("cascade"),
 	unique("annonce_destinataires_annonce_id_eleve_id_key").on(table.annonceId, table.eleveId),
+]);
+
+export const fichiers = pgTable("fichiers", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	usage: usageFichier().notNull(),
+	nomOrigine: text("nom_origine").notNull(),
+	mimeType: text("mime_type").notNull(),
+	tailleOctets: integer("taille_octets").notNull(),
+	largeur: smallint(),
+	hauteur: smallint(),
+	contenu: bytea("contenu").notNull(),
+	empreinte: text().notNull(),
+	deposePar: uuid("depose_par"),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_fichiers_empreinte").using("btree", table.empreinte.asc().nullsLast().op("text_ops")),
+	index("idx_fichiers_usage").using("btree", table.usage.asc().nullsLast().op("enum_ops")),
+	foreignKey({
+			columns: [table.deposePar],
+			foreignColumns: [utilisateurs.id],
+			name: "fichiers_depose_par_fkey"
+		}).onDelete("set null"),
+	check("chk_taille_raisonnable", sql`taille_octets <= ((2 * 1024) * 1024)`),
+	check("fichiers_taille_octets_check", sql`taille_octets > 0`),
+]);
+
+export const eleves = pgTable("eleves", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	matricule: text().notNull(),
+	nom: text().notNull(),
+	prenom: text().notNull(),
+	sexe: sexeType().notNull(),
+	dateNaissance: date("date_naissance").notNull(),
+	lieuNaissance: text("lieu_naissance"),
+	nationalite: text().default('Tchadienne'),
+	acteNaissanceNumero: text("acte_naissance_numero"),
+	adresse: text(),
+	quartier: text(),
+	photoUrl: text("photo_url"),
+	groupeSanguin: text("groupe_sanguin"),
+	allergies: text(),
+	observationsMedicales: text("observations_medicales"),
+	ecoleOrigine: text("ecole_origine"),
+	statut: statutEleve().default('PRE_INSCRIT').notNull(),
+	datePremiereInscription: date("date_premiere_inscription"),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	telephone: text(),
+	email: text(),
+	situationParticuliere: text("situation_particuliere"),
+	urgenceNom: text("urgence_nom"),
+	urgenceTelephone: text("urgence_telephone"),
+	urgenceLien: text("urgence_lien"),
+	donneesSemees: boolean("donnees_semees").default(false).notNull(),
+	photoId: uuid("photo_id"),
+}, (table) => [
+	index("idx_eleves_nom").using("btree", table.nom.asc().nullsLast().op("text_ops"), table.prenom.asc().nullsLast().op("text_ops")),
+	index("idx_eleves_recherche").using("gin", sql`to_tsvector('french'::regconfig, ((((matricule || ' '::text) ||`),
+	index("idx_eleves_semees").using("btree", table.id.asc().nullsLast().op("uuid_ops")).where(sql`donnees_semees`),
+	index("idx_eleves_statut").using("btree", table.statut.asc().nullsLast().op("enum_ops")),
+	foreignKey({
+			columns: [table.photoId],
+			foreignColumns: [fichiers.id],
+			name: "eleves_photo_id_fkey"
+		}).onDelete("set null"),
+	unique("eleves_matricule_key").on(table.matricule),
+	check("chk_naissance", sql`date_naissance < CURRENT_DATE`),
 ]);
 export const vAssiduitePeriode = pgView("v_assiduite_periode", {	inscriptionId: uuid("inscription_id"),
 	periodeId: uuid("periode_id"),
