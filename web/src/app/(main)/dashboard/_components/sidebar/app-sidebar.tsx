@@ -76,8 +76,23 @@ export function AppSidebar({ utilisateur, actionsAutorisees, ...props }: Props) 
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg">
               <Link prefetch={false} href="/dashboard/default">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <GraduationCap className="size-4" aria-hidden />
+                {/*
+                  Le logo de l'établissement plutôt qu'une icône générique :
+                  c'est le premier repère visuel de la page, et le personnel
+                  doit reconnaître son école, pas un tableau de bord anonyme.
+                  Fond blanc imposé — la couronne est verte et disparaîtrait
+                  sur le bleu institutionnel.
+                */}
+                <div className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg border bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/logo.svg"
+                    alt=""
+                    width={32}
+                    height={32}
+                    className="size-7"
+                    aria-hidden
+                  />
                 </div>
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate font-semibold text-sm">{APP_CONFIG.name}</span>
