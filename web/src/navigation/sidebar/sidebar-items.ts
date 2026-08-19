@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  Contact,
   CalendarDays,
   FileText,
   GraduationCap,
@@ -102,6 +103,13 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/classes",
         icon: Users,
         action: "classe:lire",
+      },
+      {
+        id: "parents",
+        title: "Comptes parents",
+        url: "/dashboard/parents",
+        icon: Contact,
+        action: "tuteur:gerer",
       },
       {
         id: "emploi-du-temps",

@@ -23,6 +23,7 @@ import { listerClassesCourantes } from "@/server/domain/eleves";
 import { exigerPage } from "@/server/guard";
 
 import { ActionsDossier } from "./_components/actions-dossier";
+import { DocumentsEleve } from "./_components/documents-eleve";
 import { PhotoEleve } from "./_components/photo-eleve";
 
 export const dynamic = "force-dynamic";
@@ -121,14 +122,20 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
-        <ActionsDossier
+        <div className="flex flex-wrap items-center gap-2">
+          <DocumentsEleve
+            eleveId={eleve.id}
+            estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)}
+          />
+          <ActionsDossier
           eleveId={eleve.id}
           statut={eleve.statut}
           inscriptionId={inscription?.id ?? null}
           classeActuelleId={inscription?.classeId ?? null}
           statutDossier={inscription?.statutDossier ?? null}
           classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
-        />
+          />
+        </div>
       </div>
 
       <Tabs defaultValue="identite">
