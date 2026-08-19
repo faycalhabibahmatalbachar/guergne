@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { LigneTuteur, StatistiquesParents } from "@/server/domain/parents";
 
 import { inviterClasse, inviterTuteur, revoquerAcces } from "../actions";
+import { CreerParent } from "./creer-parent";
 
 interface Option {
   id: string;
@@ -67,6 +68,10 @@ export function Parents({
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <CreerParent />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {KPI.map((k) => (
           <Card key={k.libelle}>

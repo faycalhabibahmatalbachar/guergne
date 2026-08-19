@@ -17,7 +17,8 @@
     "compte:creer": "node scripts/creer-compte.mjs",
     "test": "node --test src/server/domain/*.test.ts",
     "db:peupler": "node scripts/peupler.mjs",
-    "db:purger": "node scripts/peupler.mjs --purge"
+    "db:purger": "node scripts/peupler.mjs --purge",
+    "db:photos": "node scripts/photos-demonstration.mjs"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [
