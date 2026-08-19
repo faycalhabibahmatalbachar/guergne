@@ -156,8 +156,6 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/communication",
         icon: Megaphone,
         action: "annonce:lire",
-        badge: "soon",
-        disabled: true,
       },
     ],
   },

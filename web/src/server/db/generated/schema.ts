@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, check, boolean, numeric, integer, uniqueIndex, unique, uuid, date, index, foreignKey, smallint, inet, char, time, jsonb, bigserial, pgView, bigint, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, text, timestamp, check, boolean, numeric, integer, uniqueIndex, unique, uuid, date, index, foreignKey, smallint, inet, char, time, bigserial, jsonb, pgView, bigint, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const canalNotification = pgEnum("canal_notification", ['PUSH', 'SMS', 'EMAIL', 'IN_APP'])
@@ -1431,6 +1431,7 @@ export const echeances = pgTable("echeances", {
 }, (table) => [
 	index("idx_echeances_impayees").using("btree", table.dateLimite.asc().nullsLast().op("date_ops")).where(sql`(statut = ANY (ARRAY['A_PAYER'::statut_echeance, 'PARTIEL'::statut_echeance, 'EN_RETARD'::statut_echeance]))`),
 	index("idx_echeances_inscription").using("btree", table.inscriptionId.asc().nullsLast().op("uuid_ops")),
+	index("idx_echeances_relance").using("btree", table.derniereRelanceLe.asc().nullsLast().op("timestamptz_ops")).where(sql`(statut = ANY (ARRAY['A_PAYER'::statut_echeance, 'PARTIEL'::statut_echeance, 'EN_RETARD'::statut_echeance]))`),
 	index("idx_echeances_statut").using("btree", table.statut.asc().nullsLast().op("date_ops"), table.dateLimite.asc().nullsLast().op("enum_ops")),
 	foreignKey({
 			columns: [table.inscriptionId],
@@ -1504,8 +1505,9 @@ export const paiements = pgTable("paiements", {
 	recuUrl: text("recu_url"),
 	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
+	index("idx_paiements_annules").using("btree", table.annulePaiementId.asc().nullsLast().op("uuid_ops")).where(sql`(annule_paiement_id IS NOT NULL)`),
 	index("idx_paiements_date").using("btree", table.datePaiement.desc().nullsFirst().op("date_ops")),
-	index("idx_paiements_inscription").using("btree", table.inscriptionId.asc().nullsLast().op("uuid_ops"), table.datePaiement.desc().nullsFirst().op("uuid_ops")),
+	index("idx_paiements_inscription").using("btree", table.inscriptionId.asc().nullsLast().op("date_ops"), table.datePaiement.desc().nullsFirst().op("date_ops")),
 	index("idx_paiements_recu").using("btree", table.numeroRecu.asc().nullsLast().op("text_ops")),
 	foreignKey({
 			columns: [table.annulePaiementId],
@@ -1623,41 +1625,6 @@ export const appareils = pgTable("appareils", {
 			name: "appareils_utilisateur_id_fkey"
 		}).onDelete("cascade"),
 	unique("appareils_jeton_fcm_key").on(table.jetonFcm),
-]);
-
-export const notifications = pgTable("notifications", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	destinataireId: uuid("destinataire_id"),
-	telephone: text(),
-	eleveId: uuid("eleve_id"),
-	type: typeNotification().notNull(),
-	canal: canalNotification().notNull(),
-	titre: text().notNull(),
-	corps: text().notNull(),
-	routeCible: text("route_cible"),
-	donnees: jsonb(),
-	statut: statutEnvoi().default('EN_ATTENTE').notNull(),
-	tentatives: smallint().default(0).notNull(),
-	erreur: text(),
-	envoyeLe: timestamp("envoye_le", { withTimezone: true, mode: 'string' }),
-	luLe: timestamp("lu_le", { withTimezone: true, mode: 'string' }),
-	coutFcfa: integer("cout_fcfa"),
-	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_notifications_destinataire").using("btree", table.destinataireId.asc().nullsLast().op("timestamptz_ops"), table.creeLe.desc().nullsFirst().op("uuid_ops")),
-	index("idx_notifications_eleve").using("btree", table.eleveId.asc().nullsLast().op("timestamptz_ops"), table.creeLe.desc().nullsFirst().op("timestamptz_ops")),
-	index("idx_notifications_file").using("btree", table.creeLe.asc().nullsLast().op("timestamptz_ops")).where(sql`(statut = 'EN_ATTENTE'::statut_envoi)`),
-	foreignKey({
-			columns: [table.destinataireId],
-			foreignColumns: [utilisateurs.id],
-			name: "notifications_destinataire_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.eleveId],
-			foreignColumns: [eleves.id],
-			name: "notifications_eleve_id_fkey"
-		}).onDelete("set null"),
-	check("chk_destinataire", sql`(destinataire_id IS NOT NULL) OR (telephone IS NOT NULL)`),
 ]);
 
 export const lecturesAnnonces = pgTable("lectures_annonces", {
@@ -1786,6 +1753,43 @@ export const permissions = pgTable("permissions", {
 }, (table) => [
 	index("idx_permissions_role").using("btree", table.role.asc().nullsLast().op("enum_ops")),
 	unique("permissions_role_action_key").on(table.role, table.action),
+]);
+
+export const notifications = pgTable("notifications", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	destinataireId: uuid("destinataire_id"),
+	telephone: text(),
+	eleveId: uuid("eleve_id"),
+	type: typeNotification().notNull(),
+	canal: canalNotification().notNull(),
+	titre: text().notNull(),
+	corps: text().notNull(),
+	routeCible: text("route_cible"),
+	donnees: jsonb(),
+	statut: statutEnvoi().default('EN_ATTENTE').notNull(),
+	tentatives: smallint().default(0).notNull(),
+	erreur: text(),
+	envoyeLe: timestamp("envoye_le", { withTimezone: true, mode: 'string' }),
+	luLe: timestamp("lu_le", { withTimezone: true, mode: 'string' }),
+	coutFcfa: integer("cout_fcfa"),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	prochaineTentativeLe: timestamp("prochaine_tentative_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	referenceExterne: text("reference_externe"),
+}, (table) => [
+	index("idx_notifications_destinataire").using("btree", table.destinataireId.asc().nullsLast().op("uuid_ops"), table.creeLe.desc().nullsFirst().op("timestamptz_ops")),
+	index("idx_notifications_eleve").using("btree", table.eleveId.asc().nullsLast().op("timestamptz_ops"), table.creeLe.desc().nullsFirst().op("timestamptz_ops")),
+	index("idx_notifications_file").using("btree", table.prochaineTentativeLe.asc().nullsLast().op("timestamptz_ops")).where(sql`(statut = 'EN_ATTENTE'::statut_envoi)`),
+	foreignKey({
+			columns: [table.destinataireId],
+			foreignColumns: [utilisateurs.id],
+			name: "notifications_destinataire_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.eleveId],
+			foreignColumns: [eleves.id],
+			name: "notifications_eleve_id_fkey"
+		}).onDelete("set null"),
+	check("chk_destinataire", sql`(destinataire_id IS NOT NULL) OR (telephone IS NOT NULL)`),
 ]);
 
 export const historiqueStatuts = pgTable("historique_statuts", {
@@ -1978,6 +1982,26 @@ export const indisponibilites = pgTable("indisponibilites", {
 		}).onDelete("cascade"),
 	check("indisponibilites_jour_semaine_check", sql`(jour_semaine >= 1) AND (jour_semaine <= 7)`),
 ]);
+
+export const annonceDestinataires = pgTable("annonce_destinataires", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	annonceId: uuid("annonce_id").notNull(),
+	eleveId: uuid("eleve_id").notNull(),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_annonce_destinataires").using("btree", table.annonceId.asc().nullsLast().op("uuid_ops")),
+	foreignKey({
+			columns: [table.annonceId],
+			foreignColumns: [annonces.id],
+			name: "annonce_destinataires_annonce_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.eleveId],
+			foreignColumns: [eleves.id],
+			name: "annonce_destinataires_eleve_id_fkey"
+		}).onDelete("cascade"),
+	unique("annonce_destinataires_annonce_id_eleve_id_key").on(table.annonceId, table.eleveId),
+]);
 export const vAssiduitePeriode = pgView("v_assiduite_periode", {	inscriptionId: uuid("inscription_id"),
 	periodeId: uuid("periode_id"),
 	heuresJustifiees: numeric("heures_justifiees"),
@@ -2047,3 +2071,34 @@ export const vAvancementSaisie = pgView("v_avancement_saisie", {	evaluationId: u
 	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
 	nbNotees: bigint("nb_notees", { mode: "number" }),
 }).as(sql`SELECT e.id AS evaluation_id, e.titre, e.type, e.date_evaluation, e.statut, e.classe_id, c.libelle AS classe, e.matiere_id, m.libelle AS matiere, e.periode_id, en.id AS enseignant_id, en.nom AS enseignant_nom, ( SELECT count(*) AS count FROM inscriptions i WHERE i.classe_id = e.classe_id AND i.active) AS effectif, ( SELECT count(*) AS count FROM notes n WHERE n.evaluation_id = e.id) AS nb_saisies, ( SELECT count(*) AS count FROM notes n WHERE n.evaluation_id = e.id AND n.statut = 'NOTEE'::statut_note) AS nb_notees FROM evaluations e JOIN classes c ON c.id = e.classe_id JOIN matieres m ON m.id = e.matiere_id LEFT JOIN enseignants en ON en.id = e.enseignant_id`);
+
+export const vRecouvrementClasse = pgView("v_recouvrement_classe", {	classeId: uuid("classe_id"),
+	classe: text(),
+	anneeId: uuid("annee_id"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	effectif: bigint({ mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	totalDuFcfa: bigint("total_du_fcfa", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	totalPayeFcfa: bigint("total_paye_fcfa", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	totalExonereFcfa: bigint("total_exonere_fcfa", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	resteDuFcfa: bigint("reste_du_fcfa", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	nbElevesEnRetard: bigint("nb_eleves_en_retard", { mode: "number" }),
+}).as(sql`SELECT c.id AS classe_id, c.libelle AS classe, c.annee_id, count(DISTINCT i.id) AS effectif, COALESCE(sum(e.montant_du_fcfa), 0::bigint) AS total_du_fcfa, COALESCE(sum(e.montant_paye_fcfa), 0::bigint) AS total_paye_fcfa, COALESCE(sum(e.montant_exonere_fcfa), 0::bigint) AS total_exonere_fcfa, COALESCE(sum(e.montant_du_fcfa - e.montant_paye_fcfa - e.montant_exonere_fcfa), 0::bigint) AS reste_du_fcfa, count(DISTINCT i.id) FILTER (WHERE (EXISTS ( SELECT 1 FROM echeances x WHERE x.inscription_id = i.id AND x.statut = 'EN_RETARD'::statut_echeance))) AS nb_eleves_en_retard FROM classes c LEFT JOIN inscriptions i ON i.classe_id = c.id AND i.active LEFT JOIN echeances e ON e.inscription_id = i.id GROUP BY c.id`);
+
+export const vFileNotifications = pgView("v_file_notifications", {	id: uuid(),
+	canal: canalNotification(),
+	type: typeNotification(),
+	titre: text(),
+	corps: text(),
+	routeCible: text("route_cible"),
+	donnees: jsonb(),
+	telephone: text(),
+	destinataireId: uuid("destinataire_id"),
+	tentatives: smallint(),
+	eleveId: uuid("eleve_id"),
+	jetonsFcm: text("jetons_fcm"),
+}).as(sql`SELECT id, canal, type, titre, corps, route_cible, donnees, telephone, destinataire_id, tentatives, eleve_id, ( SELECT array_agg(a.jeton_fcm) AS array_agg FROM appareils a WHERE a.utilisateur_id = n.destinataire_id AND a.actif) AS jetons_fcm FROM notifications n WHERE statut = 'EN_ATTENTE'::statut_envoi AND prochaine_tentative_le <= now() AND tentatives < 3 ORDER BY cree_le`);
