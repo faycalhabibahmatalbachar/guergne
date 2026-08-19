@@ -57,3 +57,6 @@ mobile/.dart_tool/
 mobile/build/
 mobile/.flutter-plugins-dependencies
 mobile/ios/Pods/
+
+# Livrables compilés — jamais dans le dépôt
+livraison/
