@@ -8,6 +8,7 @@ import { z } from "zod";
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
 import { annonceDestinataires, annonces, messages } from "@/server/db/schema";
+import { traiterFile } from "@/server/notifications/expediteur";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 
 export interface Resultat {
@@ -239,57 +240,45 @@ export async function marquerMessageLu(messageId: string): Promise<Resultat> {
 /**
  * Vide la file des notifications en attente.
  *
- * Tant que les identifiants FCM et la passerelle SMS ne sont pas configurés,
- * cette action ne peut RIEN envoyer. Elle le dit explicitement plutôt que de
- * marquer les notifications « envoyées » sans que personne ne les reçoive —
- * ce serait le pire des deux mondes : les familles ne sont pas prévenues, et
- * l'établissement croit qu'elles l'ont été.
+ * Délègue à l'expéditeur, qui n'accuse un envoi que sur confirmation du canal.
+ * Un canal non configuré laisse ses notifications EN FILE plutôt que de les
+ * marquer en échec : elles partiront dès qu'il sera branché.
  */
 export async function traiterFileNotifications(): Promise<Resultat> {
   try {
     const acteur = await requirePermission("annonce:publier");
+    const rapport = await traiterFile(200);
 
-    const fcmConfigure = Boolean(
-      process.env.FCM_PROJECT_ID && process.env.FCM_CLIENT_EMAIL && process.env.FCM_PRIVATE_KEY,
-    );
-    const smsConfigure = Boolean(process.env.SMS_API_URL && process.env.SMS_API_KEY);
+    await journaliser(acteur, {
+      action: "notifications.traitees",
+      entite: "notifications",
+      apres: rapport,
+    });
 
-    const r = await db.execute<{ canal: string; n: number }>(sql`
-      SELECT canal::text, count(*)::int AS n
-        FROM v_file_notifications
-       GROUP BY canal
-    `);
+    revalidatePath("/dashboard/communication");
 
-    const enAttente = Object.fromEntries(r.rows.map((l) => [l.canal, Number(l.n)]));
-    const push = enAttente.PUSH ?? 0;
-    const sms = enAttente.SMS ?? 0;
-
-    if (!fcmConfigure && !smsConfigure) {
+    if (rapport.traitees === 0 && rapport.canauxIndisponibles.length > 0) {
       return {
         ok: false,
         message:
-          `Aucun canal n'est configuré. ${push + sms} notification(s) restent en file. ` +
-          "Renseignez les identifiants Firebase (FCM_*) pour le push et la passerelle SMS (SMS_*) dans les variables d'environnement.",
+          `Aucun canal disponible : ${rapport.canauxIndisponibles.join(", ")}. ` +
+          "Les notifications restent en file et partiront dès la configuration.",
       };
     }
 
-    const manquants: string[] = [];
-    if (!fcmConfigure && push > 0) manquants.push(`${push} push (Firebase non configuré)`);
-    if (!smsConfigure && sms > 0) manquants.push(`${sms} SMS (passerelle non configurée)`);
+    if (rapport.traitees === 0) {
+      return { ok: true, message: "Aucune notification à traiter." };
+    }
 
-    await journaliser(acteur, {
-      action: "notifications.traitement_demande",
-      entite: "notifications",
-      apres: { push, sms, fcmConfigure, smsConfigure },
-    });
+    const details = [
+      `${rapport.envoyees} envoyée(s)`,
+      rapport.echouees > 0 ? `${rapport.echouees} en échec` : null,
+      rapport.ignorees > 0 ? `${rapport.ignorees} en attente de canal` : null,
+      rapport.coutSmsFcfa > 0 ? `coût SMS ${rapport.coutSmsFcfa} F` : null,
+      rapport.jetonsNettoyes > 0 ? `${rapport.jetonsNettoyes} appareil(s) obsolète(s) retiré(s)` : null,
+    ].filter(Boolean);
 
-    return {
-      ok: false,
-      message:
-        manquants.length > 0
-          ? `Envoi impossible : ${manquants.join(", ")}.`
-          : "Les canaux sont configurés, mais l'expéditeur n'est pas encore branché.",
-    };
+    return { ok: rapport.envoyees > 0, message: details.join(" · ") };
   } catch (e) {
     return echec(e, "Le traitement de la file a échoué.");
   }
