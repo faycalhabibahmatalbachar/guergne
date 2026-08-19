@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Lycée Guergné La Renaissance">
+  <title>Lycée Guergné La Renaissance</title>
+
+  <!--
+    Logo de l'établissement, redessiné en vectoriel.
+
+    L'original fourni était une image matricielle de faible définition : agrandie,
+    elle devenait floue sur l'écran d'accueil de l'application comme sur l'en-tête
+    du portail. Un tracé vectoriel n'a pas cette limite — il reste net d'une
+    favicon de 16 px à une affiche imprimée.
+
+    Composition reprise de l'original : une couronne de laurier ouverte en haut,
+    le monogramme GR au centre, les repères A¹ et 2 de part et d'autre, un
+    encrier et un livre ouvert au pied du monogramme.
+
+    Les couleurs sont nommées une fois ici et réutilisées partout : le vert du
+    laurier, le vert sombre des lettres, le rouge de l'encrier.
+  -->
+
+  <defs>
+    <linearGradient id="feuille" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5CB85C"/>
+      <stop offset="100%" stop-color="#2E7D32"/>
+    </linearGradient>
+    <linearGradient id="feuilleClaire" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7BC96F"/>
+      <stop offset="100%" stop-color="#3E9142"/>
+    </linearGradient>
+    <linearGradient id="encre" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E23E3E"/>
+      <stop offset="100%" stop-color="#A62121"/>
+    </linearGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E8ECEF"/>
+    </linearGradient>
+
+    <!--
+      Une seule feuille, réutilisée par transformation le long de chaque branche.
+      Redessiner trente feuilles à la main donnerait trente formes légèrement
+      différentes ; une seule définition garantit une couronne régulière.
+    -->
+    <path id="lb" d="M0 0 C 26 -20, 62 -16, 78 6 C 58 30, 20 28, 0 0 Z"/>
+  </defs>
+
+  <!-- ================= Couronne de laurier ================= -->
+  <g>
+    <!-- Branche gauche : de 200° à 340°, feuilles tournées vers le haut -->
+    <g fill="url(#feuille)">
+      <g transform="rotate(196 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58) scale(0.92)"/></g>
+      <g transform="rotate(210 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58) scale(0.96)"/></g>
+      <g transform="rotate(224 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58)"/></g>
+      <g transform="rotate(238 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58)"/></g>
+      <g transform="rotate(252 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58)"/></g>
+      <g transform="rotate(266 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58)"/></g>
+      <g transform="rotate(280 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58) scale(0.96)"/></g>
+      <g transform="rotate(294 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58) scale(0.9)"/></g>
+      <g transform="rotate(308 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58) scale(0.82)"/></g>
+      <g transform="rotate(322 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58) scale(0.72)"/></g>
+    </g>
+
+    <!-- Branche droite : image miroir de la gauche -->
+    <g fill="url(#feuille)" transform="translate(512 0) scale(-1 1)">
+      <g transform="rotate(196 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58) scale(0.92)"/></g>
+      <g transform="rotate(210 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58) scale(0.96)"/></g>
+      <g transform="rotate(224 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58)"/></g>
+      <g transform="rotate(238 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58)"/></g>
+      <g transform="rotate(252 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58)"/></g>
+      <g transform="rotate(266 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58)"/></g>
+      <g transform="rotate(280 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58) scale(0.96)"/></g>
+      <g transform="rotate(294 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58) scale(0.9)"/></g>
+      <g transform="rotate(308 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58) scale(0.82)"/></g>
+      <g transform="rotate(322 256 256) translate(256 62)"><use href="#lb" transform="rotate(-58) scale(0.72)"/></g>
+    </g>
+
+    <!-- Tiges : elles relient les feuilles et ferment la couronne en bas -->
+    <path d="M256 458 C 150 452, 74 380, 62 268" fill="none" stroke="#2E7D32" stroke-width="9" stroke-linecap="round"/>
+    <path d="M256 458 C 362 452, 438 380, 450 268" fill="none" stroke="#2E7D32" stroke-width="9" stroke-linecap="round"/>
+
+    <!-- Nœud du bas -->
+    <path d="M236 452 C 246 442, 266 442, 276 452 C 266 464, 246 464, 236 452 Z" fill="url(#feuilleClaire)"/>
+  </g>
+
+  <!-- ================= Monogramme ================= -->
+  <!--
+    Police déclarée en pile : le rendu doit rester correct si Georgia manque,
+    ce qui est le cas sur la plupart des Android. `text-anchor` centre sans
+    avoir à mesurer le texte.
+  -->
+  <g font-family="Georgia, 'Times New Roman', serif" font-weight="700" fill="#1B5E20">
+    <text x="256" y="206" font-size="112" text-anchor="middle" letter-spacing="2">GR</text>
+
+    <!-- Repères latéraux, tenus à l'écart de l'encrier et du livre -->
+    <text x="138" y="306" font-size="72" text-anchor="middle">A</text>
+    <text x="172" y="272" font-size="34" text-anchor="middle">1</text>
+    <text x="388" y="306" font-size="72" text-anchor="middle">2</text>
+  </g>
+
+  <!-- ================= Encrier ================= -->
+  <g transform="translate(190 258)">
+    <ellipse cx="24" cy="44" rx="30" ry="8" fill="#7F1414" opacity="0.32"/>
+    <path d="M2 18 C 2 3, 46 3, 46 18 L 46 37 C 46 48, 2 48, 2 37 Z" fill="url(#encre)"/>
+    <ellipse cx="24" cy="18" rx="22" ry="7.5" fill="#F06565"/>
+    <ellipse cx="24" cy="18" rx="12.5" ry="4" fill="#8E1A1A"/>
+    <!-- Plume plantée dans l'encrier, inclinée vers l'extérieur du livre -->
+    <path d="M27 16 L 8 -30 L 1 -27 L 21 20 Z" fill="#FFF7F7" stroke="#C4C4C4" stroke-width="1.5"/>
+  </g>
+
+  <!-- ================= Livre ouvert ================= -->
+  <g transform="translate(256 264)">
+    <path d="M0 8 C 12 -1, 33 -1, 45 8 L 45 44 C 33 35, 12 35, 0 44 Z" fill="url(#page)" stroke="#9AA6AE" stroke-width="2.5"/>
+    <path d="M45 8 C 57 -1, 78 -1, 90 8 L 90 44 C 78 35, 57 35, 45 44 Z" fill="url(#page)" stroke="#9AA6AE" stroke-width="2.5"/>
+    <path d="M45 8 L 45 44" stroke="#6E7880" stroke-width="3"/>
+    <g stroke="#AAB4BC" stroke-width="2" stroke-linecap="round">
+      <path d="M10 17 H 36"/><path d="M10 26 H 36"/>
+      <path d="M54 17 H 80"/><path d="M54 26 H 80"/>
+    </g>
+  </g>
+</svg>

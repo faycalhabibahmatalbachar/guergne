@@ -41,6 +41,7 @@ dependencies:
   intl: ^0.20.3
   shimmer: ^3.0.0
   shared_preferences: ^2.5.5
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -52,6 +53,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -59,6 +61,9 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/marque/
 
   fonts:
     # Inter embarquee, PAS telechargee au demarrage : sur une connexion
@@ -75,3 +80,23 @@ flutter:
           weight: 600
         - asset: assets/polices/Inter-Bold.ttf
           weight: 700
+
+# Icône de lancement, dérivée du logo vectoriel de l'établissement.
+#
+# `adaptive_icon_foreground` est la couronne seule sur fond transparent :
+# Android la recadre en cercle, en carré arrondi ou en goutte selon le
+# lanceur, et un logo qui touche les bords s'y ferait amputer.
+#
+# Régénérer après un changement de logo :
+#   node ../marque/decliner.mjs && dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: assets/icone/icone.png
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/icone/premier-plan.png
+  web:
+    generate: true
+    background_color: "#FFFFFF"
+    theme_color: "#1E429F"

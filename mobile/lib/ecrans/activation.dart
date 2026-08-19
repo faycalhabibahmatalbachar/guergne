@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../design/couleurs.dart';
 import '../design/theme.dart';
@@ -161,15 +162,22 @@ class _EtatActivation extends ConsumerState<EcranActivation> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Le logo est vectoriel : net sur un écran d'entrée de gamme
+            // comme sur une tablette, sans dépendre d'une image bitmap qui
+            // baverait à l'agrandissement.
             Container(
-              width: 84,
-              height: 84,
+              width: 116,
+              height: 116,
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.28), width: 1.5),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(32),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
               ),
-              child: const Icon(Icons.school_rounded, size: 40, color: Colors.white),
+              child: SvgPicture.asset(
+                'assets/marque/logo.svg',
+                semanticsLabel: "Logo du Lycée Guergné La Renaissance",
+              ),
             ),
             const SizedBox(height: 22),
             Text(

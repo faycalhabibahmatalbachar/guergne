@@ -18,7 +18,9 @@
     "test": "node --test src/server/domain/*.test.ts",
     "db:peupler": "node scripts/peupler.mjs",
     "db:purger": "node scripts/peupler.mjs --purge",
-    "db:photos": "node scripts/photos-demonstration.mjs"
+    "db:photos": "node scripts/photos-demonstration.mjs",
+    "db:annee": "node scripts/annee-ecoulee.mjs",
+    "db:annee:purger": "node scripts/annee-ecoulee.mjs --purge"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

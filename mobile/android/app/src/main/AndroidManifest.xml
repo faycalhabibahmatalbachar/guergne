@@ -1,6 +1,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+        INTERNET n'est déclarée par Flutter que dans les manifestes de débogage
+        et de profilage. Sans cette ligne, l'APK de production se lance, affiche
+        l'écran d'activation, puis échoue à joindre le serveur sans dire
+        pourquoi — c'est l'une des erreurs les plus coûteuses à diagnostiquer
+        parce que tout fonctionne en développement.
+    -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!--
+        Permet d'afficher « pas de connexion » plutôt qu'un délai d'attente de
+        quarante secondes quand le téléphone est hors réseau.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <application
-        android:label="lgr_parents"
+        android:label="LGR Parents"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

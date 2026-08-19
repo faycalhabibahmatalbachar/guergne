@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../design/composants.dart';
 import '../design/couleurs.dart';
@@ -148,6 +149,19 @@ class _Banniere extends ConsumerWidget {
             children: [
               Row(
                 children: [
+                  // Le logo signe l'écran : le parent doit reconnaître son
+                  // école avant même de lire quoi que ce soit.
+                  Container(
+                    width: 34,
+                    height: 34,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: SvgPicture.asset('assets/marque/logo.svg'),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       '${saluer()}, ${profil.prenom}',
