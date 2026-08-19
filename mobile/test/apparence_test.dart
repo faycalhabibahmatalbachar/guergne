@@ -179,6 +179,22 @@ void main() {
     );
   });
 
+  testWidgets('Résultats — données réelles du serveur', (tester) async {
+    // Rendu du relevé tel que le serveur le renvoie réellement, et non d'un
+    // jeu inventé : c'est la seule capture qui prouve que l'écran tient avec
+    // dix matières, des libellés longs et des notes à deux décimales.
+    await rendre(
+      tester,
+      const EcranNotes(),
+      nom: 'notes_reelles',
+      surcharges: echafaudage(
+        stockage: stockage,
+        accueil: accueilDuServeur(),
+        releve: releveDuServeur(),
+      ),
+    );
+  });
+
   testWidgets('Annonces — liste', (tester) async {
     await rendre(
       tester,

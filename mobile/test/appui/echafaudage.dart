@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -552,3 +553,20 @@ SituationFinanciere financesExemple() => SituationFinanciere.depuisJson({
     },
   ],
 });
+
+// ---------------------------------------------------------------------------
+// Charges réelles
+// ---------------------------------------------------------------------------
+
+/// Réponses authentiques du serveur, figées dans `test/charges/`.
+///
+/// Les jeux inventés ci-dessus servent à provoquer des cas précis — fratrie,
+/// impayé en retard, écran vide. Ceux-ci servent à autre chose : vérifier que
+/// l'écran tient avec ce que produit vraiment l'établissement, dix matières
+/// aux libellés longs et des moyennes à deux décimales.
+Map<String, dynamic> _charge(String nom) =>
+    jsonDecode(File('test/charges/$nom.json').readAsStringSync()) as Map<String, dynamic>;
+
+Accueil accueilDuServeur() => Accueil.depuisJson(_charge('enfants'));
+
+ReleveComplet releveDuServeur() => ReleveComplet.depuisJson(_charge('notes'));
