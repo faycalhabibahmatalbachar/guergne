@@ -64,6 +64,12 @@ void main() {
       ),
     );
 
+    // Le logo est un SVG chargé depuis les assets : son décodage est un
+    // véritable travail asynchrone, que le harnais de test fige par défaut.
+    // `runAsync` rend la main à la boucle d'événements le temps qu'il aboutisse,
+    // sans quoi la capture montrerait un cadre vide à la place du logo.
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+
     // Les animations d'apparition en cascade doivent être terminées, sinon le
     // rendu capturé dépend du moment exact de la capture.
     await tester.pumpAndSettle(const Duration(seconds: 2));

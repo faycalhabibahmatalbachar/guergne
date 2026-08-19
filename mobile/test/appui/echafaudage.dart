@@ -22,6 +22,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 Future<void> chargerPolices() async {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  // Les tests d'apparence chargent le logo depuis les assets : sans ce
+  // registre, `SvgPicture.asset` ne trouve rien et rend une zone vide.
+  TestWidgetsFlutterBinding.instance.defaultBinaryMessenger.setMockMessageHandler(
+    'flutter/assets',
+    null,
+  );
+
   // La police d'icônes est chargée elle aussi : sans elle, chaque icône est
   // rendue en carré vide et les captures ne montrent pas l'application réelle.
   for (final (fichier, graisse) in const [
