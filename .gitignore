@@ -51,3 +51,9 @@ Thumbs.db
 # Sauvegardes de base
 *.dump
 *.sql.gz
+
+# Flutter
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins-dependencies
+mobile/ios/Pods/
