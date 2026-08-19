@@ -24,7 +24,8 @@ une application web d'administration et une application mobile Flutter destinée
 | [01 — Cas d'utilisation](docs/01-CAS-UTILISATION.md) | ~130 cas répartis sur 14 modules, par acteur |
 | [02 — Architecture](docs/02-ARCHITECTURE.md) | Stack, organisation du code, sécurité, API, mode hors ligne |
 | [03 — Design system](docs/03-DESIGN-SYSTEM.md) | Palette, typographie, composants métier, bulletin imprimé |
-| [04 — Roadmap & déploiement](docs/04-ROADMAP-DEPLOIEMENT.md) | Avancement, séquencement, Neon, Northflank, budget |
+| [04 — Roadmap & déploiement](docs/04-ROADMAP-DEPLOIEMENT.md) | Avancement, séquencement, Neon, hébergement, budget |
+| [05 — Plan d'enrichissement](docs/05-PLAN-ENRICHISSEMENT.md) | 67 fonctionnalités recensées page par page, par priorité |
 
 ---
 
