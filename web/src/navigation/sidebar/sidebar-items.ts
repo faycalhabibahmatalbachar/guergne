@@ -171,8 +171,6 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/finances",
         icon: Wallet,
         action: "finance:lire",
-        badge: "soon",
-        disabled: true,
       },
       {
         id: "personnel",
