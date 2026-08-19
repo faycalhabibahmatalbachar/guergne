@@ -1,58 +1,101 @@
 import type { Metadata } from "next";
 
-import { exigerPage } from "@/server/guard";
+import { chargerGrilleSaisie, listerEvaluations } from "@/server/domain/evaluations";
+import { listerClassesEtMatieres } from "@/server/domain/personnel";
 import { chargerStatistiques } from "@/server/domain/tableau-de-bord";
+import { exigerPage } from "@/server/guard";
 
 import { type EtapeManquante, Prerequis } from "../_components/prerequis";
+import { Notes } from "./_components/notes";
 
-export const metadata: Metadata = { title: "Saisie des notes" };
+export const metadata: Metadata = { title: "Notes" };
 export const dynamic = "force-dynamic";
 
 /**
  * Saisie des notes.
  *
- * La saisie suppose une chaîne complète de prérequis : une année scolaire,
- * ses périodes, des classes, des coefficients, des enseignants affectés, puis
- * des évaluations. Tant qu'un maillon manque, on l'annonce explicitement
- * plutôt que d'afficher une grille vide dont personne ne comprendrait la cause.
+ * Une note se rattache à un élève, une matière, une classe et une période :
+ * tant qu'un maillon manque, on l'annonce explicitement plutôt que d'afficher
+ * une grille vide dont personne ne comprendrait la cause.
  */
-export default async function PageNotes() {
+export default async function PageNotes({
+  searchParams,
+}: {
+  searchParams: Promise<{ evaluation?: string }>;
+}) {
   await exigerPage("note:lire");
 
+  const params = await searchParams;
   const stats = await chargerStatistiques();
 
   const manquants: EtapeManquante[] = [];
   if (!stats.annee) manquants.push({ libelle: "Créer l'année scolaire" });
-  if (stats.nbCoefficients === 0)
-    manquants.push({ libelle: "Saisir les coefficients" });
-  if (stats.nbClasses === 0) manquants.push({ libelle: "Créer les classes", url: "/dashboard/classes" });
+  if (stats.nbCoefficients === 0) manquants.push({ libelle: "Saisir les coefficients" });
+  if (stats.nbClasses === 0)
+    manquants.push({ libelle: "Créer les classes", url: "/dashboard/parametres?onglet=classes" });
   if (stats.effectifTotal === 0)
     manquants.push({ libelle: "Inscrire des élèves", url: "/dashboard/eleves" });
+
+  if (!stats.annee || !stats.periode || manquants.length > 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-semibold text-2xl tracking-tight">Saisie des notes</h1>
+          <p className="mt-1 text-muted-foreground text-sm">
+            {stats.annee
+              ? `Année ${stats.annee.libelle}${stats.periode ? ` — ${stats.periode.libelle}` : ""}`
+              : "Aucune année scolaire configurée"}
+          </p>
+        </div>
+        <Prerequis
+          titre="La saisie des notes n'est pas encore possible"
+          explication="Une note se rattache à un élève, une matière, une classe et une période. Voici ce qui manque."
+          manquants={
+            manquants.length > 0
+              ? manquants
+              : [{ libelle: "Ouvrir une période d'évaluation", url: "/dashboard/parametres" }]
+          }
+        />
+      </div>
+    );
+  }
+
+  const { classes, matieres } = await listerClassesEtMatieres(stats.annee.id);
+  const evaluations = await listerEvaluations({ periodeId: stats.periode.id });
+
+  const grille = params.evaluation ? await chargerGrilleSaisie(params.evaluation) : null;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-semibold text-2xl tracking-tight">Saisie des notes</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          {stats.annee
-            ? `Année ${stats.annee.libelle}${stats.periode ? ` — ${stats.periode.libelle}` : ""}`
-            : "Aucune année scolaire configurée"}
+          Année {stats.annee.libelle} — {stats.periode.libelle}
         </p>
       </div>
 
-      {manquants.length > 0 ? (
-        <Prerequis
-          titre="La saisie des notes n'est pas encore possible"
-          explication="Une note se rattache à un élève, une matière, une classe et une période. Ces éléments doivent exister au préalable — voici ce qui manque."
-          manquants={manquants}
-        />
-      ) : (
-        <Prerequis
-          titre="Aucune évaluation créée pour cette période"
-          explication="La configuration est complète. Chaque enseignant peut désormais créer ses évaluations (interrogations, devoirs, compositions), puis saisir les notes de sa classe."
-          manquants={[{ libelle: "Créer une évaluation", url: "/dashboard/notes" }]}
-        />
-      )}
+      <Notes
+        anneeId={stats.annee.id}
+        periodeId={stats.periode.id}
+        periodeLibelle={stats.periode.libelle}
+        classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
+        matieres={matieres.map((m) => ({ id: m.id, libelle: m.libelle }))}
+        evaluations={evaluations}
+        evaluationId={params.evaluation ?? null}
+        grille={
+          grille
+            ? {
+                evaluation: {
+                  id: grille.evaluation.id,
+                  titre: grille.evaluation.titre,
+                  bareme: grille.evaluation.bareme,
+                  estVerrouillee: grille.evaluation.estVerrouillee,
+                },
+                lignes: grille.lignes,
+              }
+            : null
+        }
+      />
     </div>
   );
 }

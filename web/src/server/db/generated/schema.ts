@@ -18,6 +18,7 @@ export const statutEcheance = pgEnum("statut_echeance", ['A_PAYER', 'PARTIEL', '
 export const statutEleve = pgEnum("statut_eleve", ['CANDIDAT', 'PRE_INSCRIT', 'INSCRIT', 'SUSPENDU_DISCIPLINE', 'SUSPENDU_IMPAYE', 'EXCLU', 'TRANSFERE', 'ABANDON', 'DIPLOME', 'ARCHIVE'])
 export const statutEnseignant = pgEnum("statut_enseignant", ['PERMANENT', 'CONTRACTUEL', 'VACATAIRE', 'STAGIAIRE', 'SUSPENDU', 'RETRAITE', 'DEMISSIONNAIRE'])
 export const statutEnvoi = pgEnum("statut_envoi", ['EN_ATTENTE', 'ENVOYE', 'ECHOUE', 'LU'])
+export const statutEvaluation = pgEnum("statut_evaluation", ['BROUILLON', 'PROGRAMMEE', 'PASSEE', 'CORRIGEE', 'PUBLIEE', 'ANNULEE'])
 export const statutJustification = pgEnum("statut_justification", ['NON_JUSTIFIEE', 'JUSTIFIEE', 'EN_ATTENTE'])
 export const statutNote = pgEnum("statut_note", ['NOTEE', 'ABSENT', 'ABSENT_ZERO', 'DISPENSE', 'NON_RENDU'])
 export const typeAbsence = pgEnum("type_absence", ['COURS', 'JOURNEE', 'DEMI_JOURNEE'])
@@ -709,62 +710,6 @@ export const seances = pgTable("seances", {
 		}),
 ]);
 
-export const evaluations = pgTable("evaluations", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	anneeId: uuid("annee_id").notNull(),
-	periodeId: uuid("periode_id").notNull(),
-	classeId: uuid("classe_id").notNull(),
-	matiereId: uuid("matiere_id").notNull(),
-	enseignantId: uuid("enseignant_id"),
-	type: typeEvaluation().notNull(),
-	titre: text().notNull(),
-	dateEvaluation: date("date_evaluation").notNull(),
-	bareme: numeric({ precision: 5, scale:  2 }).default('20.00').notNull(),
-	poids: numeric({ precision: 4, scale:  2 }).default('1.00').notNull(),
-	compteDansMoyenne: boolean("compte_dans_moyenne").default(true).notNull(),
-	observations: text(),
-	estVerrouillee: boolean("est_verrouillee").default(false).notNull(),
-	creePar: uuid("cree_par"),
-	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_evaluations_classe_periode").using("btree", table.classeId.asc().nullsLast().op("uuid_ops"), table.periodeId.asc().nullsLast().op("uuid_ops")),
-	index("idx_evaluations_enseignant").using("btree", table.enseignantId.asc().nullsLast().op("uuid_ops")),
-	index("idx_evaluations_matiere").using("btree", table.matiereId.asc().nullsLast().op("uuid_ops"), table.periodeId.asc().nullsLast().op("uuid_ops")),
-	foreignKey({
-			columns: [table.anneeId],
-			foreignColumns: [anneesScolaires.id],
-			name: "evaluations_annee_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.classeId],
-			foreignColumns: [classes.id],
-			name: "evaluations_classe_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.creePar],
-			foreignColumns: [utilisateurs.id],
-			name: "evaluations_cree_par_fkey"
-		}),
-	foreignKey({
-			columns: [table.enseignantId],
-			foreignColumns: [enseignants.id],
-			name: "evaluations_enseignant_id_fkey"
-		}).onDelete("set null"),
-	foreignKey({
-			columns: [table.matiereId],
-			foreignColumns: [matieres.id],
-			name: "evaluations_matiere_id_fkey"
-		}),
-	foreignKey({
-			columns: [table.periodeId],
-			foreignColumns: [periodes.id],
-			name: "evaluations_periode_id_fkey"
-		}).onDelete("cascade"),
-	check("evaluations_bareme_check", sql`bareme > (0)::numeric`),
-	check("evaluations_poids_check", sql`poids > (0)::numeric`),
-]);
-
 export const notes = pgTable("notes", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	evaluationId: uuid("evaluation_id").notNull(),
@@ -887,6 +832,73 @@ export const moyennesMatiere = pgTable("moyennes_matiere", {
 			name: "moyennes_matiere_periode_id_fkey"
 		}).onDelete("cascade"),
 	unique("moyennes_matiere_inscription_id_periode_id_matiere_id_key").on(table.inscriptionId, table.periodeId, table.matiereId),
+]);
+
+export const evaluations = pgTable("evaluations", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	anneeId: uuid("annee_id").notNull(),
+	periodeId: uuid("periode_id").notNull(),
+	classeId: uuid("classe_id").notNull(),
+	matiereId: uuid("matiere_id").notNull(),
+	enseignantId: uuid("enseignant_id"),
+	type: typeEvaluation().notNull(),
+	titre: text().notNull(),
+	dateEvaluation: date("date_evaluation").notNull(),
+	bareme: numeric({ precision: 5, scale:  2 }).default('20.00').notNull(),
+	poids: numeric({ precision: 4, scale:  2 }).default('1.00').notNull(),
+	compteDansMoyenne: boolean("compte_dans_moyenne").default(true).notNull(),
+	observations: text(),
+	estVerrouillee: boolean("est_verrouillee").default(false).notNull(),
+	creePar: uuid("cree_par"),
+	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	modifieLe: timestamp("modifie_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	statut: statutEvaluation().default('BROUILLON').notNull(),
+	dureeMinutes: smallint("duree_minutes"),
+	publieeLe: timestamp("publiee_le", { withTimezone: true, mode: 'string' }),
+	publieePar: uuid("publiee_par"),
+}, (table) => [
+	index("idx_evaluations_classe_periode").using("btree", table.classeId.asc().nullsLast().op("uuid_ops"), table.periodeId.asc().nullsLast().op("uuid_ops")),
+	index("idx_evaluations_enseignant").using("btree", table.enseignantId.asc().nullsLast().op("uuid_ops")),
+	index("idx_evaluations_matiere").using("btree", table.matiereId.asc().nullsLast().op("uuid_ops"), table.periodeId.asc().nullsLast().op("uuid_ops")),
+	index("idx_evaluations_statut").using("btree", table.classeId.asc().nullsLast().op("enum_ops"), table.statut.asc().nullsLast().op("uuid_ops")).where(sql`(statut <> 'PUBLIEE'::statut_evaluation)`),
+	foreignKey({
+			columns: [table.anneeId],
+			foreignColumns: [anneesScolaires.id],
+			name: "evaluations_annee_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.classeId],
+			foreignColumns: [classes.id],
+			name: "evaluations_classe_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.creePar],
+			foreignColumns: [utilisateurs.id],
+			name: "evaluations_cree_par_fkey"
+		}),
+	foreignKey({
+			columns: [table.enseignantId],
+			foreignColumns: [enseignants.id],
+			name: "evaluations_enseignant_id_fkey"
+		}).onDelete("set null"),
+	foreignKey({
+			columns: [table.matiereId],
+			foreignColumns: [matieres.id],
+			name: "evaluations_matiere_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.periodeId],
+			foreignColumns: [periodes.id],
+			name: "evaluations_periode_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.publieePar],
+			foreignColumns: [utilisateurs.id],
+			name: "evaluations_publiee_par_fkey"
+		}),
+	check("evaluations_bareme_check", sql`bareme > (0)::numeric`),
+	check("evaluations_duree_minutes_check", sql`duree_minutes > 0`),
+	check("evaluations_poids_check", sql`poids > (0)::numeric`),
 ]);
 
 export const moyennesGenerales = pgTable("moyennes_generales", {
@@ -2015,3 +2027,23 @@ export const vChargeEnseignant = pgView("v_charge_enseignant", {	enseignantId: u
 	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
 	nbAffectations: bigint("nb_affectations", { mode: "number" }),
 }).as(sql`SELECT e.id AS enseignant_id, a.id AS annee_id, e.heures_contractuelles, COALESCE(sum(DISTINCT af.heures_semaine), 0::numeric) AS heures_affectees, ( SELECT COALESCE(sum(edt.nb_creneaux), 0::bigint) AS "coalesce" FROM emploi_du_temps edt WHERE edt.enseignant_id = e.id AND edt.annee_id = a.id) AS creneaux_places, ( SELECT count(*) AS count FROM affectations x WHERE x.enseignant_id = e.id AND x.annee_id = a.id AND x.active) AS nb_affectations FROM enseignants e CROSS JOIN annees_scolaires a LEFT JOIN affectations af ON af.enseignant_id = e.id AND af.annee_id = a.id AND af.active WHERE e.actif GROUP BY e.id, a.id, e.heures_contractuelles`);
+
+export const vAvancementSaisie = pgView("v_avancement_saisie", {	evaluationId: uuid("evaluation_id"),
+	titre: text(),
+	type: typeEvaluation(),
+	dateEvaluation: date("date_evaluation"),
+	statut: statutEvaluation(),
+	classeId: uuid("classe_id"),
+	classe: text(),
+	matiereId: uuid("matiere_id"),
+	matiere: text(),
+	periodeId: uuid("periode_id"),
+	enseignantId: uuid("enseignant_id"),
+	enseignantNom: text("enseignant_nom"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	effectif: bigint({ mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	nbSaisies: bigint("nb_saisies", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	nbNotees: bigint("nb_notees", { mode: "number" }),
+}).as(sql`SELECT e.id AS evaluation_id, e.titre, e.type, e.date_evaluation, e.statut, e.classe_id, c.libelle AS classe, e.matiere_id, m.libelle AS matiere, e.periode_id, en.id AS enseignant_id, en.nom AS enseignant_nom, ( SELECT count(*) AS count FROM inscriptions i WHERE i.classe_id = e.classe_id AND i.active) AS effectif, ( SELECT count(*) AS count FROM notes n WHERE n.evaluation_id = e.id) AS nb_saisies, ( SELECT count(*) AS count FROM notes n WHERE n.evaluation_id = e.id AND n.statut = 'NOTEE'::statut_note) AS nb_notees FROM evaluations e JOIN classes c ON c.id = e.classe_id JOIN matieres m ON m.id = e.matiere_id LEFT JOIN enseignants en ON en.id = e.enseignant_id`);

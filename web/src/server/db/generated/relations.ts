@@ -6,9 +6,9 @@ export const periodesRelations = relations(periodes, ({one, many}) => ({
 		fields: [periodes.anneeId],
 		references: [anneesScolaires.id]
 	}),
-	evaluations: many(evaluations),
 	appreciationsMatieres: many(appreciationsMatiere),
 	moyennesMatieres: many(moyennesMatiere),
+	evaluations: many(evaluations),
 	moyennesGenerales: many(moyennesGenerales),
 	conseilsClasses: many(conseilsClasse),
 	bulletins: many(bulletins),
@@ -77,9 +77,9 @@ export const matieresRelations = relations(matieres, ({many}) => ({
 	emploiDuTemps: many(emploiDuTemps),
 	affectations: many(affectations),
 	seances: many(seances),
-	evaluations: many(evaluations),
 	appreciationsMatieres: many(appreciationsMatiere),
 	moyennesMatieres: many(moyennesMatiere),
+	evaluations: many(evaluations),
 	devoirs: many(devoirs),
 	ressourcesPedagogiques: many(ressourcesPedagogiques),
 	absences: many(absences),
@@ -164,9 +164,14 @@ export const utilisateursRelations = relations(utilisateurs, ({many}) => ({
 	changementsClasses: many(changementsClasse),
 	inscriptions: many(inscriptions),
 	seances: many(seances),
-	evaluations: many(evaluations),
 	notes: many(notes),
 	historiqueNotes: many(historiqueNotes),
+	evaluations_creePar: many(evaluations, {
+		relationName: "evaluations_creePar_utilisateurs_id"
+	}),
+	evaluations_publieePar: many(evaluations, {
+		relationName: "evaluations_publieePar_utilisateurs_id"
+	}),
 	conseilsClasses: many(conseilsClasse),
 	bulletins: many(bulletins),
 	absences_justifieePar: many(absences, {
@@ -235,8 +240,8 @@ export const enseignantsRelations = relations(enseignants, ({one, many}) => ({
 	emploiDuTemps: many(emploiDuTemps),
 	affectations: many(affectations),
 	seances: many(seances),
-	evaluations: many(evaluations),
 	appreciationsMatieres: many(appreciationsMatiere),
+	evaluations: many(evaluations),
 	devoirs: many(devoirs),
 	ressourcesPedagogiques: many(ressourcesPedagogiques),
 	remplacements_enseignantAbsentId: many(remplacements, {
@@ -436,34 +441,6 @@ export const seancesRelations = relations(seances, ({one, many}) => ({
 	remplacements: many(remplacements),
 }));
 
-export const evaluationsRelations = relations(evaluations, ({one, many}) => ({
-	anneesScolaire: one(anneesScolaires, {
-		fields: [evaluations.anneeId],
-		references: [anneesScolaires.id]
-	}),
-	class: one(classes, {
-		fields: [evaluations.classeId],
-		references: [classes.id]
-	}),
-	utilisateur: one(utilisateurs, {
-		fields: [evaluations.creePar],
-		references: [utilisateurs.id]
-	}),
-	enseignant: one(enseignants, {
-		fields: [evaluations.enseignantId],
-		references: [enseignants.id]
-	}),
-	matiere: one(matieres, {
-		fields: [evaluations.matiereId],
-		references: [matieres.id]
-	}),
-	periode: one(periodes, {
-		fields: [evaluations.periodeId],
-		references: [periodes.id]
-	}),
-	notes: many(notes),
-}));
-
 export const notesRelations = relations(notes, ({one, many}) => ({
 	evaluation: one(evaluations, {
 		fields: [notes.evaluationId],
@@ -478,6 +455,40 @@ export const notesRelations = relations(notes, ({one, many}) => ({
 		references: [utilisateurs.id]
 	}),
 	historiqueNotes: many(historiqueNotes),
+}));
+
+export const evaluationsRelations = relations(evaluations, ({one, many}) => ({
+	notes: many(notes),
+	anneesScolaire: one(anneesScolaires, {
+		fields: [evaluations.anneeId],
+		references: [anneesScolaires.id]
+	}),
+	class: one(classes, {
+		fields: [evaluations.classeId],
+		references: [classes.id]
+	}),
+	utilisateur_creePar: one(utilisateurs, {
+		fields: [evaluations.creePar],
+		references: [utilisateurs.id],
+		relationName: "evaluations_creePar_utilisateurs_id"
+	}),
+	enseignant: one(enseignants, {
+		fields: [evaluations.enseignantId],
+		references: [enseignants.id]
+	}),
+	matiere: one(matieres, {
+		fields: [evaluations.matiereId],
+		references: [matieres.id]
+	}),
+	periode: one(periodes, {
+		fields: [evaluations.periodeId],
+		references: [periodes.id]
+	}),
+	utilisateur_publieePar: one(utilisateurs, {
+		fields: [evaluations.publieePar],
+		references: [utilisateurs.id],
+		relationName: "evaluations_publieePar_utilisateurs_id"
+	}),
 }));
 
 export const historiqueNotesRelations = relations(historiqueNotes, ({one}) => ({
