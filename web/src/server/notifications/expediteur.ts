@@ -112,7 +112,15 @@ export async function traiterFile(limite = 100): Promise<RapportExpedition> {
         erreur = "Aucun numéro de téléphone.";
       } else {
         const texte = `${ligne.titre}\n${ligne.corps}`;
-        const r = await envoyerSms(ligne.telephone, texte);
+        // Un code de connexion passe devant tout le reste : le parent est
+        // devant son écran, en train de l'attendre. Une relance d'impayé peut
+        // patienter derrière cinquante messages sans que personne ne le
+        // remarque.
+        const r = await envoyerSms(
+          ligne.telephone,
+          texte,
+          ligne.type === "AUTRE" ? "otp" : "transactional",
+        );
         succes = r.succes;
         erreur = r.erreur;
         reference = r.reference;

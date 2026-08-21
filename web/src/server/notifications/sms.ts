@@ -29,6 +29,16 @@ export interface ResultatSms {
 
 export type FournisseurSms = "twilio" | "generique" | "journal";
 
+/**
+ * Priorité d'acheminement.
+ *
+ * Un code d'activation part devant tout le reste : le parent est devant son
+ * téléphone, l'écran ouvert, en train d'attendre. Une relance d'impayé peut
+ * patienter derrière cinquante autres messages sans que personne ne s'en
+ * aperçoive.
+ */
+export type Priorite = "otp" | "transactional" | "marketing";
+
 export function fournisseurSms(): FournisseurSms | null {
   const f = (process.env.SMS_FOURNISSEUR ?? "").toLowerCase();
   if (f === "twilio" || f === "generique" || f === "journal") return f;
@@ -122,7 +132,11 @@ async function envoyerTwilio(numero: string, texte: string): Promise<ResultatSms
  * Le corps est configurable pour s'adapter aux conventions de chaque
  * opérateur sans modifier ce fichier.
  */
-async function envoyerGenerique(numero: string, texte: string): Promise<ResultatSms> {
+async function envoyerGenerique(
+  numero: string,
+  texte: string,
+  priorite: Priorite,
+): Promise<ResultatSms> {
   const url = process.env.SMS_API_URL as string;
   const cle = process.env.SMS_API_KEY as string;
   const expediteur = process.env.SMS_SENDER_ID ?? "LGR";
@@ -135,10 +149,15 @@ async function envoyerGenerique(numero: string, texte: string): Promise<Resultat
     },
     body: JSON.stringify({
       to: numero,
+      // `body` est le champ attendu par 235SMS, et il est OBLIGATOIRE : sans
+      // lui la passerelle répond 400 sans envoyer le message. Les autres clés
+      // sont des alias que d'autres agrégateurs attendent — les envoyer
+      // toutes évite un aller-retour de configuration à chaque changement de
+      // fournisseur, et aucune passerelle ne se plaint d'un champ superflu.
+      body: texte,
+      priority: priorite,
       from: expediteur,
       message: texte,
-      // Certains agrégateurs attendent ces alias : les envoyer tous évite un
-      // aller-retour de configuration à chaque changement de passerelle.
       destinataire: numero,
       expediteur,
       contenu: texte,
@@ -159,7 +178,11 @@ async function envoyerGenerique(numero: string, texte: string): Promise<Resultat
   }
 }
 
-export async function envoyerSms(numeroBrut: string, texte: string): Promise<ResultatSms> {
+export async function envoyerSms(
+  numeroBrut: string,
+  texte: string,
+  priorite: Priorite = "transactional",
+): Promise<ResultatSms> {
   const fournisseur = fournisseurSms();
 
   if (!fournisseur) {
@@ -181,7 +204,7 @@ export async function envoyerSms(numeroBrut: string, texte: string): Promise<Res
       return { succes: true, reference: `journal-${Date.now()}` };
     }
     if (fournisseur === "twilio") return await envoyerTwilio(numero, texte);
-    return await envoyerGenerique(numero, texte);
+    return await envoyerGenerique(numero, texte, priorite);
   } catch (erreur) {
     return {
       succes: false,
