@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { GraduationCap, Plus, Search, Users } from "lucide-react";
+import { GraduationCap, Plus, Search, Upload, Users } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -64,12 +64,25 @@ export default async function PageEleves({
         </div>
 
         {peutCreer ? (
-          <Button asChild>
-            <Link href="/dashboard/eleves/nouveau">
-              <Plus aria-hidden />
-              Inscrire un élève
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {/*
+              L'import est en retrait par rapport à l'inscription : c'est un
+              geste de rentrée, fait quelques fois dans l'année, quand
+              l'inscription au guichet est le quotidien.
+            */}
+            <Button asChild variant="outline">
+              <Link href="/dashboard/eleves/importer">
+                <Upload aria-hidden />
+                Importer un fichier
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/dashboard/eleves/nouveau">
+                <Plus aria-hidden />
+                Inscrire un élève
+              </Link>
+            </Button>
+          </div>
         ) : null}
       </div>
 

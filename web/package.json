@@ -51,6 +51,7 @@
     "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "embla-carousel-react": "^8.6.0",
+    "exceljs": "^4.4.0",
     "geist": "^1.7.2",
     "input-otp": "^1.4.2",
     "jose": "^6.2.9",
@@ -95,5 +96,8 @@
     "ts-node": "^10.9.2",
     "tw-animate-css": "^1.4.0",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }
