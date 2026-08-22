@@ -21,10 +21,14 @@ import 'annonce_detail.dart';
 /// sont cliquables — un chiffre inquiétant doit mener à son détail en un
 /// geste, pas obliger à chercher le bon onglet.
 class EcranAccueil extends ConsumerWidget {
-  const EcranAccueil({super.key, required this.versOnglet});
+  const EcranAccueil({super.key, required this.versOnglet, required this.versCompte});
 
   /// Navigation vers un onglet de la barre inférieure.
   final void Function(int) versOnglet;
+
+  /// Accès à l'écran du compte. Il n'a pas d'onglet — cinq destinations est le
+  /// maximum lisible en bas d'écran — donc il s'atteint depuis la bannière.
+  final VoidCallback versCompte;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,7 +43,11 @@ class EcranAccueil extends ConsumerWidget {
             message: erreur.toString(),
             surReessayer: () => ref.invalidate(accueilProvider),
           ),
-          data: (donnees) => _AccueilCharge(donnees: donnees, versOnglet: versOnglet),
+          data: (donnees) => _AccueilCharge(
+            donnees: donnees,
+            versOnglet: versOnglet,
+            versCompte: versCompte,
+          ),
         ),
       ),
     );
@@ -47,10 +55,15 @@ class EcranAccueil extends ConsumerWidget {
 }
 
 class _AccueilCharge extends ConsumerWidget {
-  const _AccueilCharge({required this.donnees, required this.versOnglet});
+  const _AccueilCharge({
+    required this.donnees,
+    required this.versOnglet,
+    required this.versCompte,
+  });
 
   final Donnees<Accueil> donnees;
   final void Function(int) versOnglet;
+  final VoidCallback versCompte;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -72,7 +85,12 @@ class _AccueilCharge extends ConsumerWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(
-          child: _Banniere(profil: accueil.profil, enfants: accueil.enfants, enfant: enfant!),
+          child: _Banniere(
+            profil: accueil.profil,
+            enfants: accueil.enfants,
+            enfant: enfant!,
+            versCompte: versCompte,
+          ),
         ),
         if (donnees.depuisCache)
           SliverToBoxAdapter(child: BandeauHorsLigne(derniereMaj: donnees.date)),
@@ -130,11 +148,17 @@ class _AccueilCharge extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _Banniere extends ConsumerWidget {
-  const _Banniere({required this.profil, required this.enfants, required this.enfant});
+  const _Banniere({
+    required this.profil,
+    required this.enfants,
+    required this.enfant,
+    required this.versCompte,
+  });
 
   final Profil profil;
   final List<Enfant> enfants;
   final Enfant enfant;
+  final VoidCallback versCompte;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -179,6 +203,32 @@ class _Banniere extends ConsumerWidget {
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
                       color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Seul accès au compte : déconnexion, aide, emploi du temps.
+                  // Sans lui, ces trois écrans existent mais restent hors
+                  // d'atteinte du parent.
+                  Semantics(
+                    button: true,
+                    label: 'Mon compte',
+                    child: InkWell(
+                      onTap: versCompte,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+                        ),
+                        child: const Icon(
+                          Icons.person_outline_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
                     ),
                   ),
                 ],

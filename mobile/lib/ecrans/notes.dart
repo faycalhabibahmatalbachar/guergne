@@ -417,6 +417,21 @@ class _EtatCarteMatiere extends State<_CarteMatiere> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 10),
+
+          // Situe l'élève dans sa classe. C'est cette mise en perspective qui
+          // répond à la question du parent — « est-ce que ça va ? » — bien
+          // mieux que la note seule.
+          if (m.moyenne != null && (m.noteMin != null || m.noteMax != null)) ...[
+            ReglageClasse(
+              eleve: m.moyenne!,
+              classe: m.moyenneClasse,
+              mini: m.noteMin,
+              maxi: m.noteMax,
+              couleur: context.moyenne(m.moyenne),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           if (m.enseignant != null) ...[
             Row(
               children: [

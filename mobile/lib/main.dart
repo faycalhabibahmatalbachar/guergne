@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'design/couleurs.dart';
 import 'design/theme.dart';
 import 'ecrans/activation.dart';
 import 'ecrans/coque.dart';
@@ -60,17 +62,33 @@ class ApplicationLgr extends ConsumerWidget {
 
 /// Écran de démarrage, le temps de relire les jetons du coffre sécurisé.
 ///
-/// Il dure quelques dizaines de millisecondes : aucune animation, aucun logo
-/// animé. Un écran de démarrage qu'on remarque est un écran de démarrage trop
-/// long.
+/// Il prolonge visuellement l'écran natif : même fond bleu, même logo, à la
+/// même place. Sans cette continuité, le lancement montre un clignotement —
+/// splash natif, puis fond blanc, puis application — que l'œil perçoit comme
+/// un défaut même sans savoir le nommer.
 class _Demarrage extends StatelessWidget {
   const _Demarrage();
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
+      backgroundColor: Couleurs.primaire,
       body: Center(
-        child: SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.5)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(width: 132, height: 132, child: SvgPicture.asset('assets/marque/logo.svg')),
+            const SizedBox(height: 34),
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.2,
+                color: Colors.white.withValues(alpha: 0.75),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

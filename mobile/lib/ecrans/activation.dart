@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../design/couleurs.dart';
 import '../design/theme.dart';
 import '../etat/fournisseurs.dart';
+import '../outils/telephone.dart';
 import '../services/api.dart';
 
 /// Écran d'activation : numéro de téléphone, puis code reçu par SMS.
@@ -34,12 +35,40 @@ class _EtatActivation extends ConsumerState<EcranActivation> {
   bool _occupe = false;
   String? _erreur;
 
+  /// Vrai quand le parent est arrivé à la saisie avec un code déjà en main,
+  /// sans en avoir demandé un nouveau. L'écran le dit alors autrement.
+  bool _dejaEnPossession = false;
+
+  /// Numéro complet et plausible. Recalculé à chaque frappe : les deux
+  /// boutons sont désactivés tant qu'il est faux, ce qui évite un
+  /// aller-retour réseau pour apprendre qu'il manque un chiffre.
+  bool get _numeroValide => Telephone.valide(_telephone.text);
+
   /// Compte à rebours avant de pouvoir redemander un code.
   int _attente = 0;
   Timer? _minuteur;
 
   @override
+  void initState() {
+    super.initState();
+    // Rebâtit l'écran à chaque frappe pour rafraîchir l'état des boutons et
+    // le message d'aide sous le champ.
+    _telephone.addListener(_surFrappe);
+  }
+
+  void _surFrappe() {
+    // L'erreur affichée disparaît dès que le parent corrige : la laisser
+    // sous un champ devenu correct est déroutant.
+    if (_erreur != null && _numeroValide) {
+      setState(() => _erreur = null);
+    } else {
+      setState(() {});
+    }
+  }
+
+  @override
   void dispose() {
+    _telephone.removeListener(_surFrappe);
     _minuteur?.cancel();
     _telephone.dispose();
     _code.dispose();
@@ -59,8 +88,9 @@ class _EtatActivation extends ConsumerState<EcranActivation> {
 
   Future<void> _demanderCode() async {
     final numero = _telephone.text.trim();
-    if (numero.replaceAll(RegExp(r'\D'), '').length < 8) {
-      setState(() => _erreur = 'Entrez votre numéro à 8 chiffres.');
+    final refus = Telephone.motifRefus(numero);
+    if (refus != null) {
+      setState(() => _erreur = refus);
       return;
     }
 
@@ -82,6 +112,26 @@ class _EtatActivation extends ConsumerState<EcranActivation> {
     } finally {
       if (mounted) setState(() => _occupe = false);
     }
+  }
+
+  /// Passe à la saisie sans demander de nouveau code.
+  ///
+  /// Indispensable : le secrétariat communique souvent le code de vive voix,
+  /// et toute nouvelle demande INVALIDE le code déjà remis. Sans ce chemin,
+  /// un parent à qui l'école a dicté un code ne pourrait jamais s'en servir —
+  /// le seul bouton disponible le détruirait.
+  void _saisirCodeExistant() {
+    final refus = Telephone.motifRefus(_telephone.text);
+    if (refus != null) {
+      setState(() => _erreur = refus);
+      return;
+    }
+    setState(() {
+      _etape = _Etape.code;
+      _erreur = null;
+      _dejaEnPossession = true;
+    });
+    _focusCode.requestFocus();
   }
 
   Future<void> _valider() async {
@@ -235,7 +285,12 @@ class _EtatActivation extends ConsumerState<EcranActivation> {
           controller: _telephone,
           keyboardType: TextInputType.phone,
           autofillHints: const [AutofillHints.telephoneNumber],
-          style: ThemeLgr.nombre(theme.textTheme.titleMedium).copyWith(letterSpacing: 0.6),
+          textInputAction: TextInputAction.done,
+          // Le clavier numérique et le formateur garantissent qu'aucun
+          // caractère invalide n'entre : il n'y a donc rien à nettoyer plus
+          // loin, et le parent voit son numéro dans la forme où il le dit.
+          inputFormatters: [FormateurTelephone()],
+          style: ThemeLgr.nombre(theme.textTheme.titleMedium).copyWith(letterSpacing: 1.2),
           decoration: InputDecoration(
             labelText: 'Numéro de téléphone',
             hintText: '66 00 00 00',
@@ -247,19 +302,48 @@ class _EtatActivation extends ConsumerState<EcranActivation> {
               child: Text(
                 '+235',
                 style: ThemeLgr.nombre(
-                  Theme.of(context).textTheme.titleMedium,
+                  theme.textTheme.titleMedium,
                 ).copyWith(color: Couleurs.encreDouce, height: 3.0),
               ),
             ),
             prefixIconConstraints: const BoxConstraints(minWidth: 0),
+            suffixIcon: _numeroValide
+                ? Icon(Icons.check_circle_rounded, color: context.etat(Couleurs.succes), size: 22)
+                : null,
           ),
-          onSubmitted: (_) => _demanderCode(),
+          onSubmitted: (_) => _numeroValide ? _demanderCode() : null,
         ),
+
+        // Aide sous le champ : elle indique ce qui manque au fur et à mesure,
+        // plutôt que d'attendre l'appui sur le bouton pour le dire.
+        AnimatedSize(
+          duration: ThemeLgr.dureeCourte,
+          curve: ThemeLgr.ressortDoux,
+          alignment: Alignment.topLeft,
+          child: _telephone.text.isEmpty || _numeroValide
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.only(top: 8, left: 4),
+                  child: Text(
+                    Telephone.motifRefus(_telephone.text) ?? '',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Couleurs.encreDouce,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+        ),
+
         if (_erreur != null) ...[const SizedBox(height: 14), _messageErreur(_erreur!)],
         const SizedBox(height: 22),
         FilledButton(
-          onPressed: _occupe ? null : _demanderCode,
+          onPressed: _occupe || !_numeroValide ? null : _demanderCode,
           child: _occupe ? const _Rouet() : const Text('Recevoir mon code'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: _occupe || !_numeroValide ? null : _saisirCodeExistant,
+          child: const Text("J'ai déjà un code"),
         ),
         const SizedBox(height: 16),
         _mentionAide(theme),
@@ -280,6 +364,7 @@ class _EtatActivation extends ConsumerState<EcranActivation> {
                   : () => setState(() {
                       _etape = _Etape.telephone;
                       _erreur = null;
+                      _dejaEnPossession = false;
                     }),
               icon: const Icon(Icons.arrow_back_rounded),
               tooltip: 'Modifier le numéro',
@@ -294,12 +379,16 @@ class _EtatActivation extends ConsumerState<EcranActivation> {
           TextSpan(
             style: theme.textTheme.bodyMedium,
             children: [
-              const TextSpan(text: 'Code envoyé au '),
+              TextSpan(text: _dejaEnPossession ? 'Saisissez le code du ' : 'Code envoyé au '),
               TextSpan(
                 text: _telephone.text.trim(),
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-              const TextSpan(text: '. Il est valable 7 jours.'),
+              TextSpan(
+                text: _dejaEnPossession
+                    ? " que l'école vous a communiqué."
+                    : '. Il est valable 7 jours.',
+              ),
             ],
           ),
         ),

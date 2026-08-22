@@ -401,3 +401,150 @@ class AvatarEleve extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Comparaison à la classe
+// ---------------------------------------------------------------------------
+
+/// Situe une note dans l'échelle de sa classe.
+///
+/// Un parent ne sait pas quoi penser de « 11,20 sur 20 ». Il le sait
+/// immédiatement s'il voit que la classe est à 9,50 et que le meilleur est à
+/// 16. C'est cette mise en perspective, et non la note seule, qui répond à la
+/// question qu'il se pose : « est-ce que ça va ? »
+///
+/// L'échelle est celle des notes RÉELLES de la classe, pas 0–20 : sur une
+/// classe où personne ne dépasse 14, écraser l'échelle jusqu'à 20 donnerait
+/// l'impression que tout le monde est mauvais.
+class ReglageClasse extends StatelessWidget {
+  const ReglageClasse({
+    super.key,
+    required this.eleve,
+    required this.classe,
+    required this.mini,
+    required this.maxi,
+    required this.couleur,
+  });
+
+  final double eleve;
+  final double? classe;
+  final double? mini;
+  final double? maxi;
+  final Color couleur;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final bas = mini ?? 0;
+    final haut = maxi ?? 20;
+    // Une classe entièrement à égalité donnerait une étendue nulle et une
+    // division par zéro ; on garde alors une échelle minimale d'un point.
+    final etendue = (haut - bas).abs() < 1 ? 1.0 : haut - bas;
+
+    double position(double note) => ((note - bas) / etendue).clamp(0.0, 1.0);
+
+    return LayoutBuilder(
+      builder: (context, contraintes) {
+        final largeur = contraintes.maxWidth;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 18,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Étendue de la classe.
+                  Positioned(
+                    top: 7,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.outline,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+
+                  // Moyenne de la classe : le repère par rapport auquel se
+                  // juge la note de l'élève.
+                  if (classe != null)
+                    Positioned(
+                      top: 3,
+                      left: (position(classe!) * largeur - 1).clamp(0.0, largeur - 2),
+                      child: Container(
+                        width: 2,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Couleurs.encreLegere,
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ),
+
+                  // L'élève.
+                  Positioned(
+                    top: 2,
+                    left: (position(eleve) * largeur - 7).clamp(0.0, largeur - 14),
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: couleur,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: theme.colorScheme.surface, width: 2),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 5),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _Borne(valeur: bas, libelle: 'plus faible'),
+                if (classe != null)
+                  Text(
+                    'classe ${classe!.toStringAsFixed(2).replaceAll(".", ",")}',
+                    style: theme.textTheme.bodySmall?.copyWith(fontSize: 10.5),
+                  ),
+                _Borne(valeur: haut, libelle: 'meilleur', aDroite: true),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _Borne extends StatelessWidget {
+  const _Borne({required this.valeur, required this.libelle, this.aDroite = false});
+
+  final double valeur;
+  final String libelle;
+  final bool aDroite;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: aDroite ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Text(
+          valeur.toStringAsFixed(1).replaceAll('.', ','),
+          style: ThemeLgr.nombre(
+            theme.textTheme.bodySmall,
+          ).copyWith(fontSize: 10.5, fontWeight: FontWeight.w600),
+        ),
+        Text(libelle, style: theme.textTheme.bodySmall?.copyWith(fontSize: 9.5)),
+      ],
+    );
+  }
+}

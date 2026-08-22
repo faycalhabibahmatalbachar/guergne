@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../modeles/modeles.dart';
 import '../services/api.dart';
+import '../services/notifications.dart';
 import '../services/stockage.dart';
 
 /// État de l'application.
@@ -35,6 +38,17 @@ final apiProvider = Provider<ApiEcole>((ref) {
   final api = ApiEcole(stockage: ref.watch(stockageProvider), base: adresseApi);
   api.surSessionPerdue = () => ref.read(sessionProvider.notifier).sessionPerdue();
   return api;
+});
+
+/// Service de notifications poussées.
+///
+/// Créé une seule fois pour toute la durée de vie de l'application : deux
+/// instances enregistreraient deux écoutes du même flux et le parent verrait
+/// chaque notification en double.
+final notificationsProvider = Provider<ServiceNotifications>((ref) {
+  final service = ServiceNotifications(ref.watch(apiProvider));
+  ref.onDispose(service.arreter);
+  return service;
 });
 
 // ---------------------------------------------------------------------------
@@ -81,6 +95,10 @@ class SessionNotifier extends StateNotifier<Session> {
     }
 
     state = Session(etat: EtatSession.connecte, profil: Profil.depuisJson(profil));
+
+    // Rejoué à chaque lancement : Firebase renouvelle le jeton sans prévenir,
+    // et un jeton périmé fait cesser les alertes en silence.
+    unawaited(_ref.read(notificationsProvider).demarrer());
   }
 
   Future<void> demanderCode(String telephone) => _api.demanderCode(telephone);
@@ -96,6 +114,10 @@ class SessionNotifier extends StateNotifier<Session> {
     );
 
     state = Session(etat: EtatSession.connecte, profil: Profil.depuisJson(profil));
+
+    // Le jeton de notification ne part qu'une fois la session ouverte : la
+    // route d'enregistrement exige une authentification.
+    unawaited(_ref.read(notificationsProvider).demarrer());
   }
 
   Future<void> deconnecter() async {

@@ -47,3 +47,9 @@ app.*.map.json
 # Signature Android — jamais dans le dépôt
 android/key.properties
 *.jks
+
+# Configuration Firebase — contient les identifiants du projet
+android/app/google-services.json
+
+# Diffs produits par un échec de test de rendu — jamais dans le dépôt
+test/failures/

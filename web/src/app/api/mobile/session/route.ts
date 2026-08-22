@@ -11,6 +11,7 @@ import {
   TENTATIVES_MAX,
 } from "@/server/auth/mobile";
 import { db } from "@/server/db";
+import { motifRefus } from "@/lib/telephone";
 import { normaliserNumero } from "@/server/notifications/sms";
 
 /**
@@ -52,7 +53,11 @@ export async function POST(requete: NextRequest) {
     return erreur("requete_invalide", "Requête illisible.");
   }
 
-  const numero = normaliserNumero((corps.telephone ?? "").trim());
+  const brut = (corps.telephone ?? "").trim();
+  const refus = motifRefus(brut);
+  if (refus) return erreur("telephone_invalide", refus);
+
+  const numero = normaliserNumero(brut);
   const code = (corps.code ?? "").replace(/\D/g, "");
 
   if (code.length !== 6) {
@@ -64,12 +69,16 @@ export async function POST(requete: NextRequest) {
       id: string;
       tentatives: number;
       expire_le: string;
+      permanent: boolean;
       correspond: boolean;
     }>(sql`
-      SELECT id, tentatives, expire_le, code_hash = ${empreinte(code)} AS correspond
+      SELECT id, tentatives, expire_le, permanent,
+             code_hash = ${empreinte(code)} AS correspond
         FROM codes_activation
        WHERE telephone = ${numero} AND NOT consomme
-       ORDER BY cree_le DESC
+       -- Le code permanent passe devant : sur un compte de développement, il
+       -- doit répondre même si une demande vient d'en créer un autre.
+       ORDER BY permanent DESC, cree_le DESC
        LIMIT 1
        FOR UPDATE
     `);
@@ -77,11 +86,17 @@ export async function POST(requete: NextRequest) {
     const ligne = lignes.rows[0];
     if (!ligne) return { statut: "aucun" as const };
 
-    if (new Date(ligne.expire_le) < new Date()) {
+    // Un code permanent ne périme pas : c'est un accès de développement, pas
+    // un jeton à usage unique.
+    if (!ligne.permanent && new Date(ligne.expire_le) < new Date()) {
       return { statut: "expire" as const };
     }
 
     if (!ligne.correspond) {
+      // Les essais ratés ne brûlent pas un code permanent — sinon cinq fautes
+      // de frappe suffiraient à supprimer l'accès de développement.
+      if (ligne.permanent) return { statut: "faux" as const, restantes: TENTATIVES_MAX };
+
       const tentatives = ligne.tentatives + 1;
       // Au-delà du seuil, le code est brûlé plutôt que simplement compté :
       // sinon 10⁶ essais suffiraient à ouvrir n'importe quel compte.
@@ -97,7 +112,13 @@ export async function POST(requete: NextRequest) {
       };
     }
 
-    await tx.execute(sql`UPDATE codes_activation SET consomme = TRUE WHERE id = ${ligne.id}`);
+    if (!ligne.permanent) {
+      await tx.execute(sql`UPDATE codes_activation SET consomme = TRUE WHERE id = ${ligne.id}`);
+    } else {
+      // Trace explicite : un accès permanent qui sert doit se voir dans les
+      // journaux, faute de quoi on oublie qu'il existe.
+      console.warn(`[auth] Connexion par CODE PERMANENT — ${numero}. À retirer avant la mise en service.`);
+    }
 
     const comptes = await tx.execute<{
       id: string;

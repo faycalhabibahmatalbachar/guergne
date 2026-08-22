@@ -6,6 +6,7 @@ import '../design/couleurs.dart';
 import '../design/theme.dart';
 import '../etat/fournisseurs.dart';
 import '../modeles/modeles.dart';
+import '../outils/telephone.dart';
 import 'emploi_du_temps.dart';
 
 /// Écran du compte.
@@ -14,18 +15,40 @@ import 'emploi_du_temps.dart';
 /// sont des consultations occasionnelles, qui n'ont pas à occuper un onglet
 /// permanent de la barre inférieure.
 class EcranProfil extends ConsumerWidget {
-  const EcranProfil({super.key});
+  const EcranProfil({super.key, this.surRetour});
+
+  /// Retour à l'accueil. L'écran vit dans une pile indexée, pas dans la pile
+  /// de navigation : sans ce rappel, le bouton système « précédent » quitte
+  /// l'application au lieu de revenir en arrière.
+  final VoidCallback? surRetour;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final session = ref.watch(sessionProvider);
     final accueil = ref.watch(accueilProvider).value;
-    final profil = session.profil;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mon compte')),
-      body: ListView(
+    // Le profil du serveur prime sur celui mémorisé à la connexion : si le
+    // secrétariat corrige un nom ou un numéro, le parent doit voir la
+    // correction sans avoir à se reconnecter.
+    final profil = accueil?.valeur.profil ?? ref.watch(sessionProvider).profil;
+
+    return PopScope(
+      canPop: surRetour == null,
+      onPopInvokedWithResult: (sorti, _) {
+        if (!sorti) surRetour?.call();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Mon compte'),
+          leading: surRetour == null
+              ? null
+              : IconButton(
+                  onPressed: surRetour,
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  tooltip: "Retour à l'accueil",
+                ),
+        ),
+        body: ListView(
         padding: const EdgeInsets.all(ThemeLgr.espace),
         children: [
           if (profil != null) _Identite(profil: profil),
@@ -88,8 +111,9 @@ class EcranProfil extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 20),
-        ],
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
@@ -156,7 +180,14 @@ class _Identite extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text(profil.telephone ?? '—', style: ThemeLgr.nombre(theme.textTheme.bodyMedium)),
+                Text(
+                  // Groupé par deux, comme un numéro tchadien se dit : le
+                  // parent doit reconnaître son propre numéro d'un regard.
+                  profil.telephone == null
+                      ? '—'
+                      : '+235 ${Telephone.lisible(profil.telephone!)}',
+                  style: ThemeLgr.nombre(theme.textTheme.bodyMedium),
+                ),
                 const SizedBox(height: 8),
                 const BadgeEtat(
                   'Parent · compte vérifié',

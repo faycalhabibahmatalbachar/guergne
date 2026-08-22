@@ -15,12 +15,13 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:pull": "drizzle-kit pull && node scripts/corriger-schema.mjs",
     "compte:creer": "node scripts/creer-compte.mjs",
-    "test": "node --test src/server/domain/*.test.ts",
+    "test": "node --test src/server/domain/*.test.ts src/lib/*.test.ts",
     "db:peupler": "node scripts/peupler.mjs",
     "db:purger": "node scripts/peupler.mjs --purge",
     "db:photos": "node scripts/photos-demonstration.mjs",
     "db:annee": "node scripts/annee-ecoulee.mjs",
-    "db:annee:purger": "node scripts/annee-ecoulee.mjs --purge"
+    "db:annee:purger": "node scripts/annee-ecoulee.mjs --purge",
+    "compte:dev": "node scripts/compte-dev.mjs"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

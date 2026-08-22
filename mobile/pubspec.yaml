@@ -42,6 +42,8 @@ dependencies:
   shimmer: ^3.0.0
   shared_preferences: ^2.5.5
   flutter_svg: ^2.3.0
+  firebase_core: ^4.13.0
+  firebase_messaging: ^16.5.0
 
 dev_dependencies:
   flutter_test:
@@ -54,6 +56,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -100,3 +103,22 @@ flutter_launcher_icons:
     generate: true
     background_color: "#FFFFFF"
     theme_color: "#1E429F"
+
+# Écran de lancement.
+#
+# Sans lui, Android affiche un rectangle blanc pendant que le moteur Flutter
+# démarre — une à deux secondes sur un appareil d'entrée de gamme, pendant
+# lesquelles le parent croit que l'application ne répond pas.
+#
+# Régénérer après un changement de logo :
+#   dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#1E429F"
+  image: assets/icone/premier-plan.png
+  android_12:
+    color: "#1E429F"
+    image: assets/icone/premier-plan.png
+    icon_background_color: "#1E429F"
+  android: true
+  ios: true
+  web: false

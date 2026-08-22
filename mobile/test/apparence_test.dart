@@ -9,6 +9,7 @@ import 'package:lgr_parents/ecrans/annonces.dart';
 import 'package:lgr_parents/ecrans/assiduite.dart';
 import 'package:lgr_parents/ecrans/finances.dart';
 import 'package:lgr_parents/ecrans/notes.dart';
+import 'package:lgr_parents/ecrans/profil.dart';
 import 'package:lgr_parents/etat/fournisseurs.dart';
 import 'package:lgr_parents/outils/formats.dart' as formats;
 import 'package:lgr_parents/services/stockage.dart';
@@ -48,6 +49,7 @@ void main() {
     List<Override> surcharges = const [],
     Brightness luminosite = Brightness.light,
     Size taille = const Size(390, 844),
+    Future<void> Function(WidgetTester)? apresRendu,
   }) async {
     tester.view.physicalSize = taille;
     tester.view.devicePixelRatio = 1.0;
@@ -74,6 +76,8 @@ void main() {
     // rendu capturé dépend du moment exact de la capture.
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
+    if (apresRendu != null) await apresRendu(tester);
+
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('apparence/$nom.png'));
   }
 
@@ -89,7 +93,7 @@ void main() {
   testWidgets('Accueil — situation nominale', (tester) async {
     await rendre(
       tester,
-      EcranAccueil(versOnglet: (_) {}),
+      EcranAccueil(versOnglet: (_) {}, versCompte: () {}),
       nom: 'accueil',
       surcharges: echafaudage(stockage: stockage, accueil: accueilExemple()),
     );
@@ -98,7 +102,7 @@ void main() {
   testWidgets('Accueil — mode sombre', (tester) async {
     await rendre(
       tester,
-      EcranAccueil(versOnglet: (_) {}),
+      EcranAccueil(versOnglet: (_) {}, versCompte: () {}),
       nom: 'accueil_sombre',
       luminosite: Brightness.dark,
       surcharges: echafaudage(stockage: stockage, accueil: accueilExemple()),
@@ -108,7 +112,7 @@ void main() {
   testWidgets('Accueil — fratrie, échéance en retard, absences', (tester) async {
     await rendre(
       tester,
-      EcranAccueil(versOnglet: (_) {}),
+      EcranAccueil(versOnglet: (_) {}, versCompte: () {}),
       nom: 'accueil_fratrie',
       surcharges: echafaudage(stockage: stockage, accueil: accueilFratrie()),
     );
@@ -124,6 +128,22 @@ void main() {
         accueil: accueilExemple(),
         releve: relevePublie(),
       ),
+    );
+  });
+
+  testWidgets('Résultats — matière dépliée', (tester) async {
+    await rendre(
+      tester,
+      const EcranNotes(),
+      nom: 'notes_detail',
+      surcharges: echafaudage(stockage: stockage, accueil: accueilExemple(), releve: relevePublie()),
+      apresRendu: (tester) async {
+        // Déplie la première matière : c'est là que vivent l'échelle de
+        // classe, les notes détaillées et l'appréciation — la partie que la
+        // capture de la liste ne montre jamais.
+        await tester.tap(find.text('Français'));
+        await tester.pumpAndSettle(const Duration(seconds: 1));
+      },
     );
   });
 
@@ -192,6 +212,15 @@ void main() {
         accueil: accueilDuServeur(),
         releve: releveDuServeur(),
       ),
+    );
+  });
+
+  testWidgets('Mon compte', (tester) async {
+    await rendre(
+      tester,
+      const EcranProfil(),
+      nom: 'profil',
+      surcharges: echafaudage(stockage: stockage, accueil: accueilFratrie()),
     );
   });
 

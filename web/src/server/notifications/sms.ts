@@ -1,5 +1,7 @@
 import "server-only";
 
+import { formatInternational } from "@/lib/telephone";
+
 /**
  * Expédition des SMS, indépendante du fournisseur.
  *
@@ -65,19 +67,14 @@ export function smsConfigure(): boolean {
 /**
  * Normalise un numéro tchadien au format international.
  *
- * Les numéros sont saisis de vingt façons au secrétariat : « 66 00 00 00 »,
- * « 0066000000 », « +235 66 00 00 00 ». Une passerelle les refuse tous sauf
- * un. On normalise donc au moment de l'envoi plutôt que d'imposer un format
- * de saisie que personne ne respectera.
+ * La règle elle-même vit dans `lib/telephone.ts` : un seul endroit décide de
+ * ce qu'est un numéro tchadien valide, pour le portail, l'application des
+ * parents et la passerelle SMS. Les numéros sont saisis de vingt façons au
+ * secrétariat — « 66 00 00 00 », « 0066000000 », « +235 66 00 00 00 » — et
+ * une passerelle les refuse toutes sauf une.
  */
 export function normaliserNumero(numero: string): string {
-  const chiffres = numero.replace(/[^\d+]/g, "");
-  if (chiffres.startsWith("+")) return chiffres;
-  if (chiffres.startsWith("235")) return `+${chiffres}`;
-  // Numéro national tchadien : 8 chiffres commençant par 6, 7 ou 9.
-  if (/^[679]\d{7}$/.test(chiffres)) return `+235${chiffres}`;
-  if (chiffres.startsWith("00")) return `+${chiffres.slice(2)}`;
-  return `+235${chiffres.replace(/^0+/, "")}`;
+  return formatInternational(numero);
 }
 
 /**

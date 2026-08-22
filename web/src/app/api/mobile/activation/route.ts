@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { adresseAppelant, erreur, json, limiter, preVol, purgerCompteurs } from "@/app/api/mobile/_commun";
 import { DUREE_CODE_JOURS, empreinte } from "@/server/auth/mobile";
 import { db } from "@/server/db";
+import { motifRefus } from "@/lib/telephone";
 import { normaliserNumero } from "@/server/notifications/sms";
 
 /**
@@ -45,8 +46,11 @@ export async function POST(requete: NextRequest) {
   }
 
   const brut = (corps.telephone ?? "").trim();
-  if (brut.length < 8) {
-    return erreur("telephone_invalide", "Numéro de téléphone incomplet.");
+  const refus = motifRefus(brut);
+  if (refus) {
+    // Le motif exact est renvoyé : « il manque 2 chiffres » permet de
+    // corriger, « numéro invalide » oblige à appeler l'école.
+    return erreur("telephone_invalide", refus);
   }
 
   const numero = normaliserNumero(brut);
@@ -72,9 +76,13 @@ export async function POST(requete: NextRequest) {
   await db.transaction(async (tx) => {
     // Un seul code vivant à la fois : un ancien code communiqué par erreur ne
     // doit pas rester utilisable.
+    //
+    // Les codes permanents échappent à cette règle — c'est toute leur raison
+    // d'être. Sans cette exception, appuyer sur « Recevoir mon code » sur un
+    // compte de développement détruirait l'accès qu'on vient d'y installer.
     await tx.execute(sql`
       UPDATE codes_activation SET consomme = TRUE
-       WHERE telephone = ${numero} AND NOT consomme
+       WHERE telephone = ${numero} AND NOT consomme AND NOT permanent
     `);
 
     await tx.execute(sql`
