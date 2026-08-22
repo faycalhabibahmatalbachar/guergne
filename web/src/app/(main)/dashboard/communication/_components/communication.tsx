@@ -6,6 +6,18 @@ import { useState, useTransition } from "react";
 import { Megaphone, Pin, Send, Users } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { COUT_SMS_FCFA } from "@/lib/tarifs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,15 +143,53 @@ export function Communication({
                 pour les familles équipées et en SMS pour les autres.
               </CardDescription>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={enCours || file.enAttente === 0}
-              onClick={() => agir(() => traiterFileNotifications())}
-            >
-              <Send aria-hidden />
-              Traiter la file
-            </Button>
+            {/*
+              Ce bouton dépense de l'argent. Il partait autrefois au premier
+              clic, sans annoncer combien de SMS ni pour quel montant — et une
+              file de plusieurs jours d'arriéré a ainsi été expédiée d'un coup.
+              On annonce donc le volume et le coût AVANT, pas après.
+            */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="outline" disabled={enCours || file.enAttente === 0}>
+                  <Send aria-hidden />
+                  Traiter la file
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Expédier {file.enAttente} notification(s) ?</AlertDialogTitle>
+                  <AlertDialogDescription asChild>
+                    <div className="space-y-2 text-sm">
+                      <p>
+                        {file.pushEnAttente} par notification poussée — gratuite — et{" "}
+                        <strong>{file.smsEnAttente} par SMS</strong>
+                        {file.smsEnAttente > 0 && (
+                          <>
+                            , soit environ{" "}
+                            <strong>
+                              {(file.smsEnAttente * COUT_SMS_FCFA).toLocaleString("fr-FR")} F
+                            </strong>{" "}
+                            à la charge de l&apos;établissement
+                          </>
+                        )}
+                        .
+                      </p>
+                      <p>
+                        L&apos;expédition part par lots de 200. Les messages déjà expédiés ne
+                        repartent pas : chacun porte une clé qui empêche le double envoi.
+                      </p>
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => agir(() => traiterFileNotifications())}>
+                    Expédier
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </CardHeader>
         <CardContent>

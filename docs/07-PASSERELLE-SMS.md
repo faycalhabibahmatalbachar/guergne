@@ -2,16 +2,21 @@
 
 ## Le problème, en une phrase
 
-Un parent ouvre l'application, tape son numéro, attend le code — et rien
-n'arrive. Le mode SMS est sur `journal` : le code est calculé, stocké, tracé,
-mais jamais expédié. Tant que la passerelle n'est pas branchée, **aucun parent
-ne peut se connecter seul**.
+La passerelle est en ligne depuis le 22/08/2026 et le portail lui parle. Il
+manque le dernier maillon : **un téléphone Android muni d'une SIM tchadienne**,
+qui vient relever la file et expédie réellement les SMS. Sans lui, les messages
+s'accumulent sans jamais partir — voir §4.
+
+Et même avec lui, **46 % des tuteurs resteront injoignables par SMS** : la
+passerelle n'achemine pas les numéros Moov. Voir §1.1.
 
 ---
 
 ## Contournement immédiat, sans SMS
 
-Le secrétariat peut communiquer le code de vive voix. Dans le portail :
+Tant que le téléphone passerelle n'est pas branché — et durablement, pour les
+familles Moov — le secrétariat communique le code de vive voix. Dans le
+portail :
 
 **Parents → choisir le tuteur → Inviter**
 
@@ -69,8 +74,8 @@ donc **rien à migrer**, seulement à redéployer le calcul.
 
 ### 1.0 État : déployé le 22/08/2026
 
-Le service **existe et son image est construite**. Il ne démarre pas encore,
-faute d'une seule variable — voir §1.5.
+Le service **tourne et répond**. `GET /health` renvoie `{"ok":true}`, et la
+clé de l'école authentifie correctement contre `/v1/messages`.
 
 | | |
 | --- | --- |
@@ -80,10 +85,15 @@ faute d'une seule variable — voir §1.5.
 | URL publique | `https://http--sms235-api--2qfdcm6qfq4g.code.run` |
 | Groupe de secrets | `sms235-api-secrets`, priorité 10, non restreint |
 | Contrôles de santé | `/health` en `readinessProbe` et `livenessProbe`, port 3000 |
+| Base | Neon `sms-gateway` (`morning-thunder-48544734`), **eu-west-2**, chaîne poolée |
+| Compte de l'école | organisation « Lycee Guergne La Renaissance », crédit 10 000 F (200 SMS) |
 
-Francfort n'est pas un choix par défaut : c'est la co-localisation avec Neon
-`eu-central-1`, exactement pour la raison mesurée sur le portail — 3 ms à chaud
-contre 1 672 ms hors région.
+Francfort avait été choisi pour se co-localiser avec Neon `eu-central-1`, où
+vit la base du portail. **La base de la passerelle, elle, est à Londres**
+(`eu-west-2`) : le service et sa base sont donc séparés d'une dizaine de
+millisecondes. C'est sans commune mesure avec les 1 672 ms mesurés hors région
+sur le portail, et négligeable devant la latence d'un réseau mobile tchadien —
+le service n'a pas été déplacé pour autant.
 
 > **Le CLI Northflank n'a pas de commande `apply`.** Le gabarit
 > `northflank/template-api.json` n'est donc pas applicable tel quel ; le
@@ -96,24 +106,64 @@ contre 1 672 ms hors région.
 > il est vide. Toujours relire le groupe après écriture plutôt que de faire
 > confiance au code de retour.
 
-### 1.5 Ce qui manque : la chaîne Neon
+### 1.1 La moitié des parents ne recevra jamais de SMS
 
-`apps/api/src/config.ts` déclare `DATABASE_URL: z.string().min(1)`. Vide,
-`loadConfig()` lève, le processus sort, et le conteneur redémarre en boucle —
-c'est l'état actuel, et c'est le seul.
+`normalizeAndValidateChadNumber`, dans 235SMS, n'accepte que les préfixes **6
+et 8 (Airtel)** et refuse **3 et 9 (Moov)** avec `unsupported_operator_moov`.
+Ce n'est pas une panne : c'est une limite de couverture assumée de la
+passerelle.
 
-Il faut la chaîne de connexion **poolée** du projet Neon `sms-gateway`
-(Neon → projet `sms-gateway` → Connection string). Puis :
+Sur les 89 tuteurs joignables actuellement enregistrés :
 
-```bash
-npx @northflank/cli update secret --project sms235 --secret sms235-api-secrets \
-  -i '{"secrets":{"variables":{"DATABASE_URL":"postgresql://…"}}}'
-npx @northflank/cli restart service --project sms235 --service sms235-api
-```
+| Opérateur | Tuteurs | Part |
+| --- | --- | --- |
+| Airtel (6, 8) | 48 | 54 % |
+| **Moov (3, 9)** | **41** | **46 %** |
 
-Le service repart seul et `/health` répond.
+Autrement dit, **près d'un parent sur deux ne peut pas recevoir son code
+d'activation par SMS**. Pour eux, deux voies seulement :
 
-### 1.1 Créer le service (tableau de bord)
+1. **La notification poussée**, une fois l'application installée — mais
+   l'installation demande justement un code d'activation. L'amorçage passe donc
+   nécessairement par le secrétariat.
+2. **Le secrétariat**, qui lit le code à voix haute depuis *Parents → Inviter*.
+
+Trois issues possibles, à trancher par l'établissement :
+
+- **Un second téléphone passerelle avec une SIM Moov**, et la levée du refus
+  côté 235SMS. C'est la seule solution qui rend le SMS universel.
+- **Accepter l'amorçage manuel** pour les 41 familles Moov, puis basculer sur
+  le push. C'est gratuit et cela ne coûte qu'une fois.
+- **Ne pas compter sur le SMS** et faire du push le canal principal.
+
+### 1.2 Incident du 22/08 — vidage accidentel de la file
+
+Le branchement de la passerelle a rencontré un arriéré de plusieurs jours.
+Le vidage a expédié **195 messages pour 125 destinataires** : soixante-deux
+parents étaient en file deux ou trois fois pour le même message.
+
+Aucun n'a été remis — le téléphone passerelle n'était pas connecté — et les 195
+ont été annulés. Personne n'a rien reçu, aucun crédit n'a été consommé.
+
+Trois causes, toutes corrigées :
+
+1. **Pas de clé d'idempotence.** `traiterFile` expédie puis enregistre ; entre
+   les deux, Vercel coupe la fonction à 60 secondes. Le message était parti,
+   son enregistrement ne l'était pas, la notification repartait au vidage
+   suivant. Chaque envoi porte désormais l'identifiant de la notification en
+   `Idempotency-Key` — 235SMS renvoie alors le message d'origine au lieu d'en
+   créer un second.
+2. **Les refus définitifs étaient rejoués.** Les 129 refus Moov repassaient
+   trois fois chacun. `ResultatSms.definitif` les classe maintenant en échec du
+   premier coup ; seuls 429 et 402 restent rejouables.
+3. **Le bouton « Traiter la file » partait au premier clic**, sans annoncer le
+   volume ni le coût. Il demande maintenant confirmation en affichant les deux.
+
+**Le coût affiché par le portail était faux de moitié** : 25 F par SMS alors
+que 235SMS en facture 50. Corrigé dans `web/src/lib/tarifs.ts`, désormais seule
+source du tarif pour le serveur comme pour l'interface.
+
+### 1.3 Créer le service (référence)
 
 Northflank → **Create new → Service → Combined (build + deploy)**
 
@@ -134,7 +184,7 @@ Northflank → **Create new → Service → Combined (build + deploy)**
 Un gabarit prêt à importer se trouve dans `235SMS/northflank/template-api.json`
 (**Create new → From template → Upload file**).
 
-### 1.2 Variables d'environnement
+### 1.4 Variables d'environnement
 
 Non sensibles :
 
@@ -156,11 +206,11 @@ Secrets — à saisir dans un **Secret Group** :
 `REDIS_URL` peut rester vide : le code retombe explicitement sur un compteur
 en mémoire. Sur une seule instance, c'est équivalent.
 
-### 1.3 Contrôle de santé
+### 1.5 Contrôle de santé
 
 **Settings → Health checks** : chemin `/health`, méthode GET, port 3000.
 
-### 1.4 Vérifier
+### 1.6 Vérifier
 
 ```bash
 curl https://http--sms235-api--2qfdcm6qfq4g.code.run/health

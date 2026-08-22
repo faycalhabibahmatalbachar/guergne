@@ -2,6 +2,7 @@ import "server-only";
 
 import { eq, inArray, sql } from "drizzle-orm";
 
+import { COUT_SMS_FCFA } from "@/lib/tarifs";
 import { db } from "@/server/db";
 import { appareils, notifications } from "@/server/db/schema";
 
@@ -34,7 +35,6 @@ export interface RapportExpedition {
   canauxIndisponibles: string[];
 }
 
-const COUT_SMS_FCFA = 25;
 
 interface LigneFile {
   id: string;
