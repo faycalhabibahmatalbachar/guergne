@@ -26,6 +26,8 @@ import { envoyerSms, fournisseurSms, segmentsSms, smsConfigure } from "./sms";
  */
 
 export interface RapportExpedition {
+  /** Relances d'échéances créées avant le vidage. */
+  relancesEcheances: number;
   traitees: number;
   envoyees: number;
   echouees: number;
@@ -48,8 +50,35 @@ interface LigneFile {
   jetons_fcm: string[] | null;
 }
 
+/**
+ * Relance les échéances impayées avant de vider la file.
+ *
+ * Une échéance n'est pas un événement : c'est une date qui approche, et aucun
+ * déclencheur ne peut se réveiller pour cela. La fonction SQL
+ * `fn_relancer_echeances` produit les notifications à J-7, J-1, J+3 et J+15,
+ * une seule fois par échéance et par jour.
+ *
+ * Elle est appelée ICI plutôt que dans une tâche séparée : les relances créées
+ * partent alors dans le même passage, au lieu d'attendre le vidage suivant. Et
+ * il n'y a qu'une seule tâche planifiée à ne pas oublier.
+ */
+async function relancerEcheances(): Promise<number> {
+  try {
+    const r = await db.execute<{ posees: number }>(
+      sql`SELECT fn_relancer_echeances() AS posees`,
+    );
+    return Number(r.rows[0]?.posees ?? 0);
+  } catch (erreur) {
+    // Une relance qui échoue ne doit pas empêcher la file de se vider : les
+    // absences du jour comptent davantage qu'un rappel de paiement.
+    console.error("Relance des échéances impossible :", erreur);
+    return 0;
+  }
+}
+
 export async function traiterFile(limite = 100): Promise<RapportExpedition> {
   const rapport: RapportExpedition = {
+    relancesEcheances: 0,
     traitees: 0,
     envoyees: 0,
     echouees: 0,
@@ -58,6 +87,9 @@ export async function traiterFile(limite = 100): Promise<RapportExpedition> {
     coutSmsFcfa: 0,
     canauxIndisponibles: [],
   };
+
+  // Avant de lire la file : les relances du jour doivent y figurer.
+  rapport.relancesEcheances = await relancerEcheances();
 
   const pushDisponible = fcmConfigure();
   const smsDisponible = smsConfigure();
