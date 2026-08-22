@@ -624,3 +624,149 @@ export async function detacherTuteur(eleveId: string, tuteurId: string): Promise
     return echec(erreur, "Le retrait du tuteur a échoué.");
   }
 }
+
+// ===========================================================================
+// Modification du dossier
+// ===========================================================================
+
+/**
+ * Champs modifiables après inscription.
+ *
+ * Trois familles de champs sont volontairement ABSENTES :
+ *
+ *   - `matricule` — il figure sur la carte scolaire, les bulletins déjà
+ *     imprimés et les reçus. Le changer romprait le lien avec des documents
+ *     qui circulent dans les familles.
+ *   - `statut` et `classeId` — ils ont leurs propres actions (`changerStatut`,
+ *     `changerClasse`), qui écrivent un historique et notifient les tuteurs.
+ *     Les laisser passer par ici contournerait cette traçabilité.
+ *   - la liste des tuteurs — `rattacherTuteur` et `detacherTuteur` s'en
+ *     chargent, avec les conséquences que cela implique sur les notifications.
+ *
+ * Ce qui reste est ce qui se corrige au guichet : une orthographe, une date de
+ * naissance mal recopiée de l'acte, un déménagement, une allergie déclarée en
+ * cours d'année.
+ */
+const schemaModification = z
+  .object({
+    nom: z.string().trim().min(2, "Nom requis").toUpperCase(),
+    prenom: z.string().trim().min(2, "Prénom requis"),
+    sexe: z.enum(["M", "F"], { message: "Sexe requis" }),
+    dateNaissance: z.string().min(1, "Date de naissance requise"),
+    lieuNaissance: z.string().trim().optional(),
+    nationalite: z.string().trim().optional(),
+    acteNaissanceNumero: z.string().trim().optional(),
+
+    adresse: z.string().trim().optional(),
+    quartier: z.string().trim().optional(),
+    telephone: z.string().trim().regex(TELEPHONE, "Numéro invalide").optional().or(z.literal("")),
+    email: z.string().trim().email("Adresse invalide").optional().or(z.literal("")),
+
+    groupeSanguin: z.string().trim().max(5).optional(),
+    allergies: z.string().trim().optional(),
+    observationsMedicales: z.string().trim().optional(),
+    situationParticuliere: z.string().trim().optional(),
+    urgenceNom: z.string().trim().optional(),
+    urgenceTelephone: z.string().trim().optional(),
+    urgenceLien: z.string().trim().optional(),
+
+    ecoleOrigine: z.string().trim().optional(),
+  })
+  .refine((v) => new Date(v.dateNaissance) < new Date(), {
+    message: "La date de naissance doit être dans le passé",
+    path: ["dateNaissance"],
+  })
+  .refine(
+    (v) => {
+      const age = (Date.now() - new Date(v.dateNaissance).getTime()) / (365.25 * 24 * 3600 * 1000);
+      return age >= 8 && age <= 30;
+    },
+    {
+      message: "Âge hors des bornes plausibles pour le secondaire (8 à 30 ans)",
+      path: ["dateNaissance"],
+    },
+  );
+
+/**
+ * Corrige le dossier d'un élève déjà inscrit.
+ *
+ * Le dossier était en lecture seule une fois l'inscription faite : la moindre
+ * faute d'orthographe sur un nom obligeait à vivre avec, et se retrouvait sur
+ * chaque bulletin de l'année. C'est le manque le plus signalé du module.
+ *
+ * Le journal d'audit ne reçoit que les champs RÉELLEMENT modifiés. Enregistrer
+ * les trente champs à chaque passage rendrait l'historique illisible — or c'est
+ * précisément dans ce module qu'on vient chercher qui a changé quoi, le jour où
+ * une date de naissance ne correspond plus à l'acte.
+ */
+export async function modifierEleve(eleveId: string, donnees: unknown): Promise<Resultat> {
+  try {
+    const acteur = await requirePermission("eleve:modifier");
+
+    const analyse = schemaModification.safeParse(donnees);
+    if (!analyse.success) {
+      return { ok: false, erreurs: messages(analyse.error) };
+    }
+    const v = analyse.data;
+
+    const [avant] = await db.select().from(eleves).where(eq(eleves.id, eleveId));
+    if (!avant) return { ok: false, message: "Élève introuvable." };
+
+    const apres = {
+      nom: v.nom,
+      prenom: v.prenom,
+      sexe: v.sexe,
+      dateNaissance: v.dateNaissance,
+      lieuNaissance: v.lieuNaissance || null,
+      nationalite: v.nationalite || "Tchadienne",
+      acteNaissanceNumero: v.acteNaissanceNumero || null,
+      adresse: v.adresse || null,
+      quartier: v.quartier || null,
+      telephone: v.telephone || null,
+      email: v.email || null,
+      groupeSanguin: v.groupeSanguin || null,
+      allergies: v.allergies || null,
+      observationsMedicales: v.observationsMedicales || null,
+      situationParticuliere: v.situationParticuliere || null,
+      urgenceNom: v.urgenceNom || null,
+      urgenceTelephone: v.urgenceTelephone || null,
+      urgenceLien: v.urgenceLien || null,
+      ecoleOrigine: v.ecoleOrigine || null,
+      modifieLe: new Date().toISOString(),
+    };
+
+    // Différence champ à champ, avant écriture : après l'UPDATE, l'ancienne
+    // valeur n'est plus lisible nulle part.
+    const changes: Record<string, { avant: unknown; apres: unknown }> = {};
+    for (const [champ, valeur] of Object.entries(apres)) {
+      if (champ === "modifieLe") continue;
+      const ancienne = (avant as Record<string, unknown>)[champ];
+      const normaliser = (x: unknown) => (x === null || x === undefined ? null : String(x));
+      if (normaliser(ancienne) !== normaliser(valeur)) {
+        changes[champ] = { avant: ancienne ?? null, apres: valeur };
+      }
+    }
+
+    if (Object.keys(changes).length === 0) {
+      return { ok: true, message: "Aucune modification." };
+    }
+
+    await db.update(eleves).set(apres).where(eq(eleves.id, eleveId));
+
+    await journaliser(acteur, {
+      action: "eleve.dossier_modifie",
+      entite: "eleves",
+      entiteId: eleveId,
+      avant: Object.fromEntries(Object.entries(changes).map(([c, d]) => [c, d.avant])),
+      apres: Object.fromEntries(Object.entries(changes).map(([c, d]) => [c, d.apres])),
+    });
+
+    revalidatePath(`/dashboard/eleves/${eleveId}`);
+    revalidatePath("/dashboard/eleves");
+
+    const nb = Object.keys(changes).length;
+    return { ok: true, message: `Dossier mis à jour — ${nb} champ${nb > 1 ? "s" : ""} modifié${nb > 1 ? "s" : ""}.` };
+  } catch (erreur) {
+    return echec(erreur, "La modification du dossier a échoué.");
+  }
+}
