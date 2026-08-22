@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
-import { AlertTriangle, Plus, Search } from "lucide-react";
+import { AlertTriangle, Plus, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -87,10 +87,22 @@ export function ListeEnseignants({ enseignants }: { enseignants: LigneEnseignant
               : `${enseignants.length} enseignant${enseignants.length > 1 ? "s" : ""}`}
           </p>
         </div>
-        <Button size="sm" onClick={() => setOuvert(true)}>
-          <Plus aria-hidden />
-          Nouvel enseignant
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {/*
+            L'import est en retrait : c'est un geste de reprise, fait une fois
+            en début d'année, là où la création unitaire est le quotidien.
+          */}
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/dashboard/personnel/importer">
+              <Upload aria-hidden />
+              Importer un fichier
+            </Link>
+          </Button>
+          <Button size="sm" onClick={() => setOuvert(true)}>
+            <Plus aria-hidden />
+            Nouvel enseignant
+          </Button>
+        </div>
       </div>
 
       {enseignants.length > 0 ? (

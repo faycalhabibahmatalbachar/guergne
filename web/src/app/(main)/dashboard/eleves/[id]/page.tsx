@@ -24,6 +24,8 @@ import { exigerPage } from "@/server/guard";
 
 import { ActionsDossier } from "./_components/actions-dossier";
 import { ModifierDossier } from "./_components/modifier-dossier";
+
+import { BoutonNotifier } from "../../_components/bouton-notifier";
 import { DocumentsEleve } from "./_components/documents-eleve";
 import { PhotoEleve } from "./_components/photo-eleve";
 
@@ -127,6 +129,9 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           <DocumentsEleve
             eleveId={eleve.id}
             estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)}
+          />
+          <BoutonNotifier
+            cible={{ type: "eleve", id: eleve.id, nom: `${eleve.prenom} ${eleve.nom}` }}
           />
           <ModifierDossier
             eleveId={eleve.id}

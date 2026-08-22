@@ -5,6 +5,8 @@ import { School, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { BoutonNotifier } from "../_components/bouton-notifier";
 import { Progress } from "@/components/ui/progress";
 import { exigerPage } from "@/server/guard";
 import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
@@ -96,13 +98,26 @@ export default async function PageClasses() {
                     </p>
                   ) : null}
 
-                  <Link
-                    href={`/dashboard/eleves?classe=${c.id}`}
-                    className="inline-flex items-center gap-1 text-primary text-sm hover:underline"
-                  >
-                    <School className="size-3.5" aria-hidden />
-                    Voir les élèves
-                  </Link>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <Link
+                      href={`/dashboard/eleves?classe=${c.id}`}
+                      className="inline-flex items-center gap-1 text-primary text-sm hover:underline"
+                    >
+                      <School className="size-3.5" aria-hidden />
+                      Voir les élèves
+                    </Link>
+                    {/*
+                      Prévenir une classe entière depuis sa carte : c'est ici
+                      qu'on décide « il faut prévenir la 6ème A », pas dans un
+                      écran de communication où il faudrait la retrouver.
+                    */}
+                    {effectif > 0 ? (
+                      <BoutonNotifier
+                        cible={{ type: "classe", id: c.id, nom: c.libelle }}
+                        variante="ghost"
+                      />
+                    ) : null}
+                  </div>
                 </CardContent>
               </Card>
             );
