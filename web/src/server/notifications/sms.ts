@@ -1,6 +1,9 @@
 import "server-only";
 
+import { alignerSurGsm7, segmentsSms } from "@/lib/segments-sms";
 import { formatInternational } from "@/lib/telephone";
+
+export { segmentsSms };
 
 /**
  * Expédition des SMS, indépendante du fournisseur.
@@ -39,6 +42,14 @@ export interface ResultatSms {
    * se vide au lieu de tourner.
    */
   definitif?: boolean;
+  /**
+   * Segments réellement facturés pour le message EXPÉDIÉ, signature comprise.
+   *
+   * L'appelant ne doit pas le recalculer : il ne connaît pas le texte final —
+   * la signature est ajoutée ici — et un recalcul finirait par diverger. Le
+   * chiffre inscrit au journal doit être celui qui sera facturé.
+   */
+  segments?: number;
 }
 
 export type FournisseurSms = "twilio" | "generique" | "journal";
@@ -90,19 +101,33 @@ export function normaliserNumero(numero: string): string {
 }
 
 /**
- * Longueur d'un SMS.
+ * Signature de l'établissement, apposée en tête de chaque SMS.
  *
- * Un SMS latin fait 160 caractères ; au-delà il est découpé et FACTURÉ
- * plusieurs fois. Un accent hors GSM-7 fait basculer tout le message en
- * UCS-2, soit 70 caractères par segment. D'où l'intérêt de compter avant
- * d'envoyer.
+ * POURQUOI DANS LE CORPS DU MESSAGE
+ * ----------------------------------
+ * Un SMS envoyé depuis une passerelle Android porte le NUMÉRO de la carte SIM
+ * comme expéditeur, jamais un nom : la norme GSM confie l'adresse d'origine au
+ * SMSC de l'opérateur, et aucun combiné ne peut la choisir. Afficher « Lycée
+ * Guergné La Renaissance » à la place du numéro supposerait une liaison SMPP
+ * avec l'opérateur et un Sender ID enregistré.
+ *
+ * En attendant, la seule façon pour un parent de savoir qui lui écrit est de
+ * le lire dans le message. C'est gratuit et immédiat.
+ *
+ * ELLE EST COURTE, ET C'EST DÉLIBÉRÉ
+ * -----------------------------------
+ * Chaque caractère est facturé. « Lycée Guergné La Renaissance : » pèse trente
+ * caractères — et son « é » ferait basculer TOUT le message en UCS-2, donc de
+ * 160 à 70 caractères par segment. Le même message coûterait le double.
+ *
+ * D'où « LGR : » : six caractères, tous dans l'alphabet GSM.
  */
-export function segmentsSms(texte: string): number {
-  const gsm7 = /^[\x20-\x7E\n\ràâäçéèêëîïôöùûüÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ€£¥§]*$/.test(texte);
-  const taille = gsm7 ? 160 : 70;
-  const tailleMulti = gsm7 ? 153 : 67;
-  if (texte.length <= taille) return 1;
-  return Math.ceil(texte.length / tailleMulti);
+export function signatureSms(): string {
+  const brute = (process.env.SMS_SIGNATURE ?? "LGR").trim();
+  if (!brute) return "";
+  // La signature elle-même ne doit jamais être la cause d'un basculement en
+  // UCS-2 : on l'aligne sur l'alphabet GSM avant de l'apposer.
+  return `${alignerSurGsm7(brute)} : `;
 }
 
 async function envoyerTwilio(numero: string, texte: string): Promise<ResultatSms> {
@@ -137,11 +162,6 @@ async function envoyerTwilio(numero: string, texte: string): Promise<ResultatSms
 }
 
 /**
- * Passerelle générique : un POST JSON avec clé en en-tête.
- * Le corps est configurable pour s'adapter aux conventions de chaque
- * opérateur sans modifier ce fichier.
- */
-/**
  * Motifs de refus qu'il ne sert à rien de rejouer.
  *
  * `unsupported_operator_moov` mérite une mention : la passerelle 235SMS
@@ -159,6 +179,12 @@ const REFUS_DEFINITIFS = [
   "project_not_found",
 ];
 
+/**
+ * Passerelle générique : un POST JSON avec clé en en-tête.
+ *
+ * Le corps porte plusieurs alias du même champ pour s'adapter aux conventions
+ * de chaque agrégateur sans modifier ce fichier.
+ */
 async function envoyerGenerique(
   numero: string,
   texte: string,
@@ -247,17 +273,26 @@ export async function envoyerSms(
 
   const numero = normaliserNumero(numeroBrut);
 
+  // La signature est apposée ICI, et non chez l'appelant : un seul endroit
+  // décide de la forme d'un SMS sortant, quel que soit le fournisseur.
+  const signature = signatureSms();
+  const texteSigne = texte.startsWith(signature) ? texte : `${signature}${texte}`;
+
   try {
     if (fournisseur === "journal") {
       // Mode sans dépense : la chaîne complète se déroule, seul l'envoi réel
       // est remplacé par une trace. Indispensable pour la recette.
       console.info(
-        `[sms:journal] ${numero} — ${segmentsSms(texte)} segment(s) — ${texte.slice(0, 120)}`,
+        `[sms:journal] ${numero} — ${segmentsSms(texteSigne)} segment(s) — ${texteSigne.slice(0, 120)}`,
       );
-      return { succes: true, reference: `journal-${Date.now()}` };
+      return { succes: true, reference: `journal-${Date.now()}`, segments: segmentsSms(texteSigne) };
     }
-    if (fournisseur === "twilio") return await envoyerTwilio(numero, texte);
-    return await envoyerGenerique(numero, texte, priorite, idempotence);
+    const segments = segmentsSms(texteSigne);
+
+    if (fournisseur === "twilio") {
+      return { ...(await envoyerTwilio(numero, texteSigne)), segments };
+    }
+    return { ...(await envoyerGenerique(numero, texteSigne, priorite, idempotence)), segments };
   } catch (erreur) {
     return {
       succes: false,

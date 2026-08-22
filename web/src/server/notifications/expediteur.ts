@@ -163,7 +163,10 @@ export async function traiterFile(limite = 100): Promise<RapportExpedition> {
         erreur = r.erreur;
         reference = r.reference;
         definitif = r.definitif ?? false;
-        if (succes) cout = segmentsSms(texte) * COUT_SMS_FCFA;
+        // Le nombre de segments vient de l'expéditeur, qui seul connaît le
+        // texte final : c'est lui qui appose la signature de l'établissement.
+        // Le recalculer ici sous-estimerait la dépense.
+        if (succes) cout = (r.segments ?? segmentsSms(texte)) * COUT_SMS_FCFA;
       }
     } else {
       // EMAIL et IN_APP ne passent pas par cet expéditeur.

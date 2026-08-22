@@ -64,6 +64,11 @@ const VARIABLES = [
   { nom: "SMS_API_KEY", secret: true, role: "Clé d'organisation 235SMS" },
   { nom: "SMS_SENDER_ID", secret: false, role: "Expéditeur affiché sur le téléphone du parent" },
   {
+    nom: "SMS_SIGNATURE",
+    secret: false,
+    role: "Nom de l'école apposé en tête de chaque SMS, faute de Sender ID",
+  },
+  {
     nom: "CRON_SECRET",
     secret: true,
     role: "Ouvre /api/notifications/traiter à une tâche planifiée",
