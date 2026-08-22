@@ -123,7 +123,14 @@ for (const { nom, secret, role } of VARIABLES) {
     continue;
   }
 
-  if (distante && distante.value === valeur) {
+  // Une variable `encrypted` ne se relit pas : `decrypt=true` renvoie le
+  // chiffré, pas le clair — 1 052 caractères pour un identifiant de projet de
+  // 25. Impossible donc de savoir si elle est déjà à jour ; on la réécrit, ce
+  // qui est sans effet de bord. Ne pas confondre cette réécriture avec une
+  // divergence réelle.
+  const comparable = distante && distante.type !== "encrypted";
+
+  if (comparable && distante.value === valeur) {
     console.log(`=  ${nom.padEnd(18)} déjà à jour`);
     inchangees += 1;
     continue;
@@ -132,7 +139,12 @@ for (const { nom, secret, role } of VARIABLES) {
   const apercu = secret ? `${valeur.length} caractères` : valeur.length > 48 ? `${valeur.slice(0, 45)}…` : valeur;
 
   if (listeSeulement) {
-    console.log(`~  ${nom.padEnd(18)} à ${distante ? "mettre à jour" : "créer"} (${apercu})`);
+    const etat = !distante
+      ? "à créer"
+      : comparable
+        ? "à mettre à jour"
+        : "à réécrire (chiffrée, non relisible)";
+    console.log(`~  ${nom.padEnd(18)} ${etat} (${apercu})`);
     continue;
   }
 
