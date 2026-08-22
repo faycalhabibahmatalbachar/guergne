@@ -67,24 +67,53 @@ Render a suspendu le service pour impayé ; la base, elle, est intacte sur
 Neon — les 50 organisations, 40 utilisateurs et 542 messages sont là. Il n'y a
 donc **rien à migrer**, seulement à redéployer le calcul.
 
-### 1.0 La voie rapide : le gabarit déjà écrit
+### 1.0 État : déployé le 22/08/2026
 
-Tout le service est décrit dans `235SMS/northflank/template-api.json`, au
-format « infrastructure as code » de Northflank. Il n'y a pas à recomposer les
-réglages à la main.
+Le service **existe et son image est construite**. Il ne démarre pas encore,
+faute d'une seule variable — voir §1.5.
 
-Il ne manque qu'un **jeton d'API Northflank**, à créer dans
-*Account settings → API tokens* (portée : l'équipe qui hébergera le service) :
+| | |
+| --- | --- |
+| Projet Northflank | `sms235`, région **europe-west-frankfurt** |
+| Service | `sms235-api` (combined : build + déploiement) |
+| Dépôt | `faycalhabibahmatalbachar/235SMS`, branche `main` |
+| URL publique | `https://http--sms235-api--2qfdcm6qfq4g.code.run` |
+| Groupe de secrets | `sms235-api-secrets`, priorité 10, non restreint |
+| Contrôles de santé | `/health` en `readinessProbe` et `livenessProbe`, port 3000 |
+
+Francfort n'est pas un choix par défaut : c'est la co-localisation avec Neon
+`eu-central-1`, exactement pour la raison mesurée sur le portail — 3 ms à chaud
+contre 1 672 ms hors région.
+
+> **Le CLI Northflank n'a pas de commande `apply`.** Le gabarit
+> `northflank/template-api.json` n'est donc pas applicable tel quel ; le
+> service a été créé par `create service combined` avec la même spécification.
+> Le gabarit reste la référence documentaire des réglages.
+
+> **Piège rencontré à la création du groupe de secrets.** L'API attend les
+> variables sous `secrets.variables`. Passées sous `data`, elles sont
+> **ignorées silencieusement** : le groupe est créé, la réponse est un 200, et
+> il est vide. Toujours relire le groupe après écriture plutôt que de faire
+> confiance au code de retour.
+
+### 1.5 Ce qui manque : la chaîne Neon
+
+`apps/api/src/config.ts` déclare `DATABASE_URL: z.string().min(1)`. Vide,
+`loadConfig()` lève, le processus sort, et le conteneur redémarre en boucle —
+c'est l'état actuel, et c'est le seul.
+
+Il faut la chaîne de connexion **poolée** du projet Neon `sms-gateway`
+(Neon → projet `sms-gateway` → Connection string). Puis :
 
 ```bash
-npx @northflank/cli login --token <jeton>
-cd 235SMS && npx @northflank/cli apply -f northflank/template-api.json
+npx @northflank/cli update secret --project sms235 --secret sms235-api-secrets \
+  -i '{"secrets":{"variables":{"DATABASE_URL":"postgresql://…"}}}'
+npx @northflank/cli restart service --project sms235 --service sms235-api
 ```
 
-Le paragraphe 1.1 décrit les mêmes réglages pour qui préfère le tableau de
-bord, et sert de référence si le gabarit doit être modifié.
+Le service repart seul et `/health` répond.
 
-### 1.1 Créer le service
+### 1.1 Créer le service (tableau de bord)
 
 Northflank → **Create new → Service → Combined (build + deploy)**
 
@@ -134,7 +163,7 @@ en mémoire. Sur une seule instance, c'est équivalent.
 ### 1.4 Vérifier
 
 ```bash
-curl https://<votre-service>.northflank.app/health
+curl https://http--sms235-api--2qfdcm6qfq4g.code.run/health
 ```
 
 ---
@@ -163,7 +192,7 @@ Variables** :
 
 ```
 SMS_FOURNISSEUR = generique
-SMS_API_URL     = https://<votre-service>.northflank.app/v1/messages
+SMS_API_URL     = https://http--sms235-api--2qfdcm6qfq4g.code.run/v1/messages
 SMS_API_KEY     = sk_live_…            (la clé affichée à l'étape 2)
 SMS_SENDER_ID   = LGR
 ```
@@ -208,10 +237,10 @@ Réglages du téléphone, à ne pas négliger :
 
 ```bash
 # 1. L'API répond
-curl https://<service>.northflank.app/health
+curl https://http--sms235-api--2qfdcm6qfq4g.code.run/health
 
 # 2. Un SMS est accepté et mis en file
-curl -X POST https://<service>.northflank.app/v1/messages \
+curl -X POST https://http--sms235-api--2qfdcm6qfq4g.code.run/v1/messages \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
   -d '{"to":"+235XXXXXXXX","body":"Test LGR","priority":"otp"}'
@@ -221,7 +250,7 @@ Une réponse `202` avec un `id` signifie « accepté et mis en file » — **pas
 « envoyé »**. L'envoi réel dépend du téléphone passerelle. Suivre le statut :
 
 ```bash
-curl https://<service>.northflank.app/v1/messages/<id> \
+curl https://http--sms235-api--2qfdcm6qfq4g.code.run/v1/messages/<id> \
   -H "Authorization: Bearer sk_live_…"
 ```
 
