@@ -27,6 +27,18 @@ export interface ResultatSms {
   erreur?: string;
   /** Identifiant du message chez le fournisseur, pour le rapprochement. */
   reference?: string;
+  /**
+   * Échec qu'aucune nouvelle tentative ne corrigera.
+   *
+   * Un numéro Moov, un numéro à sept chiffres, un préfixe inexistant : réessayer
+   * dans une minute, puis dans cinq, puis dans vingt-cinq, ne fera que produire
+   * trois fois la même erreur. Pire, chaque tentative repart chez la passerelle
+   * et peut y créer un message facturé.
+   *
+   * Distinguer ce cas d'une panne réseau est le seul moyen d'avoir une file qui
+   * se vide au lieu de tourner.
+   */
+  definitif?: boolean;
 }
 
 export type FournisseurSms = "twilio" | "generique" | "journal";
@@ -129,10 +141,29 @@ async function envoyerTwilio(numero: string, texte: string): Promise<ResultatSms
  * Le corps est configurable pour s'adapter aux conventions de chaque
  * opérateur sans modifier ce fichier.
  */
+/**
+ * Motifs de refus qu'il ne sert à rien de rejouer.
+ *
+ * `unsupported_operator_moov` mérite une mention : la passerelle 235SMS
+ * n'achemine que les numéros Airtel (6, 8) et refuse Moov (3, 9). Ce n'est pas
+ * une panne, c'est une limite de couverture — et elle concerne près de la
+ * moitié des tuteurs de l'établissement. Les rejouer trois fois chacun ne les
+ * rendra pas joignables ; c'est le canal qu'il faut changer, pas la tentative.
+ */
+const REFUS_DEFINITIFS = [
+  "unsupported_operator_moov",
+  "invalid_phone_length",
+  "invalid_phone_operator_prefix",
+  "invalid_phone_country_not_supported",
+  "sandbox_destination_not_allowed",
+  "project_not_found",
+];
+
 async function envoyerGenerique(
   numero: string,
   texte: string,
   priorite: Priorite,
+  idempotence?: string,
 ): Promise<ResultatSms> {
   const url = process.env.SMS_API_URL as string;
   const cle = process.env.SMS_API_KEY as string;
@@ -143,6 +174,15 @@ async function envoyerGenerique(
     headers: {
       Authorization: `Bearer ${cle}`,
       "Content-Type": "application/json",
+      // Clé d'idempotence : la passerelle reconnaît un rejeu et renvoie le
+      // message d'origine au lieu d'en créer un second.
+      //
+      // C'est la protection dont l'absence a coûté cher : une fonction
+      // serverless est tuée à 60 secondes. Le message était parti, son
+      // enregistrement en base ne l'était pas, la notification restait « en
+      // attente » — et repartait au vidage suivant. Soixante-deux parents ont
+      // ainsi été mis en file deux à trois fois pour le même message.
+      ...(idempotence ? { "Idempotency-Key": idempotence } : {}),
     },
     body: JSON.stringify({
       to: numero,
@@ -162,7 +202,15 @@ async function envoyerGenerique(
   });
 
   if (!reponse.ok) {
-    return { succes: false, erreur: `Passerelle ${reponse.status} : ${(await reponse.text()).slice(0, 200)}` };
+    const corpsErreur = (await reponse.text()).slice(0, 200);
+
+    // 429 mis à part : une limite de débit se réessaie, c'est même sa raison
+    // d'être. Un 402 « crédit épuisé » aussi — l'école peut recharger.
+    const definitif =
+      REFUS_DEFINITIFS.some((motif) => corpsErreur.includes(motif)) ||
+      (reponse.status >= 400 && reponse.status < 500 && reponse.status !== 429 && reponse.status !== 402);
+
+    return { succes: false, definitif, erreur: `Passerelle ${reponse.status} : ${corpsErreur}` };
   }
 
   const brut = await reponse.text();
@@ -179,6 +227,14 @@ export async function envoyerSms(
   numeroBrut: string,
   texte: string,
   priorite: Priorite = "transactional",
+  /**
+   * Clé stable identifiant CE message — l'identifiant de la notification.
+   *
+   * Deux appels portant la même clé ne produisent qu'un seul SMS, même si le
+   * premier a été interrompu entre l'envoi et son enregistrement. Sans elle,
+   * toute interruption se paie en double.
+   */
+  idempotence?: string,
 ): Promise<ResultatSms> {
   const fournisseur = fournisseurSms();
 
@@ -201,7 +257,7 @@ export async function envoyerSms(
       return { succes: true, reference: `journal-${Date.now()}` };
     }
     if (fournisseur === "twilio") return await envoyerTwilio(numero, texte);
-    return await envoyerGenerique(numero, texte, priorite);
+    return await envoyerGenerique(numero, texte, priorite, idempotence);
   } catch (erreur) {
     return {
       succes: false,

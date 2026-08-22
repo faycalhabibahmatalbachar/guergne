@@ -88,6 +88,7 @@ export async function traiterFile(limite = 100): Promise<RapportExpedition> {
     let erreur: string | undefined;
     let reference: string | undefined;
     let cout = 0;
+    let definitif = false;
 
     if (canal === "PUSH") {
       const r = await envoyerPush(ligne.jetons_fcm ?? [], {
@@ -120,10 +121,16 @@ export async function traiterFile(limite = 100): Promise<RapportExpedition> {
           ligne.telephone,
           texte,
           ligne.type === "AUTRE" ? "otp" : "transactional",
+          // L'identifiant de la notification sert de clé d'idempotence : si
+          // cette exécution est interrompue entre l'envoi et l'enregistrement,
+          // la suivante réenverra la même clé et la passerelle rendra le
+          // message d'origine au lieu d'en créer un second.
+          ligne.id,
         );
         succes = r.succes;
         erreur = r.erreur;
         reference = r.reference;
+        definitif = r.definitif ?? false;
         if (succes) cout = segmentsSms(texte) * COUT_SMS_FCFA;
       }
     } else {
@@ -153,13 +160,18 @@ export async function traiterFile(limite = 100): Promise<RapportExpedition> {
     } else {
       // Report exponentiel : 1 min, puis 5, puis 25. Au-delà de 3 tentatives
       // la vue de file ne la reprend plus.
+      //
+      // Un refus définitif — numéro Moov, numéro malformé — court-circuite ce
+      // report : le rejouer trois fois produirait trois fois la même erreur, et
+      // chaque tentative repart chez la passerelle. Cent vingt-neuf
+      // notifications ont été rejouées ainsi avant que la distinction existe.
       const minutes = 5 ** (tentatives - 1);
-      const definitif = tentatives >= 3;
+      const abandonne = definitif || tentatives >= 3;
 
       await db
         .update(notifications)
         .set({
-          statut: definitif ? "ECHOUE" : "EN_ATTENTE",
+          statut: abandonne ? "ECHOUE" : "EN_ATTENTE",
           tentatives,
           erreur: erreur?.slice(0, 500) ?? "Échec inconnu",
           prochaineTentativeLe: new Date(Date.now() + minutes * 60_000).toISOString(),
