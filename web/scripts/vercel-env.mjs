@@ -44,6 +44,16 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 // La liste est ici, pas dans une note : c'est le seul endroit où l'on peut
 // vérifier d'un coup d'œil qu'aucune variable n'a été oubliée lors d'un
 // redéploiement ou d'une recréation de projet.
+//
+// N'y figurent QUE les variables que ce script gère. `DATABASE_URL` et ses
+// variantes viennent de l'intégration Neon, `AUTH_SECRET` a été posée à la
+// création du projet — les toucher ici ferait plus de mal que de bien.
+//
+// `CRON_SECRET` manquait, et son absence est silencieuse d'une façon
+// particulièrement traître : la route de traitement de la file répond 503 en
+// expliquant qu'elle reste fermée, mais personne ne l'appelle jamais puisque
+// aucune tâche planifiée n'existe. La file ne se vide donc que par le bouton
+// de la page Communication, ce qui interdit toute automatisation.
 // ---------------------------------------------------------------------------
 const VARIABLES = [
   { nom: "FCM_PROJECT_ID", secret: false, role: "Projet Firebase destinataire des notifications" },
@@ -53,6 +63,11 @@ const VARIABLES = [
   { nom: "SMS_API_URL", secret: false, role: "Point d'entrée de la passerelle 235SMS" },
   { nom: "SMS_API_KEY", secret: true, role: "Clé d'organisation 235SMS" },
   { nom: "SMS_SENDER_ID", secret: false, role: "Expéditeur affiché sur le téléphone du parent" },
+  {
+    nom: "CRON_SECRET",
+    secret: true,
+    role: "Ouvre /api/notifications/traiter à une tâche planifiée",
+  },
 ];
 
 /** Vercel distingue trois environnements ; le portail n'en sert qu'un vraiment. */

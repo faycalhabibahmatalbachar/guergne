@@ -86,7 +86,7 @@ clé de l'école authentifie correctement contre `/v1/messages`.
 | Groupe de secrets | `sms235-api-secrets`, priorité 10, non restreint |
 | Contrôles de santé | `/health` en `readinessProbe` et `livenessProbe`, port 3000 |
 | Base | Neon `sms-gateway` (`morning-thunder-48544734`), **eu-west-2**, chaîne poolée |
-| Compte de l'école | organisation « Lycee Guergne La Renaissance », crédit 10 000 F (200 SMS) |
+| Compte de l'école | organisation « Lycee Guergne La Renaissance », **exemptée de prélèvement** |
 
 Francfort avait été choisi pour se co-localiser avec Neon `eu-central-1`, où
 vit la base du portail. **La base de la passerelle, elle, est à Londres**
@@ -106,12 +106,37 @@ le service n'a pas été déplacé pour autant.
 > il est vide. Toujours relire le groupe après écriture plutôt que de faire
 > confiance au code de retour.
 
-### 1.1 La moitié des parents ne recevra jamais de SMS
+### 1.0 bis Facturation de l'école
 
-`normalizeAndValidateChadNumber`, dans 235SMS, n'accepte que les préfixes **6
-et 8 (Airtel)** et refuse **3 et 9 (Moov)** avec `unsupported_operator_moov`.
-Ce n'est pas une panne : c'est une limite de couverture assumée de la
-passerelle.
+L'organisation porte `wallet_unlimited = true` : son solde est affiché mais
+n'est plus prélevé. C'est la situation réelle — l'établissement paie la SIM,
+pas le message.
+
+Un très gros solde faisait office de contournement, mais la colonne
+`wallet_balance_fcfa` est un `integer` : elle plafonne à 2 147 483 647. Ce
+n'était donc pas « illimité » mais « grand », et surtout le compte paraissait
+prépayé alors qu'il ne l'est pas.
+
+Le recensement de ces comptes tient dans une vue : `v_organisations_illimitees`.
+
+**Le crédit est prélevé à la mise en file, pas à l'expédition.** Une annulation
+rembourse désormais ce qui avait été pris — ce n'était pas le cas avant le
+22/08, et la remise en ordre de ce jour-là a coûté 9 750 F pour des messages
+dont aucun n'est parti.
+
+### 1.1 Couverture Moov — la restriction qui coupait la moitié des familles
+
+> **Levé le 22/08/2026.** Une seconde SIM Moov a été mise en service et le
+> refus a été retiré de 235SMS (commit `c290037`). Les préfixes acceptés sont
+> désormais 3, 6, 8 et 9. La section reste ici parce qu'elle explique une
+> décision structurante, et parce que le refus était recopié côté navigateur
+> dans le portail développeur — une seule des deux copies corrigée aurait donné
+> un tableau de bord refusant ce que l'API accepte.
+
+`normalizeAndValidateChadNumber`, dans 235SMS, n'acceptait que les préfixes **6
+et 8 (Airtel)** et refusait **3 et 9 (Moov)** avec `unsupported_operator_moov`.
+Ce n'était pas une panne : c'était une limite de couverture, faute de SIM
+capable d'atteindre ces numéros.
 
 Sur les 89 tuteurs joignables actuellement enregistrés :
 
@@ -120,8 +145,8 @@ Sur les 89 tuteurs joignables actuellement enregistrés :
 | Airtel (6, 8) | 48 | 54 % |
 | **Moov (3, 9)** | **41** | **46 %** |
 
-Autrement dit, **près d'un parent sur deux ne peut pas recevoir son code
-d'activation par SMS**. Pour eux, deux voies seulement :
+Autrement dit, **près d'un parent sur deux ne pouvait pas recevoir son code
+d'activation par SMS**. Avant la levée, deux voies seulement :
 
 1. **La notification poussée**, une fois l'application installée — mais
    l'installation demande justement un code d'activation. L'amorçage passe donc
@@ -135,6 +160,21 @@ Trois issues possibles, à trancher par l'établissement :
 - **Accepter l'amorçage manuel** pour les 41 familles Moov, puis basculer sur
   le push. C'est gratuit et cela ne coûte qu'une fois.
 - **Ne pas compter sur le SMS** et faire du push le canal principal.
+
+### 1.2 bis Tâche planifiée
+
+`CRON_SECRET` n'était posée que localement. La route
+`/api/notifications/traiter` répondait donc **503 en production** — elle reste
+fermée sans secret, pour qu'une route ouverte ne permette à personne de faire
+dépenser des SMS à l'école. La variable est désormais en ligne, et la file peut
+être vidée par une tâche planifiée :
+
+```
+*/15 6-19 * * 1-6   curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET"                       https://lycee-guergne-renaissance.vercel.app/api/notifications/traiter
+```
+
+Le plan Hobby de Vercel n'autorise qu'un cron par jour : cette tâche doit vivre
+ailleurs — Northflank, où le service SMS tourne déjà.
 
 ### 1.2 Incident du 22/08 — vidage accidentel de la file
 
