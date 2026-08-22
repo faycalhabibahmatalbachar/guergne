@@ -189,12 +189,13 @@ qu'entassés sur une page.
 
 ## Ce qui reste hors de mon contrôle
 
-Trois dépendances externes ne peuvent pas être levées depuis le code :
+Ces dépendances externes ne peuvent pas être levées depuis le code seul :
 
 | Dépendance | Ce qu'il faut | Effet tant que c'est absent |
 |------------|---------------|------------------------------|
-| **Firebase** | Un fichier de compte de service (JSON) | Les notifications push restent en file. Le SMS fonctionne. |
-| **Passerelle SMS** | Une clé d'API et une URL, ou un compte Twilio | Aucun SMS ne part réellement. Le mode `journal` permet de tout tester sans dépense. |
+| ~~**Firebase**~~ | ~~Un fichier de compte de service (JSON)~~ | **Levée le 22/08/2026.** Projet configuré, chaîne d'envoi vérifiée — voir [06](06-NOTIFICATIONS-PUSH.md). Reste la recette sur un vrai téléphone. |
+| **Passerelle SMS** | Un jeton d'API Northflank pour redéployer 235SMS | Aucun SMS ne part réellement. Le secrétariat dicte les codes d'activation. Voir [07](07-PASSERELLE-SMS.md). |
+| **Vercel** | Un jeton personnel Vercel | Les variables `FCM_*` et `SMS_*` ne sont pas en production : le portail déployé ne peut ni envoyer de push ni envoyer de SMS, même si le code le peut. `npm run vercel:env` fait le reste en une commande. |
 | **Stockage d'images** | Un compte Cloudflare R2 | Pas de photo ni de pièce jointe. Repli possible en base, au prix du quota. |
 
 ---

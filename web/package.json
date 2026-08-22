@@ -21,7 +21,10 @@
     "db:photos": "node scripts/photos-demonstration.mjs",
     "db:annee": "node scripts/annee-ecoulee.mjs",
     "db:annee:purger": "node scripts/annee-ecoulee.mjs --purge",
-    "compte:dev": "node scripts/compte-dev.mjs"
+    "compte:dev": "node scripts/compte-dev.mjs",
+    "firebase:android": "node scripts/firebase-android.mjs",
+    "fcm:test": "node scripts/fcm-test.mjs",
+    "vercel:env": "node scripts/vercel-env.mjs"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

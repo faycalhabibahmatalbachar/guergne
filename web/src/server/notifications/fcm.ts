@@ -125,6 +125,11 @@ async function envoyerAUnJeton(
         },
         android: {
           priority: "high",
+          // `lgr_defaut` doit exister sur le téléphone, sinon Android abandonne
+          // la notification sans erreur — Firebase répond « accepté » et rien
+          // ne sonne. Le canal est créé au démarrage de l'application, dans
+          // `mobile/android/app/src/main/kotlin/.../MainActivity.kt`. Les deux
+          // fichiers se citent : ne jamais changer cette chaîne d'un seul côté.
           notification: { channel_id: "lgr_defaut", sound: "default" },
         },
         apns: {

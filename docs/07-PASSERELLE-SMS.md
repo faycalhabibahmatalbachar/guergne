@@ -67,6 +67,23 @@ Render a suspendu le service pour impayé ; la base, elle, est intacte sur
 Neon — les 50 organisations, 40 utilisateurs et 542 messages sont là. Il n'y a
 donc **rien à migrer**, seulement à redéployer le calcul.
 
+### 1.0 La voie rapide : le gabarit déjà écrit
+
+Tout le service est décrit dans `235SMS/northflank/template-api.json`, au
+format « infrastructure as code » de Northflank. Il n'y a pas à recomposer les
+réglages à la main.
+
+Il ne manque qu'un **jeton d'API Northflank**, à créer dans
+*Account settings → API tokens* (portée : l'équipe qui hébergera le service) :
+
+```bash
+npx @northflank/cli login --token <jeton>
+cd 235SMS && npx @northflank/cli apply -f northflank/template-api.json
+```
+
+Le paragraphe 1.1 décrit les mêmes réglages pour qui préfère le tableau de
+bord, et sert de référence si le gabarit doit être modifié.
+
 ### 1.1 Créer le service
 
 Northflank → **Create new → Service → Combined (build + deploy)**

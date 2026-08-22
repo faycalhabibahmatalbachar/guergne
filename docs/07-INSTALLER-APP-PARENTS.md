@@ -26,7 +26,7 @@ disparaîtra si l'école publie un jour sur la boutique.
 L'application demande un numéro de téléphone, puis un code reçu par SMS.
 
 > **Tant que la passerelle SMS n'est pas branchée** (voir
-> `06-NOTIFICATIONS-PUSH.md`), aucun SMS ne part réellement : le code est
+> [07 — Passerelle SMS](07-PASSERELLE-SMS.md)), aucun SMS ne part réellement : le code est
 > seulement écrit dans la file de notifications. Pour un essai, le récupérer
 > côté administration, ou depuis la base :
 >
@@ -90,10 +90,27 @@ SHA-256 EC:25:6F:B1:89:59:C1:DD:2C:5D:E8:34:8B:CA:BA:04:EE:C7:EC:73:D6:74:52:B3:
 
 ## Recompiler
 
+**C'est cette commande-ci qu'il faut utiliser, pas `flutter build apk --release` seul :**
+
 ```bash
-cd mobile
-flutter build apk --release
+cd mobile && flutter build apk --release --target-platform android-arm,android-arm64
 ```
+
+L'option divise le poids par un tiers — **36,1 Mo au lieu de 54,7**. Sans elle,
+l'APK embarque les bibliothèques natives x86_64, qui n'existent que pour les
+émulateurs : une vingtaine de mégaoctets que chaque famille télécharge en
+données mobiles pour rien.
+
+> Le réflexe serait de figer cela dans `build.gradle.kts` avec
+> `ndk { abiFilters }`, pour qu'on ne puisse plus l'oublier. Cela ne marche
+> pas : le greffon Gradle de Flutter empaquette ses bibliothèques à partir de
+> la liste qu'il calcule lui-même, et ignore le réglage Gradle. Essayé dans
+> `defaultConfig` et dans `buildTypes.release`, 54,7 Mo dans les deux cas.
+> L'option de compilation est le seul levier.
+
+Les deux architectures ARM sont conservées : les téléphones d'entrée de gamme
+encore en circulation sont en 32 bits, et un parent qui n'arrive pas à
+installer l'application n'appelle pas le secrétariat — il abandonne.
 
 Points sur lesquels la compilation a déjà achoppé, et qui sont maintenant
 réglés dans le dépôt :

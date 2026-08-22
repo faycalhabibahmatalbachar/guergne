@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FFFFFF</color>
+
+    <!--
+        Bleu institutionnel de l'établissement, identique à `Couleurs.primaire`
+        côté Flutter et au portail web. Android l'utilise pour teinter l'icône
+        de la notification dépliée : sans lui, la teinte par défaut est le gris
+        du système, et la notification de l'école ressemble à celle de n'importe
+        quelle application.
+    -->
+    <color name="lgr_primaire">#1E429F</color>
 </resources>

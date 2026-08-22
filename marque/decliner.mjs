@@ -112,6 +112,38 @@ await transparent(1024).toFile(path.join(iconesMobile, "premier-plan.png"));
 console.log("  mobile : logo.svg, sources d'icônes 1024");
 
 // ---------------------------------------------------------------------------
+// Icône de la barre d'état Android
+//
+// Android n'utilise que le canal alpha de cette image et la peint en blanc.
+// Elle a donc sa propre source — un glyphe simplifié — plutôt que le logo :
+// voir l'en-tête de `icone-notification.svg`.
+//
+// Les densités ne sont pas négociables : si une seule manque, Android prend
+// celle d'à côté et la rééchantillonne, ce qui donne un glyphe flou au milieu
+// d'icônes système nettes.
+// ---------------------------------------------------------------------------
+const NOTIFICATION = path.join(ICI, "icone-notification.svg");
+const DENSITES = { mdpi: 24, hdpi: 36, xhdpi: 48, xxhdpi: 72, xxxhdpi: 96 };
+
+for (const [densite, taille] of Object.entries(DENSITES)) {
+  const destination = dossier(
+    RACINE,
+    "mobile",
+    "android",
+    "app",
+    "src",
+    "main",
+    "res",
+    `drawable-${densite}`,
+  );
+  await sharp(NOTIFICATION, { density: DENSITE })
+    .resize(taille, taille)
+    .png({ compressionLevel: 9 })
+    .toFile(path.join(destination, "ic_notification.png"));
+}
+console.log(`  mobile : ic_notification.png en ${Object.keys(DENSITES).length} densités`);
+
+// ---------------------------------------------------------------------------
 // Manifeste PWA
 // ---------------------------------------------------------------------------
 writeFileSync(

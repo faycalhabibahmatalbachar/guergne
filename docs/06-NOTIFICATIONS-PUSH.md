@@ -1,140 +1,145 @@
-# Notifications push — Firebase, pas à pas
+# Notifications push — Firebase
 
-Le code d'envoi est écrit et testé (`web/src/server/notifications/fcm.ts`,
-FCM HTTP v1 signé à la main, sans SDK). Il ne manque que **deux fichiers** que
-seul le titulaire du compte Google peut produire.
+**État : configuré et vérifié côté serveur.** Le projet Firebase existe,
+l'application Android y est déclarée, `google-services.json` est en place et
+la chaîne d'envoi répond. Il reste une seule étape, qui exige un téléphone :
+la recette réelle.
 
-Tant qu'ils manquent, la file reste en attente et l'écran « Traiter la file »
-**refuse d'agir** plutôt que de marquer les messages envoyés. C'est
-délibéré : un parent qui croit être prévenu des absences alors que rien ne
-part est plus mal servi qu'un parent qui sait ne pas l'être.
+Ce document sert désormais à deux choses — refaire la configuration si le
+projet Firebase devait être recréé, et diagnostiquer une notification qui
+n'arrive pas.
 
 ---
 
-## Réponse à « quelle clé vous faut-il pour tout faire vous-même ? »
+## 1. Ce qui est en place
 
-Il n'existe pas de clé qui permette de **créer** un projet Firebase : la
-création passe obligatoirement par la console web, avec une authentification
-Google interactive. C'est une limite de Google, pas du projet.
-
-En revanche, une fois le projet créé, **une clé de compte de service suffit
-pour tout le reste** — et c'est ce qu'il me faut :
-
-| Ce que je peux faire avec | Ce que vous seul pouvez faire |
+| Élément | Valeur |
 | --- | --- |
-| Déclarer l'application Android dans le projet | Créer le projet Firebase |
-| Récupérer `google-services.json` par l'API | Générer la clé de compte de service |
-| Configurer et envoyer les notifications | Accepter les conditions Google |
-| Recette réelle sur téléphone | |
-
-Autrement dit : **deux gestes de votre part, cinq minutes**, et je fais le
-reste sans revenir vers vous.
-
----
-
-## Faut-il réutiliser SAYIBI-AI ou créer un projet dédié ?
-
-Vous avez déjà `SAYIBI-AI`, `canalplus`, `moovmoney`, `Nalga Bac`.
-
-**Recommandation : un projet dédié `lycee-guergne-renaissance`.**
-
-Réutiliser SAYIBI-AI marcherait techniquement — il suffirait d'y ajouter une
-application Android. Mais :
-
-- Les notifications de l'école partiraient depuis un projet nommé d'après un
-  autre produit. Le jour où SAYIBI-AI change de main, est fermé ou dépasse son
-  quota, l'école perd ses notifications sans comprendre pourquoi.
-- Un projet Firebase est **gratuit et illimité en nombre**. La seule raison de
-  mutualiser serait d'éviter du travail — il n'y en a pas.
-- L'école est un client : ses données de notification ne doivent pas cohabiter
-  avec celles de vos autres produits.
-
-Le reste de ce document suppose un projet dédié. Si vous préférez SAYIBI-AI,
-sautez l'étape 1 et déclarez simplement l'application Android dedans.
-
----
-
-## Étape 1 — Créer le projet
-
-<https://console.firebase.google.com> → **Créer un projet**
-
-| Champ | Valeur |
-| --- | --- |
-| Nom | `lycee-guergne-renaissance` |
-| Google Analytics | **Désactivé** |
-
-> Analytics est inutile ici et collecterait des données de navigation liées à
-> des mineurs. Le désactiver évite d'avoir à s'en justifier.
+| Projet Firebase | `lycee-guergne-renaissance` |
+| Numéro d'expéditeur | `326203988013` |
+| Application Android | `1:326203988013:android:cbb9104dfeaffa8e3280a4` |
+| Nom de paquet | `td.lyceerenaissance.lgr_parents` |
+| Compte de service | `firebase-adminsdk-fbsvc@lycee-guergne-renaissance.iam.gserviceaccount.com` |
+| Empreintes déclarées | SHA-1 et SHA-256 du certificat de l'école |
+| Canal de notification | `lgr_defaut` — « Vie scolaire », importance haute |
 
 Le plan **Spark (gratuit)** suffit : les notifications push n'ont jamais été
-facturées, quel que soit le volume. Inutile de passer en Blaze.
+facturées, quel que soit le volume.
 
 ---
 
-## Étape 2 — La clé serveur
+## 2. Refaire la configuration
 
-**⚙️ Paramètres du projet → Comptes de service → Générer une nouvelle clé
-privée**
+### 2.1 Ce que Google impose de faire à la main
 
-Un fichier `.json` est téléchargé. **Transmettez-le-moi tel quel.** J'en
-extrais trois champs que je poserai sur Vercel :
+La **création du projet** passe obligatoirement par la console web, avec une
+authentification Google interactive. C'est une limite de Google. De même pour
+la génération de la clé de compte de service :
+
+> ⚙️ Paramètres du projet → Comptes de service → Générer une nouvelle clé privée
+
+Analytics doit rester **désactivé** : inutile ici, et il collecterait des
+données de navigation liées à des mineurs.
+
+### 2.2 Tout le reste est scripté
+
+Trois champs du JSON téléchargé vont dans `web/.env.local` :
 
 | Champ du JSON | Variable |
 | --- | --- |
 | `project_id` | `FCM_PROJECT_ID` |
 | `client_email` | `FCM_CLIENT_EMAIL` |
-| `private_key` | `FCM_PRIVATE_KEY` |
+| `private_key` | `FCM_PRIVATE_KEY` — sur **une seule ligne**, sauts échappés en `\n` |
 
-> **C'est un secret.** Il autorise l'envoi d'une notification à tous les
-> téléphones de l'établissement. Jamais dans Git, jamais dans un canal public.
-> Si vous le transmettez par un moyen dont vous n'êtes pas sûr, révoquez-le
-> ensuite depuis la console et régénérez-en un.
+Puis :
+
+```bash
+cd web && npm run firebase:android
+```
+
+Le script déclare l'application Android si elle manque, ajoute les empreintes
+de signature si elles manquent, et écrit `google-services.json` là où Gradle
+le cherche. Il est idempotent : le relancer ne duplique rien.
+
+> **La clé de compte de service est un secret.** Elle autorise l'envoi d'une
+> notification à tous les téléphones de l'établissement. Jamais dans Git,
+> jamais dans un canal public. Si elle a transité par un moyen incertain, la
+> révoquer depuis la console et en régénérer une.
+
+### 2.3 Poser les variables sur Vercel
+
+```bash
+cd web && VERCEL_TOKEN=xxxxx npm run vercel:env
+```
+
+Le jeton se crée sur <https://vercel.com/account/settings/tokens> et peut être
+révoqué juste après. Le script ne remplace jamais le jeu complet de variables —
+c'est le piège documenté en [04 §5.2](04-ROADMAP-DEPLOIEMENT.md).
 
 ---
 
-## Étape 3 — L'application Android
+## 3. Vérifier
 
-**Paramètres du projet → Vos applications → Ajouter une application →
-Android**
+```bash
+cd web && npm run fcm:test
+```
 
-| Champ | Valeur exacte |
+Sans argument, l'essai se fait sur un destinataire volontairement inexistant.
+Google répond `UNREGISTERED`, ce qui **prouve** que la requête a été
+authentifiée et routée vers le bon projet avant d'échouer sur le seul élément
+qu'on sait faux. Le tableau des autres réponses possibles :
+
+| Réponse | Cause |
 | --- | --- |
-| Nom du package | `td.lyceerenaissance.lgr_parents` |
-| Pseudo | `LGR Parents` |
-| Certificat SHA-1 | ci-dessous |
+| `UNREGISTERED` / `INVALID_ARGUMENT` | Attendu à vide — la chaîne fonctionne |
+| `401` | Identifiants refusés |
+| `403` | API Cloud Messaging désactivée sur le projet |
+| `404 PROJECT` | Projet introuvable |
 
-**Empreintes du certificat de signature de l'école :**
+Une fois l'application installée sur un vrai téléphone et un parent connecté :
 
+```bash
+cd web && npm run fcm:test -- --appareils
 ```
-SHA-1   41:49:8B:8E:19:32:B3:E8:4A:57:7B:A3:1E:B9:D1:4F:F8:C0:12:6A
-SHA-256 EC:25:6F:B1:89:59:C1:DD:2C:5D:E8:34:8B:CA:BA:04:EE:C7:EC:73:D6:74:52:B3:FA:BA:70:68:ED:65:AF:5F
-```
 
-Le bouton **Télécharger google-services.json** apparaît. C'est le second
-fichier à me transmettre.
-
-> Le SHA-1 n'est pas requis pour le push seul ; il l'est pour la connexion
-> Google et les liens profonds. Autant le renseigner tout de suite.
-
-Si vous me donnez la clé de compte de service **avant** cette étape, je peux
-créer l'application et récupérer `google-services.json` moi-même par l'API
-Firebase Management — vous n'aurez alors que l'étape 2 à faire.
+Le script lit les appareils enregistrés en base et envoie à chacun.
 
 ---
 
-## Étape 4 — Ce que je fais à réception
+## 4. Le piège qui fait tout échouer en silence
 
-1. Les trois variables `FCM_*` posées sur Vercel.
-2. `google-services.json` déposé dans `mobile/android/app/`.
-3. `firebase_core` et `firebase_messaging` ajoutés à l'application ; demande
-   d'autorisation au premier lancement (obligatoire depuis Android 13) ;
-   enregistrement du jeton auprès de `/api/mobile/appareil` — la route existe
-   déjà et fonctionne.
-4. Gestion des trois états : application au premier plan, en arrière-plan,
-   fermée. Le troisième est celui que les intégrations ratent le plus souvent.
-5. Recette réelle : une absence saisie dans le portail doit faire vibrer le
-   téléphone en moins de dix secondes.
-6. Nouvel APK signé.
+Depuis Android 8, **une notification adressée à un canal qui n'existe pas est
+abandonnée sans erreur**. Firebase répond « message accepté », l'école croit
+avoir prévenu le parent, et le téléphone ne sonne jamais. Rien dans les
+journaux.
+
+Le serveur envoie `channel_id: "lgr_defaut"`
+(`web/src/server/notifications/fcm.ts`). Ce canal est créé au démarrage de
+l'application par `MainActivity.kt`. **Les deux fichiers se citent
+mutuellement : ne jamais changer cette chaîne d'un seul côté.**
+
+Trois autres points qui font échouer les notifications sans message d'erreur :
+
+- **`POST_NOTIFICATIONS`** — obligatoire depuis Android 13, demandée au
+  premier lancement. Refusée, l'application continue de fonctionner : le jeton
+  reste utile si le parent accorde l'autorisation plus tard depuis les
+  réglages.
+- **Le jeton tourne.** Firebase le renouvelle sans prévenir — réinstallation,
+  restauration, effacement des données. L'application le repousse à chaque
+  démarrage **et** à chaque rotation. Sans cela, les alertes cessent d'arriver
+  en silence, le pire mode de panne possible : personne ne se plaint de ne pas
+  recevoir ce qu'il ignore attendre.
+- **Application au premier plan.** Android n'affiche rien de lui-même dans ce
+  cas. C'est `BanniereNotification` qui s'en charge.
+
+---
+
+## 5. Ce qui reste
+
+**La recette réelle.** Une absence saisie dans le portail doit faire vibrer un
+téléphone en moins de dix secondes. Elle demande un APK installé, un compte
+parent connecté, et quelqu'un devant l'écran — c'est la seule étape que le
+code ne peut pas s'auto-administrer.
 
 ---
 

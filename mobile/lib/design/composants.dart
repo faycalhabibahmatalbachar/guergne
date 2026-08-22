@@ -134,6 +134,22 @@ class BadgeEtat extends StatelessWidget {
 /// C'est l'information que le parent cherche en premier : elle doit se lire
 /// sans effort, d'où la taille, les chiffres tabulaires et la couleur adossée
 /// aux seuils du conseil de classe.
+///
+/// LA PASTILLE GRANDIT AVEC LE TEXTE
+///
+/// Le carré était naguère de taille fixe pendant que son contenu suivait le
+/// réglage de police du téléphone. Résultat : sur un téléphone en « grandes
+/// polices » — réglage courant chez des parents d'élèves de lycée — le
+/// « /20 » débordait et Flutter barrait la note d'un bandeau rayé.
+///
+/// Deux issues étaient possibles : figer le texte, ou faire grandir le carré.
+/// Figer le texte revenait à rendre illisible précisément le nombre que le
+/// parent a ouvert l'application pour lire ; c'est le carré qui cède.
+///
+/// L'agrandissement est plafonné à 1,5 : au-delà, la pastille chasserait le
+/// nom de la matière hors de l'écran. Le texte est plafonné au même facteur,
+/// jamais à un autre — deux plafonds différents feraient revenir le
+/// débordement pour les réglages intermédiaires.
 class PastilleMoyenne extends StatelessWidget {
   const PastilleMoyenne(this.note, {super.key, this.taille = 56, this.surVingt = true});
 
@@ -141,43 +157,53 @@ class PastilleMoyenne extends StatelessWidget {
   final double taille;
   final bool surVingt;
 
+  /// Au-delà, la pastille prendrait toute la largeur de la ligne.
+  static const facteurMaximal = 1.5;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final couleur = context.moyenne(note);
 
+    final facteur = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, facteurMaximal);
+    final cote = taille * facteur;
+
     return Container(
-      width: taille,
-      height: taille,
+      width: cote,
+      height: cote,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: couleur.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(taille * 0.32),
+        borderRadius: BorderRadius.circular(cote * 0.32),
         border: Border.all(color: couleur.withValues(alpha: 0.32), width: 1.5),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            note == null ? '—' : note!.toStringAsFixed(2).replaceAll('.', ','),
-            style: ThemeLgr.nombre(theme.textTheme.titleMedium).copyWith(
-              color: couleur,
-              fontWeight: FontWeight.w700,
-              fontSize: taille * 0.28,
-              height: 1.0,
-            ),
-          ),
-          if (surVingt && note != null)
+      child: MediaQuery.withClampedTextScaling(
+        maxScaleFactor: facteurMaximal,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
             Text(
-              '/20',
-              style: TextStyle(
-                fontSize: taille * 0.16,
-                color: couleur.withValues(alpha: 0.7),
-                fontWeight: FontWeight.w600,
-                height: 1.3,
+              note == null ? '—' : note!.toStringAsFixed(2).replaceAll('.', ','),
+              style: ThemeLgr.nombre(theme.textTheme.titleMedium).copyWith(
+                color: couleur,
+                fontWeight: FontWeight.w700,
+                fontSize: taille * 0.28,
+                height: 1.0,
               ),
             ),
-        ],
+            if (surVingt && note != null)
+              Text(
+                '/20',
+                style: TextStyle(
+                  fontSize: taille * 0.16,
+                  color: couleur.withValues(alpha: 0.7),
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -334,6 +360,23 @@ class EtatVide extends StatelessWidget {
 ///
 /// Les initiales prennent une couleur dérivée du nom, stable d'un écran à
 /// l'autre : un parent reconnaît son enfant à la couleur avant même de lire.
+///
+/// DEUX RÈGLES, TOUTES DEUX APPRISES À LEURS DÉPENS
+///
+/// 1. **Aucune couleur d'état dans la palette.** Le vert veut dire « présent,
+///    payé, admis » et le rouge « absent, impayé, en échec » — partout ailleurs
+///    dans l'application. Un avatar vert pour Fatimé et rouge pour Moussa
+///    laisse entendre quelque chose sur les deux enfants, et ce quelque chose
+///    est faux. La palette se limite donc aux teintes d'identité : les bleus de
+///    l'établissement, l'ocre sahélien, et deux nuances froides qui ne portent
+///    aucun sens ailleurs.
+///
+/// 2. **Une empreinte explicite, pas `hashCode`.** `String.hashCode` n'est
+///    stable ni entre deux versions de Dart, ni entre Dart et TypeScript. Le
+///    jour où le portail web affichera les mêmes avatars, il faudra que Fatimé
+///    ait la même couleur des deux côtés — sans quoi le repère visuel devient
+///    un piège. L'empreinte ci-dessous tient en trois lignes et ne changera
+///    jamais.
 class AvatarEleve extends StatelessWidget {
   const AvatarEleve({
     super.key,
@@ -341,6 +384,7 @@ class AvatarEleve extends StatelessWidget {
     required this.prenom,
     this.urlPhoto,
     this.taille = 48,
+    this.surFondColore = false,
   });
 
   final String nom;
@@ -348,29 +392,63 @@ class AvatarEleve extends StatelessWidget {
   final String? urlPhoto;
   final double taille;
 
+  /// Posé sur l'en-tête bleu plutôt que sur une surface claire.
+  ///
+  /// La teinte d'identité est appliquée à 14 % d'opacité : sur du blanc elle
+  /// donne un pastel lisible, mais sur le bleu de l'en-tête un bleu profond
+  /// devient invisible — l'avatar disparaît purement et simplement, et c'est
+  /// arrivé. Sur fond coloré on renonce donc à la couleur d'identité au profit
+  /// du blanc : le nom de l'enfant est juste à côté, l'avatar n'a plus à le
+  /// distinguer d'un frère ou d'une sœur, il doit seulement se voir.
+  final bool surFondColore;
+
+  /// Teintes d'identité. Ni vert ni rouge : voir la note de classe.
+  ///
+  /// Toutes tiennent le contraste AA sur leur propre fond à 14 % d'opacité,
+  /// en thème clair comme en thème sombre — vérifié plutôt que supposé, les
+  /// initiales étant du texte de petite taille.
   static const _palette = [
-    Color(0xFF1E429F),
-    Color(0xFF7C3AED),
-    Color(0xFF0891B2),
-    Color(0xFF16A34A),
-    Color(0xFFC98A3C),
-    Color(0xFFBE123C),
+    Color(0xFF1E429F), // bleu institutionnel
+    Color(0xFF3B63C4), // bleu clair
+    Color(0xFF15306F), // bleu profond
+    Color(0xFFC98A3C), // ocre sahélien
+    Color(0xFF0E7490), // sarcelle sombre
+    Color(0xFF5B4B8A), // indigo sourd
+    Color(0xFF334155), // ardoise
+    Color(0xFF8A5A2B), // brun sahélien
   ];
+
+  /// Empreinte stable d'une chaîne, indépendante de la plateforme.
+  ///
+  /// FNV-1a 32 bits, borné à 31 bits pour rester dans l'entier sûr de
+  /// JavaScript : le portail web pourra recalculer exactement la même valeur.
+  static int empreinte(String valeur) {
+    var h = 0x811c9dc5;
+    for (final unite in valeur.codeUnits) {
+      h ^= unite;
+      h = (h * 0x01000193) & 0x7fffffff;
+    }
+    return h;
+  }
 
   @override
   Widget build(BuildContext context) {
     final initiales = '${prenom.isNotEmpty ? prenom[0] : ''}${nom.isNotEmpty ? nom[0] : ''}'
         .toUpperCase();
-    final couleur = _palette['$prenom$nom'.hashCode.abs() % _palette.length];
+    final identite = _palette[empreinte('$prenom$nom') % _palette.length];
+    final couleur = surFondColore ? Colors.white : identite;
 
     return Container(
       width: taille,
       height: taille,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: couleur.withValues(alpha: 0.14),
+        color: couleur.withValues(alpha: surFondColore ? 0.22 : 0.14),
         borderRadius: BorderRadius.circular(taille * 0.34),
-        border: Border.all(color: couleur.withValues(alpha: 0.28), width: 1.5),
+        border: Border.all(
+          color: couleur.withValues(alpha: surFondColore ? 0.55 : 0.28),
+          width: 1.5,
+        ),
       ),
       alignment: Alignment.center,
       child: urlPhoto == null

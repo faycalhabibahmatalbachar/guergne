@@ -106,7 +106,10 @@ L'app n'est pas une réduction du web : c'est un produit distinct, pensé pour u
 - **Cibles tactiles ≥ 48 dp** — beaucoup de parents utilisent l'app en marchant, en plein soleil.
 - **Aucun écran vide sans explication** : « Aucune note publiée pour ce trimestre » plutôt qu'une
   page blanche.
-- **Poids de l'APK maîtrisé** : cible sous 15 Mo, pas d'animation lourde, images en WebP.
+- **Poids de l'APK maîtrisé** : pas d'animation lourde, images en WebP, architectures x86
+  exclues du build de production. La cible de 15 Mo annoncée au départ était hors d'atteinte —
+  le moteur Flutter seul pèse 20 Mo pour les deux architectures ARM. Mesure réelle et
+  justification du compromis en [08 — Design mobile](08-DESIGN-MOBILE.md) §7.
 - **Mode sombre** natif — économise la batterie sur écran OLED et se lit mieux le soir.
 
 ---

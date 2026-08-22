@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Notification LGR">
+  <title>Icône de notification — Lycée Guergné La Renaissance</title>
+
+  <!--
+    Icône de la barre d'état Android.
+
+    POURQUOI PAS LE LOGO
+    = = = = = = = = = =
+    Android impose une silhouette : il ignore les couleurs du fichier et ne
+    garde que le canal alpha, qu'il peint en blanc. Le logo complet — couronne
+    de laurier, monogramme, encrier — devient dans ces conditions une tache
+    illisible de 24 points de côté. Pire, un PNG opaque donne le fameux carré
+    blanc plein, symptôme d'intégration bâclée visible par tous les parents.
+
+    On dessine donc un glyphe dédié : un livre ouvert, l'élément le plus
+    reconnaissable du blason à très petite taille, réduit à sa silhouette.
+
+    RÈGLES DE DESSIN
+    = = = = = = = = = =
+    - Blanc pur sur fond transparent. Aucun dégradé, aucun trait fin : à 24 dp
+      un trait de moins de 2 unités sur cette grille de 96 disparaît.
+    - Marge de 10 unités sur les quatre côtés. Android n'ajoute aucune marge de
+      sécurité ; sans elle le glyphe touche les bords et paraît trop gros à
+      côté des icônes système.
+    - Les séparations internes sont des trous dans la forme, pas des traits
+      sombres : une fois la teinte appliquée, seul l'alpha subsiste.
+  -->
+
+  <g fill="#FFFFFF" fill-rule="evenodd">
+    <!--
+      Page de gauche. Le bord extérieur est bombé — un livre ouvert posé à plat
+      n'a pas de côtés rectilignes, et cette courbe suffit à le distinguer
+      d'une simple enveloppe, qui est l'autre glyphe blanc courant de la barre
+      d'état.
+    -->
+    <path d="M45 28.5v45.5c-4.6-3.9-10.3-6.2-16.3-6.6l-13.4-.9c-2.2-.1-3.9-2-3.9-4.2V25.4c0-2.4 2-4.3 4.4-4.2l12.2.8c6.5.5 12.4 3.3 17 7.8z"/>
+
+    <!-- Page de droite, symétrique. -->
+    <path d="M51 28.5v45.5c4.6-3.9 10.3-6.2 16.3-6.6l13.4-.9c2.2-.1 3.9-2 3.9-4.2V25.4c0-2.4-2-4.3-4.4-4.2l-12.2.8c-6.5.5-12.4 3.3-17 7.8z"/>
+
+    <!--
+      Le pli central, laissé en creux entre les deux pages : c'est le vide de
+      6 unités qui sépare les deux tracés ci-dessus. Rien à dessiner — mais
+      cette absence est délibérée, elle porte toute la lisibilité du glyphe.
+    -->
+  </g>
+</svg>

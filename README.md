@@ -26,6 +26,10 @@ une application web d'administration et une application mobile Flutter destinée
 | [03 — Design system](docs/03-DESIGN-SYSTEM.md) | Palette, typographie, composants métier, bulletin imprimé |
 | [04 — Roadmap & déploiement](docs/04-ROADMAP-DEPLOIEMENT.md) | Avancement, séquencement, Neon, hébergement, budget |
 | [05 — Plan d'enrichissement](docs/05-PLAN-ENRICHISSEMENT.md) | 67 fonctionnalités recensées page par page, par priorité |
+| [06 — Notifications push](docs/06-NOTIFICATIONS-PUSH.md) | Firebase : configuration, vérification, pièges qui échouent en silence |
+| [07 — Passerelle SMS](docs/07-PASSERELLE-SMS.md) | 235SMS sur Northflank : déploiement et recette |
+| [07 — Installer l'app parents](docs/07-INSTALLER-APP-PARENTS.md) | Diffusion de l'APK aux familles |
+| [08 — Design mobile](docs/08-DESIGN-MOBILE.md) | Jetons, composants et contraintes de l'application des parents |
 
 ---
 

@@ -257,7 +257,12 @@ class _Banniere extends ConsumerWidget {
 
               Row(
                 children: [
-                  AvatarEleve(nom: enfant.nom, prenom: enfant.prenom, taille: 58),
+                  AvatarEleve(
+                    nom: enfant.nom,
+                    prenom: enfant.prenom,
+                    taille: 58,
+                    surFondColore: true,
+                  ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(

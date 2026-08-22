@@ -13,6 +13,16 @@
         quarante secondes quand le téléphone est hors réseau.
     -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!--
+        Depuis Android 13, une application ne peut plus afficher de notification
+        sans cette permission, demandée à l'exécution. Le greffon
+        `firebase_messaging` la déclare aussi de son côté ; on la répète ici
+        parce qu'une permission qui n'apparaît que dans le manifeste fusionné
+        d'une dépendance est invisible à la relecture — et c'est celle dont
+        dépend toute la fonction d'alerte aux parents.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="LGR Parents"
         android:name="${applicationName}"
@@ -39,6 +49,29 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!--
+            Apparence des notifications.
+
+            Sans `default_notification_icon`, Android prend l'icône de
+            l'application, la réduit à sa silhouette et affiche un carré blanc
+            plein dans la barre d'état : le défaut d'intégration le plus visible
+            qui soit, et le plus fréquent.
+
+            `default_notification_channel_id` sert de filet : si un message
+            arrive sans canal — un envoi fait à la main, un outil tiers — il
+            atterrit dans le canal de l'école plutôt que dans « Divers ».
+            Le canal lui-même est créé au démarrage par `MainActivity`.
+        -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/lgr_primaire" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="lgr_defaut" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

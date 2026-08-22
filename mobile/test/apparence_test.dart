@@ -49,6 +49,7 @@ void main() {
     List<Override> surcharges = const [],
     Brightness luminosite = Brightness.light,
     Size taille = const Size(390, 844),
+    double echelleTexte = 1.0,
     Future<void> Function(WidgetTester)? apresRendu,
   }) async {
     tester.view.physicalSize = taille;
@@ -61,6 +62,15 @@ void main() {
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: luminosite == Brightness.dark ? ThemeLgr.sombre() : ThemeLgr.clair(),
+          // La taille de police est un réglage du téléphone, pas de
+          // l'application : `MediaQuery` est le seul endroit d'où elle peut
+          // venir. On la force ici pour reproduire un téléphone réglé en
+          // « grandes polices ».
+          builder: (contexte, enfant) => MediaQuery.withClampedTextScaling(
+            minScaleFactor: echelleTexte,
+            maxScaleFactor: echelleTexte,
+            child: enfant!,
+          ),
           home: ecran,
         ),
       ),
@@ -230,6 +240,67 @@ void main() {
       const EcranAnnonces(),
       nom: 'annonces',
       surcharges: echafaudage(stockage: stockage, accueil: accueilExemple()),
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Grandes polices
+  //
+  // POURQUOI CES TESTS EXISTENT
+  //
+  // Android permet d'agrandir tout le texte du système jusqu'à 130 %, et bien
+  // au-delà avec les réglages d'accessibilité. C'est un réglage courant : les
+  // parents d'élèves de lycée ont souvent passé la quarantaine, et un écran
+  // d'entrée de gamme se lit mal.
+  //
+  // À 130 %, une ligne qui tenait tout juste déborde. Flutter le signale par
+  // un bandeau rayé jaune et noir — sur le téléphone du parent, pas sur le
+  // poste du développeur, qui n'a jamais touché ce réglage. Ces tests
+  // provoquent la situation ici plutôt que chez lui : un débordement fait
+  // échouer le test, il n'est donc pas possible de le livrer sans le voir.
+  //
+  // Les écrans retenus sont ceux où le texte est le plus contraint : chiffres
+  // en gros corps dans des cartes de largeur fixe, et lignes à deux colonnes
+  // dont l'une est un montant.
+  // -------------------------------------------------------------------------
+
+  const grandesPolices = 1.3;
+
+  testWidgets('Accueil — grandes polices', (tester) async {
+    await rendre(
+      tester,
+      EcranAccueil(versOnglet: (_) {}, versCompte: () {}),
+      nom: 'accueil_grandes_polices',
+      surcharges: echafaudage(stockage: stockage, accueil: accueilExemple()),
+      echelleTexte: grandesPolices,
+    );
+  });
+
+  testWidgets('Résultats — grandes polices', (tester) async {
+    await rendre(
+      tester,
+      const EcranNotes(),
+      nom: 'notes_grandes_polices',
+      surcharges: echafaudage(
+        stockage: stockage,
+        accueil: accueilExemple(),
+        releve: relevePublie(),
+      ),
+      echelleTexte: grandesPolices,
+    );
+  });
+
+  testWidgets('Scolarité — grandes polices', (tester) async {
+    await rendre(
+      tester,
+      const EcranFinances(),
+      nom: 'finances_grandes_polices',
+      surcharges: echafaudage(
+        stockage: stockage,
+        accueil: accueilExemple(),
+        finances: financesExemple(),
+      ),
+      echelleTexte: grandesPolices,
     );
   });
 }
