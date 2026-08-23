@@ -257,7 +257,7 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
     { libelle: "Statut", valeur: d.eleve.statut },
     { libelle: "Effectif", valeur: String(d.eleve.effectifClasse) },
     { libelle: "Retards", valeur: String(d.eleve.retards).padStart(2, "0") },
-    { libelle: "Heures manquées", valeur: `${d.eleve.heuresManquees}h` },
+    { libelle: "Classes manquées", valeur: `${d.eleve.heuresManquees}h` },
     { libelle: "Jours manqués", valeur: String(d.eleve.joursManques).padStart(2, "0") },
   ];
 
@@ -293,11 +293,11 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
         <View style={[s.table, { marginTop: 10 }]}>
           <View style={s.ligneEntete}>
             <Cellule largeur={s.cDiscipline} style={s.gras}>Disciplines</Cellule>
-            <Cellule largeur={s.cDevoirs} style={[s.gras, s.centre]}>Moy. Devoirs</Cellule>
-            <Cellule largeur={s.cCompos} style={[s.gras, s.centre]}>Compositions</Cellule>
-            <Cellule largeur={s.cMoyenne} style={[s.gras, s.centre]}>Moy. Générale</Cellule>
+            <Cellule largeur={s.cDevoirs} style={[s.gras, s.centre]}>Moyennes Devoirs</Cellule>
+            <Cellule largeur={s.cCompos} style={[s.gras, s.centre]}>Notes Compositions</Cellule>
+            <Cellule largeur={s.cMoyenne} style={[s.gras, s.centre]}>Moyenne Générale</Cellule>
             <Cellule largeur={s.cCoeff} style={[s.gras, s.centre]}>Coeff.</Cellule>
-            <Cellule largeur={s.cPoints} style={[s.gras, s.centre]}>Moy. Coeff.</Cellule>
+            <Cellule largeur={s.cPoints} style={[s.gras, s.centre]}>Moyenne Coefficient</Cellule>
             <Cellule largeur={s.cAppreciation} style={s.gras} fin>Appréciations</Cellule>
           </View>
 
@@ -315,15 +315,23 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
                 </View>
               ))}
 
-              {/* La moyenne du bloc : c'est elle qui décide d'une orientation. */}
+              {/*
+                Ligne de bloc. La moyenne est placée dans la DERNIÈRE colonne,
+                comme sur le document papier — et non sous « Moyenne
+                Coefficient », qui contient des points et non une note sur 20.
+                Mettre une moyenne dans une colonne de points inviterait à les
+                additionner.
+              */}
               <View style={s.ligneGroupe}>
                 <Cellule largeur={s.cDiscipline} style={s.gras}>{bloc.titre}</Cellule>
                 <Cellule largeur={s.cDevoirs}>{" "}</Cellule>
                 <Cellule largeur={s.cCompos}>{" "}</Cellule>
                 <Cellule largeur={s.cMoyenne}>{" "}</Cellule>
                 <Cellule largeur={s.cCoeff} style={[s.centre, s.gras]}>{bloc.totalCoefficients}</Cellule>
-                <Cellule largeur={s.cPoints} style={[s.centre, s.gras]}>{n2(bloc.moyenne)}</Cellule>
-                <Cellule largeur={s.cAppreciation} fin>{" "}</Cellule>
+                <Cellule largeur={s.cPoints}>{" "}</Cellule>
+                <Cellule largeur={s.cAppreciation} style={[s.centre, s.gras]} fin>
+                  {n2(bloc.moyenne)}
+                </Cellule>
               </View>
             </View>
           ))}
@@ -335,10 +343,12 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
             <Cellule largeur={s.cMoyenne}>{" "}</Cellule>
             <Cellule largeur={s.cCoeff} style={[s.centre, s.gras]}>{d.totalCoefficients}</Cellule>
             <Cellule largeur={s.cPoints} style={[s.centre, s.gras]}>{n2(d.totalPoints)}</Cellule>
-            <Cellule largeur={s.cAppreciation} style={s.gras} fin>
-              Moyenne {n2(d.moyenneGenerale)}
-              {d.rang ? ` — ${d.rang}ᵉ/${d.eleve.effectifClasse}` : ""}
-            </Cellule>
+            {/*
+              Le document papier laisse cette case vide : la moyenne générale
+              et le rang figurent dans le tableau de suivi, en bas. Les répéter
+              ici créerait deux endroits à corriger le jour où le calcul change.
+            */}
+            <Cellule largeur={s.cAppreciation} fin>{" "}</Cellule>
           </View>
         </View>
 

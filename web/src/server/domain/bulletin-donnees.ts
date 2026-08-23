@@ -3,7 +3,7 @@ import "server-only";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/server/db";
-import type { DonneesBulletin, LigneMatiere } from "@/server/pdf/bulletin";
+import type { BlocMatieres, DonneesBulletin, LigneMatiere } from "@/server/pdf/bulletin";
 
 /**
  * Assemble les données d'un bulletin imprimable.
@@ -201,7 +201,59 @@ export async function chargerBulletin(
       totalCoefficients: coeffs,
       moyenne: coeffs > 0 ? points / coeffs : null,
     };
-  }).filter((b) => b.matieres.length > 0);
+  }).filter((b) => b.matieres.length > 0) as BlocMatieres[];
+
+  // --- La conduite est une LIGNE NOTÉE du bulletin --------------------------
+  //
+  // Elle ne vit pas dans `matieres` mais dans `notes_conduite`, et le document
+  // papier lui donne un coefficient — 2 dans l'exemplaire fourni. Sans elle, la
+  // moyenne des matières complémentaires est fausse : c'est la note qui pèse le
+  // plus lourd de ce bloc.
+  const conduite = await db.execute<{ note: string | null; appreciation: string | null; coefficient: string }>(sql`
+    SELECT nc.note::text AS note,
+           nc.appreciation,
+           COALESCE((SELECT valeur FROM parametres WHERE cle = 'coefficient_conduite'), '2') AS coefficient
+      FROM notes_conduite nc
+     WHERE nc.inscription_id = ${inscriptionId}::uuid
+       AND nc.periode_id = ${periodeId}::uuid
+  `);
+
+  const c = conduite.rows[0];
+  if (c && c.note !== null) {
+    const note = Number(c.note);
+    const coefficient = Number(c.coefficient) || 2;
+
+    // Elle rejoint les matières complémentaires — le bloc du document papier —
+    // ou fonde ce bloc s'il n'existe pas encore.
+    let complementaires = blocs.find((b) => b.titre === TITRES.COMPLEMENTAIRE);
+    if (!complementaires) {
+      complementaires = {
+        titre: TITRES.COMPLEMENTAIRE,
+        matieres: [],
+        totalCoefficients: 0,
+        moyenne: null,
+      };
+      blocs.push(complementaires);
+    }
+
+    complementaires.matieres.push({
+      libelle: "Conduite",
+      moyenneDevoirs: null,
+      noteComposition: note,
+      moyenne: note,
+      coefficient,
+      points: note * coefficient,
+      // L'appréciation de conduite est écrite par le conseil, pas déduite d'un
+      // seuil : « Le conseil » figure sur le document papier quand elle manque.
+      appreciation: c.appreciation ?? "Le conseil",
+    });
+
+    const notees = complementaires.matieres.filter((m) => m.moyenne !== null);
+    complementaires.totalCoefficients = notees.reduce((t, m) => t + m.coefficient, 0);
+    const pointsBloc = notees.reduce((t, m) => t + (m.points ?? 0), 0);
+    complementaires.moyenne =
+      complementaires.totalCoefficients > 0 ? pointsBloc / complementaires.totalCoefficients : null;
+  }
 
   const totalCoefficients = blocs.reduce((t, b) => t + b.totalCoefficients, 0);
   const totalPoints = blocs.reduce(
@@ -282,7 +334,7 @@ export async function chargerBulletin(
     rangAnnuel: ctx.est_derniere_periode ? (b?.rang ?? null) : null,
 
     appreciationTravail: b?.appreciation_generale ?? null,
-    appreciationDiscipline: b?.note_conduite ? `Conduite : ${b.note_conduite}/20` : null,
+    appreciationDiscipline: c?.appreciation ?? (b?.note_conduite ? `Conduite : ${b.note_conduite}/20` : null),
     decisionConseil: b?.mention ? String(b.mention).replace(/_/g, " ") : null,
     orientation: ctx.est_derniere_periode && b?.decision ? String(b.decision).replace(/_/g, " ") : null,
 
