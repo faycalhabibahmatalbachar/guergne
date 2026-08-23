@@ -35,6 +35,7 @@ export function Assiduite({
   classes,
   matieres,
   classeId,
+  filtres,
   eleves,
   absences,
   alertes,
@@ -44,6 +45,7 @@ export function Assiduite({
   classes: Option[];
   matieres: Option[];
   classeId: string | null;
+  filtres: { statut: string; depuis: string; jusqua: string };
   eleves: EleveClasse[];
   absences: LigneAbsence[];
   alertes: AlerteAssiduite[];
@@ -56,6 +58,26 @@ export function Assiduite({
   };
 }) {
   const routeur = useRouter();
+
+  /**
+   * Compose l'URL filtrée en conservant la classe déjà choisie.
+   *
+   * Repartir d'une URL vide ferait perdre la classe à chaque changement de
+   * filtre, et le surveillant devrait la resélectionner cinq fois de suite.
+   */
+  function filtrer(cle: string, valeur: string) {
+    const p = new URLSearchParams();
+    if (classeId) p.set("classe", classeId);
+
+    if (cle !== "__vider") {
+      for (const [c, v] of Object.entries(filtres)) {
+        if (v && c !== cle) p.set(c, v);
+      }
+      if (valeur) p.set(cle, valeur);
+    }
+
+    routeur.push(`/dashboard/assiduite?${p.toString()}`);
+  }
   const [enCours, demarrer] = useTransition();
   const [absents, setAbsents] = useState<Set<string>>(new Set());
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -256,12 +278,61 @@ export function Assiduite({
         </TabsContent>
 
         {/* --- Absences --- */}
-        <TabsContent value="absences" className="mt-6">
+        <TabsContent value="absences" className="mt-6 space-y-4">
+          {/*
+            Les filtres vivent dans l'URL, comme la classe : un surveillant qui
+            justifie une absence recharge la page, et doit retrouver sa
+            sélection. C'est la condition pour qu'il s'en serve.
+          */}
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="grid gap-2">
+              <Label htmlFor="f-statut">Statut</Label>
+              <NativeSelect
+                id="f-statut"
+                className="w-52"
+                value={filtres.statut}
+                onChange={(e) => filtrer("statut", e.target.value)}
+              >
+                <option value="">Toutes les absences</option>
+                <option value="NON_JUSTIFIEE">Non justifiées</option>
+                <option value="EN_ATTENTE">Justificatif en attente</option>
+                <option value="JUSTIFIEE">Justifiées</option>
+              </NativeSelect>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="f-depuis">Du</Label>
+              <Input
+                id="f-depuis"
+                type="date"
+                className="w-40"
+                value={filtres.depuis}
+                onChange={(e) => filtrer("depuis", e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="f-jusqua">Au</Label>
+              <Input
+                id="f-jusqua"
+                type="date"
+                className="w-40"
+                value={filtres.jusqua}
+                onChange={(e) => filtrer("jusqua", e.target.value)}
+              />
+            </div>
+            {filtres.statut || filtres.depuis || filtres.jusqua ? (
+              <Button variant="ghost" size="sm" onClick={() => filtrer("__vider", "")}>
+                Effacer les filtres
+              </Button>
+            ) : null}
+          </div>
+
           <Card>
             <CardContent className="p-0">
               {absences.length === 0 ? (
                 <p className="py-14 text-center text-muted-foreground text-sm">
-                  Aucune absence enregistrée sur cette période.
+                  {filtres.statut || filtres.depuis || filtres.jusqua
+                    ? "Aucune absence ne correspond à ces filtres."
+                    : "Aucune absence enregistrée sur cette période."}
                 </p>
               ) : (
                 <Table>

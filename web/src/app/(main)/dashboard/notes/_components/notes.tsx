@@ -8,6 +8,8 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+import { ImportNotes } from "./import-notes";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -449,10 +451,22 @@ function GrilleSaisie({
               Barème /{bareme} — {saisies} / {grille.lignes.length} élèves saisis
             </CardDescription>
           </div>
-          <Button onClick={enregistrer} disabled={enCours || grille.evaluation.estVerrouillee}>
-            <Save aria-hidden />
-            {enCours ? "Enregistrement…" : "Enregistrer les notes"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {/*
+              L'import est à côté de l'enregistrement, pas dans un menu : un
+              professeur qui a déjà sa grille dans un tableur doit le voir tout
+              de suite, sinon il ressaisit tout à la main.
+            */}
+            <ImportNotes
+              evaluationId={grille.evaluation.id}
+              titre={grille.evaluation.titre}
+              verrouillee={grille.evaluation.estVerrouillee}
+            />
+            <Button onClick={enregistrer} disabled={enCours || grille.evaluation.estVerrouillee}>
+              <Save aria-hidden />
+              {enCours ? "Enregistrement…" : "Enregistrer les notes"}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">

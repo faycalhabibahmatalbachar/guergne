@@ -44,7 +44,37 @@ export interface LigneEnseignant {
   creneauxPlaces: number;
 }
 
-export async function listerEnseignants(anneeId: string | null): Promise<LigneEnseignant[]> {
+export interface FiltresEnseignants {
+  /** Nom, prénom, matricule ou spécialité. */
+  recherche?: string;
+  statut?: string;
+  matiereId?: string;
+  /** 'actif' | 'inactif' | '' */
+  activite?: string;
+  /** Uniquement ceux dont les heures placées ne couvrent pas les heures dues. */
+  sousCharge?: boolean;
+}
+
+/**
+ * Liste du personnel enseignant.
+ *
+ * Les filtres sont appliqués EN BASE et non côté navigateur : une école de
+ * cinquante enseignants tient en mémoire, mais la même page servira le jour où
+ * il y en aura deux cents, et un filtre qui change de comportement avec la
+ * taille des données est un piège.
+ *
+ * `sousCharge` répond à une question que l'on pose chaque rentrée : qui n'a pas
+ * encore son service complet ? Elle est difficile à voir à l'œil sur une liste,
+ * et c'est pourtant elle qui bloque la constitution des emplois du temps.
+ */
+export async function listerEnseignants(
+  anneeId: string | null,
+  filtres: FiltresEnseignants = {},
+): Promise<LigneEnseignant[]> {
+  const recherche = filtres.recherche?.trim() || null;
+  const statut = filtres.statut || null;
+  const matiereId = filtres.matiereId || null;
+  const activite = filtres.activite || null;
   const lignes = await db
     .select({
       id: enseignants.id,
@@ -76,15 +106,42 @@ export async function listerEnseignants(anneeId: string | null): Promise<LigneEn
           AND (${anneeId}::uuid IS NULL OR e.annee_id = ${anneeId}::uuid))`,
     })
     .from(enseignants)
+    .where(sql`
+          (${recherche}::text IS NULL
+            OR enseignants.nom     ILIKE '%' || ${recherche} || '%'
+            OR enseignants.prenom  ILIKE '%' || ${recherche} || '%'
+            OR enseignants.matricule ILIKE '%' || ${recherche} || '%'
+            OR enseignants.specialite ILIKE '%' || ${recherche} || '%')
+      AND (${statut}::text IS NULL OR enseignants.statut::text = ${statut})
+      AND (${activite}::text IS NULL
+            OR (${activite} = 'actif' AND enseignants.actif)
+            OR (${activite} = 'inactif' AND NOT enseignants.actif))
+      AND (${matiereId}::uuid IS NULL OR EXISTS (
+            SELECT 1 FROM enseignant_matieres em
+             WHERE em.enseignant_id = enseignants.id
+               AND em.matiere_id = ${matiereId}::uuid))
+    `)
     .orderBy(asc(enseignants.nom), asc(enseignants.prenom));
 
-  return lignes.map((l) => ({
+  const sortie = lignes.map((l) => ({
     ...l,
     sexe: l.sexe as "M" | "F" | null,
     nbAffectations: Number(l.nbAffectations),
     heuresAffectees: Number(l.heuresAffectees),
     creneauxPlaces: Number(l.creneauxPlaces),
   }));
+
+  // La sous-charge se calcule après coup : elle compare deux colonnes
+  // dérivées, et l'exprimer en SQL obligerait à répéter les deux
+  // sous-requêtes dans la clause WHERE.
+  if (!filtres.sousCharge) return sortie;
+
+  return sortie.filter(
+    (e) =>
+      e.heuresContractuelles !== null &&
+      Number(e.heuresContractuelles) > 0 &&
+      e.heuresAffectees < Number(e.heuresContractuelles),
+  );
 }
 
 export interface FicheEnseignant {

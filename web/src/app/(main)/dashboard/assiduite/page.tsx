@@ -19,7 +19,12 @@ export const dynamic = "force-dynamic";
 export default async function PageAssiduite({
   searchParams,
 }: {
-  searchParams: Promise<{ classe?: string }>;
+  searchParams: Promise<{
+    classe?: string;
+    statut?: string;
+    depuis?: string;
+    jusqua?: string;
+  }>;
 }) {
   await exigerPage("assiduite:lire");
 
@@ -45,7 +50,17 @@ export default async function PageAssiduite({
 
   const [eleves, absences, alertes, stats] = await Promise.all([
     classeId ? listerElevesClasse(classeId) : Promise.resolve([]),
-    listerAbsences({ periodeId, limite: 100 }),
+    // Le journal suit les filtres de l'écran. Sans cela, un surveillant qui
+    // cherche les absences non justifiées de la semaine doit parcourir cent
+    // lignes à l'œil — et il cesse de s'en servir.
+    listerAbsences({
+      periodeId,
+      classeId: classeId ?? undefined,
+      statut: params.statut || undefined,
+      depuis: params.depuis || undefined,
+      jusqua: params.jusqua || undefined,
+      limite: 200,
+    }),
     listerAlertes(periodeId),
     statistiquesVieScolaire(periodeId),
   ]);
@@ -71,6 +86,11 @@ export default async function PageAssiduite({
           classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
           matieres={matieres.map((m) => ({ id: m.id, libelle: m.libelle }))}
           classeId={classeId}
+          filtres={{
+            statut: params.statut ?? "",
+            depuis: params.depuis ?? "",
+            jusqua: params.jusqua ?? "",
+          }}
           eleves={eleves}
           absences={absences}
           alertes={alertes}
