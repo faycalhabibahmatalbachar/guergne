@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   absencesParMois,
   alertes,
+  classementClasses,
   effectifsParNiveau,
   evolutionRecouvrement,
   indicateursCles,
@@ -18,6 +19,7 @@ import {
 import { chargerStatistiques, etapesDemarrage } from "@/server/domain/tableau-de-bord";
 import { exigerSession } from "@/server/guard";
 
+import { ClassementClasses } from "./_components/classement-classes";
 import { Pilotage } from "./_components/pilotage";
 
 export const metadata: Metadata = { title: "Tableau de bord" };
@@ -95,9 +97,9 @@ export default async function PageTableauDeBord() {
   const anneeId = stats.annee.id;
   const periodeId = stats.periode?.id ?? null;
 
-  // Les sept requêtes partent en parallèle : séquentielles, elles cumuleraient
-  // sept allers-retours vers Francfort avant le premier octet affiché.
-  const [indicateurs, niveaux, absences, classes, matieres, recouvrement, listeAlertes] =
+  // Les huit requêtes partent en parallèle : séquentielles, elles cumuleraient
+  // huit allers-retours vers Francfort avant le premier octet affiché.
+  const [indicateurs, niveaux, absences, classes, matieres, recouvrement, listeAlertes, classement] =
     await Promise.all([
       indicateursCles(anneeId, periodeId),
       effectifsParNiveau(anneeId),
@@ -106,6 +108,7 @@ export default async function PageTableauDeBord() {
       resultatsParMatiere(periodeId),
       evolutionRecouvrement(anneeId),
       alertes(anneeId, periodeId),
+      classementClasses(anneeId, periodeId),
     ]);
 
   return (
@@ -129,6 +132,8 @@ export default async function PageTableauDeBord() {
         recouvrement={recouvrement}
         listeAlertes={listeAlertes}
       />
+
+      <ClassementClasses lignes={classement} />
     </div>
   );
 }

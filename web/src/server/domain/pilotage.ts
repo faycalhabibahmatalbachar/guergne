@@ -206,6 +206,97 @@ export async function moyennesParClasse(
   }));
 }
 
+// ---------------------------------------------------------------------------
+// Classement des classes
+// ---------------------------------------------------------------------------
+
+export interface RangClasse {
+  rang: number;
+  classe: string;
+  niveau: string;
+  effectif: number;
+  notes: number;
+  moyenne: number | null;
+  tauxReussite: number | null;
+  meilleure: number | null;
+  plusFaible: number | null;
+  /** Écart à la moyenne de l'établissement, en points. */
+  ecart: number | null;
+}
+
+/**
+ * Classement des classes par moyenne.
+ *
+ * CE QU'IL SERT À VOIR
+ * --------------------
+ * `moyennesParClasse` ordonne par niveau — c'est ce qu'il faut pour un
+ * graphique, où l'on compare des sixièmes entre elles. Ce classement-ci fait
+ * l'inverse : il met toutes les classes sur une même échelle, du meilleur au
+ * moins bon, ce qui n'a de sens qu'en conseil de direction.
+ *
+ * L'ÉCART EST PLUS PARLANT QUE LE RANG
+ * -------------------------------------
+ * Une classe première avec 11,2 dans un établissement à 11,0 n'a rien
+ * d'exceptionnel ; une dernière à 8,1 quand la moyenne est à 11,0 appelle une
+ * décision. Le rang seul masque cela — d'où l'écart, affiché à côté.
+ *
+ * Les classes SANS NOTE gardent leur ligne, avec un rang vide : les faire
+ * disparaître laisserait croire qu'elles n'existent pas, alors qu'elles
+ * signalent simplement une saisie en retard.
+ */
+export async function classementClasses(
+  anneeId: string,
+  periodeId: string | null,
+): Promise<RangClasse[]> {
+  const r = await db.execute<Record<string, unknown>>(sql`
+    WITH par_classe AS (
+      SELECT c.libelle AS classe, n.libelle AS niveau, n.ordre,
+             count(DISTINCT i.id)::int                       AS effectif,
+             -- Les ELEVES ayant une moyenne, pas les lignes de moyenne : sans
+             -- periode choisie, moyennes_generales en porte une par trimestre,
+             -- et l'on afficherait 111 notes pour 37 inscrits.
+             -- (Pas d'accent grave ici : le SQL vit dans un litteral de gabarit
+             --  JavaScript, qu'un accent grave refermerait.)
+             count(DISTINCT i.id) FILTER (WHERE mg.moyenne IS NOT NULL)::int AS notes,
+             ROUND(AVG(mg.moyenne)::numeric, 2)              AS moyenne,
+             ROUND(100.0 * count(*) FILTER (WHERE mg.moyenne >= 10) /
+                   NULLIF(count(mg.moyenne), 0), 1)          AS taux_reussite,
+             ROUND(MAX(mg.moyenne)::numeric, 2)              AS meilleure,
+             ROUND(MIN(mg.moyenne)::numeric, 2)              AS plus_faible
+        FROM classes c
+        JOIN niveaux n ON n.id = c.niveau_id
+        LEFT JOIN inscriptions i ON i.classe_id = c.id AND i.active
+        LEFT JOIN moyennes_generales mg ON mg.inscription_id = i.id
+          AND (${periodeId ?? null}::uuid IS NULL OR mg.periode_id = ${periodeId ?? null}::uuid)
+       WHERE c.annee_id = ${anneeId}::uuid AND c.active
+       GROUP BY c.id, c.libelle, n.libelle, n.ordre
+    )
+    SELECT *,
+           -- Le rang saute les classes sans moyenne : les classer à zéro les
+           -- placerait bonnes dernières, ce qui serait un jugement et non un
+           -- constat.
+           CASE WHEN moyenne IS NULL THEN NULL
+                ELSE RANK() OVER (ORDER BY moyenne DESC NULLS LAST)
+           END AS rang,
+           ROUND((moyenne - AVG(moyenne) OVER ())::numeric, 2) AS ecart
+      FROM par_classe
+     ORDER BY moyenne DESC NULLS LAST, ordre, classe
+  `);
+
+  return r.rows.map((l) => ({
+    rang: l.rang == null ? 0 : Number(l.rang),
+    classe: String(l.classe),
+    niveau: String(l.niveau),
+    effectif: Number(l.effectif),
+    notes: Number(l.notes),
+    moyenne: l.moyenne == null ? null : Number(l.moyenne),
+    tauxReussite: l.taux_reussite == null ? null : Number(l.taux_reussite),
+    meilleure: l.meilleure == null ? null : Number(l.meilleure),
+    plusFaible: l.plus_faible == null ? null : Number(l.plus_faible),
+    ecart: l.ecart == null ? null : Number(l.ecart),
+  }));
+}
+
 export interface PointMatiere {
   matiere: string;
   couleur: string | null;

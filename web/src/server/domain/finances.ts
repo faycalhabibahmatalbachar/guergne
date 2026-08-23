@@ -105,6 +105,12 @@ export async function listerSituations(filtres: {
   anneeId: string;
   classeId?: string;
   seulementImpayes?: boolean;
+  /** Nom, prénom ou matricule. */
+  recherche?: string;
+  /** Vrai : uniquement ceux dont au moins une échéance est dépassée. */
+  enRetard?: boolean;
+  /** Vrai : uniquement les boursiers ; faux : uniquement les non-boursiers. */
+  boursier?: boolean;
 }): Promise<SituationEleve[]> {
   const lignes = await db.execute<SituationEleve & Record<string, unknown>>(sql`
     SELECT i.id AS "inscriptionId", e.id AS "eleveId", e.matricule, e.nom, e.prenom,
@@ -123,6 +129,16 @@ export async function listerSituations(filtres: {
        AND i.annee_id = ${filtres.anneeId}::uuid
        AND (${filtres.classeId ?? null}::uuid IS NULL OR i.classe_id = ${filtres.classeId ?? null}::uuid)
        AND (${filtres.seulementImpayes ?? false} = FALSE OR COALESCE(s.reste_du_fcfa, 0) > 0)
+       -- « En retard » n'est pas « impayé » : un élève peut devoir de l'argent
+       -- dont l'échéance n'est pas encore arrivée. C'est le retard qui déclenche
+       -- une relance, pas le solde.
+       AND (${filtres.enRetard ?? false} = FALSE OR COALESCE(s.nb_echeances_en_retard, 0) > 0)
+       AND (${filtres.boursier ?? null}::boolean IS NULL
+            OR i.est_boursier = ${filtres.boursier ?? null}::boolean)
+       AND (${filtres.recherche ?? null}::text IS NULL
+            OR e.nom       ILIKE '%' || ${filtres.recherche ?? null} || '%'
+            OR e.prenom    ILIKE '%' || ${filtres.recherche ?? null} || '%'
+            OR e.matricule ILIKE '%' || ${filtres.recherche ?? null} || '%')
      ORDER BY COALESCE(s.reste_du_fcfa, 0) DESC, e.nom, e.prenom
      LIMIT 200
   `);

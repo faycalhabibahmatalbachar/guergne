@@ -6,6 +6,7 @@ import { listerElevesClasse, listerIncidents, listerSanctions } from "@/server/d
 import { exigerPage } from "@/server/guard";
 
 import { Prerequis } from "../_components/prerequis";
+import { FiltresDiscipline } from "./_components/filtres-discipline";
 import { Discipline } from "./_components/discipline";
 
 export const metadata: Metadata = { title: "Discipline" };
@@ -14,7 +15,12 @@ export const dynamic = "force-dynamic";
 export default async function PageDiscipline({
   searchParams,
 }: {
-  searchParams: Promise<{ classe?: string }>;
+  searchParams: Promise<{
+    classe?: string;
+    gravite?: string;
+    sanction?: string;
+    attente?: string;
+  }>;
 }) {
   await exigerPage("discipline:lire");
 
@@ -39,8 +45,20 @@ export default async function PageDiscipline({
 
   const [eleves, incidents, sanctions] = await Promise.all([
     classeId ? listerElevesClasse(classeId) : Promise.resolve([]),
-    listerIncidents({ periodeId: periode.id }),
-    listerSanctions({ periodeId: periode.id }),
+    // Les deux listes suivent les mêmes filtres : un surveillant qui restreint
+    // à une classe veut voir SES incidents et SES sanctions, pas l'un filtré et
+    // l'autre non.
+    listerIncidents({
+      periodeId: periode.id,
+      classeId: classeId ?? undefined,
+      gravite: params.gravite || undefined,
+    }),
+    listerSanctions({
+      periodeId: periode.id,
+      classeId: classeId ?? undefined,
+      type: params.sanction || undefined,
+      enAttente: Boolean(params.attente),
+    }),
   ]);
 
   return (
@@ -60,14 +78,17 @@ export default async function PageDiscipline({
           manquants={[{ libelle: "Créer les classes", url: "/dashboard/parametres?onglet=classes" }]}
         />
       ) : (
-        <Discipline
-          periodeId={periode.id}
-          classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
-          classeId={classeId}
-          eleves={eleves}
-          incidents={incidents}
-          sanctions={sanctions}
-        />
+        <div className="space-y-4">
+          <FiltresDiscipline classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))} />
+          <Discipline
+            periodeId={periode.id}
+            classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
+            classeId={classeId}
+            eleves={eleves}
+            incidents={incidents}
+            sanctions={sanctions}
+          />
+        </div>
       )}
     </div>
   );

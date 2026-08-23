@@ -15,6 +15,7 @@ import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
 import { exigerPage } from "@/server/guard";
 
 import { Prerequis } from "../_components/prerequis";
+import { FiltresFinances } from "./_components/filtres-finances";
 import { Finances } from "./_components/finances";
 
 export const metadata: Metadata = { title: "Finances" };
@@ -23,7 +24,14 @@ export const dynamic = "force-dynamic";
 export default async function PageFinances({
   searchParams,
 }: {
-  searchParams: Promise<{ classe?: string; inscription?: string }>;
+  searchParams: Promise<{
+    classe?: string;
+    inscription?: string;
+    q?: string;
+    impayes?: string;
+    retard?: string;
+    boursier?: string;
+  }>;
 }) {
   await exigerPage("finance:lire");
 
@@ -48,7 +56,16 @@ export default async function PageFinances({
 
   const [niveaux, situations, paiements, tarifs, tranches, stats, recouvrement] = await Promise.all([
     listerNiveaux(),
-    listerSituations({ anneeId: annee.id, classeId: classeId ?? undefined }),
+    listerSituations({
+      anneeId: annee.id,
+      classeId: classeId ?? undefined,
+      recherche: params.q || undefined,
+      seulementImpayes: Boolean(params.impayes),
+      enRetard: Boolean(params.retard),
+      // Trois états et non deux : « tous », « boursiers », « non boursiers ».
+      // Un booléen n'en exprimerait que deux.
+      boursier: params.boursier === "oui" ? true : params.boursier === "non" ? false : undefined,
+    }),
     listerPaiements({ anneeId: annee.id, limite: 100 }),
     listerTarifs(annee.id),
     listerTranches(annee.id),
@@ -70,6 +87,8 @@ export default async function PageFinances({
           Année {annee.libelle}. Tous les montants sont en francs CFA, sans décimale.
         </p>
       </div>
+
+      <FiltresFinances classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))} />
 
       <Finances
         anneeId={annee.id}

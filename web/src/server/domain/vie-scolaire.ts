@@ -237,8 +237,20 @@ export interface LigneSanction {
 
 export async function listerSanctions(filtres: {
   periodeId?: string;
+  classeId?: string;
+  type?: string;
+  /** Vrai : seulement celles qui restent à exécuter. */
+  enAttente?: boolean;
   limite?: number;
 }): Promise<LigneSanction[]> {
+  const conditions = [];
+  if (filtres.periodeId) conditions.push(eq(sanctions.periodeId, filtres.periodeId));
+  if (filtres.classeId) conditions.push(eq(inscriptions.classeId, filtres.classeId));
+  if (filtres.type) conditions.push(sql`${sanctions.type} = ${filtres.type}`);
+  // Une sanction prononcée mais non exécutée est le cas qui coûte cher : une
+  // exclusion oubliée fait revenir l'élève, et l'établissement perd sa parole.
+  if (filtres.enAttente) conditions.push(sql`NOT ${sanctions.executee}`);
+
   return db
     .select({
       id: sanctions.id,
@@ -257,7 +269,7 @@ export async function listerSanctions(filtres: {
     .innerJoin(inscriptions, eq(inscriptions.id, sanctions.inscriptionId))
     .innerJoin(eleves, eq(eleves.id, inscriptions.eleveId))
     .innerJoin(classes, eq(classes.id, inscriptions.classeId))
-    .where(filtres.periodeId ? eq(sanctions.periodeId, filtres.periodeId) : undefined)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(sanctions.dateDebut))
     .limit(filtres.limite ?? 100);
 }
