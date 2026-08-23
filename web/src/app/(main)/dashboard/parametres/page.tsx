@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Bell } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   listerAnnees,
@@ -75,11 +78,25 @@ export default async function PageParametres({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-semibold text-2xl tracking-tight">Paramètres</h1>
-        <p className="mt-1 text-muted-foreground text-sm">
-          Configuration de l&apos;établissement — année scolaire, matières, coefficients et classes.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-semibold text-2xl tracking-tight">Paramètres</h1>
+          <p className="mt-1 text-muted-foreground text-sm">
+            Configuration de l&apos;établissement — année scolaire, matières, coefficients et classes.
+          </p>
+        </div>
+
+        {/*
+          Les notifications ont leur propre page et leur propre droit : elles
+          arbitrent une dépense, là où les onglets ci-dessous touchent au calcul
+          des bulletins. Mélanger les deux reviendrait à donner l'un avec l'autre.
+        */}
+        <Button asChild variant="outline">
+          <Link href="/dashboard/parametres/notifications">
+            <Bell aria-hidden />
+            Notifications et SMS
+          </Link>
+        </Button>
       </div>
 
       <Tabs value={onglet}>

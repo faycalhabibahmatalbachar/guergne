@@ -38,6 +38,10 @@ export const ACTIONS = [
   // Finances
   "finance:lire", "finance:encaisser", "finance:configurer",
   "finance:exonerer", "finance:relancer", "finance:exporter", "recu:emettre",
+  // Arbitrage entre prévenir les familles et dépenser en SMS : une décision de
+  // chef d'établissement, distincte de `parametre:modifier` qui ouvre aussi
+  // les années, les périodes et les coefficients.
+  "notification:configurer",
 
   // Communication et documents
   "annonce:lire", "annonce:publier", "message:lire", "message:envoyer",

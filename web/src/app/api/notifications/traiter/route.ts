@@ -40,8 +40,21 @@ async function traiter(requete: Request) {
     );
   }
 
+  // Deux en-têtes acceptés, et le second a une raison précise.
+  //
+  // `Authorization: Bearer xxx` est la forme standard, celle que Vercel joint
+  // lui-même à ses tâches planifiées.
+  //
+  // `X-Cron-Secret: xxx` existe parce que sa valeur ne contient AUCUN espace.
+  // L'API de Northflank découpe la commande d'un job sur les espaces : un
+  // `-H "Authorization: Bearer xxx"` y arrive en morceaux, et aucune forme de
+  // `sh -c` ne survit non plus. Un en-tête sans espace tient en un seul jeton
+  // et passe intact. Ce n'est pas un contournement de sécurité — c'est le même
+  // secret, comparé de la même façon.
   const entete = requete.headers.get("authorization");
-  if (entete !== `Bearer ${secret}`) {
+  const alternatif = requete.headers.get("x-cron-secret");
+
+  if (entete !== `Bearer ${secret}` && alternatif !== secret) {
     return Response.json({ erreur: "Non autorisé." }, { status: 401 });
   }
 
