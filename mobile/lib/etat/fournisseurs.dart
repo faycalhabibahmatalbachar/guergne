@@ -362,3 +362,27 @@ final marquerLueProvider = Provider<Future<void> Function(String)>((ref) {
     }
   };
 });
+
+// --- Bulletins -------------------------------------------------------------
+
+/// Bulletins publiés d'un enfant.
+///
+/// Passe par le même mécanisme de cache que les autres écrans : sur une
+/// connexion tchadienne, un parent doit pouvoir rouvrir la liste sans attendre,
+/// même hors réseau. Le PDF, lui, exige une connexion — il n'est pas mis en
+/// cache tant qu'il n'a pas été téléchargé explicitement.
+final bulletinsProvider = StreamProvider.autoDispose.family<Donnees<List<Bulletin>>, String>((
+  ref,
+  eleveId,
+) {
+  final api = ref.watch(apiProvider);
+
+  return _charger(
+    stockage: ref.watch(stockageProvider),
+    cle: 'bulletins:$eleveId',
+    reseau: () => api.obtenir('/api/mobile/enfants/$eleveId/bulletins'),
+    decoder: (json) => (json['bulletins'] as List<dynamic>? ?? const [])
+        .map((b) => Bulletin.depuisJson(b as Map<String, dynamic>))
+        .toList(growable: false),
+  );
+});

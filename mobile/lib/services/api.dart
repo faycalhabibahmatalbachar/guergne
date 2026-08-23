@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 
+import '../modeles/modeles.dart';
 import 'stockage.dart';
 
 /// Client de l'API de l'école.
@@ -224,5 +227,69 @@ class ApiEcole {
       debugPrint('Déconnexion serveur impossible : $erreur');
     }
     await _stockage.effacerTout();
+  }
+
+  // -------------------------------------------------------------------------
+  // Bulletins
+  // -------------------------------------------------------------------------
+
+  /// Bulletins publiés d'un enfant.
+  Future<List<Bulletin>> bulletins(String eleveId) async {
+    final reponse = await obtenir('/api/mobile/enfants/$eleveId/bulletins');
+    final liste = (reponse['bulletins'] as List<dynamic>? ?? const []);
+    return liste
+        .map((b) => Bulletin.depuisJson(b as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  /// Télécharge un bulletin en PDF et rend le chemin du fichier écrit.
+  ///
+  /// POURQUOI PASSER PAR DIO PLUTÔT QUE PAR LE NAVIGATEUR
+  /// -----------------------------------------------------
+  /// Ouvrir l'URL dans le navigateur du téléphone perdrait le jeton
+  /// d'authentification : la route exige un en-tête `Authorization`, qu'un
+  /// navigateur externe n'a pas. Le PDF arriverait donc en 401.
+  ///
+  /// Le fichier est écrit dans le dossier de DOCUMENTS de l'application, pas
+  /// dans un cache : un parent qui télécharge le bulletin de son enfant
+  /// s'attend à le retrouver, y compris hors ligne, y compris trois mois plus
+  /// tard.
+  Future<String> telechargerBulletin(String url, String nomFichier) async {
+    final dossier = await getApplicationDocumentsDirectory();
+    final chemin = '${dossier.path}/$nomFichier';
+
+    final reponse = await _dio.get<List<int>>(
+      url,
+      options: Options(
+        responseType: ResponseType.bytes,
+        headers: await _enteteAuth(),
+        // On gère les codes nous-mêmes : un 403 « non publié » est une
+        // information à afficher, pas une exception à faire remonter brute.
+        validateStatus: (_) => true,
+      ),
+    );
+
+    if (reponse.statusCode == 401) {
+      // Jeton expiré : on rejoue une fois après rotation, comme les autres
+      // appels. Sans cela, un parent qui laisse l'application ouverte une
+      // heure verrait le téléchargement échouer sans raison visible.
+      if (await _rafraichir()) {
+        return telechargerBulletin(url, nomFichier);
+      }
+      throw ErreurApi('Session expirée. Reconnectez-vous.', statut: 401);
+    }
+
+    if (reponse.statusCode != 200 || reponse.data == null) {
+      throw ErreurApi(
+        reponse.statusCode == 403
+            ? "Ce bulletin n'est pas encore publié par l'établissement."
+            : 'Téléchargement impossible.',
+        statut: reponse.statusCode ?? 0,
+      );
+    }
+
+    final fichier = File(chemin);
+    await fichier.writeAsBytes(reponse.data!, flush: true);
+    return chemin;
   }
 }

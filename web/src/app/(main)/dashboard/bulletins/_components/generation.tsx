@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { FileText, Play } from "lucide-react";
+import { EyeOff, FileText, Play, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,8 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { genererPourClasse, type ResultatGeneration } from "../actions";
+import { depublierClasse, publierClasse } from "../actions-conseil";
+import { AvisConseil } from "./avis-conseil";
 
 export interface BulletinListe {
   inscriptionId: string;
@@ -23,6 +25,8 @@ export interface BulletinListe {
   moyenne: string | null;
   rang: number | null;
   mention: string | null;
+  appreciation: string | null;
+  decision: string | null;
   publie: boolean;
 }
 
@@ -71,6 +75,9 @@ export function GenerationBulletins({
       if (r.ok) routeur.refresh();
     });
   }
+
+  const publies = bulletins.filter((b) => b.publie).length;
+  const brouillons = bulletins.length - publies;
 
   const classe = classes.find((c) => c.id === classeChoisie);
   const periode = periodes.find((p) => p.id === periodeChoisie);
@@ -166,6 +173,63 @@ export function GenerationBulletins({
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
+            {bulletins.length > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+                <p className="text-muted-foreground text-sm">
+                  {publies} publié{publies > 1 ? "s" : ""} · {brouillons} en brouillon.
+                  {brouillons > 0
+                    ? " Publier rend les bulletins visibles aux familles et les prévient."
+                    : ""}
+                </p>
+                <div className="flex gap-2">
+                  {brouillons > 0 ? (
+                    <Button
+                      size="sm"
+                      disabled={enCours}
+                      onClick={() =>
+                        demarrer(async () => {
+                          const r = await publierClasse(classeChoisie, periodeChoisie);
+                          toast[r.ok ? "success" : "error"](r.message ?? "Terminé.");
+                          routeur.refresh();
+                        })
+                      }
+                    >
+                      <Send aria-hidden />
+                      Publier la classe
+                    </Button>
+                  ) : null}
+                  {publies > 0 ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={enCours}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            [
+                              "Retirer ces bulletins de la publication ?",
+                              "Les familles ne les verront plus, mais les notifications",
+                              "déjà envoyées ne sont pas rappelées.",
+                            ].join(" "),
+                          )
+                        ) {
+                          return;
+                        }
+                        demarrer(async () => {
+                          const r = await depublierClasse(classeChoisie, periodeChoisie);
+                          toast[r.ok ? "success" : "error"](r.message ?? "Terminé.");
+                          routeur.refresh();
+                        });
+                      }}
+                    >
+                      <EyeOff aria-hidden />
+                      Dépublier
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
             {bulletins.length === 0 ? (
               <p className="text-muted-foreground py-12 text-center text-sm">
                 Aucun bulletin pour cette classe et cette période. Lancez la production.
@@ -181,6 +245,7 @@ export function GenerationBulletins({
                       <TableHead className="text-right">Moyenne</TableHead>
                       <TableHead>Mention</TableHead>
                       <TableHead>État</TableHead>
+                      <TableHead className="text-right">Conseil</TableHead>
                       <TableHead className="text-right">Bulletin</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -206,6 +271,17 @@ export function GenerationBulletins({
                           <Badge variant={b.publie ? "default" : "outline"}>
                             {b.publie ? "Publié" : "Brouillon"}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <AvisConseil
+                            inscriptionId={b.inscriptionId}
+                            periodeId={periodeChoisie}
+                            eleve={b.eleve}
+                            mention={b.mention}
+                            appreciation={b.appreciation}
+                            decision={b.decision}
+                            publie={b.publie}
+                          />
                         </TableCell>
                         <TableCell className="text-right">
                           <Button asChild variant="ghost" size="sm">

@@ -8,6 +8,7 @@ import '../design/theme.dart';
 import '../etat/fournisseurs.dart';
 import '../modeles/modeles.dart';
 import '../outils/formats.dart';
+import 'bulletins.dart';
 
 /// Écran des notes.
 ///
@@ -37,6 +38,19 @@ class EcranNotes extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Résultats'),
+        actions: [
+          // Le bulletin est la version OFFICIELLE des résultats : sa place est
+          // ici, pas dans un sixième onglet. Cinq destinations est le maximum
+          // lisible en bas d'écran, et un parent qui cherche « le bulletin »
+          // commence par ouvrir « Résultats ».
+          IconButton(
+            tooltip: 'Bulletins',
+            icon: const Icon(Icons.description_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const EcranBulletins()),
+            ),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(30),
           child: Padding(

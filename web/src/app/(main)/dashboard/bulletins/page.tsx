@@ -84,6 +84,8 @@ export default async function PageBulletins({
       moyenne: string | null;
       rang: number | null;
       mention: string | null;
+      appreciation_generale: string | null;
+      decision: string | null;
       est_publie: boolean;
     }>(sql`
       SELECT b.inscription_id,
@@ -92,6 +94,8 @@ export default async function PageBulletins({
              b.moyenne_generale::text AS moyenne,
              b.rang,
              b.mention::text AS mention,
+             b.appreciation_generale,
+             b.decision::text AS decision,
              b.est_publie
         FROM bulletins b
         JOIN inscriptions i ON i.id = b.inscription_id
@@ -108,6 +112,8 @@ export default async function PageBulletins({
       moyenne: x.moyenne,
       rang: x.rang,
       mention: x.mention,
+      appreciation: x.appreciation_generale,
+      decision: x.decision,
       publie: x.est_publie,
     }));
   }

@@ -598,3 +598,51 @@ class Accueil {
         .toList(),
   );
 }
+
+// ---------------------------------------------------------------------------
+
+/// Bulletin publié d'un enfant.
+///
+/// N'existe côté application que si l'établissement l'a PUBLIÉ : un bulletin en
+/// brouillon porte des moyennes et un rang qui peuvent encore changer, et
+/// l'API ne le liste pas. L'application n'a donc pas à filtrer — mais elle ne
+/// doit pas non plus supposer qu'un bulletin absent signifie « pas de notes ».
+class Bulletin {
+  const Bulletin({
+    required this.periodeId,
+    required this.periode,
+    required this.url,
+    this.moyenne,
+    this.rang,
+    this.effectif,
+    this.mention,
+    this.appreciation,
+    this.publieLe,
+  });
+
+  final String periodeId;
+  final String periode;
+
+  /// Chemin fourni par le SERVEUR, jamais composé par l'application : le jour
+  /// où il change, un APK déjà installé continuerait d'appeler l'ancien.
+  final String url;
+
+  final double? moyenne;
+  final int? rang;
+  final int? effectif;
+  final String? mention;
+  final String? appreciation;
+  final String? publieLe;
+
+  factory Bulletin.depuisJson(Map<String, dynamic> json) => Bulletin(
+    periodeId: json['periodeId'] as String,
+    periode: json['periode'] as String,
+    url: json['url'] as String,
+    moyenne: (json['moyenne'] as num?)?.toDouble(),
+    rang: json['rang'] as int?,
+    effectif: json['effectif'] as int?,
+    mention: json['mention'] as String?,
+    appreciation: json['appreciation'] as String?,
+    publieLe: json['publieLe'] as String?,
+  );
+}
