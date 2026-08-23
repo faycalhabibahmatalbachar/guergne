@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
+
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { KeyRound, Search, Send, ShieldOff, Smartphone, Users } from "lucide-react";
+import { Download, KeyRound, Search, Send, ShieldOff, Smartphone, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -192,6 +194,18 @@ export function Parents({
             </option>
           ))}
         </NativeSelect>
+
+        {/*
+          L'export part de la liste complète, sans les filtres : le tableur sert
+          justement à filtrer autrement, et un export partiel se confondrait
+          avec le fichier de référence de l'établissement.
+        */}
+        <Button asChild variant="outline" size="sm" className="ml-auto">
+          <a href="/api/export/parents">
+            <Download aria-hidden />
+            Exporter
+          </a>
+        </Button>
       </div>
 
       <Card>
@@ -221,9 +235,17 @@ export function Parents({
                   return (
                     <TableRow key={t.id} className={desactive ? "opacity-55" : undefined}>
                       <TableCell>
-                        <span className="font-medium">
+                        {/*
+                          Le nom mène au dossier : c'est le geste attendu quand
+                          on cherche à comprendre pourquoi un parent ne reçoit
+                          rien, et il n'existait pas.
+                        */}
+                        <Link
+                          href={`/dashboard/parents/${t.id}`}
+                          className="font-medium text-primary hover:underline"
+                        >
                           {t.prenom} {t.nom}
-                        </span>
+                        </Link>
                         {t.profession ? (
                           <span className="block text-muted-foreground text-xs">{t.profession}</span>
                         ) : null}

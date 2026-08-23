@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
-import { AlertTriangle, Plus, Search, Upload } from "lucide-react";
+import { AlertTriangle, Download, Plus, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +92,12 @@ export function ListeEnseignants({ enseignants }: { enseignants: LigneEnseignant
             L'import est en retrait : c'est un geste de reprise, fait une fois
             en début d'année, là où la création unitaire est le quotidien.
           */}
+          <Button size="sm" variant="outline" asChild>
+            <a href="/api/export/personnel">
+              <Download aria-hidden />
+              Exporter
+            </a>
+          </Button>
           <Button size="sm" variant="outline" asChild>
             <Link href="/dashboard/personnel/importer">
               <Upload aria-hidden />

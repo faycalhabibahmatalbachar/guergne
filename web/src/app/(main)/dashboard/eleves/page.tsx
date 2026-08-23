@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { GraduationCap, Plus, Search, Upload, Users } from "lucide-react";
+import { Download, GraduationCap, Plus, Search, Upload, Users } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,25 @@ export default async function PageEleves({
               geste de rentrée, fait quelques fois dans l'année, quand
               l'inscription au guichet est le quotidien.
             */}
+            {/*
+              L'export reprend les filtres affichés : exporter autre chose que
+              ce qu'on voit obligerait à refiltrer dans Excel, et laisserait
+              douter duquel des deux jeux est le bon.
+            */}
+            <Button asChild variant="outline">
+              <a
+                href={`/api/export/eleves?${new URLSearchParams(
+                  Object.entries({
+                    recherche: params.q ?? "",
+                    classe: params.classe ?? "",
+                    statut: params.statut ?? "",
+                  }).filter(([, v]) => v) as [string, string][],
+                ).toString()}`}
+              >
+                <Download aria-hidden />
+                Exporter
+              </a>
+            </Button>
             <Button asChild variant="outline">
               <Link href="/dashboard/eleves/importer">
                 <Upload aria-hidden />

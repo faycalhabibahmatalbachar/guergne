@@ -180,3 +180,168 @@ export async function telephoneDisponible(telephone: string, saufTuteurId?: stri
 
   return tuteur?.utilisateurId === existant.id;
 }
+
+// ===========================================================================
+// Dossier d'un tuteur
+// ===========================================================================
+
+export interface EnfantRattache {
+  eleveId: string;
+  matricule: string;
+  nom: string;
+  prenom: string;
+  classe: string | null;
+  statut: string;
+  lien: string;
+  estPrincipal: boolean;
+  estResponsableFinancier: boolean;
+  estTuteurLegal: boolean;
+  estContactUrgence: boolean;
+  autoriseRetrait: boolean;
+}
+
+export interface NotificationTuteur {
+  id: string;
+  type: string;
+  canal: string;
+  titre: string;
+  statut: string;
+  creeLe: string;
+  envoyeLe: string | null;
+  erreur: string | null;
+  coutFcfa: number | null;
+}
+
+export interface DossierTuteur {
+  tuteur: LigneTuteur & {
+    sexe: string | null;
+    telephoneSecondaire: string | null;
+    adresse: string | null;
+    quartier: string | null;
+    employeur: string | null;
+    pieceIdentite: string | null;
+    creeLe: string;
+  };
+  enfants: EnfantRattache[];
+  notifications: NotificationTuteur[];
+  /** Canal sur lequel ce tuteur est RÉELLEMENT joignable, aujourd'hui. */
+  canalJoignable: string;
+  nbAppareils: number;
+}
+
+/**
+ * Dossier complet d'un tuteur.
+ *
+ * Le secrétariat vient ici pour trois raisons, et une seule est évidente :
+ *
+ *   1. Corriger un numéro. C'est la première cause d'échec des notifications,
+ *      et jusqu'ici c'était impossible depuis l'interface.
+ *   2. Vérifier ce qui lui a réellement été envoyé — un parent qui affirme
+ *      n'avoir rien reçu a souvent raison, et le journal le prouve ou l'infirme.
+ *   3. Voir de quels enfants il répond, et à quel titre : celui qui paie n'est
+ *      pas toujours celui qu'on appelle en urgence.
+ *
+ * `canalJoignable` interroge `fn_canal_tuteur`, la même fonction que les
+ * déclencheurs. Afficher « joignable par push » alors que les notifications
+ * partent en SMS serait pire que ne rien afficher.
+ */
+export async function chargerDossierTuteur(tuteurId: string): Promise<DossierTuteur | null> {
+  const base = await db.execute<Record<string, never>>(sql`
+    SELECT t.id, t.nom, t.prenom, t.telephone, t.telephone_secondaire, t.email,
+           t.profession, t.employeur, t.adresse, t.quartier, t.sexe::text AS sexe,
+           t.piece_identite, t.accepte_sms, t.app_activee, t.app_activee_le::text,
+           t.cree_le::text, t.utilisateur_id,
+           u.actif AS compte_actif,
+           u.derniere_connexion::text,
+           fn_canal_tuteur(t.id)::text AS canal_joignable,
+           (SELECT count(*) FROM appareils a
+             WHERE a.utilisateur_id = t.utilisateur_id AND a.actif) AS nb_appareils,
+           (SELECT count(*) FROM eleve_tuteur et WHERE et.tuteur_id = t.id) AS nb_enfants
+      FROM tuteurs t
+      LEFT JOIN utilisateurs u ON u.id = t.utilisateur_id
+     WHERE t.id = ${tuteurId}::uuid
+  `);
+
+  const t = base.rows[0] as Record<string, string | number | boolean | null> | undefined;
+  if (!t) return null;
+
+  const enfants = await db.execute<Record<string, never>>(sql`
+    SELECT e.id AS eleve_id, e.matricule, e.nom, e.prenom, e.statut::text AS statut,
+           c.libelle AS classe,
+           et.lien::text AS lien, et.est_principal, et.est_responsable_financier,
+           et.est_tuteur_legal, et.est_contact_urgence, et.autorise_retrait
+      FROM eleve_tuteur et
+      JOIN eleves e ON e.id = et.eleve_id
+      LEFT JOIN inscriptions i ON i.eleve_id = e.id AND i.active
+      LEFT JOIN classes c      ON c.id = i.classe_id
+     WHERE et.tuteur_id = ${tuteurId}::uuid
+     ORDER BY e.nom, e.prenom
+  `);
+
+  // Les vingt dernières : au-delà, c'est un journal d'audit, pas un dossier.
+  const notifications = await db.execute<Record<string, never>>(sql`
+    SELECT n.id, n.type::text AS type, n.canal::text AS canal, n.titre,
+           n.statut::text AS statut, n.cree_le::text, n.envoye_le::text,
+           n.erreur, n.cout_fcfa
+      FROM notifications n
+     WHERE n.destinataire_id = ${t.utilisateur_id ?? null}::uuid
+        OR n.telephone = ${t.telephone}
+     ORDER BY n.cree_le DESC
+     LIMIT 20
+  `);
+
+  const l = (r: Record<string, unknown>, c: string) => r[c] as never;
+
+  return {
+    tuteur: {
+      id: String(t.id),
+      nom: String(t.nom),
+      prenom: String(t.prenom),
+      telephone: String(t.telephone),
+      telephoneSecondaire: (t.telephone_secondaire as string) ?? null,
+      email: (t.email as string) ?? null,
+      profession: (t.profession as string) ?? null,
+      employeur: (t.employeur as string) ?? null,
+      adresse: (t.adresse as string) ?? null,
+      quartier: (t.quartier as string) ?? null,
+      sexe: (t.sexe as string) ?? null,
+      pieceIdentite: (t.piece_identite as string) ?? null,
+      utilisateurId: (t.utilisateur_id as string) ?? null,
+      compteActif: (t.compte_actif as boolean) ?? null,
+      appActivee: Boolean(t.app_activee),
+      appActiveeLe: (t.app_activee_le as string) ?? null,
+      derniereConnexion: (t.derniere_connexion as string) ?? null,
+      accepteSms: Boolean(t.accepte_sms),
+      creeLe: String(t.cree_le),
+      nbEnfants: Number(t.nb_enfants),
+      enfants: "",
+    },
+    enfants: enfants.rows.map((r) => ({
+      eleveId: l(r, "eleve_id"),
+      matricule: l(r, "matricule"),
+      nom: l(r, "nom"),
+      prenom: l(r, "prenom"),
+      classe: l(r, "classe"),
+      statut: l(r, "statut"),
+      lien: l(r, "lien"),
+      estPrincipal: l(r, "est_principal"),
+      estResponsableFinancier: l(r, "est_responsable_financier"),
+      estTuteurLegal: l(r, "est_tuteur_legal"),
+      estContactUrgence: l(r, "est_contact_urgence"),
+      autoriseRetrait: l(r, "autorise_retrait"),
+    })),
+    notifications: notifications.rows.map((r) => ({
+      id: l(r, "id"),
+      type: l(r, "type"),
+      canal: l(r, "canal"),
+      titre: l(r, "titre"),
+      statut: l(r, "statut"),
+      creeLe: l(r, "cree_le"),
+      envoyeLe: l(r, "envoye_le"),
+      erreur: l(r, "erreur"),
+      coutFcfa: l(r, "cout_fcfa"),
+    })),
+    canalJoignable: String(t.canal_joignable),
+    nbAppareils: Number(t.nb_appareils),
+  };
+}
