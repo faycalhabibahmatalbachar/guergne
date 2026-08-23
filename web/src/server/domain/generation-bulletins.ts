@@ -295,3 +295,86 @@ function moyenneDeClasse(
   if (notes.length === 0) return null;
   return Number((notes.reduce((t, m) => t + m, 0) / notes.length).toFixed(2));
 }
+
+// ---------------------------------------------------------------------------
+// E-45 — Qui n'a pas saisi
+// ---------------------------------------------------------------------------
+
+export interface SaisieManquante {
+  matiere: string;
+  enseignant: string | null;
+  evaluation: string;
+  type: string;
+  dateEvaluation: string | null;
+  attendues: number;
+  saisies: number;
+  manquantes: number;
+  verrouillee: boolean;
+}
+
+/**
+ * Évaluations dont la saisie n'est pas terminée pour une classe et une période.
+ *
+ * POURQUOI CE TABLEAU EXISTE
+ * ---------------------------
+ * Un conseil de classe qui délibère sur des moyennes incomplètes prend des
+ * décisions fausses : un élève dont il manque la note de mathématiques a une
+ * moyenne calculée sur les autres matières, et son rang est faux — comme celui
+ * de tous les autres, puisque le classement les compare.
+ *
+ * Le problème est qu'une moyenne incomplète ne se VOIT pas : elle a l'air d'une
+ * moyenne normale. Ce tableau est le seul moyen de s'en apercevoir avant le
+ * conseil plutôt qu'après.
+ *
+ * ON COMPTE LES NOTES ATTENDUES, PAS LES ÉLÈVES
+ * ----------------------------------------------
+ * « Attendues » vaut l'effectif de la classe : chaque élève inscrit doit avoir
+ * une ligne, même absente ou dispensée — ces statuts SONT une saisie. Ne
+ * compter que les notes chiffrées ferait apparaître comme incomplète une
+ * évaluation où le professeur a consciencieusement marqué les absents.
+ */
+export async function saisiesManquantes(
+  classeId: string,
+  periodeId: string,
+): Promise<SaisieManquante[]> {
+  const r = await db.execute<Record<string, unknown>>(sql`
+    SELECT m.libelle AS matiere,
+           CASE WHEN ens.id IS NULL THEN NULL
+                ELSE ens.prenom || ' ' || ens.nom END AS enseignant,
+           ev.titre AS evaluation,
+           ev.type::text AS type,
+           ev.date_evaluation::text AS date_evaluation,
+           ev.est_verrouillee AS verrouillee,
+           (SELECT count(*) FROM inscriptions i
+             WHERE i.classe_id = ${classeId}::uuid AND i.active)::int AS attendues,
+           (SELECT count(*) FROM notes n
+              JOIN inscriptions i2 ON i2.id = n.inscription_id
+             WHERE n.evaluation_id = ev.id
+               AND i2.classe_id = ${classeId}::uuid AND i2.active)::int AS saisies
+      FROM evaluations ev
+      JOIN matieres m       ON m.id = ev.matiere_id
+      LEFT JOIN enseignants ens ON ens.id = ev.enseignant_id
+     WHERE ev.classe_id = ${classeId}::uuid
+       AND ev.periode_id = ${periodeId}::uuid
+       AND ev.compte_dans_moyenne
+     ORDER BY m.ordre_bulletin NULLS LAST, m.libelle, ev.date_evaluation
+  `);
+
+  return r.rows
+    .map((l) => {
+      const attendues = Number(l.attendues);
+      const saisies = Number(l.saisies);
+      return {
+        matiere: String(l.matiere),
+        enseignant: (l.enseignant as string) ?? null,
+        evaluation: String(l.evaluation),
+        type: String(l.type),
+        dateEvaluation: (l.date_evaluation as string) ?? null,
+        attendues,
+        saisies,
+        manquantes: Math.max(0, attendues - saisies),
+        verrouillee: Boolean(l.verrouillee),
+      };
+    })
+    .filter((l) => l.manquantes > 0);
+}

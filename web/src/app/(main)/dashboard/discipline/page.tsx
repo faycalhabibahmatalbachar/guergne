@@ -2,11 +2,17 @@ import type { Metadata } from "next";
 
 import { listerClassesEtMatieres } from "@/server/domain/personnel";
 import { chargerStatistiques } from "@/server/domain/tableau-de-bord";
-import { listerElevesClasse, listerIncidents, listerSanctions } from "@/server/domain/vie-scolaire";
+import {
+  chargerConduiteClasse,
+  listerElevesClasse,
+  listerIncidents,
+  listerSanctions,
+} from "@/server/domain/vie-scolaire";
 import { exigerPage } from "@/server/guard";
 
 import { Prerequis } from "../_components/prerequis";
 import { FiltresDiscipline } from "./_components/filtres-discipline";
+import { SaisieConduite } from "./_components/saisie-conduite";
 import { Discipline } from "./_components/discipline";
 
 export const metadata: Metadata = { title: "Discipline" };
@@ -42,6 +48,10 @@ export default async function PageDiscipline({
 
   const { classes } = await listerClassesEtMatieres(annee.id);
   const classeId = params.classe && classes.some((c) => c.id === params.classe) ? params.classe : null;
+
+  // E-53 : la conduite se saisit classe entière, donc uniquement quand une
+  // classe est choisie. Sans classe, l'onglet explique pourquoi il est vide.
+  const conduite = classeId ? await chargerConduiteClasse(classeId, periode.id) : [];
 
   const [eleves, incidents, sanctions] = await Promise.all([
     classeId ? listerElevesClasse(classeId) : Promise.resolve([]),
@@ -80,6 +90,15 @@ export default async function PageDiscipline({
       ) : (
         <div className="space-y-4">
           <FiltresDiscipline classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))} />
+
+          {classeId ? (
+            <SaisieConduite
+              periodeId={periode.id}
+              periodeLibelle={periode.libelle}
+              classe={classes.find((c) => c.id === classeId)?.libelle ?? ""}
+              lignes={conduite}
+            />
+          ) : null}
           <Discipline
             periodeId={periode.id}
             classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}

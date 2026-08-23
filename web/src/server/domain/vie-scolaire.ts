@@ -305,3 +305,61 @@ export async function statistiquesVieScolaire(periodeId: string | null) {
     alertes: Number(l?.alertes ?? 0),
   };
 }
+
+// ---------------------------------------------------------------------------
+// E-53 — Note de conduite
+// ---------------------------------------------------------------------------
+
+export interface LigneConduiteClasse {
+  inscriptionId: string;
+  matricule: string;
+  eleve: string;
+  note: number | null;
+  appreciation: string | null;
+  incidents: number;
+  sanctions: number;
+  absencesNonJustifiees: number;
+}
+
+/**
+ * Grille de conduite d'une classe pour une période.
+ *
+ * Le CONTEXTE accompagne chaque élève — incidents, sanctions, absences non
+ * justifiées de la période. Sans lui, la conduite se note de mémoire, et de
+ * mémoire on note l'élève dont on se souvient plutôt que celui dont le dossier
+ * le justifie.
+ */
+export async function chargerConduiteClasse(
+  classeId: string,
+  periodeId: string,
+): Promise<LigneConduiteClasse[]> {
+  const r = await db.execute<Record<string, unknown>>(sql`
+    SELECT i.id AS inscription_id, e.matricule,
+           e.prenom || ' ' || e.nom AS eleve,
+           nc.note::text AS note, nc.appreciation,
+           (SELECT count(*) FROM incidents x
+             WHERE x.inscription_id = i.id AND x.periode_id = ${periodeId}::uuid)::int AS incidents,
+           (SELECT count(*) FROM sanctions x
+             WHERE x.inscription_id = i.id AND x.periode_id = ${periodeId}::uuid)::int AS sanctions,
+           (SELECT COALESCE(sum(a.nb_heures), 0) FROM absences a
+             WHERE a.inscription_id = i.id AND a.periode_id = ${periodeId}::uuid
+               AND a.statut = 'NON_JUSTIFIEE')::int AS absences
+      FROM inscriptions i
+      JOIN eleves e ON e.id = i.eleve_id
+      LEFT JOIN notes_conduite nc
+        ON nc.inscription_id = i.id AND nc.periode_id = ${periodeId}::uuid
+     WHERE i.classe_id = ${classeId}::uuid AND i.active
+     ORDER BY e.nom, e.prenom
+  `);
+
+  return r.rows.map((l) => ({
+    inscriptionId: String(l.inscription_id),
+    matricule: String(l.matricule),
+    eleve: String(l.eleve),
+    note: l.note === null ? null : Number(l.note),
+    appreciation: (l.appreciation as string) ?? null,
+    incidents: Number(l.incidents),
+    sanctions: Number(l.sanctions),
+    absencesNonJustifiees: Number(l.absences),
+  }));
+}

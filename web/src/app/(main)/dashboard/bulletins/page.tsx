@@ -4,10 +4,12 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import { chargerStatistiques } from "@/server/domain/tableau-de-bord";
+import { saisiesManquantes } from "@/server/domain/generation-bulletins";
 import { exigerPage } from "@/server/guard";
 
 import { type EtapeManquante, Prerequis } from "../_components/prerequis";
 import { GenerationBulletins, type BulletinListe } from "./_components/generation";
+import { SaisiesManquantes } from "./_components/saisies-manquantes";
 
 export const metadata: Metadata = { title: "Bulletins" };
 export const dynamic = "force-dynamic";
@@ -75,6 +77,12 @@ export default async function PageBulletins({
   const classeChoisie = params.classe ?? "";
   const periodeChoisie = params.periode ?? "";
 
+  // E-45 : ce qui manque AVANT de produire. Chargé en même temps que la liste.
+  const manquantes =
+    classeChoisie && periodeChoisie
+      ? await saisiesManquantes(classeChoisie, periodeChoisie)
+      : [];
+
   let bulletins: BulletinListe[] = [];
   if (classeChoisie && periodeChoisie) {
     const r = await db.execute<{
@@ -128,6 +136,8 @@ export default async function PageBulletins({
             : "Aucune année scolaire configurée"}
         </p>
       </div>
+
+      {classeChoisie && periodeChoisie ? <SaisiesManquantes lignes={manquantes} /> : null}
 
       <GenerationBulletins
         classes={classes.rows.map((c) => ({
