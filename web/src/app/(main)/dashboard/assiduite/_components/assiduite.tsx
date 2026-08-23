@@ -80,18 +80,57 @@ export function Assiduite({
   }
   const [enCours, demarrer] = useTransition();
   const [absents, setAbsents] = useState<Set<string>>(new Set());
+
+  /**
+   * Retards saisis pendant l'appel (E-51), avec leur durée en minutes.
+   *
+   * Une Map et non un Set : le retard porte une durée, et c'est elle qui
+   * distingue « arrivé cinq minutes après la sonnerie » de « arrivé à la
+   * deuxième heure ». Sans durée, tous les retards se vaudraient au bulletin.
+   */
+  const [retards, setRetards] = useState<Map<string, number>>(new Map());
+
+  const RETARD_DEFAUT = 15;
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [matiereId, setMatiereId] = useState("");
   const [nbHeures, setNbHeures] = useState("1");
 
+  /** Les trois états possibles d'un élève à l'appel. */
+  type Etat = "present" | "absent" | "retard";
+
+  const etatDe = (id: string): Etat =>
+    absents.has(id) ? "absent" : retards.has(id) ? "retard" : "present";
+
+  /**
+   * Fait tourner l'état : présent → absent → en retard → présent.
+   *
+   * Un seul geste par élève. Trois boutons par ligne seraient illisibles sur
+   * soixante élèves, et un menu déroulant demanderait deux gestes là où l'appel
+   * doit se faire en marchant dans les rangs.
+   */
   function basculer(id: string) {
+    const etat = etatDe(id);
+
     setAbsents((s) => {
       const copie = new Set(s);
-      if (copie.has(id)) copie.delete(id);
-      else copie.add(id);
+      if (etat === "present") copie.add(id);
+      else copie.delete(id);
+      return copie;
+    });
+
+    setRetards((r) => {
+      const copie = new Map(r);
+      if (etat === "absent") copie.set(id, RETARD_DEFAUT);
+      else copie.delete(id);
       return copie;
     });
   }
+
+  /** Corrige la durée d'un retard sans changer l'état. */
+  function majDuree(id: string, minutes: number) {
+    setRetards((r) => new Map(r).set(id, minutes));
+  }
+
 
   function soumettreAppel() {
     demarrer(async () => {
@@ -101,10 +140,15 @@ export function Assiduite({
         matiereId: matiereId || null,
         nbHeures,
         absents: [...absents],
+        retards: [...retards].map(([inscriptionId, dureeMinutes]) => ({
+          inscriptionId,
+          dureeMinutes,
+        })),
       });
       if (r.ok) {
         toast.success(r.message ?? "Appel enregistré.");
         setAbsents(new Set());
+        setRetards(new Map());
         routeur.refresh();
       } else {
         toast.error(r.message ?? "Échec.");
@@ -151,7 +195,8 @@ export function Assiduite({
             <CardHeader>
               <CardTitle className="text-base">Feuille d&apos;appel</CardTitle>
               <CardDescription>
-                Tout le monde est présent par défaut : ne cochez que les absents. Chaque absence
+                Tout le monde est présent par défaut. Un clic marque absent, un second marque
+                en retard — la durée se corrige sur place. Chaque absence et chaque retard
                 déclenche une notification aux tuteurs.
               </CardDescription>
             </CardHeader>
@@ -226,16 +271,18 @@ export function Assiduite({
                 <>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {eleves.map((e) => {
-                      const absent = absents.has(e.inscriptionId);
+                      const etat = etatDe(e.inscriptionId);
                       return (
                         <button
                           key={e.inscriptionId}
                           type="button"
                           onClick={() => basculer(e.inscriptionId)}
                           className={`flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors ${
-                            absent
+                            etat === "absent"
                               ? "border-destructive/50 bg-destructive/10"
-                              : "hover:bg-muted"
+                              : etat === "retard"
+                                ? "border-amber-500/50 bg-amber-500/10"
+                                : "hover:bg-muted"
                           }`}
                         >
                           <span>
@@ -244,11 +291,34 @@ export function Assiduite({
                             </span>
                             <span className="block text-muted-foreground text-xs">{e.matricule}</span>
                           </span>
-                          {absent ? (
+                          {etat === "absent" ? (
                             <Badge variant="destructive" className="gap-1">
                               <X className="size-3" aria-hidden />
                               Absent
                             </Badge>
+                          ) : etat === "retard" ? (
+                            <span
+                              className="flex items-center gap-1.5"
+                              // Le clic sur le champ ne doit pas faire tourner
+                              // l'état : on corrige une durée, on ne change pas
+                              // de position.
+                              onClick={(ev) => ev.stopPropagation()}
+                              onKeyDown={(ev) => ev.stopPropagation()}
+                              role="presentation"
+                            >
+                              <Input
+                                type="number"
+                                min={0}
+                                max={240}
+                                step={5}
+                                value={retards.get(e.inscriptionId) ?? RETARD_DEFAUT}
+                                onChange={(ev) =>
+                                  majDuree(e.inscriptionId, Number(ev.target.value))
+                                }
+                                className="h-7 w-16 text-xs"
+                              />
+                              <span className="text-muted-foreground text-xs">min</span>
+                            </span>
                           ) : (
                             <Badge variant="outline" className="gap-1 text-muted-foreground">
                               <Check className="size-3" aria-hidden />

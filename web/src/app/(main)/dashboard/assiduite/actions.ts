@@ -46,6 +46,16 @@ const schemaAppel = z.object({
   nbHeures: z.coerce.number().min(0.5).max(12).default(1),
   /** Inscriptions marquées absentes. Les autres sont considérées présentes. */
   absents: z.array(z.string().uuid()),
+  /**
+   * Élèves arrivés en retard (E-51).
+   *
+   * Séparés des absents parce que ce sont deux tables et deux notifications :
+   * un retard n'est pas une absence courte, c'est un fait différent, qui pèse
+   * différemment au bulletin et se justifie autrement.
+   */
+  retards: z
+    .array(z.object({ inscriptionId: z.string().uuid(), dureeMinutes: z.coerce.number().min(0).max(240) }))
+    .default([]),
 });
 
 /**
@@ -65,32 +75,59 @@ export async function enregistrerAppel(donnees: unknown): Promise<Resultat> {
     if (!a.success) return { ok: false, erreurs: messages(a.error) };
 
     const v = a.data;
-    if (v.absents.length === 0) {
-      return { ok: true, message: "Appel enregistré : aucun absent." };
+    if (v.absents.length === 0 && v.retards.length === 0) {
+      return { ok: true, message: "Appel enregistré : classe au complet." };
     }
 
-    await db.insert(absences).values(
-      v.absents.map((inscriptionId) => ({
-        inscriptionId,
-        periodeId: v.periodeId,
-        type: v.matiereId ? ("COURS" as const) : ("JOURNEE" as const),
-        dateAbsence: v.dateAbsence,
-        matiereId: v.matiereId ?? null,
-        nbHeures: String(v.nbHeures),
-        saisiePar: acteur.id,
-      })),
-    );
+    if (v.absents.length > 0) {
+      await db.insert(absences).values(
+        v.absents.map((inscriptionId) => ({
+          inscriptionId,
+          periodeId: v.periodeId,
+          type: v.matiereId ? ("COURS" as const) : ("JOURNEE" as const),
+          dateAbsence: v.dateAbsence,
+          matiereId: v.matiereId ?? null,
+          nbHeures: String(v.nbHeures),
+          saisiePar: acteur.id,
+        })),
+      );
+    }
+
+    // Les retards passent par leur propre table, avec leur propre déclencheur
+    // de notification.
+    if (v.retards.length > 0) {
+      await db.insert(retards).values(
+        v.retards.map((r) => ({
+          inscriptionId: r.inscriptionId,
+          periodeId: v.periodeId,
+          dateRetard: v.dateAbsence,
+          dureeMinutes: r.dureeMinutes,
+          matiereId: v.matiereId ?? null,
+          saisiePar: acteur.id,
+        })),
+      );
+    }
 
     await journaliser(acteur, {
       action: "assiduite.appel",
       entite: "absences",
-      apres: { date: v.dateAbsence, nbAbsents: v.absents.length, matiereId: v.matiereId },
+      apres: {
+        date: v.dateAbsence,
+        nbAbsents: v.absents.length,
+        nbRetards: v.retards.length,
+        matiereId: v.matiereId,
+      },
     });
 
     revalidatePath("/dashboard/assiduite");
+
+    const parties = [];
+    if (v.absents.length > 0) parties.push(`${v.absents.length} absence(s)`);
+    if (v.retards.length > 0) parties.push(`${v.retards.length} retard(s)`);
+
     return {
       ok: true,
-      message: `${v.absents.length} absence(s) enregistrée(s). Les tuteurs seront notifiés.`,
+      message: `${parties.join(" et ")} enregistré(s). Les tuteurs seront notifiés.`,
     };
   } catch (e) {
     return echec(e, "L'enregistrement de l'appel a échoué.");
