@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { Search, X } from "lucide-react";
+import { FileSpreadsheet, Search, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -120,6 +120,19 @@ export function FiltresFinances({
           Effacer
         </Button>
       ) : null}
+
+      {/*
+        L'export comptable n'obéit PAS aux filtres de l'écran, et c'est
+        délibéré : un comptable rapproche une caisse sur une période entière.
+        Un export filtré par classe donnerait un total qui ne correspond à
+        aucun relevé, et il faudrait deviner lequel des deux fait foi.
+      */}
+      <Button asChild variant="outline" className="ml-auto">
+        <a href="/api/export/comptable">
+          <FileSpreadsheet aria-hidden />
+          Export comptable
+        </a>
+      </Button>
     </div>
   );
 }

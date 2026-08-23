@@ -23,6 +23,8 @@ import { BadgeStatut } from "../_components/badge-statut";
 import { chargerDossierComplet } from "@/server/domain/dossier";
 import { listerClassesCourantes } from "@/server/domain/eleves";
 import { db } from "@/server/db";
+import { chargerDossierScolarite } from "@/server/domain/dossier-eleve";
+import { chargerStatistiques } from "@/server/domain/tableau-de-bord";
 import { exigerPage } from "@/server/guard";
 
 import { ActionsDossier } from "./_components/actions-dossier";
@@ -30,6 +32,12 @@ import { ModifierDossier } from "./_components/modifier-dossier";
 
 import { BoutonNotifier } from "../../_components/bouton-notifier";
 import { DocumentsEleve } from "./_components/documents-eleve";
+import {
+  OngletAssiduite,
+  OngletDiscipline,
+  OngletFinances,
+  OngletNotes,
+} from "./_components/dossier-scolarite";
 import { PhotoEleve } from "./_components/photo-eleve";
 
 export const dynamic = "force-dynamic";
@@ -102,6 +110,16 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
         publie: r.est_publie,
       }))
     : [];
+
+  // Les quatre volets du dossier scolaire.
+  //
+  // La période courante conditionne le relevé par matière : sans elle, on
+  // cumulerait les trois trimestres et la moyenne affichée ne correspondrait à
+  // aucun bulletin.
+  const { periode } = await chargerStatistiques();
+  const scolarite = inscription
+    ? await chargerDossierScolarite(inscription.id, periode?.id ?? null)
+    : null;
 
   const age = Math.floor(
     (Date.now() - new Date(eleve.dateNaissance).getTime()) / (365.25 * 24 * 3600 * 1000),
@@ -203,6 +221,10 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
         <TabsList>
           <TabsTrigger value="identite">Identité</TabsTrigger>
           <TabsTrigger value="tuteurs">Tuteurs ({tuteurs.length})</TabsTrigger>
+          <TabsTrigger value="notes">Notes</TabsTrigger>
+          <TabsTrigger value="assiduite">Assiduité</TabsTrigger>
+          <TabsTrigger value="discipline">Discipline</TabsTrigger>
+          <TabsTrigger value="finances">Finances</TabsTrigger>
           <TabsTrigger value="scolarite">Scolarité</TabsTrigger>
           <TabsTrigger value="historique">Historique</TabsTrigger>
         </TabsList>
@@ -339,6 +361,28 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               </Card>
             ))
           )}
+        </TabsContent>
+
+        <TabsContent value="notes" className="mt-6">
+          {scolarite ? (
+            <OngletNotes dossier={scolarite} />
+          ) : (
+            <p className="text-muted-foreground py-10 text-center text-sm">
+              Cet élève n&apos;a pas d&apos;inscription active cette année.
+            </p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="assiduite" className="mt-6">
+          {scolarite ? <OngletAssiduite dossier={scolarite} /> : null}
+        </TabsContent>
+
+        <TabsContent value="discipline" className="mt-6">
+          {scolarite ? <OngletDiscipline dossier={scolarite} /> : null}
+        </TabsContent>
+
+        <TabsContent value="finances" className="mt-6">
+          {scolarite ? <OngletFinances dossier={scolarite} /> : null}
         </TabsContent>
 
         {/* --- Scolarité --- */}
