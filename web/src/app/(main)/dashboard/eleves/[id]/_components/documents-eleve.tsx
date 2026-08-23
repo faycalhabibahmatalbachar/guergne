@@ -19,12 +19,22 @@ import {
  * au guichet, l'agent imprime immédiatement. Le téléchargement reste possible
  * depuis le lecteur, ou via le second lien.
  */
+export interface BulletinDisponible {
+  inscriptionId: string;
+  periodeId: string;
+  periodeLibelle: string;
+  publie: boolean;
+}
+
 export function DocumentsEleve({
   eleveId,
   estParti,
+  bulletins = [],
 }: {
   eleveId: string;
   estParti: boolean;
+  /** Périodes pour lesquelles un bulletin existe. Vide tant qu'aucun conseil n'a eu lieu. */
+  bulletins?: BulletinDisponible[];
 }) {
   const lien = (type: string, telecharger = false) =>
     `/api/documents/${type}/${eleveId}${telecharger ? "?telecharger" : ""}`;
@@ -53,6 +63,33 @@ export function DocumentsEleve({
             Fiche d&apos;inscription
           </a>
         </DropdownMenuItem>
+
+        {bulletins.length > 0 ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Bulletins</DropdownMenuLabel>
+            {bulletins.map((b) => (
+              <DropdownMenuItem key={b.periodeId} asChild>
+                <a
+                  href={`/api/bulletins/${b.inscriptionId}/${b.periodeId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <FileText aria-hidden />
+                  {b.periodeLibelle}
+                  {/*
+                    Un bulletin non publié reste imprimable par l'administration
+                    — le conseil de classe travaille dessus avant de le rendre
+                    visible aux familles — mais il doit être signalé comme tel.
+                  */}
+                  {b.publie ? null : (
+                    <span className="text-muted-foreground ml-auto text-xs">brouillon</span>
+                  )}
+                </a>
+              </DropdownMenuItem>
+            ))}
+          </>
+        ) : null}
 
         {estParti ? (
           <>

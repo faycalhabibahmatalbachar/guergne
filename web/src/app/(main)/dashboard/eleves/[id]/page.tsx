@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+
+import { sql } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -20,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BadgeStatut } from "../_components/badge-statut";
 import { chargerDossierComplet } from "@/server/domain/dossier";
 import { listerClassesCourantes } from "@/server/domain/eleves";
+import { db } from "@/server/db";
 import { exigerPage } from "@/server/guard";
 
 import { ActionsDossier } from "./_components/actions-dossier";
@@ -75,6 +78,31 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
   const { eleve, inscription, tuteurs, parcours, historiqueStatuts, changementsClasse } = dossier;
   const classes = await listerClassesCourantes();
 
+  // Périodes pour lesquelles un bulletin existe. On les charge ici plutôt que
+  // dans le composant : c'est une page serveur, la requête ne coûte pas un
+  // aller-retour supplémentaire au navigateur.
+  const bulletinsDisponibles = inscription
+    ? (
+        await db.execute<{
+          inscription_id: string;
+          periode_id: string;
+          periode_libelle: string;
+          est_publie: boolean;
+        }>(sql`
+          SELECT b.inscription_id, b.periode_id, p.libelle AS periode_libelle, b.est_publie
+            FROM bulletins b
+            JOIN periodes p ON p.id = b.periode_id
+           WHERE b.inscription_id = ${inscription.id}::uuid
+           ORDER BY p.numero
+        `)
+      ).rows.map((r) => ({
+        inscriptionId: r.inscription_id,
+        periodeId: r.periode_id,
+        periodeLibelle: r.periode_libelle,
+        publie: r.est_publie,
+      }))
+    : [];
+
   const age = Math.floor(
     (Date.now() - new Date(eleve.dateNaissance).getTime()) / (365.25 * 24 * 3600 * 1000),
   );
@@ -129,6 +157,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           <DocumentsEleve
             eleveId={eleve.id}
             estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)}
+            bulletins={bulletinsDisponibles}
           />
           <BoutonNotifier
             cible={{ type: "eleve", id: eleve.id, nom: `${eleve.prenom} ${eleve.nom}` }}
