@@ -19,7 +19,15 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export async function POST(requete: Request) {
+/**
+ * Vide la file, quel que soit le verbe.
+ *
+ * Vercel appelle ses tâches planifiées en **GET**, en joignant lui-même
+ * l'en-tête `Authorization: Bearer $CRON_SECRET`. Le bouton de la page
+ * Communication, lui, passe par un POST. Les deux mènent au même traitement —
+ * n'exposer que POST faisait répondre 405 au cron, silencieusement.
+ */
+async function traiter(requete: Request) {
   const secret = process.env.CRON_SECRET;
 
   if (!secret) {
@@ -46,3 +54,6 @@ export async function POST(requete: Request) {
     horodatage: new Date().toISOString(),
   });
 }
+
+export const GET = traiter;
+export const POST = traiter;
