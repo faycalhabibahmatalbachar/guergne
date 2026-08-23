@@ -5,6 +5,7 @@ import { Download, GraduationCap, Plus, Search, Upload, Users } from "lucide-rea
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { EnTeteTriable } from "@/components/ui/entete-triable";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { getInitials } from "@/lib/utils";
@@ -31,7 +32,14 @@ const ageDepuis = (iso: string) => {
 export default async function PageEleves({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; classe?: string; statut?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    classe?: string;
+    statut?: string;
+    page?: string;
+    tri?: string;
+    sens?: string;
+  }>;
 }) {
   await exigerPage("eleve:lire");
   const principal = await sessionCourante();
@@ -40,6 +48,8 @@ export default async function PageEleves({
   const [resultat, classesDisponibles, peutCreer] = await Promise.all([
     listerEleves({
       recherche: params.q,
+      tri: params.tri,
+      sens: params.sens,
       classeId: params.classe,
       statut: params.statut as StatutEleve | undefined,
       page: Number(params.page) || 1,
@@ -162,11 +172,19 @@ export default async function PageEleves({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
-                    <th className="px-4 py-2.5 font-medium">Élève</th>
-                    <th className="px-4 py-2.5 font-medium">Matricule</th>
-                    <th className="px-4 py-2.5 font-medium">Classe</th>
+                    <EnTeteTriable colonne="nom" className="px-4 py-2.5">
+                      Élève
+                    </EnTeteTriable>
+                    <EnTeteTriable colonne="matricule" className="px-4 py-2.5">
+                      Matricule
+                    </EnTeteTriable>
+                    <EnTeteTriable colonne="classe" className="px-4 py-2.5">
+                      Classe
+                    </EnTeteTriable>
                     <th className="px-4 py-2.5 text-right font-medium">Âge</th>
-                    <th className="px-4 py-2.5 font-medium">Statut</th>
+                    <EnTeteTriable colonne="statut" className="px-4 py-2.5">
+                      Statut
+                    </EnTeteTriable>
                   </tr>
                 </thead>
                 <tbody>

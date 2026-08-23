@@ -35,6 +35,10 @@ export interface LigneEleve {
 }
 
 export interface FiltresEleves {
+  /** Colonne de tri (E-37). Ignorée si absente de la liste blanche. */
+  tri?: string;
+  /** 'asc' | 'desc' */
+  sens?: string;
   recherche?: string;
   classeId?: string;
   niveauId?: string;
@@ -61,6 +65,22 @@ const PAR_PAGE_MAX = 100;
  * pré-inscrit ou transféré n'a pas forcément d'inscription active, et il doit
  * malgré tout rester visible au secrétariat.
  */
+/**
+ * Colonnes sur lesquelles la liste accepte d'être triée (E-37).
+ *
+ * Une liste blanche, pas une interpolation : `tri` vient de l'URL, donc de
+ * l'utilisateur. Laisser passer une expression arbitraire dans un `ORDER BY`
+ * est une injection.
+ */
+const TRIS: Record<string, ReturnType<typeof sql>> = {
+  nom: sql`eleves.nom`,
+  prenom: sql`eleves.prenom`,
+  matricule: sql`eleves.matricule`,
+  classe: sql`classes.libelle`,
+  statut: sql`eleves.statut::text`,
+  naissance: sql`eleves.date_naissance`,
+};
+
 export async function listerEleves(filtres: FiltresEleves = {}): Promise<ResultatEleves> {
   const page = Math.max(1, filtres.page ?? 1);
   const parPage = Math.min(PAR_PAGE_MAX, Math.max(5, filtres.parPage ?? PAR_PAGE_DEFAUT));
@@ -114,7 +134,18 @@ export async function listerEleves(filtres: FiltresEleves = {}): Promise<Resulta
       .leftJoin(niveaux, eq(niveaux.id, classes.niveauId))
       .leftJoin(series, eq(series.id, classes.serieId))
       .where(where)
-      .orderBy(asc(eleves.nom), asc(eleves.prenom))
+      // Ordre naturel : classe puis nom, celui dont on a besoin pour l'appel.
+      // Un tri explicite le remplace, jamais ne s'y ajoute — sans quoi le
+      // second critère rendrait le premier presque inopérant.
+      .orderBy(
+        ...(TRIS[filtres.tri ?? ""]
+          ? [
+              filtres.sens === "desc"
+                ? sql`${TRIS[filtres.tri!]} DESC NULLS LAST`
+                : sql`${TRIS[filtres.tri!]} ASC NULLS LAST`,
+            ]
+          : [asc(eleves.nom), asc(eleves.prenom)]),
+      )
       .limit(parPage)
       .offset((page - 1) * parPage),
 
