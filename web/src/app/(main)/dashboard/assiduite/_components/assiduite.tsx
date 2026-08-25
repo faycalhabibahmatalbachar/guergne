@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { CaseSelection, EnTeteSelection, ZoneSelection } from "@/components/ui/selection-lot";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
@@ -21,7 +22,8 @@ import type {
   LigneAbsence,
 } from "@/server/domain/vie-scolaire";
 
-import { enregistrerAppel, justifierAbsence } from "../actions";
+import { enregistrerAppel } from "../actions";
+import { JustificationLot } from "./justification-lot";
 
 interface Option {
   id: string;
@@ -405,21 +407,24 @@ export function Assiduite({
                     : "Aucune absence enregistrée sur cette période."}
                 </p>
               ) : (
+                <ZoneSelection ids={absences.map((a) => a.id)}>
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <EnTeteSelection />
                       <TableHead>Élève</TableHead>
                       <TableHead>Classe</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Heures</TableHead>
                       <TableHead>Matière</TableHead>
                       <TableHead>Statut</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
+                      <TableHead>Motif</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {absences.map((a) => (
                       <TableRow key={a.id}>
+                        <CaseSelection id={a.id} />
                         <TableCell>
                           <Link
                             href={`/dashboard/eleves/${a.eleveId}`}
@@ -437,34 +442,23 @@ export function Assiduite({
                             {a.statut === "JUSTIFIEE" ? "Justifiée" : "Non justifiée"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
-                          {a.statut !== "JUSTIFIEE" ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={enCours}
-                              onClick={() => {
-                                const motif = window.prompt("Motif de la justification :");
-                                if (!motif) return;
-                                demarrer(async () => {
-                                  const r = await justifierAbsence(a.id, "JUSTIFIEE", motif);
-                                  toast[r.ok ? "success" : "error"](
-                                    r.ok ? "Absence justifiée." : (r.message ?? "Échec."),
-                                  );
-                                  routeur.refresh();
-                                });
-                              }}
-                            >
-                              Justifier
-                            </Button>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">{a.motif}</span>
-                          )}
+                        {/*
+                          Le motif remplace le bouton « Justifier » de chaque
+                          ligne : cocher puis justifier vaut pour une ligne
+                          comme pour dix-huit, et le bouton par ligne passait
+                          par un `window.prompt` qu'on ne peut ni relire avant
+                          d'envoyer, ni annuler proprement.
+                        */}
+                        <TableCell className="text-muted-foreground max-w-56 truncate text-xs">
+                          {a.motif ?? ""}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+
+                <JustificationLot />
+                </ZoneSelection>
               )}
             </CardContent>
           </Card>

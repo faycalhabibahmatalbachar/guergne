@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
@@ -134,55 +134,13 @@ export async function enregistrerAppel(donnees: unknown): Promise<Resultat> {
   }
 }
 
-export async function justifierAbsence(
-  absenceId: string,
-  statut: "JUSTIFIEE" | "NON_JUSTIFIEE",
-  motif: string,
-): Promise<Resultat> {
-  try {
-    const acteur = await requirePermission("assiduite:justifier");
-
-    if (statut === "JUSTIFIEE" && motif.trim().length < 3) {
-      return { ok: false, erreurs: { motif: "Indiquez le motif de la justification." } };
-    }
-
-    const [avant] = await db
-      .select({ statut: absences.statut, inscriptionId: absences.inscriptionId })
-      .from(absences)
-      .where(eq(absences.id, absenceId));
-    if (!avant) return { ok: false, message: "Absence introuvable." };
-
-    const [insc] = await db
-      .select({ eleveId: inscriptions.eleveId })
-      .from(inscriptions)
-      .where(eq(inscriptions.id, avant.inscriptionId));
-
-    await db
-      .update(absences)
-      .set({
-        statut,
-        motif: motif.trim() || null,
-        justifieePar: acteur.id,
-        justifieeLe: new Date().toISOString(),
-      })
-      .where(eq(absences.id, absenceId));
-
-    await journaliser(acteur, {
-      action: statut === "JUSTIFIEE" ? "absence.justifiee" : "absence.dejustifiee",
-      entite: "absences",
-      entiteId: absenceId,
-      eleveId: insc?.eleveId ?? null,
-      avant: { statut: avant.statut },
-      apres: { statut },
-      motif: motif.trim() || null,
-    });
-
-    revalidatePath("/dashboard/assiduite");
-    return OK;
-  } catch (e) {
-    return echec(e, "La justification a échoué.");
-  }
-}
+/*
+ * `justifierAbsence` (une absence à la fois) a été retirée au profit de
+ * `justifierEnLot`. Deux chemins de justification auraient divergé : celui-ci
+ * passait par un `window.prompt` dont le motif n'était ni relisible avant
+ * envoi, ni annulable, et l'écran sait désormais cocher une seule ligne aussi
+ * facilement que dix-huit.
+ */
 
 export async function supprimerAbsence(absenceId: string, motif: string): Promise<Resultat> {
   try {
@@ -408,5 +366,85 @@ export async function marquerSanctionExecutee(sanctionId: string): Promise<Resul
     return OK;
   } catch (e) {
     return echec(e, "La mise à jour a échoué.");
+  }
+}
+
+/**
+ * Justification en masse (E-52).
+ *
+ * UN CERTIFICAT COUVRE DES JOURS, PAS UNE HEURE
+ * ----------------------------------------------
+ * Un parent apporte un certificat médical de trois jours. Dans la base, cela
+ * fait douze à dix-huit absences — une par cours manqué. Les justifier une par
+ * une, c'est dix-huit dialogues avec le même motif recopié dix-huit fois. En
+ * pratique, le surveillant en fait trois et abandonne : le dossier de l'élève
+ * garde alors quinze absences non justifiées qu'un certificat couvrait, et
+ * c'est ce chiffre-là qui remonte au bulletin et déclenche la convocation.
+ *
+ * LE MOTIF EST COMMUN, ET C'EST JUSTE
+ * ------------------------------------
+ * Toutes les lignes visées par un même certificat ont la même justification.
+ * Demander un motif par ligne serait à la fois plus long et moins exact.
+ *
+ * UNE SEULE TRANSACTION
+ * ----------------------
+ * Un certificat justifie tout ou rien. Une justification partielle laisserait
+ * l'élève avec des absences couvertes et d'autres non, sans qu'on puisse dire
+ * lesquelles ont échoué ni pourquoi.
+ */
+export async function justifierEnLot(
+  absenceIds: string[],
+  statut: "JUSTIFIEE" | "NON_JUSTIFIEE",
+  motif: string,
+): Promise<Resultat & { traitees?: number }> {
+  try {
+    const acteur = await requirePermission("assiduite:justifier");
+
+    if (absenceIds.length === 0) {
+      return { ok: false, message: "Aucune absence sélectionnée." };
+    }
+    if (absenceIds.length > 200) {
+      return { ok: false, message: "Sélection trop large : 200 absences au maximum." };
+    }
+    if (statut === "JUSTIFIEE" && motif.trim().length < 3) {
+      return { ok: false, erreurs: { motif: "Indiquez le motif de la justification." } };
+    }
+
+    const r = await db.execute<{ n: number }>(sql`
+      WITH maj AS (
+        UPDATE absences
+           SET statut = ${statut}::statut_justification,
+               motif = ${motif.trim() || null},
+               justifiee_par = ${acteur.id}::uuid,
+               justifiee_le = now(),
+               modifie_le = now()
+         WHERE id = ANY(${absenceIds}::uuid[])
+        RETURNING 1
+      )
+      SELECT count(*)::int AS n FROM maj
+    `);
+
+    const traitees = Number(r.rows[0]?.n ?? 0);
+    if (traitees === 0) return { ok: false, message: "Aucune de ces absences n'existe plus." };
+
+    await journaliser(acteur, {
+      action: statut === "JUSTIFIEE" ? "absence.justifiee_en_lot" : "absence.dejustifiee_en_lot",
+      entite: "absences",
+      apres: { statut, absences: traitees },
+      motif: motif.trim() || null,
+    });
+
+    revalidatePath("/dashboard/assiduite");
+
+    return {
+      ok: true,
+      traitees,
+      message:
+        statut === "JUSTIFIEE"
+          ? `${traitees} absence(s) justifiée(s).`
+          : `${traitees} absence(s) repassée(s) en non justifiée(s).`,
+    };
+  } catch (e) {
+    return echec(e, "La justification a échoué. Aucune absence n'a été modifiée.");
   }
 }
