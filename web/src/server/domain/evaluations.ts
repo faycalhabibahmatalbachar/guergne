@@ -171,3 +171,121 @@ export async function statistiquesEvaluation(
     Number(r.rows[0].effectif),
   );
 }
+
+/**
+ * Calendrier des évaluations d'une période (E-43).
+ *
+ * LE PROBLÈME N'EST PAS DE SAVOIR QUAND ELLES ONT LIEU, C'EST DE LES ÉTALER
+ * --------------------------------------------------------------------------
+ * Chaque professeur fixe sa composition sans voir celles des autres. Le
+ * résultat connu de tous les établissements : trois compositions le même
+ * mardi, puis dix jours vides. Les élèves de cette classe travaillent mal les
+ * trois, et les moyennes du trimestre en portent la trace.
+ *
+ * L'écran répond donc d'abord à « où est l'embouteillage », et seulement
+ * ensuite à « qu'y a-t-il le 14 ».
+ */
+
+export interface JourEvaluation {
+  date: string;
+  evaluationId: string;
+  titre: string;
+  type: string;
+  classeId: string;
+  classe: string;
+  matiere: string;
+  statut: string;
+}
+
+export interface Surcharge {
+  date: string;
+  classeId: string;
+  classe: string;
+  /** Compositions et examens blancs uniquement — voir le seuil plus bas. */
+  nombre: number;
+  matieres: string[];
+}
+
+/**
+ * Au-delà de combien de compositions une journée devient impossible.
+ *
+ * PAS DEUX — DEUX EST LE FONCTIONNEMENT NORMAL
+ * ---------------------------------------------
+ * L'établissement compose en semaine d'examens : une épreuve le matin, une
+ * l'après-midi, pendant plusieurs jours. Alerter à partir de deux ferait
+ * hurler l'écran sur un calendrier parfaitement sain, et on cesserait de le
+ * lire — ce qui est pire que pas d'alerte du tout.
+ *
+ * Au-delà de deux, en revanche, la journée ne peut pas les contenir : il n'y a
+ * que deux demi-journées.
+ */
+const COMPOSITIONS_PAR_JOUR = 2;
+
+export async function calendrierEvaluations(
+  periodeId: string,
+  filtres: { classeId?: string; type?: string } = {},
+): Promise<{ jours: JourEvaluation[]; surcharges: Surcharge[]; debut: string; fin: string }> {
+  const bornes = await db.execute<{ debut: string; fin: string }>(sql`
+    SELECT date_debut::text AS debut, date_fin::text AS fin
+      FROM periodes WHERE id = ${periodeId}::uuid
+  `);
+
+  const jours = await db.execute<JourEvaluation & Record<string, unknown>>(sql`
+    SELECT e.date_evaluation::text AS date,
+           e.id AS "evaluationId",
+           e.titre,
+           e.type::text,
+           e.classe_id AS "classeId",
+           c.libelle AS classe,
+           m.libelle AS matiere,
+           e.statut::text
+      FROM evaluations e
+      JOIN classes c  ON c.id = e.classe_id
+      JOIN matieres m ON m.id = e.matiere_id
+     WHERE e.periode_id = ${periodeId}::uuid
+       AND e.statut <> 'ANNULEE'
+       AND (${filtres.classeId ?? null}::uuid IS NULL OR e.classe_id = ${filtres.classeId ?? null}::uuid)
+       AND (${filtres.type ?? null}::text IS NULL OR e.type::text = ${filtres.type ?? null}::text)
+     ORDER BY e.date_evaluation, c.libelle, m.libelle
+  `);
+
+  // La surcharge ne se compte QUE sur les compositions et examens blancs. Une
+  // interrogation de dix minutes ne se prépare pas la veille ; l'inclure ferait
+  // remonter chaque journée ordinaire.
+  const surcharges = await db.execute<{
+    date: string;
+    classe_id: string;
+    classe: string;
+    nombre: number;
+    matieres: string[];
+  }>(sql`
+    SELECT e.date_evaluation::text AS date,
+           e.classe_id,
+           c.libelle AS classe,
+           count(*)::int AS nombre,
+           array_agg(m.libelle ORDER BY m.libelle) AS matieres
+      FROM evaluations e
+      JOIN classes c  ON c.id = e.classe_id
+      JOIN matieres m ON m.id = e.matiere_id
+     WHERE e.periode_id = ${periodeId}::uuid
+       AND e.statut <> 'ANNULEE'
+       AND e.type IN ('COMPOSITION', 'EXAMEN_BLANC')
+       AND (${filtres.classeId ?? null}::uuid IS NULL OR e.classe_id = ${filtres.classeId ?? null}::uuid)
+     GROUP BY 1, 2, 3
+    HAVING count(*) > ${COMPOSITIONS_PAR_JOUR}
+     ORDER BY 1, 3
+  `);
+
+  return {
+    jours: jours.rows,
+    surcharges: surcharges.rows.map((s) => ({
+      date: s.date,
+      classeId: s.classe_id,
+      classe: s.classe,
+      nombre: Number(s.nombre),
+      matieres: s.matieres,
+    })),
+    debut: bornes.rows[0]?.debut ?? "",
+    fin: bornes.rows[0]?.fin ?? "",
+  };
+}

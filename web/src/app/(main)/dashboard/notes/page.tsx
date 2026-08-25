@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { MessageSquareText } from "lucide-react";
+import { CalendarDays, MessageSquareText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -92,12 +92,20 @@ export default async function PageNotes({
           juste avant le conseil. Le lien est ici parce que c'est là que le
           professeur se trouve déjà.
         */}
-        <Button asChild variant="outline" size="sm">
-          <Link href="/dashboard/notes/appreciations">
-            <MessageSquareText aria-hidden />
-            Appréciations par matière
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/notes/calendrier">
+              <CalendarDays aria-hidden />
+              Calendrier
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/notes/appreciations">
+              <MessageSquareText aria-hidden />
+              Appréciations par matière
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Notes
