@@ -126,6 +126,21 @@ class ApiEcole {
     return charge;
   }
 
+  /// Adresse de la photo d'un élève, et l'en-tête qui l'autorise.
+  ///
+  /// `Image.network` ne passe pas par Dio : il lui faut l'URL complète ET
+  /// l'en-tête `Authorization`. La route mobile vérifie le lien tuteur-élève —
+  /// un parent ne charge que la photo de ses enfants — et un jeton absent
+  /// donnerait un 401 que le composant traduit en initiales.
+  ///
+  /// La rotation du jeton n'est PAS déclenchée ici : une photo qui ne se charge
+  /// pas retombe sur les initiales, ce qui est acceptable. Faire tourner le
+  /// jeton pour une image ferait passer une décoration avant les données.
+  String urlPhotoEnfant(String eleveId) =>
+      '${_dio.options.baseUrl}/enfants/$eleveId/photo';
+
+  Future<Map<String, String>> enteteImage() => _enteteAuth();
+
   Future<Map<String, String>> _enteteAuth() async {
     final jeton = await _stockage.jetonAcces;
     return {if (jeton != null) 'Authorization': 'Bearer $jeton'};

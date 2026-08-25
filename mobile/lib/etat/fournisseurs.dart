@@ -40,6 +40,19 @@ final apiProvider = Provider<ApiEcole>((ref) {
   return api;
 });
 
+/// En-têtes d'autorisation pour les images protégées.
+///
+/// `Image.network` ne passe pas par le client Dio : il lui faut l'en-tête tout
+/// fait. On le lit UNE fois et on le partage, plutôt que de rouvrir le coffre
+/// sécurisé pour chacun des trois avatars d'une fratrie.
+///
+/// La valeur est `null` tant que la lecture n'a pas abouti : les composants
+/// affichent alors les initiales, ce qu'ils feraient de toute façon si la
+/// photo n'existait pas.
+final entetesImageProvider = FutureProvider<Map<String, String>>(
+  (ref) => ref.watch(apiProvider).enteteImage(),
+);
+
 /// Service de notifications poussées.
 ///
 /// Créé une seule fois pour toute la durée de vie de l'application : deux

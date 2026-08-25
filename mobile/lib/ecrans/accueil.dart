@@ -171,6 +171,9 @@ class _Banniere extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Lu une seule fois pour toute la bannière : trois avatars de fratrie
+    // n'ouvrent pas trois fois le coffre sécurisé.
+    final entetes = ref.watch(entetesImageProvider).valueOrNull;
     return Container(
       decoration: const BoxDecoration(gradient: Couleurs.gradientAccueil),
       child: SafeArea(
@@ -263,6 +266,12 @@ class _Banniere extends ConsumerWidget {
                     itemBuilder: (context, i) => _PuceEnfant(
                       enfant: enfants[i],
                       actif: enfants[i].eleveId == enfant.eleveId,
+                      urlPhoto: enfants[i].photoId == null
+                          ? null
+                          : ref
+                                .read(apiProvider)
+                                .urlPhotoEnfant(enfants[i].eleveId),
+                      entetesPhoto: entetes,
                       surAppui: () =>
                           ref.read(enfantChoisiProvider.notifier).state =
                               enfants[i].eleveId,
@@ -279,6 +288,14 @@ class _Banniere extends ConsumerWidget {
                     prenom: enfant.prenom,
                     taille: 58,
                     surFondColore: true,
+                    // `photoId` nul veut dire qu'aucune photo n'a été déposée :
+                    // on n'appelle même pas la route, qui répondrait 404. Un
+                    // 404 par enfant à chaque ouverture est un aller-retour
+                    // payé pour rien sur un forfait facturé au mégaoctet.
+                    urlPhoto: enfant.photoId == null
+                        ? null
+                        : ref.read(apiProvider).urlPhotoEnfant(enfant.eleveId),
+                    entetesPhoto: entetes,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -324,11 +341,15 @@ class _PuceEnfant extends StatelessWidget {
     required this.enfant,
     required this.actif,
     required this.surAppui,
+    this.urlPhoto,
+    this.entetesPhoto,
   });
 
   final Enfant enfant;
   final bool actif;
   final VoidCallback surAppui;
+  final String? urlPhoto;
+  final Map<String, String>? entetesPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -339,9 +360,8 @@ class _PuceEnfant extends StatelessWidget {
         color: actif ? Colors.white : Colors.white.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: actif
-              ? Colors.transparent
-              : Colors.white.withValues(alpha: 0.3),
+          color: actif ? Colors.white : Colors.white.withValues(alpha: 0.3),
+          width: actif ? 2 : 1,
         ),
       ),
       child: Material(
@@ -350,14 +370,45 @@ class _PuceEnfant extends StatelessWidget {
           onTap: surAppui,
           borderRadius: BorderRadius.circular(999),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Text(
-              enfant.prenom,
-              style: ThemeLgr.inter(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                color: actif ? context.etat(Couleurs.primaire) : Colors.white,
-              ),
+            padding: const EdgeInsets.fromLTRB(5, 5, 13, 5),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AvatarEleve(
+                  nom: enfant.nom,
+                  prenom: enfant.prenom,
+                  taille: 30,
+                  urlPhoto: urlPhoto,
+                  entetesPhoto: entetesPhoto,
+                  surFondColore: !actif,
+                ),
+                const SizedBox(width: 9),
+                Text(
+                  enfant.prenom,
+                  style: ThemeLgr.inter(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: actif
+                        ? context.etat(Couleurs.primaire)
+                        : Colors.white,
+                  ),
+                ),
+                // La coche, et pas seulement le fond blanc.
+                //
+                // Sur trois pastilles côte à côte, un fond différent se
+                // remarque — mais il ne DIT rien : rien ne prouve au parent
+                // que les chiffres du dessous appartiennent à cet enfant-là.
+                // Une coche est une affirmation, pas une nuance, et elle
+                // survit au plein soleil comme au daltonisme.
+                if (actif) ...[
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.check_circle_rounded,
+                    size: 17,
+                    color: context.etat(Couleurs.primaire),
+                  ),
+                ],
+              ],
             ),
           ),
         ),
@@ -635,9 +686,7 @@ class _Indicateur extends StatelessWidget {
                       Flexible(
                         child: Text(
                           valeur,
-                          style: ThemeLgr.nombre(
-                            theme.textTheme.headlineSmall,
-                          ).copyWith(color: couleur, fontSize: 23, height: 1.0),
+                          style: ThemeLgr.chiffre(couleur: couleur),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

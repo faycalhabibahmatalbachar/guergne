@@ -90,6 +90,33 @@ abstract final class ThemeLgr {
   static TextStyle nombre(TextStyle? base) =>
       (base ?? const TextStyle()).copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
 
+  /// Style des GRANDS chiffres — moyenne, absences, montants.
+  ///
+  /// Ce sont eux le sujet de l'accueil : un parent ouvre l'application pour
+  /// lire quatre nombres. Ils méritent donc un traitement propre, et pas la
+  /// taille de titre par défaut.
+  ///
+  /// Trois réglages, chacun pour une raison :
+  ///   — chiffres TABULAIRES, sans quoi « 7,85 » et « 12,5 » ne s'alignent pas
+  ///     d'une carte à l'autre et la grille tremble ;
+  ///   — approche resserrée, parce qu'à cette taille l'espacement par défaut
+  ///     d'Inter fait flotter les chiffres ;
+  ///   — hauteur de ligne à 1, pour que la carte se cale sur le chiffre et non
+  ///     sur l'interligne de la police.
+  ///
+  /// La graisse maximale d'Inter reste en deçà d'un vrai caractère de titrage.
+  /// Le jour où une police display est déposée dans `assets/polices/`, c'est
+  /// ICI qu'elle se branche — un seul endroit, et les quatre cartes suivent.
+  static TextStyle chiffre({required Color couleur, double taille = 26}) => inter(
+    fontSize: taille,
+    fontWeight: FontWeight.w700,
+    color: couleur,
+  ).copyWith(
+    letterSpacing: -taille * 0.032,
+    height: 1.0,
+    fontFeatures: const [FontFeature.tabularFigures()],
+  );
+
   static ThemeData clair() => _construire(Brightness.light);
   static ThemeData sombre() => _construire(Brightness.dark);
 

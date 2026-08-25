@@ -383,6 +383,7 @@ class AvatarEleve extends StatelessWidget {
     required this.nom,
     required this.prenom,
     this.urlPhoto,
+    this.entetesPhoto,
     this.taille = 48,
     this.surFondColore = false,
   });
@@ -390,6 +391,14 @@ class AvatarEleve extends StatelessWidget {
   final String nom;
   final String prenom;
   final String? urlPhoto;
+
+  /// En-têtes envoyés avec la photo.
+  ///
+  /// La route qui sert les photos exige un jeton : c'est la photo d'un enfant,
+  /// pas une image publique. Sans cet en-tête, la requête revient en 401 et le
+  /// composant retombe sur les initiales — silencieusement, ce qui est la
+  /// bonne façon d'échouer ici mais rend le défaut introuvable.
+  final Map<String, String>? entetesPhoto;
   final double taille;
 
   /// Posé sur l'en-tête bleu plutôt que sur une surface claire.
@@ -452,32 +461,33 @@ class AvatarEleve extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: urlPhoto == null
-          ? Text(
-              initiales,
-              style: TextStyle(
-                fontSize: taille * 0.36,
-                fontWeight: FontWeight.w700,
-                color: couleur,
-              ),
-            )
+          ? _initiales(initiales, couleur, taille)
           : Image.network(
               urlPhoto!,
+              headers: entetesPhoto,
               fit: BoxFit.cover,
               width: taille,
               height: taille,
+              // Pendant le chargement, les initiales restent affichées plutôt
+              // qu'un carré vide ou un tourniquet : sur un réseau lent, une
+              // dizaine d'avatars en attente donnerait un écran clignotant.
+              frameBuilder: (_, enfant, image, _) =>
+                  image == null ? _initiales(initiales, couleur, taille) : enfant,
               // Une photo qui ne charge pas ne doit jamais laisser un carré
               // vide : on retombe sur les initiales.
-              errorBuilder: (_, _, _) => Text(
-                initiales,
-                style: TextStyle(
-                  fontSize: taille * 0.36,
-                  fontWeight: FontWeight.w700,
-                  color: couleur,
-                ),
-              ),
+              errorBuilder: (_, _, _) => _initiales(initiales, couleur, taille),
             ),
     );
   }
+
+  static Widget _initiales(String texte, Color couleur, double taille) => Text(
+    texte,
+    style: TextStyle(
+      fontSize: taille * 0.36,
+      fontWeight: FontWeight.w700,
+      color: couleur,
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
