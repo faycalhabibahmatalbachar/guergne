@@ -770,3 +770,88 @@ export async function modifierEleve(eleveId: string, donnees: unknown): Promise<
     return echec(erreur, "La modification du dossier a échoué.");
   }
 }
+
+/**
+ * Cherche un tuteur déjà enregistré à partir de son téléphone (E-35).
+ *
+ * LE DOUBLON DE TUTEUR EST LE PIRE DÉFAUT DE DONNÉES DE CE PROJET
+ * ----------------------------------------------------------------
+ * Un parent de trois enfants saisi trois fois, c'est trois comptes dans
+ * l'application parent, chacun ne montrant qu'un enfant ; trois SMS pour la
+ * même annonce, donc trois fois le coût ; et un numéro qui n'apparaît nulle
+ * part comme étant le même. La famille appelle l'établissement, et personne ne
+ * comprend pourquoi.
+ *
+ * `rattacherTuteur` réutilise déjà le tuteur existant quand le numéro
+ * correspond — mais en silence, après la saisie du formulaire entier. Cette
+ * lecture permet de le DIRE avant : « ce numéro est celui de X, parent de deux
+ * élèves ». La personne au guichet cesse alors de retaper un nom.
+ *
+ * N'écrit rien. Exige `tuteur:gerer` : c'est une recherche dans le fichier des
+ * familles, pas une information publique.
+ */
+export interface TuteurTrouve {
+  id: string;
+  nom: string;
+  prenom: string;
+  telephone: string;
+  email: string | null;
+  profession: string | null;
+  /** Élèves déjà rattachés — ce qui rend le doublon évident. */
+  enfants: Array<{ id: string; nom: string; classe: string | null }>;
+  /** Vrai si ce tuteur est DÉJÀ rattaché à l'élève en cours. */
+  dejaRattache: boolean;
+}
+
+export async function rechercherTuteurParTelephone(
+  telephone: string,
+  eleveId: string,
+): Promise<TuteurTrouve | null> {
+  await requirePermission("tuteur:gerer");
+
+  const numero = telephone.trim();
+  if (numero.length < 8) return null;
+
+  const r = await db.execute<{
+    id: string;
+    nom: string;
+    prenom: string;
+    telephone: string;
+    email: string | null;
+    profession: string | null;
+    deja: boolean;
+  }>(sql`
+    SELECT t.id, t.nom, t.prenom, t.telephone, t.email, t.profession,
+           EXISTS (
+             SELECT 1 FROM eleve_tuteur et
+              WHERE et.tuteur_id = t.id AND et.eleve_id = ${eleveId}::uuid
+           ) AS deja
+      FROM tuteurs t
+     WHERE t.telephone = ${numero}
+     LIMIT 1
+  `);
+
+  const t = r.rows[0];
+  if (!t) return null;
+
+  const enfants = await db.execute<{ id: string; nom: string; classe: string | null }>(sql`
+    SELECT e.id, e.nom || ' ' || e.prenom AS nom, c.libelle AS classe
+      FROM eleve_tuteur et
+      JOIN eleves e ON e.id = et.eleve_id
+      LEFT JOIN inscriptions i ON i.eleve_id = e.id AND i.active
+      LEFT JOIN classes c      ON c.id = i.classe_id
+     WHERE et.tuteur_id = ${t.id}::uuid
+     ORDER BY e.nom
+  `);
+
+  return {
+    id: t.id,
+    nom: t.nom,
+    prenom: t.prenom,
+    telephone: t.telephone,
+    email: t.email,
+    profession: t.profession,
+    enfants: enfants.rows,
+    dejaRattache: t.deja,
+  };
+}

@@ -25,13 +25,17 @@ import { listerClassesCourantes } from "@/server/domain/eleves";
 import { db } from "@/server/db";
 import { chargerDossierScolarite } from "@/server/domain/dossier-eleve";
 import { chargerStatistiques } from "@/server/domain/tableau-de-bord";
-import { exigerPage } from "@/server/guard";
+import { sessionCourante } from "@/server/auth/session";
+import { exigerPage, peut } from "@/server/guard";
+import { preparerReinscription } from "../actions-reinscription";
 
 import { ActionsDossier } from "./_components/actions-dossier";
 import { ModifierDossier } from "./_components/modifier-dossier";
 
 import { BoutonNotifier } from "../../_components/bouton-notifier";
 import { DocumentsEleve } from "./_components/documents-eleve";
+import { GestionTuteurs } from "./_components/gestion-tuteurs";
+import { Reinscription } from "./_components/reinscription";
 import {
   OngletAssiduite,
   OngletDiscipline,
@@ -84,7 +88,17 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
   if (!dossier) notFound();
 
   const { eleve, inscription, tuteurs, parcours, historiqueStatuts, changementsClasse } = dossier;
-  const classes = await listerClassesCourantes();
+  const principal = await sessionCourante();
+  const [classes, peutGererTuteurs, peutInscrire] = await Promise.all([
+    listerClassesCourantes(),
+    peut(principal, "tuteur:gerer"),
+    peut(principal, "eleve:creer"),
+  ]);
+
+  // E-36 : la proposition de réinscription est lue seulement si l'on a le
+  // droit d'inscrire — inutile de calculer une orientation que l'utilisateur
+  // ne pourrait pas enregistrer.
+  const proposition = peutInscrire ? await preparerReinscription(id) : null;
 
   // Périodes pour lesquelles un bulletin existe. On les charge ici plutôt que
   // dans le composant : c'est une page serveur, la requête ne coûte pas un
@@ -288,6 +302,19 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
 
         {/* --- Tuteurs --- */}
         <TabsContent value="tuteurs" className="mt-6 space-y-4">
+          {/*
+            Rattacher se fait ICI et non à l'inscription : un parent se déclare
+            après coup, un tuteur change en cours d'année, une mère est ajoutée
+            trois mois après le père. Renvoyer sur le formulaire d'inscription
+            pour cela obligerait à rouvrir un dossier déjà validé.
+          */}
+          {peutGererTuteurs ? (
+            <GestionTuteurs
+              eleveId={eleve.id}
+              tuteurs={tuteurs.map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom }))}
+            />
+          ) : null}
+
           {tuteurs.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground text-sm">
@@ -387,6 +414,13 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
 
         {/* --- Scolarité --- */}
         <TabsContent value="scolarite" className="mt-6 space-y-6">
+          {/*
+            La réinscription est en tête de l'onglet Scolarité : c'est le geste
+            de juin, et il porte sur l'année SUIVANTE. Le placer sous
+            l'inscription en cours le ferait chercher.
+          */}
+          {proposition ? <Reinscription eleveId={eleve.id} proposition={proposition} /> : null}
+
           {inscription ? (
             <Card>
               <CardHeader>
