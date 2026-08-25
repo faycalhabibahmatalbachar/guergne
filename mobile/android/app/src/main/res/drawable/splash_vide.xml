@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Icône volontairement vide.
+
+    Android 12 impose une icône au démarrage : sans `windowSplashScreenAnimatedIcon`,
+    le système dessine l'icône de l'application au centre de l'écran, puis Flutter
+    dessine le blason ailleurs — le lancement montre deux logos successifs.
+    Une icône transparente laisse le système afficher un fond nu, et le seul
+    blason visible est celui de Flutter.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <size android:width="1dp" android:height="1dp"/>
+    <solid android:color="#00000000"/>
+</shape>

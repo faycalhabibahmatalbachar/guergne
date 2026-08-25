@@ -3,11 +3,27 @@
     <color name="ic_launcher_background">#FFFFFF</color>
 
     <!--
-        Bleu institutionnel de l'établissement, identique à `Couleurs.primaire`
-        côté Flutter et au portail web. Android l'utilise pour teinter l'icône
-        de la notification dépliée : sans lui, la teinte par défaut est le gris
-        du système, et la notification de l'école ressemble à celle de n'importe
-        quelle application.
+        Vert du blason, identique à `Couleurs.primaire` côté Flutter. Android
+        s'en sert pour teinter l'icône de la notification dépliée : sans lui,
+        la teinte par défaut est le gris du système, et la notification de
+        l'école ressemble à celle de n'importe quelle application.
+
+        Il valait #1E429F jusqu'au passage à l'identité du blason. Laissé tel
+        quel, il aurait donné des notifications bleues pour une application
+        verte — un écart que personne ne remarque en développement, parce que
+        la notification ne s'affiche jamais sur la machine du développeur.
     -->
-    <color name="lgr_primaire">#1E429F</color>
+    <color name="lgr_primaire">#0C6B2E</color>
+
+    <!--
+        Fond de l'écran de démarrage, identique à `Couleurs.parchemin`.
+
+        C'est ce qui rend le splash natif invisible : il ne peut pas être
+        supprimé — Android affiche toujours une fenêtre pendant le démarrage du
+        processus, et l'API SplashScreen est imposée depuis Android 12 — mais
+        s'il porte exactement le fond de l'écran Flutter qui lui succède, le
+        parent ne voit qu'un seul écran.
+    -->
+    <color name="lgr_parchemin">#FAF8F3</color>
+    <color name="lgr_parchemin_sombre">#0B1120</color>
 </resources>

@@ -80,14 +80,36 @@ class SessionNotifier extends StateNotifier<Session> {
   Stockage get _stockage => _ref.read(stockageProvider);
   ApiEcole get _api => _ref.read(apiProvider);
 
+  /// Durée minimale d'affichage de l'écran de démarrage.
+  ///
+  /// C'est un PLANCHER, pas un délai ajouté : la lecture du coffre sécurisé
+  /// prend en général moins de cinquante millisecondes, et l'écran de marque
+  /// disparaîtrait avant d'avoir été lu. Sur un téléphone lent où la
+  /// restauration dépasse déjà cette durée, rien n'est ajouté — on attend ce
+  /// qui reste, ou rien du tout.
+  ///
+  /// Écrire `await Future.delayed(...)` PUIS restaurer coûterait cette seconde
+  /// et demie à tout le monde, y compris à ceux qui attendent déjà.
+  static const _dureeMinimaleDemarrage = Duration(milliseconds: 1600);
+
   /// Restaure la session au lancement, sans appel réseau.
   ///
   /// On ne valide pas le jeton auprès du serveur ici : cela ferait attendre
   /// l'écran de démarrage sur un réseau lent. Si le jeton est mort, le premier
   /// appel de données le découvrira et déclenchera la rotation.
+  Future<void> _attendrePlancher(DateTime debut) async {
+    final ecoule = DateTime.now().difference(debut);
+    final reste = _dureeMinimaleDemarrage - ecoule;
+    if (reste > Duration.zero) await Future<void>.delayed(reste);
+  }
+
   Future<void> _restaurer() async {
+    final debut = DateTime.now();
+
     final rafraichissement = await _stockage.jetonRafraichissement;
     final profil = _stockage.lireProfil();
+
+    await _attendrePlancher(debut);
 
     if (rafraichissement == null || profil == null) {
       state = const Session(etat: EtatSession.deconnecte);

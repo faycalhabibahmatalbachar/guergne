@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Fond seul, sans logo.
+
+    Le logo était dessiné ici ET par Flutter une fraction de seconde plus tard,
+    à une taille et une position différentes : le lancement montrait un blason
+    qui sautait. En le retirant du calque natif, le seul blason que le parent
+    voit est celui de Flutter, qui apparaît en fondu — ce que l'œil lit comme
+    une entrée, pas comme un défaut.
+-->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <bitmap android:gravity="fill" android:src="@drawable/background"/>
-    </item>
-    <item>
-        <bitmap android:gravity="center" android:src="@drawable/splash"/>
-    </item>
+    <item android:drawable="@color/lgr_parchemin"/>
 </layer-list>

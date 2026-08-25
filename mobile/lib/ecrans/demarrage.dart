@@ -30,9 +30,13 @@ import '../design/theme.dart';
 /// lancement est une taxe payée à chaque ouverture par quelqu'un qui voulait
 /// voir une note.
 ///
-/// Le message de chargement, lui, n'apparaît qu'au-delà de 900 ms. En dessous,
-/// il clignoterait ; au-delà, le parent a besoin de savoir que quelque chose
-/// se passe.
+/// IL DURE UN PLANCHER, PAS UN DÉLAI
+/// ----------------------------------
+/// La lecture du coffre sécurisé prend moins de cinquante millisecondes :
+/// sans plancher, l'écran de marque disparaîtrait avant d'avoir été lu. Le
+/// plancher est posé dans `sessionProvider` — 1,6 s — et n'ajoute RIEN sur un
+/// téléphone lent où la restauration dépasse déjà cette durée. Attendre puis
+/// charger aurait coûté cette seconde et demie à tout le monde.
 class EcranDemarrage extends StatefulWidget {
   const EcranDemarrage({super.key});
 
@@ -43,7 +47,6 @@ class EcranDemarrage extends StatefulWidget {
 class _EtatDemarrage extends State<EcranDemarrage> with TickerProviderStateMixin {
   late final AnimationController _entree;
   late final AnimationController _rotation;
-  bool _attenteLongue = false;
 
   @override
   void initState() {
@@ -53,10 +56,6 @@ class _EtatDemarrage extends State<EcranDemarrage> with TickerProviderStateMixin
       ..forward();
     _rotation = AnimationController(vsync: this, duration: const Duration(milliseconds: 1150))
       ..repeat();
-
-    Future<void>.delayed(const Duration(milliseconds: 900), () {
-      if (mounted) setState(() => _attenteLongue = true);
-    });
   }
 
   @override
@@ -197,9 +196,9 @@ class _EtatDemarrage extends State<EcranDemarrage> with TickerProviderStateMixin
                 const Spacer(flex: 3),
 
                 // --- 4. Ce dont le parent se moque ---
-                AnimatedOpacity(
-                  opacity: _attenteLongue ? 1 : 0,
-                  duration: ThemeLgr.dureeMoyenne,
+                _Entree(
+                  animation: _entree,
+                  debut: 0.45,
                   child: Column(
                     children: [
                       _Rouet(rotation: _rotation),
