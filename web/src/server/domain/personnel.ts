@@ -42,6 +42,10 @@ export interface LigneEnseignant {
   nbAffectations: number;
   heuresAffectees: number;
   creneauxPlaces: number;
+  /** E-62 : un compte d'accès au portail existe-t-il, et est-il actif ? */
+  aCompte: boolean;
+  compteActif: boolean;
+  roleCompte: string | null;
 }
 
 export interface FiltresEnseignants {
@@ -92,6 +96,14 @@ export async function listerEnseignants(
         SELECT m.libelle FROM enseignant_matieres em
         JOIN matieres m ON m.id = em.matiere_id
         WHERE em.enseignant_id = enseignants.id AND em.est_principale LIMIT 1)`,
+      // Sans compte, l'enseignant ne peut pas ouvrir le portail : ni saisir ses
+      // notes, ni rédiger ses appréciations. C'est une information de premier
+      // plan sur cette liste, pas un détail de configuration.
+      aCompte: sql<boolean>`enseignants.utilisateur_id IS NOT NULL`,
+      compteActif: sql<boolean>`COALESCE((
+        SELECT u.actif FROM utilisateurs u WHERE u.id = enseignants.utilisateur_id), FALSE)`,
+      roleCompte: sql<string | null>`(
+        SELECT u.role::text FROM utilisateurs u WHERE u.id = enseignants.utilisateur_id)`,
       nbAffectations: sql<number>`(
         SELECT count(*) FROM affectations a
         WHERE a.enseignant_id = enseignants.id AND a.active

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Bell } from "lucide-react";
+import { Bell, ScrollText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -91,12 +91,25 @@ export default async function PageParametres({
           arbitrent une dépense, là où les onglets ci-dessous touchent au calcul
           des bulletins. Mélanger les deux reviendrait à donner l'un avec l'autre.
         */}
-        <Button asChild variant="outline">
-          <Link href="/dashboard/parametres/notifications">
-            <Bell aria-hidden />
-            Notifications et SMS
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href="/dashboard/parametres/notifications">
+              <Bell aria-hidden />
+              Notifications et SMS
+            </Link>
+          </Button>
+          {/*
+            Le journal a son propre droit : le lire, c'est voir ce que TOUS les
+            autres ont fait. Ce n'est pas un corollaire du droit de configurer
+            l'établissement, et le bouton n'apparaît que pour qui l'a.
+          */}
+          <Button asChild variant="outline">
+            <Link href="/dashboard/parametres/audit">
+              <ScrollText aria-hidden />
+              Journal d&apos;audit
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Tabs value={onglet}>

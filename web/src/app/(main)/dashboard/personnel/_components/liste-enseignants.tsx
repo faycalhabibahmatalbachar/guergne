@@ -21,6 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
+
+import { CompteAcces } from "./compte-acces";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { LigneEnseignant } from "@/server/domain/personnel";
 
@@ -159,6 +161,7 @@ export function ListeEnseignants({ enseignants }: { enseignants: LigneEnseignant
                   <TableHead>Statut</TableHead>
                   <TableHead>Matière principale</TableHead>
                   <TableHead>Charge</TableHead>
+                  <TableHead>Accès au portail</TableHead>
                   <TableHead>Actif</TableHead>
                 </TableRow>
               </TableHeader>
@@ -208,6 +211,21 @@ export function ListeEnseignants({ enseignants }: { enseignants: LigneEnseignant
                           {e.nbAffectations} affectation{e.nbAffectations > 1 ? "s" : ""} ·{" "}
                           {e.creneauxPlaces} créneau{e.creneauxPlaces > 1 ? "x" : ""}
                         </p>
+                      </TableCell>
+                      {/*
+                        Sans compte, l'enseignant ne peut pas ouvrir le portail :
+                        ni saisir ses notes, ni rédiger ses appréciations. C'est
+                        donc une colonne de la liste, pas un réglage caché dans
+                        une fiche.
+                      */}
+                      <TableCell>
+                        <CompteAcces
+                          enseignantId={e.id}
+                          nom={`${e.prenom} ${e.nom}`}
+                          aCompte={e.aCompte}
+                          compteActif={e.compteActif}
+                          roleCompte={e.roleCompte}
+                        />
                       </TableCell>
                       <TableCell>
                         <Switch
