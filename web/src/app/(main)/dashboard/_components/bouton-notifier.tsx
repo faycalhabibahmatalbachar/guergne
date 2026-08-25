@@ -22,12 +22,24 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   apercuClasse,
   apercuEleve,
+  apercuSelection,
   notifierClasse,
   notifierEleve,
+  notifierSelection,
   type Apercu,
 } from "../_actions/notifier";
 
-type Cible = { type: "eleve"; id: string; nom: string } | { type: "classe"; id: string; nom: string };
+/**
+ * La cible « selection » (E-38) porte une liste d'identifiants plutôt qu'un
+ * seul : c'est la sélection cochée dans une liste. Elle passe par le même
+ * aperçu et le même dépôt que les deux autres — un troisième chemin d'envoi
+ * finirait par diverger sur le calcul du coût, qui est justement ce qu'on
+ * montre pour engager la dépense en connaissance de cause.
+ */
+type Cible =
+  | { type: "eleve"; id: string; nom: string }
+  | { type: "classe"; id: string; nom: string }
+  | { type: "selection"; ids: string[]; nom: string };
 
 /**
  * Prévenir les familles sans quitter la page.
@@ -46,9 +58,11 @@ type Cible = { type: "eleve"; id: string; nom: string } | { type: "classe"; id: 
 export function BoutonNotifier({
   cible,
   variante = "outline",
+  libelle = "Prévenir les parents",
 }: {
   cible: Cible;
   variante?: "default" | "outline" | "ghost";
+  libelle?: string;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const [titre, setTitre] = useState("");
@@ -67,7 +81,9 @@ export function BoutonNotifier({
         const a =
           cible.type === "eleve"
             ? await apercuEleve(cible.id, titre || "Message", corps || "…")
-            : await apercuClasse(cible.id, titre || "Message", corps || "…");
+            : cible.type === "classe"
+              ? await apercuClasse(cible.id, titre || "Message", corps || "…")
+              : await apercuSelection(cible.ids, titre || "Message", corps || "…");
         setApercu(a);
       } catch {
         // Un aperçu indisponible ne doit pas bloquer l'envoi : on le masque.
@@ -84,7 +100,9 @@ export function BoutonNotifier({
       const r =
         cible.type === "eleve"
           ? await notifierEleve(cible.id, { titre, corps })
-          : await notifierClasse(cible.id, { titre, corps });
+          : cible.type === "classe"
+            ? await notifierClasse(cible.id, { titre, corps })
+            : await notifierSelection(cible.ids, { titre, corps });
 
       if (r.ok) {
         toast.success(r.message ?? "Message déposé.");
@@ -103,7 +121,7 @@ export function BoutonNotifier({
       <DialogTrigger asChild>
         <Button variant={variante} size="sm">
           <BellRing aria-hidden />
-          Prévenir les parents
+          {libelle}
         </Button>
       </DialogTrigger>
 

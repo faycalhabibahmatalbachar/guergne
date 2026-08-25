@@ -232,3 +232,77 @@ export async function notifierClasse(
     return echec(erreur, "L'envoi a échoué.");
   }
 }
+
+/**
+ * Aperçu pour une sélection libre d'élèves (E-38). N'écrit rien.
+ *
+ * La sélection est bornée à 200 : au-delà, c'est une classe ou un niveau
+ * entier, et l'envoi doit passer par le ciblage de la page Communication —
+ * qui, lui, sait ce qu'il diffuse.
+ */
+export async function apercuSelection(
+  eleveIds: string[],
+  titre: string,
+  corps: string,
+): Promise<Apercu> {
+  await requirePermission("message:envoyer");
+  return repartition(eleveIds.slice(0, 200), titre, corps);
+}
+
+/**
+ * Prévient les tuteurs d'une sélection d'élèves.
+ *
+ * Une notification par élève, comme pour une classe : le message parle de
+ * l'enfant du destinataire et le lien mène à SON dossier. Regrouper les
+ * destinataires en un seul envoi ferait perdre ce rattachement, et le parent
+ * recevrait une alerte sans savoir lequel de ses enfants est concerné.
+ */
+export async function notifierSelection(
+  eleveIds: string[],
+  donnees: unknown,
+): Promise<ResultatNotification> {
+  try {
+    const acteur = await requirePermission("message:envoyer");
+
+    if (eleveIds.length === 0) return { ok: false, message: "Aucun élève sélectionné." };
+    if (eleveIds.length > 200) {
+      return { ok: false, message: "Sélection trop large : 200 élèves au maximum." };
+    }
+
+    const a = schema.safeParse(donnees);
+    if (!a.success) {
+      const s: Record<string, string> = {};
+      for (const p of a.error.issues) s[String(p.path[0])] = p.message;
+      return { ok: false, erreurs: s };
+    }
+
+    const r = await db.execute<{ posees: number }>(sql`
+      SELECT COALESCE(sum(fn_notifier_tuteurs(
+        e.id,
+        'ANNONCE'::type_notification,
+        ${a.data.titre},
+        ${a.data.corps},
+        '/eleves/' || e.id,
+        ${JSON.stringify({ origine: "selection" })}::jsonb
+      )), 0) AS posees
+        FROM eleves e
+       WHERE e.id = ANY(${eleveIds}::uuid[])
+    `);
+
+    const posees = Number(r.rows[0]?.posees ?? 0);
+
+    await journaliser(acteur, {
+      action: "notification.envoyee_depuis_selection",
+      entite: "eleves",
+      apres: { titre: a.data.titre, eleves: eleveIds.length, destinataires: posees },
+    });
+
+    revalidatePath("/dashboard/eleves");
+
+    return posees === 0
+      ? { ok: false, message: "Aucun tuteur joignable dans cette sélection." }
+      : { ok: true, posees, message: `${posees} tuteur(s) prévenu(s).` };
+  } catch (erreur) {
+    return echec(erreur, "L'envoi a échoué.");
+  }
+}

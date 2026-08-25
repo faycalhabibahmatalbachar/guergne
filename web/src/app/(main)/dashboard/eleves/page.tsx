@@ -6,6 +6,7 @@ import { Download, GraduationCap, Plus, Search, Upload, Users } from "lucide-rea
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EnTeteTriable } from "@/components/ui/entete-triable";
+import { CaseSelection, EnTeteSelection, ZoneSelection } from "@/components/ui/selection-lot";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { getInitials } from "@/lib/utils";
@@ -16,6 +17,7 @@ import { listerClassesCourantes, listerEleves } from "@/server/domain/eleves";
 
 import { BadgeStatut } from "./_components/badge-statut";
 import { FiltresEleves } from "./_components/filtres";
+import { ActionsLotEleves } from "./_components/actions-lot";
 
 export const metadata: Metadata = { title: "Élèves" };
 export const dynamic = "force-dynamic";
@@ -45,7 +47,7 @@ export default async function PageEleves({
   const principal = await sessionCourante();
 
   const params = await searchParams;
-  const [resultat, classesDisponibles, peutCreer] = await Promise.all([
+  const [resultat, classesDisponibles, peutCreer, peutAffecter, peutEnvoyer] = await Promise.all([
     listerEleves({
       recherche: params.q,
       tri: params.tri,
@@ -56,6 +58,8 @@ export default async function PageEleves({
     }),
     listerClassesCourantes(),
     peut(principal, "eleve:creer"),
+    peut(principal, "eleve:affecter"),
+    peut(principal, "message:envoyer"),
   ]);
 
   const { lignes, total, page, nbPages } = resultat;
@@ -168,10 +172,12 @@ export default async function PageEleves({
             <CardDescription>Cliquez sur une ligne pour ouvrir le dossier complet.</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
+            <ZoneSelection ids={lignes.map((e) => e.id)}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
+                    {peutAffecter || peutEnvoyer ? <EnTeteSelection /> : null}
                     <EnTeteTriable colonne="nom" className="px-4 py-2.5">
                       Élève
                     </EnTeteTriable>
@@ -190,6 +196,7 @@ export default async function PageEleves({
                 <tbody>
                   {lignes.map((e) => (
                     <tr key={e.id} className="border-b transition-colors last:border-0 hover:bg-muted/50">
+                      {peutAffecter || peutEnvoyer ? <CaseSelection id={e.id} /> : null}
                       <td className="px-4 py-2.5">
                         <Link
                           href={`/dashboard/eleves/${e.id}`}
@@ -228,6 +235,20 @@ export default async function PageEleves({
                 </tbody>
               </table>
             </div>
+
+            {/*
+              La barre est DANS la zone de sélection et sous le tableau : elle
+              colle au bas de la fenêtre tant que des lignes sont cochées, donc
+              reste atteignable sans remonter, sur une liste de cinquante noms.
+            */}
+            {peutAffecter || peutEnvoyer ? (
+              <ActionsLotEleves
+                classes={classesDisponibles.map((c) => ({ id: c.id, libelle: c.libelle }))}
+                peutAffecter={peutAffecter}
+                peutEnvoyer={peutEnvoyer}
+              />
+            ) : null}
+            </ZoneSelection>
           </CardContent>
         </Card>
       )}
