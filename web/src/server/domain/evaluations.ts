@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 
+import { calculerStatistiques, type Statistiques } from "@/lib/statistiques-notes";
 import { db } from "@/server/db";
 import { eleves, evaluations, inscriptions, notes } from "@/server/db/schema";
 
@@ -126,4 +127,47 @@ export async function releveEleve(inscriptionId: string, periodeId: string) {
     .orderBy(desc(evaluations.dateEvaluation));
 
   return lignes;
+}
+
+
+/**
+ * Statistiques d'une évaluation (E-42).
+ *
+ * La lecture est ici, le calcul est dans `@/lib/statistiques-notes` — module
+ * pur, donc testable. Les règles qui font la justesse du résultat (le
+ * traitement des absents, la normalisation sur 20, la médiane sur effectif
+ * pair) sont exactement celles qui se cassent en silence.
+ */
+export type { Statistiques as StatistiquesEvaluation, TrancheNotes } from "@/lib/statistiques-notes";
+
+export async function statistiquesEvaluation(
+  evaluationId: string,
+): Promise<Statistiques | null> {
+  const r = await db.execute<{
+    bareme: string;
+    effectif: number;
+    valeur: string | null;
+    statut: string | null;
+  }>(sql`
+    SELECT e.bareme,
+           (SELECT count(*) FROM inscriptions i
+             WHERE i.classe_id = e.classe_id AND i.active) AS effectif,
+           n.valeur::text AS valeur,
+           n.statut::text AS statut
+      FROM evaluations e
+      -- On part de la LISTE DE CLASSE, pas de la table des notes : sans cela,
+      -- « non saisies » vaudrait toujours zéro et l'écran annoncerait une
+      -- évaluation complète alors que la moitié des élèves manque.
+      LEFT JOIN inscriptions i ON i.classe_id = e.classe_id AND i.active
+      LEFT JOIN notes n ON n.inscription_id = i.id AND n.evaluation_id = e.id
+     WHERE e.id = ${evaluationId}::uuid
+  `);
+
+  if (r.rows.length === 0) return null;
+
+  return calculerStatistiques(
+    r.rows.map((l) => ({ statut: l.statut, valeur: l.valeur === null ? null : Number(l.valeur) })),
+    Number(r.rows[0].bareme),
+    Number(r.rows[0].effectif),
+  );
 }

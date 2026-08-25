@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
@@ -284,5 +284,123 @@ export async function enregistrerNotes(donnees: unknown): Promise<Resultat> {
     return { ok: true, message: `${ecrites} note(s) enregistrée(s).` };
   } catch (e) {
     return echec(e, "L'enregistrement des notes a échoué.");
+  }
+}
+
+/**
+ * Duplique une évaluation vers d'autres classes (E-44).
+ *
+ * LE MÊME DEVOIR EST DONNÉ À TROIS CLASSES
+ * -----------------------------------------
+ * Un professeur qui a la 6e A, B et C fait passer le même contrôle aux trois.
+ * Le ressaisir trois fois — titre, type, barème, poids, durée — coûte du temps
+ * et produit des écarts : un barème sur 20 ici, sur 40 là, et les moyennes ne
+ * sont plus comparables entre classes du même niveau.
+ *
+ * ON NE COPIE QUE LA COQUILLE
+ * ----------------------------
+ * Jamais les notes. Ce sont d'autres élèves.
+ *
+ * L'ENSEIGNANT EST CELUI DE LA CLASSE D'ARRIVÉE
+ * ----------------------------------------------
+ * La 6e B peut être tenue par un autre professeur. Recopier l'enseignant
+ * d'origine lui attribuerait une évaluation qui n'est pas la sienne, et
+ * fausserait « qui n'a pas saisi » avant le conseil.
+ *
+ * LE STATUT REPART À « PROGRAMMÉE »
+ * ----------------------------------
+ * L'original peut être corrigé, voire publié. La copie, elle, n'a pas encore
+ * eu lieu — la marquer « corrigée » la ferait compter comme une évaluation
+ * dont les notes manquent.
+ */
+export async function dupliquerEvaluation(
+  evaluationId: string,
+  classeIds: string[],
+  dateEvaluation?: string,
+): Promise<Resultat & { creees?: number; ignorees?: string[] }> {
+  try {
+    if (classeIds.length === 0) {
+      return { ok: false, message: "Choisissez au moins une classe de destination." };
+    }
+
+    const [source] = await db.select().from(evaluations).where(eq(evaluations.id, evaluationId));
+    if (!source) return { ok: false, message: "Évaluation introuvable." };
+
+    const acteur = await requirePermission("evaluation:creer", {
+      classeId: source.classeId,
+      matiereId: source.matiereId,
+    });
+
+    // Une classe qui n'a pas cette matière à son programme ne peut pas
+    // recevoir l'évaluation : la note n'entrerait dans aucune moyenne, et
+    // apparaîtrait comme une saisie manquante que personne ne pourrait combler.
+    const eligibles = await db.execute<{ id: string; libelle: string; enseignant_id: string | null }>(sql`
+      SELECT c.id, c.libelle,
+             (SELECT af.enseignant_id FROM affectations af
+               WHERE af.classe_id = c.id AND af.matiere_id = ${source.matiereId}::uuid AND af.active
+               LIMIT 1) AS enseignant_id
+        FROM classes c
+        JOIN coefficients co
+          ON co.matiere_id = ${source.matiereId}::uuid
+         AND co.annee_id = c.annee_id
+         AND co.niveau_id = c.niveau_id
+         AND (co.serie_id IS NULL OR co.serie_id = c.serie_id)
+       WHERE c.id = ANY(${classeIds}::uuid[])
+         AND c.id <> ${source.classeId}::uuid
+    `);
+
+    const retenues = eligibles.rows;
+    const ignorees = classeIds.filter((id) => !retenues.some((c) => c.id === id));
+
+    if (retenues.length === 0) {
+      return {
+        ok: false,
+        message: "Aucune classe éligible : la matière ne figure pas à leur programme.",
+      };
+    }
+
+    await db.transaction(async (tx) => {
+      for (const c of retenues) {
+        await tx.insert(evaluations).values({
+          anneeId: source.anneeId,
+          periodeId: source.periodeId,
+          classeId: c.id,
+          matiereId: source.matiereId,
+          enseignantId: c.enseignant_id,
+          type: source.type,
+          titre: source.titre,
+          dateEvaluation: dateEvaluation || source.dateEvaluation,
+          bareme: source.bareme,
+          poids: source.poids,
+          dureeMinutes: source.dureeMinutes,
+          compteDansMoyenne: source.compteDansMoyenne,
+          observations: source.observations,
+          statut: "PROGRAMMEE",
+          creePar: acteur.id,
+        });
+      }
+    });
+
+    await journaliser(acteur, {
+      action: "evaluation.dupliquee",
+      entite: "evaluations",
+      entiteId: evaluationId,
+      apres: { titre: source.titre, classes: retenues.map((c) => c.libelle) },
+    });
+
+    revalidatePath("/dashboard/notes");
+
+    return {
+      ok: true,
+      creees: retenues.length,
+      ignorees: ignorees.length > 0 ? ignorees : undefined,
+      message:
+        `Évaluation créée dans ${retenues.length} classe(s).` +
+        (ignorees.length > 0
+          ? ` ${ignorees.length} écartée(s) : la matière n'est pas à leur programme.`
+          : ""),
+    };
+  } catch (e) {
+    return echec(e, "La duplication a échoué.");
   }
 }

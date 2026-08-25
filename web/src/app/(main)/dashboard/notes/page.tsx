@@ -5,13 +5,18 @@ import { MessageSquareText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-import { chargerGrilleSaisie, listerEvaluations } from "@/server/domain/evaluations";
+import {
+  chargerGrilleSaisie,
+  listerEvaluations,
+  statistiquesEvaluation,
+} from "@/server/domain/evaluations";
 import { listerClassesEtMatieres } from "@/server/domain/personnel";
 import { chargerStatistiques } from "@/server/domain/tableau-de-bord";
 import { exigerPage } from "@/server/guard";
 
 import { type EtapeManquante, Prerequis } from "../_components/prerequis";
 import { Notes } from "./_components/notes";
+import { StatistiquesEvaluation } from "./_components/statistiques";
 
 export const metadata: Metadata = { title: "Notes" };
 export const dynamic = "force-dynamic";
@@ -68,7 +73,10 @@ export default async function PageNotes({
   const { classes, matieres } = await listerClassesEtMatieres(stats.annee.id);
   const evaluations = await listerEvaluations({ periodeId: stats.periode.id });
 
-  const grille = params.evaluation ? await chargerGrilleSaisie(params.evaluation) : null;
+  const [grille, statsEvaluation] = await Promise.all([
+    params.evaluation ? chargerGrilleSaisie(params.evaluation) : Promise.resolve(null),
+    params.evaluation ? statistiquesEvaluation(params.evaluation) : Promise.resolve(null),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -114,6 +122,15 @@ export default async function PageNotes({
             : null
         }
       />
+
+      {/*
+        Sous la grille : ces chiffres n'ont de sens qu'une fois les notes
+        saisies. Au-dessus, ils prendraient la place au moment où le professeur
+        cherche sa première case, pour n'afficher que des tirets.
+      */}
+      {grille && statsEvaluation ? (
+        <StatistiquesEvaluation stats={statsEvaluation} titre={grille.evaluation.titre} />
+      ) : null}
     </div>
   );
 }

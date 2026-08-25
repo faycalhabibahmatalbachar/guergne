@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+import { BoutonDupliquer } from "./dupliquer";
+
 import { ImportNotes } from "./import-notes";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -238,6 +240,19 @@ export function Notes({
                             Publier
                           </Button>
                         ) : null}
+
+                        {/*
+                          Reprendre la même évaluation dans les autres classes
+                          du professeur (E-44) : le geste se fait depuis la
+                          ligne de l'original, pas depuis un écran de création
+                          où il faudrait retrouver quoi copier.
+                        */}
+                        <BoutonDupliquer
+                          evaluationId={e.id}
+                          titre={e.titre}
+                          classeOrigine={e.classeId}
+                          classes={classes}
+                        />
 
                         <Button
                           size="sm"
