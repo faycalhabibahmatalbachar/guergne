@@ -284,7 +284,78 @@ export async function genererBulletins(
     });
   }
 
+  await ecrireStatistiquesMatiere(classeId, periodeId);
+
   return rapport;
+}
+
+/**
+ * Statistiques de classe, matière par matière (repère du relevé mobile).
+ *
+ * CE QUI MANQUAIT, ET CE QUE ÇA COÛTAIT
+ * --------------------------------------
+ * `moyennes_matiere` porte depuis l'origine quatre colonnes comparatives —
+ * moyenne de la classe, note la plus basse, la plus haute, rang dans la
+ * matière. L'API mobile les renvoie déjà. Mais AUCUNE phase de génération ne
+ * les écrivait : les valeurs en base venaient des données de démonstration.
+ *
+ * À la première régénération réelle, l'application des parents aurait donc
+ * affiché une moyenne de classe figée à la valeur semée — c'est-à-dire un
+ * chiffre faux, à côté de la note de leur enfant, sans que rien ne le signale.
+ * Une comparaison fausse est pire qu'une comparaison absente.
+ *
+ * POURQUOI UNE PASSE SÉPARÉE, APRÈS TOUT LE MONDE
+ * ------------------------------------------------
+ * Une statistique de classe ne peut pas se calculer pendant qu'on traite un
+ * élève : elle a besoin des moyennes de tous les autres. C'est la même barrière
+ * que le rang, et elle arrive au même moment — après la boucle.
+ *
+ * POURQUOI EN SQL PLUTÔT QU'EN MÉMOIRE
+ * -------------------------------------
+ * Les moyennes viennent d'être écrites : les relire pour les agréger côté
+ * application ferait un aller-retour de plus par matière, et surtout
+ * dupliquerait la règle de calcul du rang — qui doit traiter les ex æquo
+ * exactement comme `RANK()`, sans quoi deux élèves à 14,25 recevraient des
+ * rangs différents sur le relevé et le même sur le bulletin.
+ */
+async function ecrireStatistiquesMatiere(classeId: string, periodeId: string): Promise<void> {
+  await db.execute(sql`
+    WITH cible AS (
+      SELECT mm.id, mm.matiere_id, mm.moyenne
+        FROM moyennes_matiere mm
+        JOIN inscriptions i ON i.id = mm.inscription_id
+       WHERE i.classe_id = ${classeId}::uuid
+         AND i.active
+         AND mm.periode_id = ${periodeId}::uuid
+    ),
+    stats AS (
+      SELECT matiere_id,
+             round(avg(moyenne), 2) AS moy,
+             min(moyenne) AS mini,
+             max(moyenne) AS maxi
+        FROM cible
+       -- Les élèves sans moyenne dans la matière sont exclus du calcul : les
+       -- compter comme des zéros ferait chuter la moyenne de classe d'un point
+       -- sans qu'aucun élève ait mal travaillé, et le repère mentirait.
+       WHERE moyenne IS NOT NULL
+       GROUP BY matiere_id
+    ),
+    classement AS (
+      SELECT id,
+             RANK() OVER (PARTITION BY matiere_id ORDER BY moyenne DESC) AS rang
+        FROM cible
+       WHERE moyenne IS NOT NULL
+    )
+    UPDATE moyennes_matiere mm
+       SET moyenne_classe  = s.moy,
+           note_min_classe = s.mini,
+           note_max_classe = s.maxi,
+           rang_matiere    = c.rang
+      FROM cible t
+      LEFT JOIN stats s ON s.matiere_id = t.matiere_id
+      LEFT JOIN classement c ON c.id = t.id
+     WHERE mm.id = t.id
+  `);
 }
 
 /** Moyenne de la classe, sur les seuls élèves ayant une moyenne. */

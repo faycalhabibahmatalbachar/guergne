@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'design/couleurs.dart';
 import 'design/theme.dart';
 import 'ecrans/activation.dart';
+import 'ecrans/bienvenue.dart';
+import 'ecrans/demarrage.dart';
 import 'ecrans/coque.dart';
 import 'etat/fournisseurs.dart';
 import 'services/stockage.dart';
@@ -36,11 +36,27 @@ Future<void> main() async {
   );
 }
 
-class ApplicationLgr extends ConsumerWidget {
+class ApplicationLgr extends ConsumerStatefulWidget {
   const ApplicationLgr({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ApplicationLgr> createState() => _EtatApplicationLgr();
+}
+
+class _EtatApplicationLgr extends ConsumerState<ApplicationLgr> {
+  /// `null` tant que le stockage n'a pas répondu — on ne peut pas décider
+  /// d'afficher la bienvenue avant de savoir si elle a déjà été vue, sinon
+  /// elle clignoterait à chaque lancement.
+  bool? _bienvenueVue;
+
+  @override
+  void initState() {
+    super.initState();
+    _bienvenueVue = ref.read(stockageProvider).bienvenueVue;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
 
     return MaterialApp(
@@ -52,44 +68,19 @@ class ApplicationLgr extends ConsumerWidget {
       // qui a choisi le sombre lui brûle les yeux le soir, et inversement.
       themeMode: ThemeMode.system,
       home: switch (session.etat) {
-        EtatSession.inconnu => const _Demarrage(),
+        EtatSession.inconnu => const EcranDemarrage(),
+        // La bienvenue s'intercale AVANT l'activation, jamais après : elle
+        // explique ce qu'on va demander et pourquoi. Montrée après, elle
+        // raconterait une application que le parent a déjà sous les yeux.
+        EtatSession.deconnecte when _bienvenueVue == false => EcranBienvenue(
+          onTermine: () {
+            ref.read(stockageProvider).marquerBienvenueVue();
+            setState(() => _bienvenueVue = true);
+          },
+        ),
         EtatSession.deconnecte => const EcranActivation(),
         EtatSession.connecte => const Coque(),
       },
-    );
-  }
-}
-
-/// Écran de démarrage, le temps de relire les jetons du coffre sécurisé.
-///
-/// Il prolonge visuellement l'écran natif : même fond bleu, même logo, à la
-/// même place. Sans cette continuité, le lancement montre un clignotement —
-/// splash natif, puis fond blanc, puis application — que l'œil perçoit comme
-/// un défaut même sans savoir le nommer.
-class _Demarrage extends StatelessWidget {
-  const _Demarrage();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Couleurs.primaire,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(width: 132, height: 132, child: SvgPicture.asset('assets/marque/logo.svg')),
-            const SizedBox(height: 34),
-            SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.2,
-                color: Colors.white.withValues(alpha: 0.75),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
