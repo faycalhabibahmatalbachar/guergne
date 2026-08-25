@@ -12,20 +12,19 @@ void main() {
   setUpAll(() => initializeDateFormatting('fr_FR'));
 
   group('Montants', () {
-    test('sépare les milliers et suffixe en francs', () {
-      expect(montant(51000), '51\u202F000\u202FF');
-      expect(montant(0), '0\u202FF');
-      expect(montant(1250000), '1\u202F250\u202F000\u202FF');
+    test('sépare les milliers par une espace fine insécable', () {
+      // L'espace fine INSÉCABLE, et pas une espace ordinaire : sur un écran
+      // étroit, « 102 000 F » coupé en fin de ligne donnerait « 102 » suivi
+      // de « 000 F », c'est-à-dire deux montants là où il n'y en a qu'un.
+      expect(montant(51000), '51 000 F');
+      expect(montant(102000), '102 000 F');
     });
 
-    test("n'abrège pas en dessous de 100 000", () {
-      expect(montantCourt(51000), '51\u202F000\u202FF');
-      expect(montantCourt(99999), '99\u202F999\u202FF');
-    });
-
-    test('abrège au-delà de 100 000', () {
-      expect(montantCourt(102000), '102\u202Fk\u202FF');
-      expect(montantCourt(1500000), '1,5\u202FM\u202FF');
+    test('n’abrège JAMAIS, même au-delà du million', () {
+      // « 1,5 M F » n'apparaît sur aucun reçu, aucun bulletin, aucun relevé
+      // tchadien. Sur l'écran de l'argent, une abréviation inventée est le
+      // seul endroit où un parent n'a pas le droit d'hésiter.
+      expect(montant(1500000), '1 500 000 F');
     });
   });
 

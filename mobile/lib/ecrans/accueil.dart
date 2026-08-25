@@ -21,7 +21,11 @@ import 'annonce_detail.dart';
 /// sont cliquables — un chiffre inquiétant doit mener à son détail en un
 /// geste, pas obliger à chercher le bon onglet.
 class EcranAccueil extends ConsumerWidget {
-  const EcranAccueil({super.key, required this.versOnglet, required this.versCompte});
+  const EcranAccueil({
+    super.key,
+    required this.versOnglet,
+    required this.versCompte,
+  });
 
   /// Navigation vers un onglet de la barre inférieure.
   final void Function(int) versOnglet;
@@ -93,7 +97,9 @@ class _AccueilCharge extends ConsumerWidget {
           ),
         ),
         if (donnees.depuisCache)
-          SliverToBoxAdapter(child: BandeauHorsLigne(derniereMaj: donnees.date)),
+          SliverToBoxAdapter(
+            child: BandeauHorsLigne(derniereMaj: donnees.date),
+          ),
         SliverPadding(
           padding: const EdgeInsets.all(ThemeLgr.espace),
           sliver: SliverList.list(
@@ -111,7 +117,10 @@ class _AccueilCharge extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               if (accueil.annonces.isEmpty)
-                _CarteVide(icone: Icons.campaign_outlined, texte: "Aucune annonce pour le moment.")
+                _CarteVide(
+                  icone: Icons.campaign_outlined,
+                  texte: "Aucune annonce pour le moment.",
+                )
               else
                 ...accueil.annonces
                     .take(3)
@@ -167,7 +176,12 @@ class _Banniere extends ConsumerWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(ThemeLgr.espace, 12, ThemeLgr.espace, 22),
+          padding: const EdgeInsets.fromLTRB(
+            ThemeLgr.espace,
+            12,
+            ThemeLgr.espace,
+            22,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -221,7 +235,9 @@ class _Banniere extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.28),
+                          ),
                         ),
                         child: const Icon(
                           Icons.person_outline_rounded,
@@ -248,7 +264,8 @@ class _Banniere extends ConsumerWidget {
                       enfant: enfants[i],
                       actif: enfants[i].eleveId == enfant.eleveId,
                       surAppui: () =>
-                          ref.read(enfantChoisiProvider.notifier).state = enfants[i].eleveId,
+                          ref.read(enfantChoisiProvider.notifier).state =
+                              enfants[i].eleveId,
                     ),
                   ),
                 ),
@@ -303,7 +320,11 @@ class _Banniere extends ConsumerWidget {
 }
 
 class _PuceEnfant extends StatelessWidget {
-  const _PuceEnfant({required this.enfant, required this.actif, required this.surAppui});
+  const _PuceEnfant({
+    required this.enfant,
+    required this.actif,
+    required this.surAppui,
+  });
 
   final Enfant enfant;
   final bool actif;
@@ -317,7 +338,11 @@ class _PuceEnfant extends StatelessWidget {
       decoration: BoxDecoration(
         color: actif ? Colors.white : Colors.white.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: actif ? Colors.transparent : Colors.white.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: actif
+              ? Colors.transparent
+              : Colors.white.withValues(alpha: 0.3),
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -345,6 +370,34 @@ class _PuceEnfant extends StatelessWidget {
 // Indicateurs
 // ---------------------------------------------------------------------------
 
+/// Gravité d'un indicateur, indépendante de sa couleur.
+///
+/// POURQUOI UN TYPE PLUTÔT QU'UNE COULEUR
+/// ---------------------------------------
+/// L'application se consulte EN PLEIN SOLEIL, sur des écrans d'entrée de gamme.
+/// La teinte d'un chiffre rouge s'y perd bien avant sa position : à midi, un
+/// « 7,85 » rouge et un « 15 » vert se ressemblent. Une bande de trois pixels
+/// sur le bord de la carte, elle, tient — c'est une forme, pas une nuance.
+///
+/// Aucune information de cet écran ne repose donc sur la seule couleur : la
+/// gravité se lit à la bande, la valeur au chiffre, le sens au libellé.
+enum Severite { neutre, bon, attention, grave }
+
+/// Une échéance dépassée, et non « bientôt due ».
+///
+/// La règle est écrite une seule fois : la carte du reste à payer et la
+/// bannière d'échéance la lisent toutes les deux, et deux copies finiraient
+/// par se contredire à l'écran — une carte rouge au-dessus d'une bannière
+/// bleue disant que tout va bien.
+bool _enRetard(Enfant enfant) {
+  // `joursAvant` est déjà la fonction qu'utilise la bannière d'échéance : on
+  // la réemploie plutôt que de reparser la date ici. Deux lectures d'une même
+  // date finissent toujours par diverger d'un jour sur un fuseau ou un
+  // changement d'heure.
+  final jours = joursAvant(enfant.prochaineEcheanceLe);
+  return jours != null && jours < 0;
+}
+
 class _Indicateurs extends StatelessWidget {
   const _Indicateurs({required this.enfant, required this.versOnglet});
 
@@ -353,6 +406,7 @@ class _Indicateurs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final absences = enfant.absencesNonJustifiees;
 
     return Column(
@@ -365,12 +419,27 @@ class _Indicateurs extends StatelessWidget {
                 libelle: 'Moyenne',
                 valeur: enfant.moyenne == null ? '—' : virgule(enfant.moyenne!),
                 suffixe: enfant.moyenne == null ? null : '/20',
+                // Le rang SEUL ne situe pas : « 7e sur 42 » ne dit pas si la
+                // classe est forte. La moyenne de classe le dit — c'est la
+                // première question que pose un parent au téléphone.
                 detail: enfant.moyenne == null
                     ? 'Bulletin non publié'
-                    : (enfant.rang == null
-                          ? enfant.periode ?? ''
-                          : '${enfant.rang}ᵉ sur ${enfant.effectif}'),
+                    : [
+                        if (enfant.rang != null)
+                          '${enfant.rang}ᵉ sur ${enfant.effectif}',
+                        if (enfant.moyenneClasse != null)
+                          'classe ${virgule(enfant.moyenneClasse!)}',
+                      ].join(' · '),
                 couleur: context.moyenne(enfant.moyenne),
+                severite: enfant.moyenne == null
+                    ? Severite.neutre
+                    : (enfant.moyenne! < 8
+                          ? Severite.grave
+                          : enfant.moyenne! < 10
+                          ? Severite.attention
+                          : enfant.moyenne! >= 14
+                          ? Severite.bon
+                          : Severite.neutre),
                 icone: Icons.workspace_premium_rounded,
                 surAppui: () => versOnglet(1),
               ),
@@ -382,13 +451,28 @@ class _Indicateurs extends StatelessWidget {
                 libelle: 'Absences',
                 valeur: absences == 0 ? '0' : heures(absences),
                 suffixe: absences == 0 ? null : 'h',
-                detail: absences == 0 ? 'Aucune non justifiée' : 'Non justifiées',
+                detail: absences == 0
+                    ? 'Aucune non justifiée'
+                    : 'Non justifiées',
                 couleur: absences == 0
                     ? context.etat(Couleurs.succes)
                     : (absences >= 8
                           ? context.etat(Couleurs.danger)
                           : context.etat(Couleurs.alerte)),
-                icone: absences == 0 ? Icons.verified_rounded : Icons.event_busy_rounded,
+                // Seuils calés sur ce qui déclenche une action à l'école :
+                // en dessous d'une demi-journée, la vie scolaire ne convoque
+                // personne. Alerter avant elle ferait sonner la carte en
+                // permanence, et un signal permanent n'est plus un signal.
+                severite: absences == 0
+                    ? Severite.bon
+                    : (absences >= 8
+                          ? Severite.grave
+                          : absences >= 4
+                          ? Severite.attention
+                          : Severite.neutre),
+                icone: absences == 0
+                    ? Icons.verified_rounded
+                    : Icons.event_busy_rounded,
                 surAppui: () => versOnglet(2),
               ),
             ),
@@ -406,6 +490,13 @@ class _Indicateurs extends StatelessWidget {
                 couleur: enfant.retards == 0
                     ? context.etat(Couleurs.succes)
                     : context.etat(Couleurs.alerte),
+                severite: enfant.retards == 0
+                    ? Severite.bon
+                    : (enfant.retards >= 8
+                          ? Severite.grave
+                          : enfant.retards >= 4
+                          ? Severite.attention
+                          : Severite.neutre),
                 icone: Icons.schedule_rounded,
                 surAppui: () => versOnglet(2),
               ),
@@ -415,11 +506,25 @@ class _Indicateurs extends StatelessWidget {
               child: _Indicateur(
                 index: 3,
                 libelle: 'Reste à payer',
-                valeur: enfant.resteDuFcfa == 0 ? 'À jour' : montantCourt(enfant.resteDuFcfa),
-                detail: enfant.resteDuFcfa == 0 ? 'Scolarité soldée' : 'Sur l\'année',
+                // Montant COMPLET, jamais abrégé. Aucun reçu, aucun bulletin,
+                // aucune banque tchadienne n'écrit « 102 k F » : sur l'écran de
+                // l'argent, une abréviation inventée est le seul endroit où un
+                // parent n'a pas le droit d'hésiter.
+                valeur: enfant.resteDuFcfa == 0
+                    ? 'À jour'
+                    : montant(enfant.resteDuFcfa),
+                detail: enfant.resteDuFcfa == 0
+                    ? 'Scolarité soldée'
+                    : 'Sur l\'année',
                 couleur: enfant.resteDuFcfa == 0
                     ? context.etat(Couleurs.succes)
-                    : context.etat(Couleurs.info),
+                    : (_enRetard(enfant)
+                          ? context.etat(Couleurs.danger)
+                          : theme.textTheme.headlineSmall?.color ??
+                                Couleurs.encre),
+                severite: enfant.resteDuFcfa == 0
+                    ? Severite.bon
+                    : (_enRetard(enfant) ? Severite.grave : Severite.attention),
                 icone: Icons.account_balance_wallet_rounded,
                 surAppui: () => versOnglet(3),
               ),
@@ -441,6 +546,7 @@ class _Indicateur extends StatelessWidget {
     required this.icone,
     required this.surAppui,
     this.suffixe,
+    this.severite = Severite.neutre,
   });
 
   final int index;
@@ -451,6 +557,7 @@ class _Indicateur extends StatelessWidget {
   final Color couleur;
   final IconData icone;
   final VoidCallback surAppui;
+  final Severite severite;
 
   @override
   Widget build(BuildContext context) {
@@ -461,66 +568,100 @@ class _Indicateur extends StatelessWidget {
       decalage: 45,
       enfant: CarteLgr(
         surAppui: surAppui,
-        rembourrage: const EdgeInsets.all(14),
-        enfant: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        rembourrage: EdgeInsets.zero,
+        // `Stack` plutôt qu'une `Row` étirée : une `Row` en
+        // `CrossAxisAlignment.stretch` réclame une hauteur à son parent, et la
+        // carte n'en a pas — sa hauteur vient de son contenu. Le `Stack`, lui,
+        // se dimensionne sur son enfant non positionné, et la bande s'étire
+        // sur la hauteur obtenue.
+        enfant: Stack(
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: couleur.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icone, size: 16, color: couleur),
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    libelle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+            // La bande de sévérité. `neutre` la laisse transparente plutôt que
+            // de la supprimer : sans elle, les quatre cartes n'auraient pas la
+            // même largeur de contenu et la grille se décalerait d'un cheveu.
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 3,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: switch (severite) {
+                    Severite.grave => context.etat(Couleurs.danger),
+                    Severite.attention => context.etat(Couleurs.alerte),
+                    Severite.bon => context.etat(Couleurs.primaire),
+                    Severite.neutre => Colors.transparent,
+                  },
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(ThemeLgr.rayon),
                   ),
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Flexible(
-                  child: Text(
-                    valeur,
-                    style: ThemeLgr.nombre(
-                      theme.textTheme.headlineSmall,
-                    ).copyWith(color: couleur, fontSize: 23, height: 1.0),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(17, 14, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: couleur.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(icone, size: 16, color: couleur),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          libelle,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          valeur,
+                          style: ThemeLgr.nombre(
+                            theme.textTheme.headlineSmall,
+                          ).copyWith(color: couleur, fontSize: 23, height: 1.0),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (suffixe != null)
+                        Text(
+                          suffixe!,
+                          style: ThemeLgr.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: couleur.withValues(alpha: 0.65),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    detail,
+                    style: theme.textTheme.bodySmall?.copyWith(fontSize: 11),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                if (suffixe != null)
-                  Text(
-                    suffixe!,
-                    style: ThemeLgr.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: couleur.withValues(alpha: 0.65),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Text(
-              detail,
-              style: theme.textTheme.bodySmall?.copyWith(fontSize: 11),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+                ],
+              ),
             ),
           ],
         ),
@@ -548,7 +689,9 @@ class _CarteEcheance extends StatelessWidget {
 
     final couleur = enRetard
         ? context.etat(Couleurs.danger)
-        : (urgent ? context.etat(Couleurs.alerte) : context.etat(Couleurs.info));
+        : (urgent
+              ? context.etat(Couleurs.alerte)
+              : context.etat(Couleurs.info));
 
     return CarteLgr(
       surAppui: surAppui,
@@ -574,7 +717,10 @@ class _CarteEcheance extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(enfant.prochaineEcheance!, style: theme.textTheme.titleSmall),
+                Text(
+                  enfant.prochaineEcheance!,
+                  style: theme.textTheme.titleSmall,
+                ),
                 const SizedBox(height: 3),
                 Text(
                   enRetard
@@ -594,7 +740,9 @@ class _CarteEcheance extends StatelessWidget {
           ),
           Text(
             montant(enfant.prochaineEcheanceFcfa ?? 0),
-            style: ThemeLgr.nombre(theme.textTheme.titleSmall).copyWith(color: couleur),
+            style: ThemeLgr.nombre(
+              theme.textTheme.titleSmall,
+            ).copyWith(color: couleur),
           ),
         ],
       ),
@@ -623,7 +771,11 @@ class _CarteAnnonce extends ConsumerWidget {
           Row(
             children: [
               if (annonce.epinglee) ...[
-                const Icon(Icons.push_pin_rounded, size: 14, color: Couleurs.accent),
+                const Icon(
+                  Icons.push_pin_rounded,
+                  size: 14,
+                  color: Couleurs.accent,
+                ),
                 const SizedBox(width: 6),
               ],
               // La pastille « non lu » est doublée par la graisse du titre :
@@ -745,7 +897,10 @@ class _AccueilEnChargement extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(height: 210, decoration: const BoxDecoration(gradient: Couleurs.gradientAccueil)),
+        Container(
+          height: 210,
+          decoration: const BoxDecoration(gradient: Couleurs.gradientAccueil),
+        ),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(ThemeLgr.espace),

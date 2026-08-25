@@ -47,19 +47,6 @@ String montant(int fcfa) {
   return '$chiffres${_finement}F';
 }
 
-/// Montant abrégé pour les espaces contraints : 102000 → « 102 k F ».
-///
-/// On n'abrège qu'au-delà de 100 000 : en deçà, le chiffre exact tient et
-/// l'exactitude prime sur la compacité quand il s'agit d'argent.
-String montantCourt(int fcfa) {
-  if (fcfa < 100000) return montant(fcfa);
-  final milliers = fcfa / 1000;
-  final texte = milliers >= 1000
-      ? '${virgule(milliers / 1000, 1)}${_finement}M'
-      : '${milliers.round()}${_finement}k';
-  return '$texte${_finement}F';
-}
-
 /// « Bonjour » / « Bonsoir » selon l'heure locale.
 String saluer() {
   final heure = maintenant().hour;

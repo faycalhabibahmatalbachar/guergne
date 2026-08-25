@@ -78,6 +78,7 @@ class Enfant {
     this.moyenne,
     this.rang,
     this.effectif,
+    this.moyenneClasse,
     this.periodeId,
     this.periode,
     this.absencesNonJustifiees = 0,
@@ -101,6 +102,12 @@ class Enfant {
   final double? moyenne;
   final int? rang;
   final int? effectif;
+
+  /// Moyenne de la classe sur la même période.
+  ///
+  /// C'est elle qui donne son sens à la note de l'enfant : « 11 » est un bon
+  /// résultat dans une classe à 9 et un mauvais dans une classe à 14.
+  final double? moyenneClasse;
   final String? periodeId;
   final String? periode;
 
@@ -138,6 +145,7 @@ class Enfant {
     moyenne: _reel(j['moyenne']),
     rang: j['rang'] == null ? null : _entier(j['rang']),
     effectif: j['effectif'] == null ? null : _entier(j['effectif']),
+    moyenneClasse: _reel(j['moyenneClasse']),
     periodeId: j['periodeId'] as String?,
     periode: j['periode'] as String?,
     absencesNonJustifiees: _reel(j['absencesNonJustifiees']) ?? 0,
@@ -306,6 +314,11 @@ class Releve {
   final double? moyenne;
   final int? rang;
   final int? effectif;
+
+  /// Moyenne de la classe sur la même période.
+  ///
+  /// C'est elle qui donne son sens à la note de l'enfant : « 11 » est un bon
+  /// résultat dans une classe à 9 et un mauvais dans une classe à 14.
   final double? moyenneClasse;
   final String? mention;
   final String? appreciation;
@@ -630,6 +643,7 @@ class Bulletin {
   final double? moyenne;
   final int? rang;
   final int? effectif;
+
   final String? mention;
   final String? appreciation;
   final String? publieLe;

@@ -40,6 +40,14 @@ export interface EnfantMobile {
   moyenne: number | null;
   rang: number | null;
   effectif: number | null;
+  /**
+   * Moyenne de la classe sur la même période.
+   *
+   * Une note seule ne dit rien : « 11 » est un bon résultat dans une classe à
+   * 9 et un mauvais dans une classe à 14. C'est la première question que pose
+   * un parent au téléphone, et jusqu'ici l'application n'y répondait pas.
+   */
+  moyenneClasse: number | null;
   periodeId: string | null;
   periode: string | null;
   /** Heures d'absence non justifiées sur la période. */
@@ -86,6 +94,7 @@ export async function enfantsDuTuteur(tuteurId: string): Promise<EnfantMobile[]>
            b.moyenne_generale::float8    AS moyenne,
            b.rang                        AS rang,
            b.effectif_classe             AS effectif,
+           b.moyenne_classe::float8      AS "moyenneClasse",
            r.id                          AS "periodeId",
            r.libelle                     AS periode,
            COALESCE(ab.nb, 0)::float8    AS "absencesNonJustifiees",
