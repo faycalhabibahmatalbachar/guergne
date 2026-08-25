@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Printer } from "lucide-react";
+import { CalendarClock, Printer } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -100,19 +100,33 @@ export default async function PageEmploiDuTemps({
         </p>
       </div>
 
-      <Tabs value={vue}>
-        <TabsList>
-          <TabsTrigger value="classe" asChild>
-            <Link href="/dashboard/emploi-du-temps?vue=classe">Par classe</Link>
-          </TabsTrigger>
-          <TabsTrigger value="enseignant" asChild>
-            <Link href="/dashboard/emploi-du-temps?vue=enseignant">Par enseignant</Link>
-          </TabsTrigger>
-          <TabsTrigger value="salle" asChild>
-            <Link href="/dashboard/emploi-du-temps?vue=salle">Par salle</Link>
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Tabs value={vue}>
+          <TabsList>
+            <TabsTrigger value="classe" asChild>
+              <Link href="/dashboard/emploi-du-temps?vue=classe">Par classe</Link>
+            </TabsTrigger>
+            <TabsTrigger value="enseignant" asChild>
+              <Link href="/dashboard/emploi-du-temps?vue=enseignant">Par enseignant</Link>
+            </TabsTrigger>
+            <TabsTrigger value="salle" asChild>
+              <Link href="/dashboard/emploi-du-temps?vue=salle">Par salle</Link>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/*
+          La journée est un autre écran, pas un quatrième onglet : la grille
+          hebdomadaire sert à CONSTRUIRE l'emploi du temps, la journée à le
+          faire tenir quand un professeur manque. Deux métiers, deux moments.
+        */}
+        <Button asChild variant="outline" size="sm">
+          <Link href="/dashboard/emploi-du-temps/journee">
+            <CalendarClock aria-hidden />
+            Journée et remplacements
+          </Link>
+        </Button>
+      </div>
 
       {/*
         Au-dessus de la grille : c'est un état de santé, pas un détail de

@@ -71,11 +71,15 @@ export async function controleHoraire(
     sans_enseignant: number;
   }>(sql`
     WITH prevu AS (
+      -- Le nom du professeur vit dans la table enseignants, PAS dans
+      -- utilisateurs : tous les enseignants n'ont pas de compte, la colonne
+      -- utilisateur_id etant nullable. Passer par utilisateurs renvoyait des
+      -- noms vides en LEFT JOIN, et surtout ZERO ligne en jointure interne --
+      -- un ecran vide qu'on prend pour "personne n'est disponible".
       SELECT af.classe_id, af.matiere_id, af.heures_semaine,
-             u.prenom || ' ' || u.nom AS enseignant
+             en.prenom || ' ' || en.nom AS enseignant
         FROM affectations af
         LEFT JOIN enseignants en ON en.id = af.enseignant_id
-        LEFT JOIN utilisateurs u ON u.id = en.utilisateur_id
        WHERE af.annee_id = ${anneeId}::uuid
          AND af.active
          AND (${classeId ?? null}::uuid IS NULL OR af.classe_id = ${classeId ?? null}::uuid)
@@ -220,7 +224,7 @@ export async function grilleImpression(
              cr.ordre,
              e.nb_creneaux,
              m.libelle AS matiere,
-             u.prenom || ' ' || u.nom AS enseignant,
+             en.prenom || ' ' || en.nom AS enseignant,
              c.libelle AS classe,
              s.code AS salle,
              e.semaine_type
@@ -229,7 +233,6 @@ export async function grilleImpression(
         JOIN matieres m ON m.id = e.matiere_id
         JOIN classes  c ON c.id = e.classe_id
         LEFT JOIN enseignants en ON en.id = e.enseignant_id
-        LEFT JOIN utilisateurs u ON u.id = en.utilisateur_id
         LEFT JOIN salles s ON s.id = e.salle_id
        WHERE e.annee_id = ${anneeId}::uuid
          AND ${colonne} = ${portee.id}::uuid
@@ -243,8 +246,8 @@ export async function grilleImpression(
     portee.type === "classe"
       ? sql`SELECT libelle FROM classes WHERE id = ${portee.id}::uuid`
       : portee.type === "enseignant"
-        ? sql`SELECT u.prenom || ' ' || u.nom AS libelle
-                FROM enseignants en JOIN utilisateurs u ON u.id = en.utilisateur_id
+        ? sql`SELECT en.prenom || ' ' || en.nom AS libelle
+                FROM enseignants en
                WHERE en.id = ${portee.id}::uuid`
         : sql`SELECT code || ' — ' || libelle AS libelle FROM salles WHERE id = ${portee.id}::uuid`,
   );

@@ -126,10 +126,9 @@ export async function avancementAppreciations(
                AND am.periode_id = ${periodeId}::uuid
                AND am.matiere_id = m.id) AS saisies,
            (SELECT n FROM effectif) AS attendues,
-           (SELECT u.prenom || ' ' || u.nom
+           (SELECT en.prenom || ' ' || en.nom
               FROM affectations af
               JOIN enseignants en ON en.id = af.enseignant_id
-              JOIN utilisateurs u ON u.id = en.utilisateur_id
              WHERE af.classe_id = ${classeId}::uuid AND af.matiere_id = m.id AND af.active
              LIMIT 1) AS enseignant
       FROM matieres m
