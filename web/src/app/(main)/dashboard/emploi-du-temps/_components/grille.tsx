@@ -22,6 +22,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import type { CoursEdt, Creneau } from "@/server/domain/personnel";
 
 import { poserCours, publierEmploiDuTemps, retirerCours } from "../../personnel/actions";
+import { deplacerCours } from "../actions-deplacement";
 
 const JOURS = [
   { numero: 1, libelle: "Lundi" },
@@ -72,6 +73,35 @@ export function Grille({
   const [enCours, demarrer] = useTransition();
   const [ajout, setAjout] = useState<{ jour: number; creneauId: string } | null>(null);
 
+  /*
+    Glisser-déposer (E-46). Construire un emploi du temps, c'est DÉPLACER : on
+    pose une trentaine de cours puis on passe des heures à les bouger jusqu'à ce
+    que professeurs et salles s'accordent. Sans cela, chaque déplacement demande
+    de retirer puis de recréer — six champs à ressaisir pour changer d'heure, et
+    le risque de reposer le cours avec un autre professeur.
+
+    On utilise l'API native du navigateur plutôt qu'une bibliothèque : une
+    grille de cases est le cas exact qu'elle sert, et une dépendance de plus se
+    paierait au chargement sur les connexions d'ici.
+  */
+  const [glisse, setGlisse] = useState<string | null>(null);
+  const [survol, setSurvol] = useState<string | null>(null);
+
+  function deposer(jour: number, creneauId: string) {
+    const coursId = glisse;
+    setGlisse(null);
+    setSurvol(null);
+    if (!coursId) return;
+
+    demarrer(async () => {
+      const r = await deplacerCours({ coursId, jourSemaine: jour, creneauId });
+      // Le message du déclencheur nomme la classe et le créneau en conflit :
+      // c'est ce qu'il faut lire pour comprendre, pas « échec ».
+      toast[r.ok ? "success" : "error"](r.message ?? "Terminé.");
+      if (r.ok) routeur.refresh();
+    });
+  }
+
   const publie = cours.length > 0 && cours.every((c) => c.publie);
 
   /** Case occupée par un cours, en tenant compte des séances multi-créneaux. */
@@ -117,6 +147,11 @@ export function Grille({
         <p className="text-muted-foreground text-sm">
           Année {anneeLibelle} — {cours.length} créneau{cours.length > 1 ? "x" : ""} placé
           {cours.length > 1 ? "s" : ""}
+          {cours.length > 0 ? (
+            <span className="ml-2">
+              · Faites glisser un cours pour le déplacer ; les conflits sont refusés.
+            </span>
+          ) : null}
         </p>
 
         {portee === "classe" && cours.length > 0 ? (
@@ -181,7 +216,20 @@ export function Grille({
                           className="border-b border-l p-1 align-top"
                         >
                           <div
-                            className="group h-full rounded-md p-2"
+                            draggable={!enCours}
+                            onDragStart={(e) => {
+                              setGlisse(c.id);
+                              e.dataTransfer.effectAllowed = "move";
+                              // Firefox exige une donnée pour démarrer le glissement.
+                              e.dataTransfer.setData("text/plain", c.id);
+                            }}
+                            onDragEnd={() => {
+                              setGlisse(null);
+                              setSurvol(null);
+                            }}
+                            className={`group h-full cursor-grab rounded-md p-2 active:cursor-grabbing ${
+                              glisse === c.id ? "opacity-40" : ""
+                            }`}
                             style={{ backgroundColor: `${c.matiereCouleur ?? "#64748b"}18` }}
                           >
                             <div className="flex items-start justify-between gap-1">
@@ -229,11 +277,29 @@ export function Grille({
                     }
 
                     return (
-                      <td key={j.numero} className="border-b border-l p-1 align-top">
+                      <td
+                        key={j.numero}
+                        className="border-b border-l p-1 align-top"
+                        onDragOver={(e) => {
+                          // Sans preventDefault, le navigateur refuse le dépôt.
+                          if (!glisse) return;
+                          e.preventDefault();
+                          setSurvol(`${j.numero}-${cr.id}`);
+                        }}
+                        onDragLeave={() => setSurvol(null)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          deposer(j.numero, cr.id);
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={() => setAjout({ jour: j.numero, creneauId: cr.id })}
-                          className="flex h-12 w-full items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
+                          className={`flex h-12 w-full items-center justify-center rounded-md transition-colors ${
+                            survol === `${j.numero}-${cr.id}`
+                              ? "bg-primary/15 text-foreground ring-primary/40 ring-2"
+                              : "text-muted-foreground/40 hover:bg-muted hover:text-foreground"
+                          }`}
                           aria-label={`Ajouter un cours ${j.libelle} à ${cr.libelle}`}
                         >
                           <Plus className="size-4" aria-hidden />
