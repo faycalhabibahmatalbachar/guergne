@@ -36,6 +36,7 @@ interface LigneBrute extends Record<string, unknown> {
   moyenne: string | null;
   moyenne_devoirs: string | null;
   note_composition: string | null;
+  appreciation_professeur: string | null;
 }
 
 const TITRES: Record<string, string> = {
@@ -165,9 +166,15 @@ export async function chargerBulletin(
            mm.coefficient,
            mm.moyenne::text                AS moyenne,
            ${moyenneFamille("controle")}  AS moyenne_devoirs,
-           ${moyenneFamille("composition")} AS note_composition
+           ${moyenneFamille("composition")} AS note_composition,
+           am.appreciation                 AS appreciation_professeur
       FROM moyennes_matiere mm
       JOIN matieres m ON m.id = mm.matiere_id
+      -- E-41 : l'appréciation écrite par le professeur, quand elle existe.
+      LEFT JOIN appreciations_matiere am
+             ON am.inscription_id = mm.inscription_id
+            AND am.periode_id     = mm.periode_id
+            AND am.matiere_id     = mm.matiere_id
      WHERE mm.inscription_id = ${inscriptionId}::uuid
        AND mm.periode_id = ${periodeId}::uuid
      ORDER BY m.ordre_bulletin NULLS LAST, m.libelle
@@ -185,7 +192,16 @@ export async function chargerBulletin(
         moyenne,
         coefficient: Number(l.coefficient),
         points: moyenne === null ? null : moyenne * Number(l.coefficient),
-        appreciation: appreciationMoyenne(moyenne),
+        // La phrase du professeur prime sur la mention déduite de la moyenne
+        // (E-41). Cette dernière ne fait que paraphraser le chiffre imprimé
+        // juste à côté : « 14 » suivi de « Bien » n'apprend rien à personne.
+        // Ce que la famille lit vraiment, c'est « des progrès à l'oral, mais
+        // un manque de méthode à l'écrit » — et c'est là-dessus que se règle
+        // le travail du trimestre suivant.
+        //
+        // On retombe sur la mention automatique quand rien n'est saisi : le
+        // bulletin reste imprimable même si un professeur est en retard.
+        appreciation: (l.appreciation_professeur ?? "").trim() || appreciationMoyenne(moyenne),
       };
     });
 

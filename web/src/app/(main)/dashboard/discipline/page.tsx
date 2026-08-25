@@ -92,7 +92,12 @@ export default async function PageDiscipline({
           <FiltresDiscipline classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))} />
 
           {classeId ? (
+            // Même piège que pour les appréciations : l'état de saisie est
+            // initialisé une seule fois. Sans `key`, changer de classe
+            // conserverait les notes de la précédente à l'écran, et
+            // l'enregistrement les attribuerait aux mauvais élèves.
             <SaisieConduite
+              key={`${classeId}-${periode.id}`}
               periodeId={periode.id}
               periodeLibelle={periode.libelle}
               classe={classes.find((c) => c.id === classeId)?.libelle ?? ""}

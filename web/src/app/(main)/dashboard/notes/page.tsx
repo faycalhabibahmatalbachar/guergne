@@ -1,4 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+
+import { MessageSquareText } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 import { chargerGrilleSaisie, listerEvaluations } from "@/server/domain/evaluations";
 import { listerClassesEtMatieres } from "@/server/domain/personnel";
@@ -67,11 +72,24 @@ export default async function PageNotes({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-semibold text-2xl tracking-tight">Saisie des notes</h1>
-        <p className="mt-1 text-muted-foreground text-sm">
-          Année {stats.annee.libelle} — {stats.periode.libelle}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-semibold text-2xl tracking-tight">Saisie des notes</h1>
+          <p className="mt-1 text-muted-foreground text-sm">
+            Année {stats.annee.libelle} — {stats.periode.libelle}
+          </p>
+        </div>
+        {/*
+          Les appréciations se rédigent au même moment que les dernières notes,
+          juste avant le conseil. Le lien est ici parce que c'est là que le
+          professeur se trouve déjà.
+        */}
+        <Button asChild variant="outline" size="sm">
+          <Link href="/dashboard/notes/appreciations">
+            <MessageSquareText aria-hidden />
+            Appréciations par matière
+          </Link>
+        </Button>
       </div>
 
       <Notes
