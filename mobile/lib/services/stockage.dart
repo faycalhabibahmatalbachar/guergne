@@ -28,25 +28,12 @@ class Stockage {
   static const _cleAcces = 'jeton_acces';
   static const _cleRafraichissement = 'jeton_rafraichissement';
   static const _cleProfil = 'profil';
-  static const _cleBienvenueVue = 'bienvenue_vue';
   static const _prefixeCache = 'cache:';
   static const _prefixeDate = 'cache_date:';
 
   final SharedPreferences _prefs;
 
   static Future<Stockage> ouvrir() async => Stockage._(await SharedPreferences.getInstance());
-
-  // --- Séquence de bienvenue ----------------------------------------------
-
-  /// La séquence de bienvenue ne se montre qu'une fois.
-  ///
-  /// Le drapeau vit dans les préférences ordinaires et non dans le coffre
-  /// sécurisé : ce n'est pas un secret, et une lecture chiffrée au démarrage
-  /// coûterait quelques dizaines de millisecondes à chaque lancement pour
-  /// protéger l'information qu'on a déjà lu trois écrans.
-  bool get bienvenueVue => _prefs.getBool(_cleBienvenueVue) ?? false;
-
-  Future<void> marquerBienvenueVue() => _prefs.setBool(_cleBienvenueVue, true);
 
   // --- Jetons -------------------------------------------------------------
 

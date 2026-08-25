@@ -5,7 +5,6 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'design/theme.dart';
 import 'ecrans/activation.dart';
-import 'ecrans/bienvenue.dart';
 import 'ecrans/demarrage.dart';
 import 'ecrans/coque.dart';
 import 'etat/fournisseurs.dart';
@@ -44,17 +43,6 @@ class ApplicationLgr extends ConsumerStatefulWidget {
 }
 
 class _EtatApplicationLgr extends ConsumerState<ApplicationLgr> {
-  /// `null` tant que le stockage n'a pas répondu — on ne peut pas décider
-  /// d'afficher la bienvenue avant de savoir si elle a déjà été vue, sinon
-  /// elle clignoterait à chaque lancement.
-  bool? _bienvenueVue;
-
-  @override
-  void initState() {
-    super.initState();
-    _bienvenueVue = ref.read(stockageProvider).bienvenueVue;
-  }
-
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
@@ -69,15 +57,6 @@ class _EtatApplicationLgr extends ConsumerState<ApplicationLgr> {
       themeMode: ThemeMode.system,
       home: switch (session.etat) {
         EtatSession.inconnu => const EcranDemarrage(),
-        // La bienvenue s'intercale AVANT l'activation, jamais après : elle
-        // explique ce qu'on va demander et pourquoi. Montrée après, elle
-        // raconterait une application que le parent a déjà sous les yeux.
-        EtatSession.deconnecte when _bienvenueVue == false => EcranBienvenue(
-          onTermine: () {
-            ref.read(stockageProvider).marquerBienvenueVue();
-            setState(() => _bienvenueVue = true);
-          },
-        ),
         EtatSession.deconnecte => const EcranActivation(),
         EtatSession.connecte => const Coque(),
       },

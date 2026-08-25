@@ -7,6 +7,7 @@ import 'package:lgr_parents/ecrans/accueil.dart';
 import 'package:lgr_parents/ecrans/activation.dart';
 import 'package:lgr_parents/ecrans/annonces.dart';
 import 'package:lgr_parents/ecrans/assiduite.dart';
+import 'package:lgr_parents/ecrans/demarrage.dart';
 import 'package:lgr_parents/ecrans/finances.dart';
 import 'package:lgr_parents/ecrans/notes.dart';
 import 'package:lgr_parents/ecrans/profil.dart';
@@ -51,6 +52,12 @@ void main() {
     Size taille = const Size(390, 844),
     double echelleTexte = 1.0,
     Future<void> Function(WidgetTester)? apresRendu,
+    // Un écran dont une animation tourne EN BOUCLE — l'indicateur de
+    // chargement du démarrage — ne se stabilise jamais : `pumpAndSettle` y
+    // tourne jusqu'au délai d'expiration. On avance alors d'un nombre fixe
+    // d'images, ce qui rend la capture reproductible sans exiger un repos qui
+    // n'arrivera pas.
+    Duration? avanceFixe,
   }) async {
     tester.view.physicalSize = taille;
     tester.view.devicePixelRatio = 1.0;
@@ -84,12 +91,49 @@ void main() {
 
     // Les animations d'apparition en cascade doivent être terminées, sinon le
     // rendu capturé dépend du moment exact de la capture.
-    await tester.pumpAndSettle(const Duration(seconds: 2));
+    if (avanceFixe == null) {
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+    } else {
+      // Plusieurs images plutôt qu'un seul grand saut : une animation
+      // implicite — ici l'apparition du message de chargement — a besoin de
+      // frames intermédiaires pour progresser. Un unique `pump` de deux
+      // secondes la laisserait figée à son premier pour cent.
+      final pas = avanceFixe ~/ 8;
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(pas);
+      }
+      await tester.pump(const Duration(milliseconds: 400));
+    }
 
     if (apresRendu != null) await apresRendu(tester);
 
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('apparence/$nom.png'));
   }
+
+  // L'écran de démarrage n'a ni données ni état : c'est justement pour cela
+  // qu'il faut le capturer. Une illustration dessinée au pinceau ne se relit
+  // pas dans le code — la seule façon de savoir si les personnages sont bien
+  // cadrés et si le fondu tombe au bon endroit est de la voir.
+  testWidgets('Démarrage — écran de lancement', (tester) async {
+    await rendre(
+      tester,
+      const EcranDemarrage(),
+      nom: 'demarrage',
+      surcharges: echafaudage(stockage: stockage),
+      avanceFixe: const Duration(milliseconds: 2400),
+    );
+  });
+
+  testWidgets('Démarrage — mode sombre', (tester) async {
+    await rendre(
+      tester,
+      const EcranDemarrage(),
+      nom: 'demarrage_sombre',
+      luminosite: Brightness.dark,
+      surcharges: echafaudage(stockage: stockage),
+      avanceFixe: const Duration(milliseconds: 2400),
+    );
+  });
 
   testWidgets('Activation — saisie du numéro', (tester) async {
     await rendre(

@@ -3,6 +3,17 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'couleurs.dart';
+/// Cadrage de la scène.
+///
+/// `large` montre l'établissement, les personnages y sont petits — c'est un
+/// décor. `rapproche` avance la caméra jusqu'à ce que la mère et l'enfant
+/// occupent quatre cinquièmes de la hauteur : ils deviennent le sujet, et le
+/// bâtiment ne sert plus qu'à dire où l'on est.
+///
+/// Le cadrage rapproché est celui de l'écran de démarrage : c'est la seule
+/// image que le parent voit avant d'entrer, elle doit parler de lui et de son
+/// enfant, pas d'un bâtiment.
+enum CadrageEcole { large, rapproche }
 
 /// Scène de l'établissement : une mère, son enfant, la cour au petit matin.
 ///
@@ -27,33 +38,50 @@ import 'couleurs.dart';
 /// familles de toutes origines, et un visage dessiné en désigne toujours une.
 /// La silhouette, elle, laisse chacun s'y reconnaître.
 class IllustrationEcole extends StatelessWidget {
-  const IllustrationEcole({super.key, this.animation});
+  const IllustrationEcole({
+    super.key,
+    this.animation,
+    this.cadrage = CadrageEcole.large,
+    this.fondu,
+    this.proportion = 4 / 3,
+  });
 
   /// Progression de 0 à 1 pour l'entrée en scène. `null` = scène posée.
   final Animation<double>? animation;
+
+  final CadrageEcole cadrage;
+
+  /// Couleur vers laquelle les bords haut et bas se fondent. `null` = pas de
+  /// fondu, l'image garde ses arêtes franches.
+  final Color? fondu;
+
+  final double proportion;
 
   @override
   Widget build(BuildContext context) {
     final sombre = Theme.of(context).brightness == Brightness.dark;
 
+    CustomPainter peintre(double t) => _PeintreEcole(t, sombre, cadrage, fondu);
+
     return AspectRatio(
-      aspectRatio: 4 / 3,
+      aspectRatio: proportion,
       child: animation == null
-          ? CustomPaint(painter: _PeintreEcole(1, sombre))
+          ? CustomPaint(painter: peintre(1))
           : AnimatedBuilder(
               animation: animation!,
-              builder: (_, _) =>
-                  CustomPaint(painter: _PeintreEcole(animation!.value, sombre)),
+              builder: (_, _) => CustomPaint(painter: peintre(animation!.value)),
             ),
     );
   }
 }
 
 class _PeintreEcole extends CustomPainter {
-  _PeintreEcole(this.progression, this.sombre);
+  _PeintreEcole(this.progression, this.sombre, this.cadrage, this.fondu);
 
   final double progression;
   final bool sombre;
+  final CadrageEcole cadrage;
+  final Color? fondu;
 
   // Palette locale de la scène. Elle dérive du blason : laurier, marine, or.
   // Les valeurs sombres ne sont pas les claires assombries — un bâtiment de
@@ -83,12 +111,80 @@ class _PeintreEcole extends CustomPainter {
     final decor = _etape(0.0, 0.55);
     final gens = _etape(0.35, 1.0);
 
+    // La scène est toujours composée dans le même repère ; seul le cadrage
+    // change. Redessiner une seconde scène « rapprochée » aurait dédoublé
+    // chaque proportion, et les deux auraient divergé à la première retouche.
+    toile.save();
+    if (cadrage == CadrageEcole.rapproche) {
+      // Foyer aux pieds des personnages : en agrandissant autour de ce point,
+      // ils restent posés au sol au lieu de dériver vers le haut.
+      const facteur = 1.42;
+      final foyer = Offset(l * 0.52, h * 0.90);
+      toile.translate(foyer.dx, foyer.dy);
+      toile.scale(facteur);
+      toile.translate(-foyer.dx, -foyer.dy);
+    }
+
     _peindreCiel(toile, l, h);
     _peindreSoleil(toile, l, h, decor);
     _peindreBatiment(toile, l, h, decor);
     _peindreSol(toile, l, h);
     _peindreVegetation(toile, l, h, decor);
     _peindrePersonnages(toile, l, h, gens);
+    toile.restore();
+
+    _peindreFondu(toile, l, h);
+  }
+
+  /// Fondu des bords vers la couleur de l'écran.
+  ///
+  /// Sans lui, l'illustration se termine par une arête horizontale nette au
+  /// milieu de la page — l'œil la lit comme le bord d'une image collée. Avec,
+  /// la scène semble sortir du papier.
+  void _peindreFondu(Canvas toile, double l, double h) {
+    final vers = fondu;
+    if (vers == null) return;
+
+    // Haut : court, il ne doit qu'effacer la ligne de ciel.
+    toile.drawRect(
+      Rect.fromLTWH(0, 0, l, h * 0.22),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [vers, vers.withValues(alpha: 0)],
+        ).createShader(Rect.fromLTWH(0, 0, l, h * 0.22)),
+    );
+
+    // Bas : long, il avale le sol et les pieds. C'est ce qui donne
+    // l'impression que les personnages s'avancent vers le lecteur.
+    toile.drawRect(
+      Rect.fromLTWH(0, h * 0.46, l, h * 0.54),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [vers.withValues(alpha: 0), vers.withValues(alpha: 0.55), vers],
+          stops: const [0.0, 0.58, 0.92],
+        ).createShader(Rect.fromLTWH(0, h * 0.46, l, h * 0.54)),
+    );
+
+    // Côtés : très courts, ils suppriment les bords verticaux sans rogner la
+    // scène.
+    for (final gauche in [true, false]) {
+      final r = gauche
+          ? Rect.fromLTWH(0, 0, l * 0.10, h)
+          : Rect.fromLTWH(l * 0.90, 0, l * 0.10, h);
+      toile.drawRect(
+        r,
+        Paint()
+          ..shader = LinearGradient(
+            begin: gauche ? Alignment.centerLeft : Alignment.centerRight,
+            end: gauche ? Alignment.centerRight : Alignment.centerLeft,
+            colors: [vers, vers.withValues(alpha: 0)],
+          ).createShader(r),
+      );
+    }
   }
 
   /// Progression d'une sous-séquence, adoucie.
@@ -386,14 +482,17 @@ class _PeintreEcole extends CustomPainter {
     final basY = h * 0.985;
     final hautY = h * 0.40; // sommet du foulard
 
-    final largeurEpaules = l * 0.115;
+    // Rapport épaules / tête : la première version était à 4:1, la nature
+    // est autour de 2,6:1. Une silhouette trop large à petite tête ne se lit
+    // plus comme une personne mais comme une masse.
+    final largeurEpaules = l * 0.094;
 
     // --- Jupe / pagne : trapèze évasé ---
     final pagne = Path()
       ..moveTo(cx - largeurEpaules * 0.62, h * 0.66)
       ..lineTo(cx + largeurEpaules * 0.62, h * 0.66)
-      ..lineTo(cx + largeurEpaules * 0.86, basY)
-      ..lineTo(cx - largeurEpaules * 0.86, basY)
+      ..lineTo(cx + largeurEpaules * 0.74, basY)
+      ..lineTo(cx - largeurEpaules * 0.74, basY)
       ..close();
     toile.drawPath(pagne, Paint()..color = _pagne);
 
@@ -420,7 +519,11 @@ class _PeintreEcole extends CustomPainter {
       ..quadraticBezierTo(cx + largeurEpaules * 0.86, h * 0.60, cx + largeurEpaules * 0.72, h * 0.53)
       ..quadraticBezierTo(cx, h * 0.485, cx - largeurEpaules * 0.72, h * 0.53)
       ..close();
-    toile.drawPath(buste, Paint()..color = const Color(0xFFF7F4EC).withValues(alpha: sombre ? 0.82 : 1));
+    toile.drawPath(
+      buste,
+      Paint()..color = (sombre ? const Color(0xFFD8D2C4) : const Color(0xFFEFE9DA))
+          .withValues(alpha: sombre ? 0.82 : 1),
+    );
 
     // Veste ouverte, en or : c'est elle qui donne à la silhouette son autorité
     // tranquille. Une mère qui accompagne, pas une figurante.
@@ -496,11 +599,11 @@ class _PeintreEcole extends CustomPainter {
 
     // --- Cou et tête ---
     toile.drawRect(
-      Rect.fromCenter(center: Offset(cx, h * 0.478), width: l * 0.022, height: h * 0.030),
+      Rect.fromCenter(center: Offset(cx, h * 0.480), width: l * 0.026, height: h * 0.034),
       Paint()..color = _peau,
     );
     toile.drawOval(
-      Rect.fromCenter(center: Offset(cx, h * 0.437), width: l * 0.058, height: h * 0.082),
+      Rect.fromCenter(center: Offset(cx, h * 0.432), width: l * 0.070, height: h * 0.094),
       Paint()..color = _peau,
     );
 
@@ -508,8 +611,8 @@ class _PeintreEcole extends CustomPainter {
     // chef courant à N'Djamena, dessiné assez neutre pour n'imposer aucune
     // appartenance.
     final foulard = Path()
-      ..addOval(Rect.fromCenter(center: Offset(cx, h * 0.412), width: l * 0.072, height: h * 0.070))
-      ..addOval(Rect.fromCenter(center: Offset(cx + l * 0.026, h * 0.428), width: l * 0.040, height: h * 0.042));
+      ..addOval(Rect.fromCenter(center: Offset(cx, h * 0.404), width: l * 0.086, height: h * 0.078))
+      ..addOval(Rect.fromCenter(center: Offset(cx + l * 0.031, h * 0.422), width: l * 0.046, height: h * 0.048));
     toile.drawPath(foulard, Paint()..color = _pagne);
     toile.drawPath(
       Path()
@@ -532,9 +635,9 @@ class _PeintreEcole extends CustomPainter {
   }
 
   void _enfant(Canvas toile, double l, double h) {
-    final cx = l * 0.585;
+    final cx = l * 0.565;
     final basY = h * 0.985;
-    final largeur = l * 0.082;
+    final largeur = l * 0.072;
 
     // --- Jupe de l'uniforme ---
     toile.drawPath(
@@ -610,20 +713,20 @@ class _PeintreEcole extends CustomPainter {
       Paint()..color = _peau,
     );
     toile.drawOval(
-      Rect.fromCenter(center: Offset(cx, h * 0.567), width: l * 0.048, height: h * 0.066),
+      Rect.fromCenter(center: Offset(cx, h * 0.564), width: l * 0.058, height: h * 0.076),
       Paint()..color = _peau,
     );
 
     // Coiffure : deux chignons. Un enfant se reconnaît à sa coiffure autant
     // qu'à sa taille — sans elle, la silhouette lit comme une adulte petite.
     toile.drawOval(
-      Rect.fromCenter(center: Offset(cx, h * 0.545), width: l * 0.054, height: h * 0.042),
+      Rect.fromCenter(center: Offset(cx, h * 0.540), width: l * 0.064, height: h * 0.048),
       Paint()..color = const Color(0xFF241A14),
     );
     for (final sens in [-1, 1]) {
       toile.drawCircle(
-        Offset(cx + sens * l * 0.026, h * 0.536),
-        l * 0.014,
+        Offset(cx + sens * l * 0.031, h * 0.530),
+        l * 0.016,
         Paint()..color = const Color(0xFF241A14),
       );
     }
@@ -647,5 +750,8 @@ class _PeintreEcole extends CustomPainter {
 
   @override
   bool shouldRepaint(_PeintreEcole ancien) =>
-      ancien.progression != progression || ancien.sombre != sombre;
+      ancien.progression != progression ||
+      ancien.sombre != sombre ||
+      ancien.cadrage != cadrage ||
+      ancien.fondu != fondu;
 }

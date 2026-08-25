@@ -69,6 +69,14 @@ abstract final class Couleurs {
   static const surface = Color(0xFFFFFFFF);
   static const fond = Color(0xFFF8FAFC);
 
+  /// Fond des écrans de marque — démarrage, activation.
+  ///
+  /// Un blanc pur derrière une illustration au trait durcit l'image et fait
+  /// ressortir chaque bord. Ce blanc cassé, très légèrement tiré vers l'or du
+  /// blason, l'adoucit sans qu'on puisse dire qu'il est teinté.
+  static const parchemin = Color(0xFFFAF8F3);
+  static const parcheminSombre = Color(0xFF0B1120);
+
   // --- États, mode sombre ---
   // Les teintes claires sont ILLISIBLES sur fond sombre : le bleu #1D4ED8 sur
   // #161F32 donne un contraste de 2,5:1, très en dessous du minimum de 4,5:1
