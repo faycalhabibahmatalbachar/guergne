@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { FileSpreadsheet, Search, X } from "lucide-react";
+import { Banknote, FileSpreadsheet, HandCoins, Search, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,12 +127,31 @@ export function FiltresFinances({
         Un export filtré par classe donnerait un total qui ne correspond à
         aucun relevé, et il faudrait deviner lequel des deux fait foi.
       */}
-      <Button asChild variant="outline" className="ml-auto">
-        <a href="/api/export/comptable">
-          <FileSpreadsheet aria-hidden />
-          Export comptable
-        </a>
-      </Button>
+      <div className="ml-auto flex flex-wrap gap-2">
+        {/*
+          Deux lectures que le suivi par élève ne donne pas : ce qu'il doit y
+          avoir dans le tiroir ce soir, et ce à quoi l'établissement a renoncé
+          depuis la rentrée.
+        */}
+        <Button asChild variant="outline">
+          <a href="/dashboard/finances/caisse">
+            <Banknote aria-hidden />
+            Journal de caisse
+          </a>
+        </Button>
+        <Button asChild variant="outline">
+          <a href="/dashboard/finances/exonerations">
+            <HandCoins aria-hidden />
+            Exonérations
+          </a>
+        </Button>
+        <Button asChild variant="outline">
+          <a href="/api/export/comptable">
+            <FileSpreadsheet aria-hidden />
+            Export comptable
+          </a>
+        </Button>
+      </div>
     </div>
   );
 }

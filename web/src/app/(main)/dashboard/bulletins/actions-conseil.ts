@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
+import { reglageBlocage } from "@/server/domain/caisse";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 
 /**
@@ -165,6 +166,11 @@ export async function publierClasse(
     `);
     const estDerniere = derniere.rows[0]?.est_derniere ?? false;
 
+    // E-58 : la scolarité non réglée retient la publication. Le réglage est
+    // désactivé par défaut ; quand il l'est, la condition ci-dessous est
+    // toujours vraie et rien ne change.
+    const blocage = await reglageBlocage();
+
     const r = await db.execute<{ inscription_id: string }>(sql`
       UPDATE bulletins b
          SET est_publie = TRUE, publie_le = now(), publie_par = ${acteur.id}::uuid
@@ -175,11 +181,38 @@ export async function publierClasse(
          AND NOT b.est_publie
          -- Sur la dernière période, une décision d'orientation est exigée.
          AND (${estDerniere} = FALSE OR b.decision IS NOT NULL)
+         -- Retenue pour impayé : la condition est evaluee EN SQL, dans le
+         -- meme UPDATE. La calculer en amont puis filtrer une liste d'ids
+         -- laisserait une fenetre entre la lecture du solde et l'ecriture,
+         -- pendant laquelle un encaissement passe inapercu.
+         AND (
+           ${blocage.actif} = FALSE
+           OR b.blocage_leve_par IS NOT NULL
+           OR COALESCE(
+                (SELECT sf.reste_du_fcfa FROM v_situation_financiere sf
+                  WHERE sf.inscription_id = i.id), 0
+              ) <= ${blocage.seuilFcfa}
+         )
       RETURNING b.inscription_id
     `);
 
-    const restants = await db.execute<{ n: string }>(sql`
-      SELECT count(*) AS n
+    // Deux causes de non-publication, comptees separement : « en attente
+    // d'une decision » et « scolarite non reglee » n'appellent pas le meme
+    // geste, et un compteur unique obligerait a ouvrir chaque dossier pour
+    // savoir lequel des deux s'applique.
+    const restants = await db.execute<{ sans_decision: number; impayes: number }>(sql`
+      SELECT count(*) FILTER (
+               WHERE ${estDerniere} = TRUE AND b.decision IS NULL
+             )::int AS sans_decision,
+             count(*) FILTER (
+               WHERE ${blocage.actif} = TRUE
+                 AND b.blocage_leve_par IS NULL
+                 AND (${estDerniere} = FALSE OR b.decision IS NOT NULL)
+                 AND COALESCE(
+                       (SELECT sf.reste_du_fcfa FROM v_situation_financiere sf
+                         WHERE sf.inscription_id = i.id), 0
+                     ) > ${blocage.seuilFcfa}
+             )::int AS impayes
         FROM bulletins b
         JOIN inscriptions i ON i.id = b.inscription_id
        WHERE i.classe_id = ${classeId}::uuid
@@ -196,14 +229,20 @@ export async function publierClasse(
 
     revalidatePath("/dashboard/bulletins");
 
-    const bloques = Number(restants.rows[0]?.n ?? 0);
+    const sansDecision = Number(restants.rows[0]?.sans_decision ?? 0);
+    const impayes = Number(restants.rows[0]?.impayes ?? 0);
+
+    const causes: string[] = [];
+    if (sansDecision > 0) causes.push(`${sansDecision} en attente d'une décision d'orientation`);
+    if (impayes > 0) causes.push(`${impayes} retenu(s) pour scolarité non réglée`);
+
     return {
       ok: true,
       touches: r.rows.length,
       message:
-        bloques === 0
+        causes.length === 0
           ? `${r.rows.length} bulletin(s) publié(s). Les familles sont prévenues.`
-          : `${r.rows.length} publié(s), ${bloques} en attente d'une décision d'orientation.`,
+          : `${r.rows.length} publié(s), ${causes.join(", ")}.`,
     };
   } catch (erreur) {
     return echec(erreur, "La publication a échoué.");

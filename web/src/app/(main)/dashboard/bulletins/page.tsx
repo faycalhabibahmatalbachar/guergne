@@ -4,11 +4,14 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import { chargerStatistiques } from "@/server/domain/tableau-de-bord";
+import { blocagesBulletin, reglageBlocage } from "@/server/domain/caisse";
 import { saisiesManquantes } from "@/server/domain/generation-bulletins";
-import { exigerPage } from "@/server/guard";
+import { sessionCourante } from "@/server/auth/session";
+import { exigerPage, peut } from "@/server/guard";
 
 import { type EtapeManquante, Prerequis } from "../_components/prerequis";
 import { GenerationBulletins, type BulletinListe } from "./_components/generation";
+import { RetenueImpaye } from "./_components/retenue-impaye";
 import { SaisiesManquantes } from "./_components/saisies-manquantes";
 
 export const metadata: Metadata = { title: "Bulletins" };
@@ -77,11 +80,20 @@ export default async function PageBulletins({
   const classeChoisie = params.classe ?? "";
   const periodeChoisie = params.periode ?? "";
 
-  // E-45 : ce qui manque AVANT de produire. Chargé en même temps que la liste.
-  const manquantes =
+  // E-45 : ce qui manque AVANT de produire. E-58 : qui ne recevra rien, et
+  // pourquoi. Les deux se lisent au même moment — juste avant de cliquer — et
+  // se chargent donc ensemble.
+  const reglage = await reglageBlocage();
+  const [manquantes, retenues, peutLever, peutConfigurer] = await Promise.all([
     classeChoisie && periodeChoisie
-      ? await saisiesManquantes(classeChoisie, periodeChoisie)
-      : [];
+      ? saisiesManquantes(classeChoisie, periodeChoisie)
+      : Promise.resolve([]),
+    classeChoisie && periodeChoisie
+      ? blocagesBulletin(classeChoisie, periodeChoisie, reglage)
+      : Promise.resolve([]),
+    peut(await sessionCourante(), "finance:exonerer"),
+    peut(await sessionCourante(), "finance:configurer"),
+  ]);
 
   let bulletins: BulletinListe[] = [];
   if (classeChoisie && periodeChoisie) {
@@ -137,7 +149,18 @@ export default async function PageBulletins({
         </p>
       </div>
 
-      {classeChoisie && periodeChoisie ? <SaisiesManquantes lignes={manquantes} /> : null}
+      {classeChoisie && periodeChoisie ? (
+        <>
+          <SaisiesManquantes lignes={manquantes} />
+          <RetenueImpaye
+            reglage={reglage}
+            lignes={retenues}
+            periodeId={periodeChoisie}
+            peutLever={peutLever}
+            peutConfigurer={peutConfigurer}
+          />
+        </>
+      ) : null}
 
       <GenerationBulletins
         classes={classes.rows.map((c) => ({
