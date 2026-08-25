@@ -1,4 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+
+import { BarChart3, Gavel } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 import { listerClassesEtMatieres } from "@/server/domain/personnel";
 import { chargerStatistiques } from "@/server/domain/tableau-de-bord";
@@ -73,12 +78,34 @@ export default async function PageDiscipline({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-semibold text-2xl tracking-tight">Discipline</h1>
-        <p className="mt-1 text-muted-foreground text-sm">
-          Année {annee.libelle} — {periode.libelle}. Chaque décision est conservée avec son auteur et
-          son motif, sans possibilité de modification.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-semibold text-2xl tracking-tight">Discipline</h1>
+          <p className="mt-1 text-muted-foreground text-sm">
+            Année {annee.libelle} — {periode.libelle}. Chaque décision est conservée avec son auteur
+            et son motif, sans possibilité de modification.
+          </p>
+        </div>
+        {/*
+          Deux écrans à part, et pas des onglets : le conseil de discipline se
+          prépare sur plusieurs jours et se partage par lien, les statistiques
+          se lisent en fin de trimestre. Aucun des deux n'appartient au geste
+          quotidien de signaler un incident.
+        */}
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/discipline/conseils">
+              <Gavel aria-hidden />
+              Conseils de discipline
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/discipline/statistiques">
+              <BarChart3 aria-hidden />
+              Statistiques
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {classes.length === 0 ? (
