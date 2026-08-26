@@ -23,6 +23,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 Future<void> chargerPolices() async {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  // Le plancher d'affichage du démarrage est ramené à zéro : attendre cinq
+  // secondes réelles par écran mettrait plus d'une minute à rendre la suite,
+  // et laisserait un minuteur en attente à la fin de chaque test.
+  SessionNotifier.dureeMinimaleDemarrage = Duration.zero;
+
   // Les tests d'apparence chargent le logo depuis les assets : sans ce
   // registre, `SvgPicture.asset` ne trouve rien et rend une zone vide.
   TestWidgetsFlutterBinding.instance.defaultBinaryMessenger.setMockMessageHandler(

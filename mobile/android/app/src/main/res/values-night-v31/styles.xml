@@ -17,6 +17,16 @@
          
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+        <!--
+            Fond de la fenêtre ENTRE le splash natif et la première image de
+            Flutter. Il valait `?android:colorBackground` — le blanc du thème
+            système en clair, le noir en sombre — et produisait un flash d'une
+            couleur étrangère au milieu du lancement : parchemin, puis blanc,
+            puis parchemin.
+
+            C'est ce clignotement qui faisait percevoir DEUX écrans de
+            démarrage là où l'on n'en voulait qu'un.
+        -->
+        <item name="android:windowBackground">@color/lgr_parchemin_sombre</item>
     </style>
 </resources>

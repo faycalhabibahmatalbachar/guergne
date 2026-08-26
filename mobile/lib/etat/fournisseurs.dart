@@ -104,10 +104,27 @@ class SessionNotifier extends StateNotifier<Session> {
   /// Écrire `await Future.delayed(...)` PUIS restaurer coûterait cette seconde
   /// et demie à tout le monde, y compris à ceux qui attendent déjà.
   ///
-  /// Deux secondes six : le temps de LIRE, pas seulement d'apercevoir. L'écran
-  /// porte trois lignes de texte, et une seconde et demie suffisait à peine à
-  /// enregistrer le blason. La cascade d'entrée occupe déjà 1,4 s à elle seule.
-  static const _dureeMinimaleDemarrage = Duration(milliseconds: 2600);
+  /// CINQ SECONDES, ET C'EST UN CHOIX ASSUMÉ
+  /// ----------------------------------------
+  /// Long pour un écran de lancement — l'usage courant est de deux. Mais celui
+  /// d'une application scolaire n'est ouvert que quelques fois par trimestre :
+  /// il n'est pas dans le chemin d'un usage quotidien, et il porte le blason
+  /// que beaucoup de familles ne voient nulle part ailleurs.
+  ///
+  /// Surtout, cette durée résout le vrai problème perçu. Le splash NATIF
+  /// d'Android ne peut pas être supprimé — le système peint toujours une
+  /// fenêtre pendant le démarrage du processus, et l'API SplashScreen est
+  /// imposée depuis Android 12. On l'a rendu indiscernable (même parchemin,
+  /// aucun logo), mais il reste une fraction de seconde de fond nu. Plus
+  /// l'écran Flutter dure, plus cette fraction devient négligeable : à cinq
+  /// secondes, elle représente moins d'un dixième de ce que le parent voit, et
+  /// il ne perçoit qu'un seul écran.
+  ///
+  /// Surchargeable pour les tests, comme l'horloge de `formats` : un harnais
+  /// de captures qui attendrait cinq secondes réelles par écran mettrait plus
+  /// d'une minute à rendre la suite, et laisserait un minuteur en attente à la
+  /// fin de chaque test.
+  static Duration dureeMinimaleDemarrage = const Duration(seconds: 5);
 
   /// Restaure la session au lancement, sans appel réseau.
   ///
@@ -116,7 +133,7 @@ class SessionNotifier extends StateNotifier<Session> {
   /// appel de données le découvrira et déclenchera la rotation.
   Future<void> _attendrePlancher(DateTime debut) async {
     final ecoule = DateTime.now().difference(debut);
-    final reste = _dureeMinimaleDemarrage - ecoule;
+    final reste = dureeMinimaleDemarrage - ecoule;
     if (reste > Duration.zero) await Future<void>.delayed(reste);
   }
 
