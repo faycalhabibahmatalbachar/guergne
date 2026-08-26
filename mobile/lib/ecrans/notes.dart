@@ -410,6 +410,34 @@ class _EtatCarteMatiere extends State<_CarteMatiere> {
               ],
             ),
           ),
+          // La jauge de classe est visible CARTE FERMÉE, et c'est le point de
+          // cet écran.
+          //
+          // Elle était jusqu'ici derrière le chevron : un parent qui parcourt
+          // dix matières n'en ouvre aucune, et repartait donc avec des notes
+          // brutes — « 9,20 » sans savoir que la classe est à 10,40. Or c'est
+          // exactement la comparaison qu'il vient chercher, et la seule qui
+          // transforme un chiffre en information.
+          if (m.moyenne != null && (m.noteMin != null || m.noteMax != null))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(31, 0, 14, 13),
+              child: ReglageClasse(
+                eleve: m.moyenne!,
+                classe: m.moyenneClasse,
+                mini: m.noteMin,
+                maxi: m.noteMax,
+                // La couleur de la NOTE, pas celle de la matière.
+                //
+                // Avec la couleur de matière, le français — rouge dans la
+                // charte — affichait un point rouge sous une pastille verte à
+                // 14,75. Le point contredisait la pastille au lieu de la
+                // renforcer, et le seul repère visuel du parent devenait le
+                // plus trompeur de l'écran.
+                couleur: context.moyenne(m.moyenne),
+                compacte: true,
+              ),
+            ),
+
           AnimatedSize(
             duration: ThemeLgr.dureeMoyenne,
             curve: ThemeLgr.ressortDoux,

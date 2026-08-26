@@ -162,7 +162,6 @@ class PastilleMoyenne extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final couleur = context.moyenne(note);
 
     final facteur = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, facteurMaximal);
@@ -185,12 +184,10 @@ class PastilleMoyenne extends StatelessWidget {
           children: [
             Text(
               note == null ? '—' : note!.toStringAsFixed(2).replaceAll('.', ','),
-              style: ThemeLgr.nombre(theme.textTheme.titleMedium).copyWith(
-                color: couleur,
-                fontWeight: FontWeight.w700,
-                fontSize: taille * 0.28,
-                height: 1.0,
-              ),
+              // Même style de chiffre que l'accueil : la moyenne y est déjà
+              // lue, et deux dessins différents pour le même nombre feraient
+              // douter qu'il s'agisse de la même donnée.
+              style: ThemeLgr.chiffre(couleur: couleur, taille: taille * 0.28),
             ),
             if (surVingt && note != null)
               Text(
@@ -512,6 +509,7 @@ class ReglageClasse extends StatelessWidget {
     required this.mini,
     required this.maxi,
     required this.couleur,
+    this.compacte = false,
   });
 
   final double eleve;
@@ -519,6 +517,14 @@ class ReglageClasse extends StatelessWidget {
   final double? mini;
   final double? maxi;
   final Color couleur;
+
+  /// Version réduite : la règle seule, sans sa légende chiffrée.
+  ///
+  /// Sur la carte fermée d'une matière, les bornes et la moyenne de classe
+  /// figurent déjà en toutes lettres sous le nom de la matière. Les répéter
+  /// sous la règle doublerait la hauteur de chaque ligne pour ne rien
+  /// ajouter — et dix matières deviendraient trois écrans de défilement.
+  final bool compacte;
 
   @override
   Widget build(BuildContext context) {
@@ -591,19 +597,21 @@ class ReglageClasse extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 5),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _Borne(valeur: bas, libelle: 'plus faible'),
-                if (classe != null)
-                  Text(
-                    'classe ${classe!.toStringAsFixed(2).replaceAll(".", ",")}',
-                    style: theme.textTheme.bodySmall?.copyWith(fontSize: 10.5),
-                  ),
-                _Borne(valeur: haut, libelle: 'meilleur', aDroite: true),
-              ],
-            ),
+            if (!compacte) ...[
+              const SizedBox(height: 5),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _Borne(valeur: bas, libelle: 'plus faible'),
+                  if (classe != null)
+                    Text(
+                      'classe ${classe!.toStringAsFixed(2).replaceAll(".", ",")}',
+                      style: theme.textTheme.bodySmall?.copyWith(fontSize: 10.5),
+                    ),
+                  _Borne(valeur: haut, libelle: 'meilleur', aDroite: true),
+                ],
+              ),
+            ],
           ],
         );
       },
