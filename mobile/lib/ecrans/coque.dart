@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../design/theme.dart';
 import '../etat/fournisseurs.dart';
-import '../services/notifications.dart';
+import '../services/banniere_notification.dart';
 import 'accueil.dart';
 import 'annonces.dart';
 import 'assiduite.dart';
@@ -14,10 +14,22 @@ import 'profil.dart';
 
 /// Coque de l'application : les cinq onglets.
 ///
-/// `IndexedStack` et non un `PageView` : chaque onglet garde son état — la
-/// position de défilement, la période sélectionnée, une carte matière
-/// dépliée. Reconstruire l'onglet à chaque aller-retour relancerait aussi les
-/// appels réseau, ce qui coûte cher sur un forfait tchadien.
+/// `PageView` ET conservation d'état, pas l'un ou l'autre.
+///
+/// La première version employait un `IndexedStack` pour garder l'état de
+/// chaque onglet — position de défilement, période choisie, carte dépliée — et
+/// pour ne pas relancer les appels réseau, qui coûtent cher sur un forfait
+/// tchadien. C'était juste, mais cela interdisait le balayage : on ne pouvait
+/// changer d'onglet qu'en visant une icône de vingt pixels en bas d'écran.
+///
+/// Le `PageView` rétablit le geste. `AutomaticKeepAliveClientMixin` sur chaque
+/// page rétablit l'état : les cinq restent vivantes une fois visitées, et
+/// aucune ne se reconstruit au retour. On a les deux.
+///
+/// Le profil n'est PAS une sixième page. Il n'a pas d'onglet, et l'atteindre
+/// par balayage depuis « Annonces » n'aurait aucun sens : c'est un écran de
+/// réglages, pas une étape du parcours. Il s'ouvre en superposition et se
+/// referme par le retour du système.
 class Coque extends ConsumerStatefulWidget {
   const Coque({super.key});
 
@@ -26,13 +38,36 @@ class Coque extends ConsumerStatefulWidget {
 }
 
 class _EtatCoque extends ConsumerState<Coque> {
-  /// Index dans la pile. 0 à 4 correspondent aux onglets ; 5 est l'écran du
-  /// compte, qui n'a pas d'onglet et s'atteint depuis la bannière d'accueil.
-  static const _ongletCompte = 5;
-
+  final _pages = PageController();
   int _onglet = 0;
 
-  void _aller(int index) => setState(() => _onglet = index);
+  /// Aller à un onglet, depuis la barre du bas ou une notification.
+  ///
+  /// L'animation est réservée aux onglets VOISINS. Passer de l'accueil aux
+  /// annonces en animé ferait défiler les trois écrans intermédiaires en un
+  /// éclair : un scintillement que l'œil lit comme un défaut, et trois pages
+  /// construites pour rien.
+  void _aller(int index) {
+    if (index == _onglet) return;
+    if ((index - _onglet).abs() == 1) {
+      _pages.animateToPage(
+        index,
+        duration: ThemeLgr.dureeMoyenne,
+        curve: ThemeLgr.ressortDoux,
+      );
+    } else {
+      _pages.jumpToPage(index);
+    }
+  }
+
+  void _ouvrirCompte() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            EcranProfil(surRetour: () => Navigator.of(context).pop()),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -51,6 +86,7 @@ class _EtatCoque extends ConsumerState<Coque> {
   @override
   void dispose() {
     ref.read(notificationsProvider).routeDemandee.removeListener(_suivreRoute);
+    _pages.dispose();
     super.dispose();
   }
 
@@ -71,7 +107,7 @@ class _EtatCoque extends ConsumerState<Coque> {
       _ => 0,
     };
 
-    if (mounted) setState(() => _onglet = onglet);
+    if (mounted) _aller(onglet);
     ref.read(notificationsProvider).routeDemandee.value = null;
   }
 
@@ -80,48 +116,75 @@ class _EtatCoque extends ConsumerState<Coque> {
     // Le compteur d'annonces non lues sur l'onglet : c'est le seul badge de
     // l'application, réservé à ce qui demande vraiment une action.
     final nonLues =
-        ref.watch(accueilProvider).value?.valeur.annonces.where((a) => !a.lue).length ?? 0;
+        ref
+            .watch(accueilProvider)
+            .value
+            ?.valeur
+            .annonces
+            .where((a) => !a.lue)
+            .length ??
+        0;
 
     return Scaffold(
-      body: Column(
+      body: Stack(
         children: [
-          // Bannière des notifications reçues application ouverte : Android
-          // n'affiche rien de lui-même dans ce cas.
-          ValueListenableBuilder<RemoteMessage?>(
-            valueListenable: ref.read(notificationsProvider).messageEnCours,
-            builder: (context, message, _) {
-              if (message == null) return const SizedBox.shrink();
-              return SafeArea(
-                bottom: false,
-                child: BanniereNotification(
-                  message: message,
-                  surFermer: () =>
-                      ref.read(notificationsProvider).messageEnCours.value = null,
-                  surOuvrir: () {},
+          PageView(
+            controller: _pages,
+            onPageChanged: (i) => setState(() => _onglet = i),
+            children: [
+              _Vivante(
+                child: EcranAccueil(
+                  versOnglet: _aller,
+                  versCompte: _ouvrirCompte,
                 ),
-              );
-            },
+              ),
+              const _Vivante(child: EcranNotes()),
+              const _Vivante(child: EcranAssiduite()),
+              const _Vivante(child: EcranFinances()),
+              const _Vivante(child: EcranAnnonces()),
+            ],
           ),
-          Expanded(
-            child: IndexedStack(
-              index: _onglet,
-              children: [
-                EcranAccueil(versOnglet: _aller, versCompte: () => setState(() => _onglet = _ongletCompte)),
-                const EcranNotes(),
-                const EcranAssiduite(),
-                const EcranFinances(),
-                const EcranAnnonces(),
-                EcranProfil(surRetour: () => setState(() => _onglet = 0)),
-              ],
+
+          // Le bandeau SURVOLE la page au lieu de la pousser.
+          //
+          // Dans la version précédente il vivait dans une colonne : son arrivée
+          // décalait l'écran entier vers le bas, en-tête compris, et son départ
+          // le faisait remonter. Un contenu qui saute pendant qu'on le lit fait
+          // perdre sa ligne — et peut faire appuyer sur ce qui vient de glisser
+          // sous le doigt.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: ValueListenableBuilder<RemoteMessage?>(
+              valueListenable: ref.read(notificationsProvider).messageEnCours,
+              builder: (context, message, _) {
+                if (message == null) return const SizedBox.shrink();
+                return SafeArea(
+                  bottom: false,
+                  child: BanniereNotification(
+                    message: message,
+                    surFermer: () =>
+                        ref.read(notificationsProvider).messageEnCours.value =
+                            null,
+                    // Le bandeau MÈNE à l'écran concerné : il annonçait une
+                    // absence sans permettre d'aller la voir.
+                    surOuvrir: () {
+                      final route = message.data['route']?.toString();
+                      if (route != null) {
+                        ref.read(notificationsProvider).routeDemandee.value =
+                            route;
+                      }
+                    },
+                  ),
+                );
+              },
             ),
           ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        // Sur l'écran du compte, aucun onglet n'est actif : on retient le
-        // dernier consulté plutôt que d'allumer « Annonces » par accident,
-        // ce qui ferait croire au parent qu'il est ailleurs qu'il n'est.
-        selectedIndex: _onglet == _ongletCompte ? 0 : _onglet,
+        selectedIndex: _onglet,
         onDestinationSelected: _aller,
         // Le profil est le 6ᵉ écran mais n'a pas d'onglet : on y accède depuis
         // l'accueil. Cinq destinations est le maximum lisible en bas d'écran.
@@ -156,7 +219,10 @@ class _EtatCoque extends ConsumerState<Coque> {
               if (e.$1 != 4 || nonLues == 0) return e.$2;
               return NavigationDestination(
                 icon: Badge.count(count: nonLues, child: e.$2.icon),
-                selectedIcon: Badge.count(count: nonLues, child: e.$2.selectedIcon!),
+                selectedIcon: Badge.count(
+                  count: nonLues,
+                  child: e.$2.selectedIcon!,
+                ),
                 label: e.$2.label,
               );
             }).toList(),
@@ -180,8 +246,38 @@ class BoutonProfil extends StatelessWidget {
       style: IconButton.styleFrom(
         backgroundColor: Colors.white.withValues(alpha: 0.16),
         minimumSize: const Size(44, 44),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ThemeLgr.rayonPetit)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ThemeLgr.rayonPetit),
+        ),
       ),
     );
+  }
+}
+
+/// Garde une page vivante quand le `PageView` s'en éloigne.
+///
+/// Sans cela, un `PageView` détruit les pages non adjacentes : revenir sur
+/// l'accueil après un passage par les annonces relancerait sa requête réseau et
+/// perdrait la position de défilement. Sur un forfait facturé au mégaoctet,
+/// c'est un coût réel payé pour un aller-retour de curiosité.
+class _Vivante extends StatefulWidget {
+  const _Vivante({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_Vivante> createState() => _EtatVivante();
+}
+
+class _EtatVivante extends State<_Vivante> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    // `super.build` n'est pas décoratif : c'est lui qui enregistre la page
+    // auprès du mécanisme de conservation.
+    super.build(context);
+    return widget.child;
   }
 }

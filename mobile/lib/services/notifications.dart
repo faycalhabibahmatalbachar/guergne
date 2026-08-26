@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 
 import 'api.dart';
 
@@ -135,77 +134,3 @@ class ServiceNotifications {
 /// Une bannière discrète plutôt qu'une boîte de dialogue : le parent est peut-
 /// être en train de lire les notes de son enfant, on l'informe sans lui couper
 /// la parole.
-class BanniereNotification extends StatelessWidget {
-  const BanniereNotification({
-    super.key,
-    required this.message,
-    required this.surFermer,
-    required this.surOuvrir,
-  });
-
-  final RemoteMessage message;
-  final VoidCallback surFermer;
-  final VoidCallback surOuvrir;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final titre = message.notification?.title ?? 'Nouvelle information';
-    final corps = message.notification?.body ?? '';
-
-    return Material(
-      color: Colors.transparent,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 22),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      titre,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (corps.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        corps,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 12.5,
-                          height: 1.35,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: surFermer,
-                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
-                tooltip: 'Fermer',
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

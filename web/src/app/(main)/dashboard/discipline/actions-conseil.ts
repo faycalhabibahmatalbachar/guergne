@@ -8,6 +8,7 @@ import { z } from "zod";
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
+import { reveillerFile } from "@/server/notifications/reveil";
 
 /**
  * Conseil de discipline (E-54).
@@ -112,6 +113,10 @@ export async function convoquerConseil(donnees: unknown): Promise<ResultatConsei
       motif: v.motif,
     });
 
+    // La file part MAINTENANT, sans attendre le cron : trois à sept
+    // minutes de délai ne se distinguent pas, pour un parent, d'un
+    // envoi manuel.
+    reveillerFile();
     revalidatePath("/dashboard/discipline/conseils");
 
     return {

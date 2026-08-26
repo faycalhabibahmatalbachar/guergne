@@ -103,7 +103,11 @@ class SessionNotifier extends StateNotifier<Session> {
   ///
   /// Écrire `await Future.delayed(...)` PUIS restaurer coûterait cette seconde
   /// et demie à tout le monde, y compris à ceux qui attendent déjà.
-  static const _dureeMinimaleDemarrage = Duration(milliseconds: 1600);
+  ///
+  /// Deux secondes six : le temps de LIRE, pas seulement d'apercevoir. L'écran
+  /// porte trois lignes de texte, et une seconde et demie suffisait à peine à
+  /// enregistrer le blason. La cascade d'entrée occupe déjà 1,4 s à elle seule.
+  static const _dureeMinimaleDemarrage = Duration(milliseconds: 2600);
 
   /// Restaure la session au lancement, sans appel réseau.
   ///

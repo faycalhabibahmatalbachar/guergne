@@ -17,6 +17,7 @@ import {
   tuteurs,
 } from "@/server/db/schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
+import { reveillerFile } from "@/server/notifications/reveil";
 
 export interface Resultat {
   ok: boolean;
@@ -511,6 +512,10 @@ export async function changerStatut(
       motif: options.motif.trim(),
     });
 
+    // La file part MAINTENANT, sans attendre le cron : trois à sept
+    // minutes de délai ne se distinguent pas, pour un parent, d'un
+    // envoi manuel.
+    reveillerFile();
     revalidatePath(`/dashboard/eleves/${eleveId}`);
     revalidatePath("/dashboard/eleves");
     revalidatePath("/dashboard/default");

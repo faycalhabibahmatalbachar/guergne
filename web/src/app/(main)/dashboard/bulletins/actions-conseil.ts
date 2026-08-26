@@ -9,6 +9,7 @@ import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
 import { reglageBlocage } from "@/server/domain/caisse";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
+import { reveillerFile } from "@/server/notifications/reveil";
 
 /**
  * Conseil de classe : appréciations, décisions, publication.
@@ -227,6 +228,10 @@ export async function publierClasse(
       apres: { periodeId, publies: r.rows.length },
     });
 
+    // La file part MAINTENANT, sans attendre le cron : trois à sept
+    // minutes de délai ne se distinguent pas, pour un parent, d'un
+    // envoi manuel.
+    reveillerFile();
     revalidatePath("/dashboard/bulletins");
 
     const sansDecision = Number(restants.rows[0]?.sans_decision ?? 0);

@@ -16,6 +16,7 @@ import {
   tranches,
 } from "@/server/db/schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
+import { reveillerFile } from "@/server/notifications/reveil";
 
 export interface Resultat {
   ok: boolean;
@@ -358,6 +359,10 @@ export async function encaisser(donnees: unknown): Promise<Resultat & { numeroRe
       apres: { numeroRecu: resultat, montant: v.montantFcfa, mode: v.mode },
     });
 
+    // La file part MAINTENANT, sans attendre le cron : trois à sept
+    // minutes de délai ne se distinguent pas, pour un parent, d'un
+    // envoi manuel.
+    reveillerFile();
     revalidatePath("/dashboard/finances");
     return { ok: true, numeroRecu: resultat, message: `Reçu ${resultat} enregistré.` };
   } catch (e) {

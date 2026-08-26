@@ -10,6 +10,7 @@ import { COUT_SMS_FCFA } from "@/lib/tarifs";
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
+import { reveillerFile } from "@/server/notifications/reveil";
 
 /**
  * Prévenir les parents depuis la page où l'on se trouve.
@@ -168,6 +169,10 @@ export async function notifierEleve(
       apres: { titre: a.data.titre, destinataires: posees },
     });
 
+    // La file part MAINTENANT, sans attendre le cron : trois à sept
+    // minutes de délai ne se distinguent pas, pour un parent, d'un
+    // envoi manuel.
+    reveillerFile();
     revalidatePath(`/dashboard/eleves/${eleveId}`);
 
     return posees === 0
@@ -223,6 +228,10 @@ export async function notifierClasse(
       apres: { titre: a.data.titre, destinataires: posees },
     });
 
+    // La file part MAINTENANT, sans attendre le cron : trois à sept
+    // minutes de délai ne se distinguent pas, pour un parent, d'un
+    // envoi manuel.
+    reveillerFile();
     revalidatePath("/dashboard/classes");
 
     return posees === 0
@@ -297,6 +306,10 @@ export async function notifierSelection(
       apres: { titre: a.data.titre, eleves: eleveIds.length, destinataires: posees },
     });
 
+    // La file part MAINTENANT, sans attendre le cron : trois à sept
+    // minutes de délai ne se distinguent pas, pour un parent, d'un
+    // envoi manuel.
+    reveillerFile();
     revalidatePath("/dashboard/eleves");
 
     return posees === 0
