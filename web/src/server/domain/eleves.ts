@@ -26,6 +26,7 @@ export interface LigneEleve {
   sexe: "M" | "F";
   dateNaissance: string;
   statut: StatutEleveType;
+  /// Adresse de la photo, ou `null`. Voir la note sur `photo_id` plus bas.
   photoUrl: string | null;
   classeId: string | null;
   classeLibelle: string | null;
@@ -121,7 +122,19 @@ export async function listerEleves(filtres: FiltresEleves = {}): Promise<Resulta
         sexe: eleves.sexe,
         dateNaissance: eleves.dateNaissance,
         statut: eleves.statut,
-        photoUrl: eleves.photoUrl,
+        // `photo_id` et NON `photo_url`.
+        //
+        // Les deux colonnes coexistent : `photo_url` date du schéma d'origine,
+        // quand la photo était une adresse externe ; `photo_id` l'a remplacée
+        // en migration 0022, quand le stockage est passé en base. Le
+        // téléversement écrit `photo_id` depuis ce jour-là.
+        //
+        // Lire l'ancienne colonne rendait TOUTES les photos invisibles — sur
+        // la liste comme dans l'application des parents — alors qu'elles
+        // étaient bien enregistrées. Rien ne le signalait : une photo absente
+        // affiche des initiales, ce qui est aussi le comportement normal.
+        photoUrl: sql<string | null>`CASE WHEN eleves.photo_id IS NULL THEN NULL
+                                          ELSE '/api/fichiers/' || eleves.photo_id::text END`,
         classeId: classes.id,
         classeLibelle: classes.libelle,
         niveauLibelle: niveaux.libelle,

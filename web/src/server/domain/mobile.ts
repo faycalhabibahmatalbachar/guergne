@@ -48,6 +48,19 @@ export interface EnfantMobile {
    * un parent au téléphone, et jusqu'ici l'application n'y répondait pas.
    */
   moyenneClasse: number | null;
+  /**
+   * Statut de l'élève : INSCRIT, SUSPENDU_DISCIPLINE, SUSPENDU_IMPAYE…
+   *
+   * Un enfant suspendu apparaissait jusqu'ici comme n'importe quel autre dans
+   * l'application des parents. La famille reçoit bien une notification au
+   * moment de la décision, mais rien ne le rappelait ensuite : un parent qui
+   * ouvre l'application trois jours plus tard n'avait aucun moyen de savoir
+   * que son enfant ne devait pas se présenter.
+   */
+  statut: string;
+  /** Date d'effet du statut en cours, et fin prévue pour une suspension. */
+  statutDepuis: string | null;
+  statutJusqua: string | null;
   periodeId: string | null;
   periode: string | null;
   /** Heures d'absence non justifiées sur la période. */
@@ -95,6 +108,9 @@ export async function enfantsDuTuteur(tuteurId: string): Promise<EnfantMobile[]>
            b.rang                        AS rang,
            b.effectif_classe             AS effectif,
            b.moyenne_classe::float8      AS "moyenneClasse",
+           e.statut::text                AS statut,
+           st.date_effet::text           AS "statutDepuis",
+           st.date_fin_prevue::text      AS "statutJusqua",
            r.id                          AS "periodeId",
            r.libelle                     AS periode,
            COALESCE(ab.nb, 0)::float8    AS "absencesNonJustifiees",
@@ -114,6 +130,17 @@ export async function enfantsDuTuteur(tuteurId: string): Promise<EnfantMobile[]>
       -- moyennes calculées existent avant le conseil de classe.
       LEFT JOIN bulletins b
              ON b.inscription_id = i.id AND b.periode_id = r.id AND b.est_publie
+      -- Dernière décision de statut, pour dater la suspension en cours.
+      -- On lit l'historique et non la fiche : celle-ci porte le statut, pas
+      -- la date à laquelle il a pris effet ni la fin prévue — or « suspendu »
+      -- sans échéance laisse une famille sans savoir quand l'enfant revient.
+      LEFT JOIN LATERAL (
+        SELECT hs.date_effet, hs.date_fin_prevue
+          FROM historique_statuts hs
+         WHERE hs.eleve_id = e.id AND hs.nouveau_statut = e.statut
+         ORDER BY hs.date_effet DESC, hs.cree_le DESC
+         LIMIT 1
+      ) st ON TRUE
       LEFT JOIN LATERAL (
         SELECT SUM(ab.nb_heures) AS nb
           FROM absences ab

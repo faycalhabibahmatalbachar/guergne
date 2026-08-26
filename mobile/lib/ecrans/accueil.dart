@@ -104,6 +104,18 @@ class _AccueilCharge extends ConsumerWidget {
           padding: const EdgeInsets.all(ThemeLgr.espace),
           sliver: SliverList.list(
             children: [
+              // La suspension AVANT les indicateurs, et non après.
+              //
+              // Un enfant suspendu apparaissait comme n'importe quel autre :
+              // la famille reçoit bien une notification le jour de la
+              // décision, mais rien ne le rappelait ensuite. Un parent qui
+              // ouvre l'application trois jours plus tard n'avait aucun moyen
+              // de savoir que son enfant ne devait pas se présenter — et le
+              // renvoi à la grille se découvrait au portail.
+              if (enfant.estSuspendu) ...[
+                _BanniereSuspension(enfant: enfant),
+                const SizedBox(height: 16),
+              ],
               _Indicateurs(enfant: enfant, versOnglet: versOnglet),
               const SizedBox(height: 20),
               if (enfant.prochaineEcheance != null) ...[
@@ -420,6 +432,110 @@ class _PuceEnfant extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Indicateurs
 // ---------------------------------------------------------------------------
+
+/// Bannière de suspension.
+///
+/// ELLE DIT QUAND L'ENFANT REVIENT, PAS SEULEMENT QU'IL EST EXCLU
+/// ---------------------------------------------------------------
+/// « Suspendu » sans échéance laisse une famille sans savoir quoi faire de sa
+/// semaine. La date de reprise est l'information la plus utile de la bannière,
+/// et c'est pour la porter qu'on lit l'historique des statuts plutôt que la
+/// seule fiche de l'élève.
+///
+/// ELLE NE REPREND PAS LE MOTIF ÉCRIT PAR L'ÉTABLISSEMENT
+/// -------------------------------------------------------
+/// Le motif de `historique_statuts` est rédigé pour le dossier — « bagarre
+/// dans la cour, 3 jours » — et se lit très durement hors contexte. La famille
+/// a reçu la décision par notification, et le secrétariat la lui explique.
+/// L'application dit l'état et l'échéance, pas la faute.
+class _BanniereSuspension extends StatelessWidget {
+  const _BanniereSuspension({required this.enfant});
+
+  final Enfant enfant;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final rouge = context.etat(Couleurs.danger);
+    final reprise = enfant.statutJusqua;
+
+    // Bordure UNIFORME plus bande dessinée à part.
+    //
+    // Flutter refuse `borderRadius` sur une bordure non uniforme : une bande
+    // épaisse à gauche et un filet fin ailleurs lève une assertion au moment
+    // du PEINTURE, pas de la compilation — le code passait l'analyse et le
+    // typage, et n'échouait qu'à la capture.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: rouge.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(ThemeLgr.rayon),
+        border: Border.all(color: rouge.withValues(alpha: 0.3)),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 4,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: rouge,
+                borderRadius: const BorderRadius.horizontal(
+                  left: Radius.circular(ThemeLgr.rayon),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.report_problem_rounded, color: rouge, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${enfant.prenom} est suspendu(e) ${enfant.motifSuspension}',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: rouge,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        [
+                          if (enfant.statutDepuis != null)
+                            'Depuis le ${dateLongue(enfant.statutDepuis!)}',
+                          if (reprise != null)
+                            'Retour prévu le ${dateLongue(reprise)}'
+                          else
+                            'Aucune date de retour fixée',
+                        ].join(' · '),
+                        style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Il ne doit pas se présenter au lycée pendant cette période. '
+                        'Le secrétariat vous a transmis la décision.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 11.5,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// Gravité d'un indicateur, indépendante de sa couleur.
 ///

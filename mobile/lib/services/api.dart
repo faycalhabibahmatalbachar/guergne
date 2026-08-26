@@ -136,8 +136,14 @@ class ApiEcole {
   /// La rotation du jeton n'est PAS déclenchée ici : une photo qui ne se charge
   /// pas retombe sur les initiales, ce qui est acceptable. Faire tourner le
   /// jeton pour une image ferait passer une décoration avant les données.
+  ///
+  /// Le chemin porte `/api/mobile` en entier. `baseUrl` ne vaut QUE le domaine
+  /// — chaque appel Dio écrit son préfixe lui-même — et l'omettre ici pointait
+  /// sur une adresse inexistante. L'échec était silencieux : `Image.network`
+  /// retombe sur les initiales, exactement comme lorsqu'il n'y a pas de photo.
+  /// Rien à l'écran ne distinguait « pas de photo » de « mauvaise URL ».
   String urlPhotoEnfant(String eleveId) =>
-      '${_dio.options.baseUrl}/enfants/$eleveId/photo';
+      '${_dio.options.baseUrl}/api/mobile/enfants/$eleveId/photo';
 
   Future<Map<String, String>> enteteImage() => _enteteAuth();
 

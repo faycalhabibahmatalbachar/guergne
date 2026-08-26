@@ -79,6 +79,9 @@ class Enfant {
     this.rang,
     this.effectif,
     this.moyenneClasse,
+    this.statut = 'INSCRIT',
+    this.statutDepuis,
+    this.statutJusqua,
     this.periodeId,
     this.periode,
     this.absencesNonJustifiees = 0,
@@ -108,6 +111,28 @@ class Enfant {
   /// C'est elle qui donne son sens à la note de l'enfant : « 11 » est un bon
   /// résultat dans une classe à 9 et un mauvais dans une classe à 14.
   final double? moyenneClasse;
+
+  /// Statut de l'élève : INSCRIT, SUSPENDU_DISCIPLINE, SUSPENDU_IMPAYE…
+  final String statut;
+
+  /// Date d'effet du statut en cours, et fin prévue s'il s'agit d'une
+  /// suspension temporaire.
+  final String? statutDepuis;
+  final String? statutJusqua;
+
+  /// L'enfant est-il momentanément écarté de l'établissement ?
+  ///
+  /// La distinction compte : un élève TRANSFERE ou DIPLOME n'est plus concerné
+  /// par la vie scolaire, un élève SUSPENDU l'est toujours et doit revenir.
+  /// C'est le second cas qui appelle une bannière, pas le premier.
+  bool get estSuspendu => statut.startsWith('SUSPENDU');
+
+  /// Motif de la suspension, en clair.
+  String get motifSuspension => switch (statut) {
+    'SUSPENDU_DISCIPLINE' => 'pour raison disciplinaire',
+    'SUSPENDU_IMPAYE' => 'pour scolarité non réglée',
+    _ => '',
+  };
   final String? periodeId;
   final String? periode;
 
@@ -146,6 +171,9 @@ class Enfant {
     rang: j['rang'] == null ? null : _entier(j['rang']),
     effectif: j['effectif'] == null ? null : _entier(j['effectif']),
     moyenneClasse: _reel(j['moyenneClasse']),
+    statut: j['statut'] as String? ?? 'INSCRIT',
+    statutDepuis: j['statutDepuis'] as String?,
+    statutJusqua: j['statutJusqua'] as String?,
     periodeId: j['periodeId'] as String?,
     periode: j['periode'] as String?,
     absencesNonJustifiees: _reel(j['absencesNonJustifiees']) ?? 0,
