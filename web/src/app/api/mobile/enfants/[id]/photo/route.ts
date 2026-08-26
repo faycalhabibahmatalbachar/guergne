@@ -48,11 +48,18 @@ export async function GET(
     return erreur("introuvable", "Élève introuvable.", 404);
   }
 
-  const r = await db.execute<{ photo_url: string | null }>(sql`
-    SELECT photo_url FROM eleves WHERE id = ${id}::uuid
+  // `photo_id` et NON `photo_url`.
+  //
+  // Les deux colonnes coexistent : `photo_url` date du schéma d'origine, où la
+  // photo était une adresse externe ; `photo_id` l'a remplacée en 0022 quand
+  // le stockage est passé en base. La première est vide sur les 549 élèves, la
+  // seconde renseignée sur 548 — lire la mauvaise renvoyait un 404 pour tout
+  // le monde, et l'application affichait les initiales en silence.
+  const r = await db.execute<{ photo_id: string | null }>(sql`
+    SELECT photo_id::text FROM eleves WHERE id = ${id}::uuid
   `);
 
-  const reference = r.rows[0]?.photo_url;
+  const reference = r.rows[0]?.photo_id;
   if (!reference) return erreur("introuvable", "Aucune photo.", 404);
 
   // `photo_url` porte l'identifiant du fichier stocké. On refuse tout ce qui

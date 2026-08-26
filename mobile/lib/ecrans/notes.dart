@@ -246,16 +246,30 @@ class _Synthese extends StatelessWidget {
                     Text(releve.periode, style: theme.textTheme.titleMedium),
                     const SizedBox(height: 6),
                     if (releve.rang != null)
-                      Text(
-                        '${releve.rang}ᵉ sur ${releve.effectif ?? "—"} élèves',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: couleur,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '${releve.rang}',
+                            style: ThemeLgr.chiffre(couleur: couleur, taille: 22),
+                          ),
+                          Text(
+                            'ᵉ sur ${releve.effectif ?? "—"} élèves',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: couleur,
+                            ),
+                          ),
+                        ],
                       ),
                     if (releve.moyenneClasse != null)
+                      // « Classe : 11,08 » et non « Moyenne de la classe » :
+                      // à côté d'une moyenne d'élève, le mot « moyenne » deux
+                      // fois de suite fait relire la ligne pour comprendre
+                      // laquelle est laquelle.
                       Text(
-                        'Moyenne de la classe : ${virgule(releve.moyenneClasse!)}',
+                        'Classe : ${virgule(releve.moyenneClasse!)}',
                         style: theme.textTheme.bodySmall,
                       ),
                   ],
@@ -410,6 +424,31 @@ class _EtatCarteMatiere extends State<_CarteMatiere> {
               ],
             ),
           ),
+          // L'appréciation du professeur, elle aussi carte fermée.
+          //
+          // Elle vient d'être branchée côté portail (E-41) : c'est la phrase
+          // qui dit ce que le chiffre ne peut pas dire — « des progrès à
+          // l'oral, mais un manque de méthode à l'écrit ». La laisser derrière
+          // le chevron revenait à ne pas l'avoir demandée aux professeurs.
+          //
+          // Deux lignes au plus, et le texte entier au dépliage : une
+          // appréciation longue repousserait la matière suivante hors de
+          // l'écran, et la liste cesserait de se parcourir.
+          if (m.appreciation != null && !_ouverte)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(31, 0, 14, 11),
+              child: Text(
+                m.appreciation!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  height: 1.35,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+
           // La jauge de classe est visible CARTE FERMÉE, et c'est le point de
           // cet écran.
           //
