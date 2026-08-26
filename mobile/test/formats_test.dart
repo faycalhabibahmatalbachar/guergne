@@ -12,19 +12,23 @@ void main() {
   setUpAll(() => initializeDateFormatting('fr_FR'));
 
   group('Montants', () {
-    test('sépare les milliers par une espace fine insécable', () {
-      // L'espace fine INSÉCABLE, et pas une espace ordinaire : sur un écran
-      // étroit, « 102 000 F » coupé en fin de ligne donnerait « 102 » suivi
-      // de « 000 F », c'est-à-dire deux montants là où il n'y en a qu'un.
-      expect(montant(51000), '51 000 F');
-      expect(montant(102000), '102 000 F');
+    test('sépare les milliers par une espace INSÉCABLE', () {
+      // Insécable, et pas ordinaire : sur un écran étroit, « 102 000 F » coupé
+      // en fin de ligne donnerait « 102 » suivi de « 000 F », c'est-à-dire
+      // deux montants là où il n'y en a qu'un.
+      //
+      // U+00A0 et non la fine U+202F : Fraunces, qui porte les grands chiffres
+      // de l'accueil, ne contient pas la fine — le montant s'y rendrait
+      // « 102000F ».
+      expect(montant(51000), '51\u00A0000\u00A0F');
+      expect(montant(102000), '102\u00A0000\u00A0F');
     });
 
     test('n’abrège JAMAIS, même au-delà du million', () {
       // « 1,5 M F » n'apparaît sur aucun reçu, aucun bulletin, aucun relevé
       // tchadien. Sur l'écran de l'argent, une abréviation inventée est le
       // seul endroit où un parent n'a pas le droit d'hésiter.
-      expect(montant(1500000), '1 500 000 F');
+      expect(montant(1500000), '1\u00A0500\u00A0000\u00A0F');
     });
   });
 

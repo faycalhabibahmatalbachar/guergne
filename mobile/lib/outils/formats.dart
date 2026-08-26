@@ -30,12 +30,25 @@ String heures(double valeur) {
   return virgule(valeur, 1);
 }
 
-/// Espace fine insécable, séparateur de milliers en typographie française.
+/// Séparateur de milliers, insécable.
+///
+/// U+00A0 et non l'espace FINE insécable U+202F, pourtant plus juste en
+/// typographie française. Deux raisons, dans cet ordre :
+///
+///   1. Fraunces — la police des grands chiffres de l'accueil — ne contient
+///      PAS U+202F. « 145 000 F » s'y rend « 145000F » : les deux blancs
+///      disparaissent, et le parent lit un montant faux sur l'écran de
+///      l'argent, précisément là où il n'a pas le droit d'hésiter.
+///   2. Même repliée sur une police qui la possède, la fine mesure trois
+///      pixels à 26 px de corps. Sur un écran d'entrée de gamme, au soleil,
+///      elle n'est pas vue.
+///
+/// L'insécabilité, elle, reste indispensable : c'est elle qui empêche un
+/// retour à la ligne de couper « 145 000 F » en deux montants.
 ///
 /// Écrite en échappement plutôt qu'en littéral : un caractère invisible dans
-/// le source se perd au premier copier-coller et provoque des écarts que rien
-/// ne laisse voir à la relecture.
-const _finement = '\u202F';
+/// le source se perd au premier copier-coller.
+const _finement = '\u00A0';
 
 /// Montant complet : 51000 → « 51 000 F ».
 ///

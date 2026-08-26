@@ -75,6 +75,22 @@ flutter:
     # tchadienne, une police distante ferait clignoter tout le texte au
     # lancement -- ou ne se chargerait pas du tout. Les quatre graisses
     # statiques evitent d'avoir a piloter l'axe variable a la main.
+    # Fraunces, en VARIABLE : un seul fichier de 360 Ko couvre toutes les
+    # graisses par son axe `wght`, là où quatre fichiers statiques en auraient
+    # coûté quatre fois plus. Elle ne sert QUE pour les grands chiffres —
+    # moyenne, absences, montants —, jamais pour le texte courant : une police
+    # à empattements se lit mal à 11 px sur un écran d'entrée de gamme.
+    #
+    # Attention : son axe `wght` a pour VALEUR PAR DÉFAUT 900. Sans
+    # `fontVariations` explicite, tout ce qui l'emploie sort en noir gras.
+    # Le pilotage se fait dans `ThemeLgr.chiffre()`, seul point d'entrée.
+    #
+    # SIL Open Font License 1.1 — texte joint dans `assets/polices/OFL-Fraunces.txt`,
+    # que la licence impose de distribuer avec la police.
+    - family: Fraunces
+      fonts:
+        - asset: assets/polices/Fraunces.ttf
+
     - family: Inter
       fonts:
         - asset: assets/polices/Inter-Regular.ttf

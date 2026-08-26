@@ -104,17 +104,48 @@ abstract final class ThemeLgr {
   ///   — hauteur de ligne à 1, pour que la carte se cale sur le chiffre et non
   ///     sur l'interligne de la police.
   ///
-  /// La graisse maximale d'Inter reste en deçà d'un vrai caractère de titrage.
-  /// Le jour où une police display est déposée dans `assets/polices/`, c'est
-  /// ICI qu'elle se branche — un seul endroit, et les quatre cartes suivent.
-  static TextStyle chiffre({required Color couleur, double taille = 26}) => inter(
+  /// La police est FRAUNCES, variable, employée ici et nulle part ailleurs :
+  /// une police à empattements se lit mal à 11 px sur un écran d'entrée de
+  /// gamme, et l'étendre au texte courant coûterait la lisibilité que ce
+  /// projet défend partout ailleurs.
+  static TextStyle chiffre({required Color couleur, double taille = 26}) => TextStyle(
+    fontFamily: 'Fraunces',
+    // Repli sur Inter, et ce n'est pas une précaution de style.
+    //
+    // Fraunces ne contient PAS l'espace fine insécable U+202F, celle que
+    // `montant()` place entre les milliers. Sans repli, « 145 000 F » se rend
+    // « 145000F » : les deux blancs disparaissent, et le parent lit un montant
+    // faux sur l'écran de l'argent. Le glyphe manquant est un ESPACE — le
+    // prendre à une autre police ne se voit pas, tandis que son absence, si.
+    fontFamilyFallback: const ['Inter'],
     fontSize: taille,
-    fontWeight: FontWeight.w700,
     color: couleur,
-  ).copyWith(
-    letterSpacing: -taille * 0.032,
     height: 1.0,
+    // Chiffres TABULAIRES : sans eux, « 7,85 » et « 12,5 » ne s'alignent pas
+    // d'une carte à l'autre et la grille tremble d'une ligne à la suivante.
     fontFeatures: const [FontFeature.tabularFigures()],
+    // Approche resserrée : à cette taille, l'espacement par défaut fait
+    // flotter les chiffres au lieu de les grouper en un nombre.
+    letterSpacing: -taille * 0.030,
+    fontVariations: [
+      // `opsz` est une taille OPTIQUE, pas un corps : on lui donne la taille
+      // réelle d'affichage pour que le dessin s'y adapte — empattements plus
+      // fins et contraste plus marqué à mesure que le chiffre grandit.
+      // La laisser à son défaut de 9 donnerait un dessin conçu pour du texte
+      // de note de bas de page, agrandi de trois cents pour cent.
+      FontVariation('opsz', taille.clamp(9, 144)),
+      // 600 et non 700 : les empattements de Fraunces épaississent déjà la
+      // silhouette. Au poids d'un gras d'Inter, les contreformes du 8 et du 0
+      // se bouchent sur un écran d'entrée de gamme.
+      const FontVariation('wght', 600),
+      // Un peu de rondeur, pour une école : à 0 le dessin est sec et
+      // institutionnel, à 100 il devient enfantin. 25 réchauffe sans amollir.
+      const FontVariation('SOFT', 25),
+      // WONK à 0. L'axe active les alternatives excentriques de Fraunces —
+      // très belles sur un titre, illisibles sur un chiffre qu'on doit lire
+      // d'un coup d'œil au soleil.
+      const FontVariation('WONK', 0),
+    ],
   );
 
   static ThemeData clair() => _construire(Brightness.light);

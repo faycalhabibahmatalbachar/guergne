@@ -33,6 +33,9 @@ Future<void> chargerPolices() async {
   // La police d'icônes est chargée elle aussi : sans elle, chaque icône est
   // rendue en carré vide et les captures ne montrent pas l'application réelle.
   for (final (fichier, graisse) in const [
+    // Fraunces porte les grands chiffres de l'accueil : sans elle, les
+    // captures montreraient un repli système et non l'application réelle.
+    ('assets/polices/Fraunces.ttf', 'Fraunces'),
     ('assets/polices/Inter-Regular.ttf', 'Inter'),
     ('assets/polices/Inter-Medium.ttf', 'Inter'),
     ('assets/polices/Inter-SemiBold.ttf', 'Inter'),
