@@ -38,6 +38,24 @@ class EcranAssiduite extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Assiduité'),
+        // Le nom de l'enfant, comme sur Résultats.
+        //
+        // Sans lui, un parent de plusieurs enfants qui arrive ici depuis une
+        // notification n'a AUCUN moyen de savoir de qui sont ces absences. Le
+        // sélecteur d'enfant vit sur l'accueil, pas sur cet écran.
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(30),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(ThemeLgr.espace, 0, ThemeLgr.espace, 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${enfant.nomComplet} · ${enfant.classe}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ),
+        ),
         actions: [
           // Bascule période / année. Un parent convoqué veut l'historique
           // complet, un parent qui suit la semaine veut la période en cours.
@@ -204,12 +222,9 @@ class _Compteur extends StatelessWidget {
     return Expanded(
       child: Column(
         children: [
-          Text(
-            '$valeur',
-            style: ThemeLgr.nombre(
-              theme.textTheme.headlineSmall,
-            ).copyWith(color: couleur, fontSize: 22),
-          ),
+          // Même style de chiffre que l'accueil et le relevé : c'est la même
+          // donnée, elle doit avoir le même visage d'un écran à l'autre.
+          Text('$valeur', style: ThemeLgr.chiffre(couleur: couleur, taille: 24)),
           const SizedBox(height: 3),
           Text(
             libelle,
@@ -339,6 +354,25 @@ class _LigneEvenement extends StatelessWidget {
                     ton: e.justifie ? TonBadge.succes : TonBadge.danger,
                     icone: e.justifie ? Icons.check_rounded : Icons.priority_high_rounded,
                   ),
+                  // Ce que le parent peut FAIRE.
+                  //
+                  // « Non justifiée » énonce un problème sans dire comment en
+                  // sortir. L'application ne peut pas recevoir de justificatif
+                  // — l'établissement en exige un sur papier, signé — mais elle
+                  // peut dire où le porter. Sans cette ligne, le parent
+                  // constate et referme, et l'absence reste non justifiée
+                  // jusqu'au bulletin.
+                  if (!e.justifie) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Remettez un justificatif écrit au surveillant général '
+                      'pour la faire lever.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 11.5,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),
