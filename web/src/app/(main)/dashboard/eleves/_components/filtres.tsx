@@ -82,12 +82,12 @@ export function FiltresEleves({ classes, annees, valeurs, statistiques }: {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2 lg:grid-cols-12 dark:border-border">
-        <div className="relative sm:col-span-2 lg:col-span-4">
+      <div className="grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,2.1fr)_repeat(5,minmax(120px,1fr))] dark:border-border">
+        <div className="relative sm:col-span-2 lg:col-span-1">
           {enCours ? <LoaderCircle className="absolute top-1/2 left-3 size-4 -translate-y-1/2 animate-spin text-slate-500" aria-hidden /> : <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-500" aria-hidden />}
           <Input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher un élève…" aria-label="Rechercher par nom, prénom ou matricule" className="h-10 bg-slate-50/50 pl-10 dark:bg-background" />
         </div>
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-1">
           <Select value={valeurs.classe || TOUS} onValueChange={(v) => appliquer({ classe: v })}>
             <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Toutes les classes" /></SelectTrigger>
             <SelectContent><SelectItem value={TOUS}>Toutes les classes</SelectItem>{classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.libelle}</SelectItem>)}</SelectContent>
@@ -100,13 +100,13 @@ export function FiltresEleves({ classes, annees, valeurs, statistiques }: {
               <SelectContent><SelectItem value={TOUS}>Tous les niveaux</SelectItem>{niveaux.map((n) => <SelectItem key={n.id} value={n.id}>{n.libelle}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-1">
             <Select value={valeurs.statut || TOUS} onValueChange={(v) => appliquer({ statut: v })}>
               <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Tous les statuts" /></SelectTrigger>
               <SelectContent><SelectItem value={TOUS}>Tous les statuts</SelectItem>{Object.entries(LIBELLES_STATUT).map(([cle, libelle]) => <SelectItem key={cle} value={cle}>{libelle}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-1">
             <Select value={valeurs.dossier || TOUS} onValueChange={(v) => appliquer({ dossier: v })}>
               <SelectTrigger className="h-10 w-full"><SelectValue placeholder="État du dossier" /></SelectTrigger>
               <SelectContent>
