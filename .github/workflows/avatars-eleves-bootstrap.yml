@@ -48,3 +48,5 @@ jobs:
 # Tentative 3 : variante de coiffure unique (API impose max 64 caractères).
 
 # Tentative 4 : chaque composant du SVG reçoit une seule variante valide.
+
+# Tentative 5 : import de test compatible avec Node TS.
