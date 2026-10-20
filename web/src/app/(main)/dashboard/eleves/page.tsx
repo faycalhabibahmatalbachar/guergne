@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  AlertTriangle, CheckCheck, ChevronDown, ClipboardList,
+  AlertTriangle, ChevronDown, ClipboardList,
   Download, Eye, FileText, GraduationCap, MoreHorizontal, Pencil, Plus,
-  Search, Upload, UserPlus, Users, Wrench,
+  Search, Upload, UserPlus, Users,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -103,21 +103,44 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
 
   return (
     <div className="space-y-4 pb-6 text-slate-950 dark:text-foreground">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3"><h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Élèves</h1><span className="rounded-lg bg-sky-100 px-3 py-1 text-base font-bold text-sky-950 tabular-nums">{stats.total.toLocaleString("fr-FR")}</span></div>
-          <p className="mt-1 text-sm text-slate-500 sm:text-base dark:text-muted-foreground">Gestion complète des dossiers scolaires</p>
+      <header aria-label="En-tête de la page Élèves" className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 xl:flex-row xl:items-end xl:justify-between dark:border-border">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-[29px] font-bold leading-tight tracking-tight sm:text-[34px]">Élèves</h1>
+            <span className="inline-flex items-center rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-sm font-semibold text-emerald-800 tabular-nums dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300" title="Nombre total de dossiers élèves">
+              {stats.total.toLocaleString("fr-FR")} dossiers
+            </span>
+          </div>
+          <p className="mt-1.5 text-sm text-slate-500 dark:text-muted-foreground">Suivez les inscriptions et gérez les dossiers scolaires.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {peutAffecter || peutEnvoyer ? <Button asChild variant="outline" className="h-11 gap-2 bg-white dark:bg-card"><a href="#liste-eleves"><CheckCheck className="size-4" aria-hidden /> Actions groupées <ChevronDown className="size-4" aria-hidden /></a></Button> : null}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button variant="outline" className="h-11 gap-2 bg-white dark:bg-card"><Wrench className="size-4" aria-hidden /> Outils <ChevronDown className="size-4" aria-hidden /></Button></DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild><a href={lienExport}><Download className="size-4" aria-hidden /> Exporter le fichier (filtres principaux)</a></DropdownMenuItem>
-              {peutCreer ? <><DropdownMenuSeparator /><DropdownMenuItem asChild><Link href="/dashboard/eleves/importer"><Upload className="size-4" aria-hidden /> Importer un fichier</Link></DropdownMenuItem></> : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {peutCreer ? <Button asChild className="h-11 bg-emerald-600 px-5 text-white shadow-sm hover:bg-emerald-700"><Link href="/dashboard/eleves/nouveau"><Plus className="size-5" aria-hidden /> Inscrire un élève</Link></Button> : null}
+
+        <div role="group" aria-label="Actions sur les élèves" className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+          <div className="order-last flex items-center gap-2 sm:order-first">
+            <Button asChild variant="outline" className="hidden h-10 gap-2 border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 sm:inline-flex dark:bg-card dark:text-foreground" title="Export Excel — recherche, classe et statut">
+              <a href={lienExport}><Download className="size-4" aria-hidden />Exporter Excel</a>
+            </Button>
+            {peutCreer ? (
+              <Button asChild variant="outline" className="hidden h-10 gap-2 border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 lg:inline-flex dark:bg-card dark:text-foreground">
+                <Link href="/dashboard/eleves/importer"><Upload className="size-4" aria-hidden />Importer</Link>
+              </Button>
+            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className={`h-10 gap-2 border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 dark:bg-card dark:text-foreground ${peutCreer ? "lg:hidden" : "sm:hidden"}`} aria-label="Autres actions sur les élèves">
+                  <MoreHorizontal className="size-4" aria-hidden />Actions<ChevronDown className="size-3.5 text-slate-400" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem asChild className="sm:hidden"><a href={lienExport}><Download className="size-4" aria-hidden />Exporter le fichier Excel</a></DropdownMenuItem>
+                {peutCreer ? <DropdownMenuItem asChild className="lg:hidden"><Link href="/dashboard/eleves/importer"><Upload className="size-4" aria-hidden />Importer des élèves</Link></DropdownMenuItem> : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          {peutCreer ? (
+            <Button asChild className="order-first h-10 w-full gap-2 bg-emerald-700 px-4 font-semibold text-white shadow-sm hover:bg-emerald-800 sm:order-last sm:w-auto">
+              <Link href="/dashboard/eleves/nouveau"><Plus className="size-4" aria-hidden />Inscrire un élève</Link>
+            </Button>
+          ) : null}
         </div>
       </header>
 
