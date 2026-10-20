@@ -69,7 +69,7 @@ export function ActionsLotEleves({
     };
     const colonnes = ["Matricule", "Nom", "Prénom", "Classe", "Statut", "État du dossier"];
     const lignes = selectionnees.map((e) => [e.matricule, e.nom, e.prenom, e.classeLibelle, e.statut, e.statutDossier].map(cellule).join(";"));
-    const fichier = new Blob(["\\uFEFF" + [colonnes.join(";"), ...lignes].join("\\r\\n")], { type: "text/csv;charset=utf-8" });
+    const fichier = new Blob(["\uFEFF" + [colonnes.join(";"), ...lignes].join("\r\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(fichier);
     const lien = document.createElement("a");
     lien.href = url;
@@ -97,7 +97,7 @@ export function ActionsLotEleves({
   if (selection.size === 0) return null;
 
   return (
-    <div role="status" className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+    <div role="status" className="m-2.5 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
       <span aria-hidden className="mr-1 flex size-6 items-center justify-center rounded-full bg-emerald-500 text-white">✓</span>
       <span className="mr-3 whitespace-nowrap text-sm font-semibold">{ids.length} élève{ids.length > 1 ? "s" : ""} sélectionné{ids.length > 1 ? "s" : ""}</span>
       {peutEnvoyer ? (
