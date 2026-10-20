@@ -13,6 +13,7 @@ import { CaseSelection, EnTeteSelection, ZoneSelection } from "@/components/ui/s
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getInitials } from "@/lib/utils";
+import { imageProfilEleve } from "@/lib/avatar-eleve";
 import { LIBELLES_STATUT, LIENS_PARENTE, type StatutEleve } from "@/lib/eleves-constantes";
 import { exigerPage, peut } from "@/server/guard";
 import { sessionCourante } from "@/server/auth/session";
@@ -168,7 +169,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
                     <tr key={e.id} className="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-emerald-50/40 dark:border-border dark:hover:bg-muted/30">
                       {peutAffecter || peutEnvoyer ? <CaseSelection id={e.id} className="px-3 py-2" /> : null}
                       <td className="px-3 py-2"><Link href={`/dashboard/eleves/${e.id}`} className="flex items-center gap-2.5 font-semibold text-slate-950 hover:text-emerald-700 dark:text-foreground">
-                        <Avatar className="size-9 shrink-0"><AvatarImage src={e.photoUrl ?? undefined} alt="" /><AvatarFallback className="bg-sky-50 text-xs">{getInitials(`${e.prenom} ${e.nom}`)}</AvatarFallback></Avatar>
+                        <Avatar className="size-9 shrink-0"><AvatarImage src={imageProfilEleve({ id: e.id, sexe: e.sexe, photoUrl: e.photoUrl })} alt="" /><AvatarFallback className="bg-sky-50 text-xs">{getInitials(`${e.prenom} ${e.nom}`)}</AvatarFallback></Avatar>
                         <span className="min-w-0"><span className="block whitespace-nowrap">{e.nom} {e.prenom}</span>{e.estRedoublant ? <span className="mt-0.5 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-normal text-amber-700">Redoublant</span> : null}</span>
                       </Link></td>
                       <td className="whitespace-nowrap px-3 py-2 text-slate-600 tabular-nums dark:text-muted-foreground">{e.matricule}</td>
