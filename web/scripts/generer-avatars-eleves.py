@@ -81,7 +81,7 @@ def main() -> None:
             couleurs = config["bg"]
             params = {
                 "seed": f"guergne-open-peeps-{groupe}-{numero:02d}-v1",
-                "headVariant": config["head"],
+                "headVariant": config["head"].split(",")[(numero - 1) % len(config["head"].split(","))],
                 "facialHairProbability": "0",
                 "maskProbability": "0",
                 "accessoriesProbability": "8",
