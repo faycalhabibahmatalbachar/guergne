@@ -9,6 +9,7 @@ L'exécution est ponctuelle : aucune requête à DiceBear depuis le navigateur.
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 import time
 import xml.etree.ElementTree as ET
 
@@ -46,6 +47,9 @@ def telecharger(url: str) -> bytes:
             if not data or len(data) > 256_000:
                 raise ValueError("SVG vide ou trop volumineux")
             return data
+        except HTTPError as erreur:
+            diagnostic = erreur.read(2000).decode("utf-8", errors="replace")
+            raise RuntimeError(f"Réponse HTTP {erreur.code}: {diagnostic}; URL: {url}") from erreur
         except Exception as erreur:
             derniere_erreur = erreur
             time.sleep(2 * (essai + 1))
