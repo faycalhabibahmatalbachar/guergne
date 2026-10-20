@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { avatarIllustreEleve, imageProfilEleve } from "./avatar-eleve";
+import { avatarIllustreEleve, imageProfilEleve } from "./avatar-eleve.ts";
 
 describe("avatars illustrés des élèves", () => {
   const id = "3775fb65-bf7f-4601-b324-147a060e0011";
