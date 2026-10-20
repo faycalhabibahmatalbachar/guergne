@@ -42,3 +42,5 @@ jobs:
           git diff --cached --exit-code && exit 1 || true
           git commit -m "assets(eleves): ajouter 40 illustrations Open Peeps CC0 locales"
           git push origin HEAD:feat/eleves-avatars-illustres
+
+# Tentative 2 : journaliser la réponse de l'API SVG.
