@@ -150,7 +150,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
             </CardContent></Card>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1300px] border-collapse text-left text-[13px]">
+              <table className="w-full min-w-[1250px] border-collapse text-left text-[13px]">
                 <thead className="bg-slate-50/90 text-xs text-slate-500 dark:bg-muted/30 dark:text-muted-foreground"><tr className="border-b border-slate-200 dark:border-border">
                   {peutAffecter || peutEnvoyer ? <EnTeteSelection className="px-3 py-3" /> : null}
                   <EnTeteTriable colonne="nom" className="px-3 py-3">Élève</EnTeteTriable>
