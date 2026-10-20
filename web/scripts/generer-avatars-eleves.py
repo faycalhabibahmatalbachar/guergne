@@ -85,9 +85,9 @@ def main() -> None:
                 "facialHairProbability": "0",
                 "maskProbability": "0",
                 "accessoriesProbability": "8",
-                "expressionVariant": "calm,smile,serious,cute,solemn",
+                "expressionVariant": ["calm", "smile", "serious", "cute", "solemn"][(numero - 1) % 5],
                 "backgroundColor": couleurs[(numero - 1) % len(couleurs)],
-                "clothingColor": "20564f,285d76,314e71,3b7469",
+                "clothingColor": ["20564f", "285d76", "314e71", "3b7469"][(numero - 1) % 4],
             }
             url = SOURCE + "?" + urlencode(params)
             image = telecharger(url)
