@@ -115,6 +115,7 @@ export async function listerEleves(filtres: FiltresEleves = {}): Promise<Resulta
   if (filtres.rapide === "suspendus") conditions.push(inArray(eleves.statut, ["SUSPENDU_DISCIPLINE", "SUSPENDU_IMPAYE"]));
   if (filtres.rapide === "incomplets") conditions.push(eq(inscriptions.statutDossier, "INCOMPLET"));
   if (filtres.rapide === "redoublants") conditions.push(eq(inscriptions.estRedoublant, true));
+  if (filtres.anneeId) conditions.push(sql`inscriptions.id IS NOT NULL`);
 
   const where = conditions.length ? and(...conditions) : undefined;
 
@@ -330,6 +331,7 @@ export async function statistiquesEleves(anneeId?: string) {
       count(*) FILTER (WHERE i.est_redoublant)::int AS redoublants
     FROM eleves e LEFT JOIN inscriptions i ON i.eleve_id = e.id
       AND ${id ? sql`i.annee_id = ${id}::uuid` : sql`false`}
+    WHERE ${anneeId ? sql`i.id IS NOT NULL` : sql`true`}
   `);
   return result.rows[0] ?? { total: 0, inscrits: 0, nouveaux: 0, incomplets: 0, suspendus: 0, reinscriptions: 0, redoublants: 0 };
 }
@@ -360,6 +362,6 @@ export async function listerClassesCourantes(anneeId?: string) {
     })
     .from(classes)
     .innerJoin(niveaux, eq(niveaux.id, classes.niveauId))
-    .where(and(eq(classes.anneeId, anneeId ?? annee!.id), eq(classes.active, true)))
+    .where(and(eq(classes.anneeId, anneeId ?? annee!.id), anneeId ? undefined : eq(classes.active, true)))
     .orderBy(asc(niveaux.ordre), asc(classes.libelle));
 }
