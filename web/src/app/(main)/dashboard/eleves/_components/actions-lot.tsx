@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { ArrowRightLeft } from "lucide-react";
+import { ArrowRightLeft, Download, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { BarreSelection, useSelection } from "@/components/ui/selection-lot";
+import { useSelection } from "@/components/ui/selection-lot";
 
 import { BoutonNotifier } from "../../_components/bouton-notifier";
 import { changerClasseEnLot } from "../actions-lot";
@@ -43,10 +43,12 @@ export function ActionsLotEleves({
   classes,
   peutAffecter,
   peutEnvoyer,
+  selectionDonnees,
 }: {
   classes: Array<{ id: string; libelle: string }>;
   peutAffecter: boolean;
   peutEnvoyer: boolean;
+  selectionDonnees: Array<{ id: string; nom: string; prenom: string; matricule: string; classeLibelle: string | null; statut: string; statutDossier: string | null }>;
 }) {
   const { selection, vider } = useSelection();
   const routeur = useRouter();
@@ -57,6 +59,24 @@ export function ActionsLotEleves({
   const [enCours, demarrer] = useTransition();
 
   const ids = [...selection];
+
+  function exporterSelection() {
+    const selectionnees = selectionDonnees.filter((eleve) => selection.has(eleve.id));
+    if (selectionnees.length === 0) return;
+    const cellule = (valeur: string | null) => {
+      const texte = String(valeur ?? "").replace(/^([=+@-])/, "'$1");
+      return `"${texte.replace(/"/g, '""')}"`;
+    };
+    const colonnes = ["Matricule", "Nom", "Prénom", "Classe", "Statut", "État du dossier"];
+    const lignes = selectionnees.map((e) => [e.matricule, e.nom, e.prenom, e.classeLibelle, e.statut, e.statutDossier].map(cellule).join(";"));
+    const fichier = new Blob(["\\uFEFF" + [colonnes.join(";"), ...lignes].join("\\r\\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(fichier);
+    const lien = document.createElement("a");
+    lien.href = url;
+    lien.download = "eleves-selection.csv";
+    lien.click();
+    URL.revokeObjectURL(url);
+  }
 
   function deplacer() {
     demarrer(async () => {
@@ -74,8 +94,12 @@ export function ActionsLotEleves({
     });
   }
 
+  if (selection.size === 0) return null;
+
   return (
-    <BarreSelection singulier="élève sélectionné" pluriel="élèves sélectionnés">
+    <div role="status" className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+      <span aria-hidden className="mr-1 flex size-6 items-center justify-center rounded-full bg-emerald-500 text-white">✓</span>
+      <span className="mr-3 whitespace-nowrap text-sm font-semibold">{ids.length} élève{ids.length > 1 ? "s" : ""} sélectionné{ids.length > 1 ? "s" : ""}</span>
       {peutEnvoyer ? (
         <BoutonNotifier
           cible={{ type: "selection", ids, nom: `${ids.length} élève(s)` }}
@@ -87,7 +111,7 @@ export function ActionsLotEleves({
       {peutAffecter ? (
         <Dialog open={ouvert} onOpenChange={setOuvert}>
           <DialogTrigger asChild>
-            <Button variant="ghost" size="sm">
+            <Button variant="outline" size="sm" className="bg-white text-slate-800 dark:bg-background dark:text-foreground">
               <ArrowRightLeft aria-hidden />
               Changer de classe
             </Button>
@@ -145,6 +169,10 @@ export function ActionsLotEleves({
           </DialogContent>
         </Dialog>
       ) : null}
-    </BarreSelection>
+      <Button variant="outline" size="sm" className="bg-white text-slate-800 dark:bg-background dark:text-foreground" onClick={exporterSelection}>
+        <Download aria-hidden /> Exporter la sélection
+      </Button>
+      <Button variant="ghost" size="icon" className="ml-auto" aria-label="Annuler la sélection" onClick={vider}><X aria-hidden /></Button>
+    </div>
   );
 }
