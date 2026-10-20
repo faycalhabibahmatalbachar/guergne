@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  AlertTriangle, ArrowRightLeft, BookOpen, CheckCheck, ChevronDown, ClipboardList,
+  AlertTriangle, CheckCheck, ChevronDown, ClipboardList,
   Download, Eye, FileText, GraduationCap, MoreHorizontal, Pencil, Plus,
-  Search, SlidersHorizontal, Upload, UserPlus, Users, Wrench,
+  Search, Upload, UserPlus, Users, Wrench,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -137,7 +137,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
 
       <div id="liste-eleves" className="scroll-mt-6 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
         <ZoneSelection ids={lignes.map((e) => e.id)}>
-          {peutAffecter || peutEnvoyer ? <div className="p-2.5 pb-0"><ActionsLotEleves
+          {peutAffecter || peutEnvoyer ? <div><ActionsLotEleves
             classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
             peutAffecter={peutAffecter} peutEnvoyer={peutEnvoyer}
             selectionDonnees={lignes.map((e) => ({ id: e.id, nom: e.nom, prenom: e.prenom, matricule: e.matricule, classeLibelle: e.classeLibelle, statut: e.statut, statutDossier: e.statutDossier }))}
