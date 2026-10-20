@@ -46,3 +46,5 @@ jobs:
 # Tentative 2 : journaliser la réponse de l'API SVG.
 
 # Tentative 3 : variante de coiffure unique (API impose max 64 caractères).
+
+# Tentative 4 : chaque composant du SVG reçoit une seule variante valide.
