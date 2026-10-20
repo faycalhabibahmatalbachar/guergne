@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ListFilter, LoaderCircle, Search, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ListFilter, LoaderCircle, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -136,28 +136,70 @@ export function PaginationEleves({ page, nbPages, total, parPage }: {
 }) {
   const router = useRouter();
   const params = useSearchParams();
-  function aller(p: number, taille = parPage) {
+  const nombrePages = Math.max(1, nbPages);
+  const pageCourante = Math.min(Math.max(1, page), nombrePages);
+
+  function aller(numero: number, taille = parPage) {
+    if (numero < 1 || numero > nombrePages) return;
     const q = new URLSearchParams(params.toString());
-    q.set("page", String(p));
+    q.set("page", String(numero));
     q.set("parPage", String(taille));
     router.push(`/dashboard/eleves?${q.toString()}`);
   }
-  const debut = total === 0 ? 0 : (page - 1) * parPage + 1;
-  const fin = Math.min(page * parPage, total);
-  const pages = [...new Set([1, Math.max(1, page - 1), page, Math.min(nbPages, page + 1), nbPages])].filter((v) => v >= 1 && v <= nbPages);
+
+  const debut = total === 0 ? 0 : (pageCourante - 1) * parPage + 1;
+  const fin = Math.min(pageCourante * parPage, total);
+  const pages = [...new Set([1, Math.max(1, pageCourante - 1), pageCourante, Math.min(nombrePages, pageCourante + 1), nombrePages])]
+    .filter((numero) => numero >= 1 && numero <= nombrePages);
+
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-4 text-sm dark:border-border">
-      <p className="text-slate-600 dark:text-muted-foreground">Affichage de {debut} à {fin} sur {total} élèves</p>
-      <nav aria-label="Pagination des élèves" className="flex items-center gap-1">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => aller(page - 1)} aria-label="Page précédente">‹</Button>
-        {pages.map((p, i) => <span key={p} className="flex items-center gap-1">{i > 0 && p - pages[i - 1] > 1 ? <span className="px-1 text-slate-500">…</span> : null}<Button size="sm" variant={p === page ? "default" : "outline"} className={p === page ? "bg-emerald-700 text-white hover:bg-emerald-800" : ""} aria-current={p === page ? "page" : undefined} onClick={() => aller(p)}>{p}</Button></span>)}
-        <Button variant="outline" size="sm" disabled={page >= nbPages} onClick={() => aller(page + 1)} aria-label="Page suivante">›</Button>
-      </nav>
-      <label className="flex items-center gap-2 text-slate-600 dark:text-muted-foreground">Élèves par page
-        <select aria-label="Élèves par page" className="h-9 rounded-md border border-input bg-background px-3 font-medium text-foreground" value={parPage} onChange={(e) => aller(1, Number(e.target.value))}>
-          {[8, 16, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
-      </label>
-    </div>
+    <footer aria-label="Pied du tableau des élèves" className="border-t border-slate-200/80 bg-slate-50/60 px-4 py-3.5 text-sm dark:border-border dark:bg-muted/15 sm:px-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <p className="whitespace-nowrap text-slate-600 dark:text-muted-foreground" aria-live="polite">
+            <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">{debut}–{fin}</span> sur <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">{total.toLocaleString("fr-FR")}</span> élèves
+          </p>
+          <span aria-hidden className="hidden h-5 w-px bg-slate-200 dark:bg-border sm:block" />
+          <label className="inline-flex items-center gap-2 whitespace-nowrap text-xs text-slate-600 dark:text-muted-foreground">
+            Par page
+            <select
+              aria-label="Nombre d'élèves par page"
+              className="h-9 min-w-16 rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-medium text-slate-800 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:border-border dark:bg-background dark:text-foreground"
+              value={parPage}
+              onChange={(e) => aller(1, Number(e.target.value))}
+            >
+              {[8, 16, 25, 50, 100].map((nombre) => <option key={nombre} value={nombre}>{nombre}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <nav aria-label="Pagination des élèves" className="flex items-center justify-between gap-3 sm:justify-end">
+          <span className="text-xs font-medium text-slate-600 tabular-nums dark:text-muted-foreground sm:hidden">Page {pageCourante} sur {nombrePages}</span>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="hidden size-9 bg-white shadow-none sm:inline-flex dark:bg-card" disabled={pageCourante <= 1} onClick={() => aller(1)} aria-label="Première page"><ChevronsLeft className="size-4" aria-hidden /></Button>
+            <Button variant="outline" size="icon" className="size-9 bg-white shadow-none dark:bg-card" disabled={pageCourante <= 1} onClick={() => aller(pageCourante - 1)} aria-label="Page précédente"><ChevronLeft className="size-4" aria-hidden /></Button>
+
+            <div className="hidden items-center gap-1 sm:flex">
+              {pages.map((numero, index) => (
+                <span key={numero} className="flex items-center gap-1">
+                  {index > 0 && numero - pages[index - 1] > 1 ? <span className="px-1 text-slate-400" aria-hidden>…</span> : null}
+                  <Button
+                    size="icon"
+                    variant={numero === pageCourante ? "default" : "outline"}
+                    className={`size-9 font-semibold tabular-nums shadow-none ${numero === pageCourante ? "bg-emerald-700 text-white hover:bg-emerald-800" : "bg-white dark:bg-card"}`}
+                    aria-label={`Aller à la page ${numero}`}
+                    aria-current={numero === pageCourante ? "page" : undefined}
+                    onClick={() => aller(numero)}
+                  >{numero}</Button>
+                </span>
+              ))}
+            </div>
+
+            <Button variant="outline" size="icon" className="size-9 bg-white shadow-none dark:bg-card" disabled={pageCourante >= nombrePages} onClick={() => aller(pageCourante + 1)} aria-label="Page suivante"><ChevronRight className="size-4" aria-hidden /></Button>
+            <Button variant="outline" size="icon" className="hidden size-9 bg-white shadow-none sm:inline-flex dark:bg-card" disabled={pageCourante >= nombrePages} onClick={() => aller(nombrePages)} aria-label="Dernière page"><ChevronsRight className="size-4" aria-hidden /></Button>
+          </div>
+        </nav>
+      </div>
+    </footer>
   );
 }
