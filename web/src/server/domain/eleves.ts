@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 
 import type { StatutEleve as StatutEleveType } from "@/lib/eleves-constantes";
 import { db } from "@/server/db";
@@ -33,6 +33,10 @@ export interface LigneEleve {
   niveauLibelle: string | null;
   serieCode: string | null;
   estRedoublant: boolean;
+  parentNom: string | null;
+  parentLien: string | null;
+  parentTelephone: string | null;
+  statutDossier: string | null;
 }
 
 export interface FiltresEleves {
@@ -43,6 +47,9 @@ export interface FiltresEleves {
   recherche?: string;
   classeId?: string;
   niveauId?: string;
+  anneeId?: string;
+  dossier?: "BROUILLON" | "A_VALIDER" | "VALIDE" | "INCOMPLET" | "REFUSE";
+  rapide?: "inscrits" | "suspendus" | "incomplets" | "redoublants";
   statut?: StatutEleveType;
   page?: number;
   parPage?: number;
@@ -103,14 +110,22 @@ export async function listerEleves(filtres: FiltresEleves = {}): Promise<Resulta
   if (filtres.statut) conditions.push(eq(eleves.statut, filtres.statut));
   if (filtres.classeId) conditions.push(eq(inscriptions.classeId, filtres.classeId));
   if (filtres.niveauId) conditions.push(eq(classes.niveauId, filtres.niveauId));
+  if (filtres.dossier) conditions.push(eq(inscriptions.statutDossier, filtres.dossier));
+  if (filtres.rapide === "inscrits") conditions.push(eq(eleves.statut, "INSCRIT"));
+  if (filtres.rapide === "suspendus") conditions.push(inArray(eleves.statut, ["SUSPENDU_DISCIPLINE", "SUSPENDU_IMPAYE"]));
+  if (filtres.rapide === "incomplets") conditions.push(eq(inscriptions.statutDossier, "INCOMPLET"));
+  if (filtres.rapide === "redoublants") conditions.push(eq(inscriptions.estRedoublant, true));
+  if (filtres.anneeId) conditions.push(sql`inscriptions.id IS NOT NULL`);
 
   const where = conditions.length ? and(...conditions) : undefined;
 
   // Restreint la jointure d'inscription à l'année courante, sinon un élève
   // réinscrit plusieurs années apparaîtrait en double.
-  const jointureInscription = annee
-    ? and(eq(inscriptions.eleveId, eleves.id), eq(inscriptions.anneeId, annee.id))
-    : eq(inscriptions.eleveId, eleves.id);
+  const anneeSelectionnee = filtres.anneeId ?? annee?.id;
+  const jointureInscription = and(
+    eq(inscriptions.eleveId, eleves.id),
+    anneeSelectionnee ? eq(inscriptions.anneeId, anneeSelectionnee) : sql`false`,
+  );
 
   const [lignes, totalRes] = await Promise.all([
     db
@@ -140,6 +155,10 @@ export async function listerEleves(filtres: FiltresEleves = {}): Promise<Resulta
         niveauLibelle: niveaux.libelle,
         serieCode: series.code,
         estRedoublant: inscriptions.estRedoublant,
+        statutDossier: inscriptions.statutDossier,
+        parentNom: sql<string | null>`(SELECT t.nom || ' ' || t.prenom FROM eleve_tuteur et JOIN tuteurs t ON t.id = et.tuteur_id WHERE et.eleve_id = eleves.id ORDER BY et.est_principal DESC, et.cree_le ASC LIMIT 1)`,
+        parentLien: sql<string | null>`(SELECT et.lien::text FROM eleve_tuteur et WHERE et.eleve_id = eleves.id ORDER BY et.est_principal DESC, et.cree_le ASC LIMIT 1)`,
+        parentTelephone: sql<string | null>`(SELECT t.telephone FROM eleve_tuteur et JOIN tuteurs t ON t.id = et.tuteur_id WHERE et.eleve_id = eleves.id ORDER BY et.est_principal DESC, et.cree_le ASC LIMIT 1)`,
       })
       .from(eleves)
       .leftJoin(inscriptions, jointureInscription)
@@ -288,19 +307,49 @@ export async function chargerDossier(eleveId: string): Promise<DossierEleve | nu
   };
 }
 
-/** Classes de l'année courante, pour les listes déroulantes. */
-export async function listerClassesCourantes() {
+/** Années disponibles pour les filtres de la liste. */
+export async function listerAnneesEleves() {
+  return db.select({ id: anneesScolaires.id, libelle: anneesScolaires.libelle, estCourante: anneesScolaires.estCourante })
+    .from(anneesScolaires).orderBy(desc(anneesScolaires.dateDebut));
+}
+
+/** Indicateurs calculés sur les dossiers réels, sans tendances fictives. */
+export async function statistiquesEleves(anneeId?: string) {
+  const [annee] = await db.select({ id: anneesScolaires.id }).from(anneesScolaires)
+    .where(eq(anneesScolaires.estCourante, true)).limit(1);
+  const id = anneeId ?? annee?.id;
+  const result = await db.execute<{
+    total: number; inscrits: number; nouveaux: number; incomplets: number;
+    suspendus: number; reinscriptions: number; redoublants: number;
+  }>(sql`
+    SELECT count(*)::int AS total,
+      count(*) FILTER (WHERE e.statut = 'INSCRIT')::int AS inscrits,
+      count(*) FILTER (WHERE i.type = 'INSCRIPTION' AND i.date_inscription >= date_trunc('week', current_date)::date)::int AS nouveaux,
+      count(*) FILTER (WHERE i.statut_dossier = 'INCOMPLET')::int AS incomplets,
+      count(*) FILTER (WHERE e.statut IN ('SUSPENDU_DISCIPLINE', 'SUSPENDU_IMPAYE'))::int AS suspendus,
+      count(*) FILTER (WHERE i.type = 'REINSCRIPTION')::int AS reinscriptions,
+      count(*) FILTER (WHERE i.est_redoublant)::int AS redoublants
+    FROM eleves e LEFT JOIN inscriptions i ON i.eleve_id = e.id
+      AND ${id ? sql`i.annee_id = ${id}::uuid` : sql`false`}
+    WHERE ${anneeId ? sql`i.id IS NOT NULL` : sql`true`}
+  `);
+  return result.rows[0] ?? { total: 0, inscrits: 0, nouveaux: 0, incomplets: 0, suspendus: 0, reinscriptions: 0, redoublants: 0 };
+}
+
+/** Classes de l'année sélectionnée (courante par défaut). */
+export async function listerClassesCourantes(anneeId?: string) {
   const [annee] = await db
     .select({ id: anneesScolaires.id })
     .from(anneesScolaires)
     .where(eq(anneesScolaires.estCourante, true))
     .limit(1);
 
-  if (!annee) return [];
+  if (!annee && !anneeId) return [];
 
   return db
     .select({
       id: classes.id,
+      niveauId: classes.niveauId,
       libelle: classes.libelle,
       code: classes.code,
       niveauLibelle: niveaux.libelle,
@@ -313,6 +362,6 @@ export async function listerClassesCourantes() {
     })
     .from(classes)
     .innerJoin(niveaux, eq(niveaux.id, classes.niveauId))
-    .where(and(eq(classes.anneeId, annee.id), eq(classes.active, true)))
+    .where(and(eq(classes.anneeId, anneeId ?? annee!.id), anneeId ? undefined : eq(classes.active, true)))
     .orderBy(asc(niveaux.ordre), asc(classes.libelle));
 }
