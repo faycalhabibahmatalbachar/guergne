@@ -44,3 +44,5 @@ jobs:
           git push origin HEAD:feat/eleves-avatars-illustres
 
 # Tentative 2 : journaliser la réponse de l'API SVG.
+
+# Tentative 3 : variante de coiffure unique (API impose max 64 caractères).
