@@ -1,45 +1,78 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Camera } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { TeleverserPhoto } from "@/components/televerser-photo";
 import { imageProfilEleve } from "@/lib/avatar-eleve";
-
 import { definirPhotoEleve, retirerPhotoEleve } from "../photo-actions";
 
-/**
- * Photo de l'élève sur sa fiche.
- *
- * Ce composant n'existe que pour lier le composant générique de téléversement
- * aux actions serveur : celles-ci ne peuvent pas être passées en propriété
- * depuis un composant serveur sans être d'abord refermées sur l'identifiant.
- */
+/** Une seule vignette dans le bandeau. Les commandes photo sont dans la fenêtre. */
 export function PhotoEleve({
-  eleveId,
-  photoId,
-  nomComplet,
-  sexe,
-  peutModifier = true,
+  eleveId, photoId, nomComplet, sexe, peutModifier = false,
 }: {
-  eleveId: string;
-  photoId: string | null;
-  nomComplet: string;
-  sexe?: "M" | "F" | null;
-  peutModifier?: boolean;
+  eleveId: string; photoId: string | null; nomComplet: string;
+  sexe?: "M" | "F" | null; peutModifier?: boolean;
 }) {
-  if (!peutModifier) {
-    const source = imageProfilEleve({ id: eleveId, sexe, photoUrl: photoId ? "/api/fichiers/" + photoId : null });
-    return <div className="size-32 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-muted sm:size-36">
-      {/* La photo réelle est servie par une route authentifiée ; pas d’optimiseur externe. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={source} alt={"Photo ou avatar de " + nomComplet} className="size-full object-cover" />
-    </div>;
-  }
+  const [ouvert, setOuvert] = useState(false);
+  const router = useRouter();
+  const src = imageProfilEleve({
+    id: eleveId, sexe, photoUrl: photoId ? "/api/fichiers/" + photoId : null,
+  });
   return (
-    <TeleverserPhoto
-      photoActuelleId={photoId}
-      alt={`Photo de ${nomComplet}`}
-      taille="size-32 sm:size-36"
-      onEnvoyer={(donnees) => definirPhotoEleve(eleveId, donnees)}
-      onRetirer={() => retirerPhotoEleve(eleveId)}
-    />
+    <>
+      <div className="relative size-[100px] shrink-0 sm:size-[116px]">
+        <div className="size-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm dark:border-border">
+          {/* Image privée authentifiée, ou avatar SVG local. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={photoId ? "Photo de " + nomComplet : "Avatar illustré de " + nomComplet} className="size-full object-cover" />
+        </div>
+        {peutModifier ? (
+          <Button
+            type="button" variant="outline" size="icon"
+            aria-label={"Modifier la photo de " + nomComplet}
+            title="Modifier la photo"
+            onClick={() => setOuvert(true)}
+            className="absolute -bottom-1 -right-1 size-8 rounded-lg border-white bg-slate-900 text-white shadow-md hover:bg-slate-700 hover:text-white dark:border-border"
+          >
+            <Camera className="size-4" aria-hidden />
+          </Button>
+        ) : null}
+      </div>
+      {peutModifier ? (
+        <Dialog open={ouvert} onOpenChange={setOuvert}>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg rounded-2xl p-5 sm:p-6">
+            <DialogHeader>
+              <DialogTitle>Photo d’identité de l’élève</DialogTitle>
+              <DialogDescription>
+                Remplacez l’avatar illustré par une photo réelle autorisée. Le fichier sera compressé avant son enregistrement.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-3">
+              <TeleverserPhoto
+                photoActuelleId={photoId}
+                alt={"Photo de " + nomComplet}
+                taille="size-28"
+                onEnvoyer={async (donnees) => {
+                  const resultat = await definirPhotoEleve(eleveId, donnees);
+                  if (resultat.ok) { router.refresh(); setOuvert(false); }
+                  return resultat;
+                }}
+                onRetirer={async () => {
+                  const resultat = await retirerPhotoEleve(eleveId);
+                  if (resultat.ok) { router.refresh(); setOuvert(false); }
+                  return resultat;
+                }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+    </>
   );
 }

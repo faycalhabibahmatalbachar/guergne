@@ -156,7 +156,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
     ...(peutVoirFinances ? (scolarite?.paiements ?? []).map((p) => p.date) : []),
   ].sort((a, b) => b.localeCompare(a))[0] ?? null;
   // Navigation par voisins dans la classe courante, fondée sur les élèves actifs.
-  const voisins = inscription ? (await db.execute<{ precedent: string | null; suivant: string | null }>(sql`
+  const voisins = inscription && peutAdministrer ? (await db.execute<{ precedent: string | null; suivant: string | null }>(sql`
     WITH ordre AS (
       SELECT e.id,
              lag(e.id) OVER (ORDER BY e.nom, e.prenom, e.id) AS precedent,
@@ -178,28 +178,24 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-4">
-      <Button asChild variant="ghost" size="sm" className="-ml-2 print:hidden">
-        <Link href="/dashboard/eleves">
-          <ArrowLeft aria-hidden />
-          Tous les élèves
-        </Link>
-      </Button>
+      <nav aria-label="Fil d’Ariane du dossier élève" className="flex min-h-10 flex-wrap items-center gap-2 rounded-xl border border-slate-200/70 bg-slate-50/70 px-3 py-2 text-xs text-slate-600 dark:border-border dark:bg-card dark:text-muted-foreground print:hidden">
+        <Link href="/dashboard/eleves" className="font-medium hover:text-emerald-700">Élèves</Link>
+        <ChevronRight className="size-3.5 text-slate-400" aria-hidden />
+        <Link href="/dashboard/eleves" className="hover:text-emerald-700">Liste des élèves</Link>
+        <ChevronRight className="size-3.5 text-slate-400" aria-hidden />
+        <span aria-current="page" className="font-semibold text-slate-900 dark:text-foreground">{eleve.prenom} {eleve.nom}</span>
+      </nav>
 
-      {/* En-tête */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card sm:p-5">
-      <div className="mb-4 flex flex-wrap justify-end gap-2 print:hidden">
-        <div className="flex flex-wrap items-center gap-2">
-          {voisins?.precedent ? <Button asChild variant="outline" size="sm" className="h-9 gap-1 rounded-lg"><Link href={"/dashboard/eleves/" + voisins.precedent}><ArrowLeft className="size-4" aria-hidden />Précédent</Link></Button> : null}
-          {voisins?.suivant ? <Button asChild variant="outline" size="sm" className="h-9 gap-1 rounded-lg"><Link href={"/dashboard/eleves/" + voisins.suivant}>Suivant <ChevronRight className="size-4" aria-hidden /></Link></Button> : null}
-          {peutEmettreDocument ? <DocumentsEleve
-            eleveId={eleve.id}
-            estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)}
-            bulletins={bulletinsDisponibles}
-          /> : null}
-          {peutNotifier ? <BoutonNotifier
-            cible={{ type: "eleve", id: eleve.id, nom: `${eleve.prenom} ${eleve.nom}` }}
-          /> : null}
-          {peutModifierSensible ? <ModifierDossier
+      <section aria-label="En-tête du dossier élève" className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card sm:p-5">
+        <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 dark:border-border md:flex-row md:items-center md:justify-between print:hidden">
+          <Button asChild variant="outline" size="sm" className="h-9 w-fit gap-1.5 rounded-lg bg-white px-3 shadow-none dark:bg-card">
+            <Link href="/dashboard/eleves"><ArrowLeft className="size-4" aria-hidden />Retour à la liste</Link>
+          </Button>
+          <div role="group" aria-label="Commandes du dossier" className="flex flex-wrap items-center gap-2">
+            {voisins?.precedent ? <Button asChild variant="outline" size="sm" className="h-9 gap-1 rounded-lg bg-white shadow-none dark:bg-card"><Link href={"/dashboard/eleves/" + voisins.precedent}><ArrowLeft className="size-4" aria-hidden />Précédent</Link></Button> : <Button disabled variant="outline" size="sm" className="h-9 gap-1 rounded-lg"><ArrowLeft className="size-4" aria-hidden />Précédent</Button>}
+            {voisins?.suivant ? <Button asChild variant="outline" size="sm" className="h-9 gap-1 rounded-lg bg-white shadow-none dark:bg-card"><Link href={"/dashboard/eleves/" + voisins.suivant}>Suivant<ChevronRight className="size-4" aria-hidden /></Link></Button> : <Button disabled variant="outline" size="sm" className="h-9 gap-1 rounded-lg">Suivant<ChevronRight className="size-4" aria-hidden /></Button>}
+            <ImprimerDossier />
+            {peutModifierSensible ? <ModifierDossier
             eleveId={eleve.id}
             dossier={{
               nom: eleve.nom,
@@ -225,58 +221,60 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               ecoleOrigine: eleve.ecoleOrigine,
             }}
           /> : null}
-          <ImprimerDossier />
+          </div>
         </div>
-      </div>
-      <div className="grid items-start gap-4 border-t border-slate-100 pt-4 dark:border-border xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1.65fr)]">
-
-        <div className="flex items-start gap-4">
-          <PhotoEleve
-            eleveId={eleve.id}
-            photoId={eleve.photoId}
-            nomComplet={`${eleve.prenom} ${eleve.nom}`}
-            sexe={eleve.sexe}
-            peutModifier={peutModifierSensible}
-          />
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl dark:text-foreground">
-              {eleve.prenom} {eleve.nom}
-            </h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="font-mono text-xs">
-                {eleve.matricule}
-              </Badge>
-              <BadgeStatut statut={eleve.statut} />
-              {inscription ? (
-                <span className="text-muted-foreground text-sm">
-                  {inscription.classeLibelle} — {inscription.anneeLibelle}
-                </span>
-              ) : (
-                <span className="text-amber-600 text-sm dark:text-amber-400">
-                  Aucune inscription active
-                </span>
-              )}
+        <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.7fr)] xl:items-center">
+          <div className="flex min-w-0 items-start gap-3.5">
+            <PhotoEleve eleveId={eleve.id} photoId={eleve.photoId} nomComplet={eleve.prenom + " " + eleve.nom} sexe={eleve.sexe} peutModifier={peutModifierSensible} />
+            <div className="min-w-0 flex-1">
+              <h1 className="break-words text-2xl font-bold leading-tight tracking-tight text-[#111c43] dark:text-foreground sm:text-[29px]">{eleve.prenom} {eleve.nom}</h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-muted-foreground">
+                <span className="font-mono font-semibold text-[#23376d] dark:text-foreground">{eleve.matricule}</span>
+                <span className="text-slate-300">|</span>
+                <span>{inscription?.classeLibelle ?? "Sans classe"}</span>
+                <span className="text-slate-300">|</span>
+                <span>{age} ans</span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <BadgeStatut statut={eleve.statut} />
+                {inscription?.estRedoublant ? <Badge className="border-0 bg-amber-50 text-amber-800 hover:bg-amber-50">Redoublant(e)</Badge> : null}
+                {inscription?.type ? <Badge variant="outline" className="bg-slate-50 text-slate-600 dark:bg-muted">{inscription.type.replaceAll("_", " ").toLowerCase()}</Badge> : null}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5 text-[11px] text-slate-600 dark:text-muted-foreground">
+                <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" aria-hidden />Né(e) le {dateFr(eleve.dateNaissance)}</span>
+                <span className="inline-flex items-center gap-1"><UserRound className="size-3.5" aria-hidden />{eleve.sexe === "F" ? "Féminin" : eleve.sexe === "M" ? "Masculin" : "Non renseigné"}</span>
+                {eleve.lieuNaissance ? <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{eleve.lieuNaissance}</span> : null}
+              </div>
+            </div>
+          </div>
+          <div className="grid min-w-0 grid-cols-2 gap-2 2xl:grid-cols-4">
+            <div className="min-w-0 rounded-xl border border-emerald-100 bg-emerald-50/65 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
+              <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-emerald-600 text-white"><GraduationCap className="size-5" aria-hidden /></div>
+              <p className="text-[11px] text-slate-600 dark:text-muted-foreground">Statut scolaire</p>
+              <p className="mt-1 break-words text-[15px] font-bold leading-5 text-emerald-800 dark:text-emerald-300">{eleve.statut.replaceAll("_", " ")}</p>
+              <p className="mt-1.5 text-[10px] text-slate-500">{inscription ? "Inscrit le " + dateFr(inscription.dateInscription) : "Sans inscription active"}</p>
+            </div>
+            <div className="min-w-0 rounded-xl border border-blue-100 bg-blue-50/65 p-3 dark:border-blue-900 dark:bg-blue-950/20">
+              <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-blue-600 text-white"><ClipboardList className="size-5" aria-hidden /></div>
+              <p className="text-[11px] text-slate-600 dark:text-muted-foreground">Dossier administratif</p>
+              <p className="mt-1 break-words text-[15px] font-bold leading-5 text-blue-800 dark:text-blue-300">{inscription ? STATUTS_DOSSIER[inscription.statutDossier] ?? inscription.statutDossier : "Non renseigné"}</p>
+              <p className="mt-1.5 text-[10px] text-slate-500">État du dossier</p>
+            </div>
+            {peutVoirFinances ? <div className="min-w-0 rounded-xl border border-orange-100 bg-orange-50/65 p-3 dark:border-orange-900 dark:bg-orange-950/20">
+              <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-orange-500 text-white"><CreditCard className="size-5" aria-hidden /></div>
+              <p className="text-[11px] text-slate-600 dark:text-muted-foreground">Situation financière</p>
+              <p className="mt-1 break-words text-[15px] font-bold leading-5 text-orange-800 dark:text-orange-300">{resteFinancier === null ? "Non renseignée" : resteFinancier > 0 ? "En attente" : "À jour"}</p>
+              {resteFinancier !== null ? <p className="mt-1.5 break-words text-[10px] text-slate-500">Reste : {resteFinancier.toLocaleString("fr-FR")} FCFA</p> : null}
+            </div> : null}
+            <div className="min-w-0 rounded-xl border border-violet-100 bg-violet-50/65 p-3 dark:border-violet-900 dark:bg-violet-950/20">
+              <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-violet-600 text-white"><Clock3 className="size-5" aria-hidden /></div>
+              <p className="text-[11px] text-slate-600 dark:text-muted-foreground">Dernière activité</p>
+              <p className="mt-1 break-words text-[15px] font-bold leading-5 text-violet-800 dark:text-violet-300">{derniereActivite ? dateFr(derniereActivite) : "Aucune"}</p>
+              <p className="mt-1.5 text-[10px] text-slate-500">Événement enregistré</p>
             </div>
           </div>
         </div>
-
-      <div className="grid min-w-0 gap-2 sm:grid-cols-2 2xl:grid-cols-4">
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
-          <GraduationCap className="mb-2 size-5 text-emerald-600" aria-hidden /><p className="text-xs text-slate-500">Statut scolaire</p><p className="mt-1 font-bold text-emerald-700">{eleve.statut.replaceAll("_", " ")}</p><p className="mt-1 text-xs text-slate-500">{inscription ? inscription.classeLibelle : "Sans inscription"}</p>
-        </div>
-        <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/20">
-          <ClipboardList className="mb-2 size-5 text-blue-600" aria-hidden /><p className="text-xs text-slate-500">Dossier administratif</p><p className="mt-1 font-bold text-blue-700">{inscription ? STATUTS_DOSSIER[inscription.statutDossier] ?? inscription.statutDossier : "Non renseigné"}</p><p className="mt-1 text-xs text-slate-500">Situation enregistrée</p>
-        </div>
-        {peutVoirFinances ? <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-3 dark:border-orange-900 dark:bg-orange-950/20">
-          <CreditCard className="mb-2 size-5 text-orange-600" aria-hidden /><p className="text-xs text-slate-500">Situation financière</p><p className="mt-1 font-bold text-orange-700">{resteFinancier === null ? "Non renseignée" : resteFinancier > 0 ? "En attente" : "À jour"}</p>{resteFinancier !== null ? <p className="mt-1 text-xs text-slate-500">Reste : {resteFinancier.toLocaleString("fr-FR")} FCFA</p> : null}
-        </div> : null}
-        <div className="rounded-xl border border-violet-100 bg-violet-50/50 p-3 dark:border-violet-900 dark:bg-violet-950/20">
-          <Clock3 className="mb-2 size-5 text-violet-600" aria-hidden /><p className="text-xs text-slate-500">Dernière activité</p><p className="mt-1 font-bold text-violet-700">{derniereActivite ? dateFr(derniereActivite) : "Aucune"}</p><p className="mt-1 text-xs text-slate-500">Donnée enregistrée</p>
-        </div>
-      </div>
-      </div>
       </section>
-
       <Tabs defaultValue="ensemble" className="gap-3">
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-border dark:bg-card">
           <TabsList variant="line" className="flex h-14 w-max min-w-full items-stretch justify-between gap-1 px-2 py-0 sm:px-3">
@@ -301,6 +299,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             peutVoirNotes={peutVoirNotes}
             peutVoirAssiduite={peutVoirAssiduite}
             peutVoirTuteurs={true}
+            notification={peutNotifier ? <BoutonNotifier cible={{ type: "eleve", id: eleve.id, nom: eleve.prenom + " " + eleve.nom }} /> : null}
             actions={peutAdministrer ? <ActionsDossier
               eleveId={eleve.id}
               statut={eleve.statut}
@@ -664,6 +663,10 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           </Card>
         </TabsContent>
       </Tabs>
+      <footer aria-label="Bas du dossier élève" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/70 px-4 py-3 text-xs text-slate-600 dark:border-border dark:bg-card dark:text-muted-foreground print:hidden">
+        <span>Fiche scolaire · {eleve.matricule}{inscription ? " · " + inscription.anneeLibelle : ""}</span>
+        <Link href="/dashboard/eleves" className="inline-flex items-center gap-1.5 font-semibold text-emerald-700 hover:underline dark:text-emerald-400"><ArrowLeft className="size-3.5" aria-hidden />Retour à la liste des élèves</Link>
+      </footer>
     </div>
   );
 }

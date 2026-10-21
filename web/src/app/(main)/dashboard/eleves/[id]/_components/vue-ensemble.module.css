@@ -1,0 +1,62 @@
+/* Grille propre au dossier élève. Le gabarit se base sur la largeur
+   réellement disponible, pas sur celle de la fenêtre (sidebar du lycée). */
+.shell { container-type: inline-size; }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "personal"
+    "school"
+    "guardians"
+    "actions"
+    "documents"
+    "finance"
+    "activity";
+  gap: 14px;
+  align-items: start;
+}
+.personal { grid-area: personal; align-self: stretch; }
+.school { grid-area: school; }
+.guardians { grid-area: guardians; }
+.actions { grid-area: actions; }
+.documents { grid-area: documents; }
+.finance { grid-area: finance; }
+.activity { grid-area: activity; }
+
+.schoolFacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
+}
+
+@container (min-width: 700px) {
+  .layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "personal school"
+      "personal guardians"
+      "actions documents"
+      "finance finance"
+      "activity activity";
+    gap: 16px;
+  }
+}
+
+@container (min-width: 1110px) {
+  .layout {
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 1.3fr) minmax(0, 1.1fr);
+    grid-template-areas:
+      "personal school actions"
+      "personal guardians documents"
+      "finance finance activity";
+  }
+  .schoolFacts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* Une fiche imprimée ne doit pas masquer ses cartes ou couper un encart. */
+@media print {
+  .shell { container-type: normal; }
+  .layout { display: block; }
+  .layout > * { break-inside: avoid; margin-bottom: 12px; box-shadow: none !important; }
+}
