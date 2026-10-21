@@ -40,9 +40,9 @@ interface LigneBrute extends Record<string, unknown> {
 }
 
 const TITRES: Record<string, string> = {
-  LITTERAIRE: "Moyenne des matières littéraires",
-  SCIENTIFIQUE: "Moyenne des matières scientifiques",
-  COMPLEMENTAIRE: "Moyenne des matières complémentaires",
+  LITTERAIRE: "Moyenne des Matières Littéraires",
+  SCIENTIFIQUE: "Moyenne des Matières Scientifiques",
+  COMPLEMENTAIRE: "Moyenne des Matières Complémentaires",
 };
 
 const ORDRE_BLOCS = ["LITTERAIRE", "SCIENTIFIQUE", "COMPLEMENTAIRE"];
@@ -88,7 +88,12 @@ const nombre = (v: string | null): number | null => (v === null ? null : Number(
  * propres à chaque niveau. Elles servent à montrer l'écart entre le travail
  * régulier et l'épreuve de fin de période.
  */
-function moyenneFamille(famille: "controle" | "composition") {
+function moyenneFamille(
+  famille: "controle" | "composition",
+  inscriptionId: string,
+  periodeId: string,
+  matiereId: string,
+) {
   const types =
     famille === "controle"
       ? sql`('INTERROGATION', 'DEVOIR', 'TP', 'ORAL')`
@@ -101,9 +106,9 @@ function moyenneFamille(famille: "controle" | "composition") {
                                END), 2)::text
                 FROM notes n
                 JOIN evaluations ev ON ev.id = n.evaluation_id
-               WHERE n.inscription_id = mm.inscription_id
-                 AND ev.matiere_id = mm.matiere_id
-                 AND ev.periode_id = mm.periode_id
+               WHERE n.inscription_id = ${inscriptionId}::uuid
+                 AND ev.matiere_id = ${matiereId}::uuid
+                 AND ev.periode_id = ${periodeId}::uuid
                  AND ev.compte_dans_moyenne
                  AND ev.type::text IN ${types})`;
 }
@@ -160,23 +165,36 @@ export async function chargerBulletin(
 
   // --- Les notes, devoirs et compositions séparés ---------------------------
   const lignes = await db.execute<LigneBrute>(sql`
-    SELECT m.libelle                       AS matiere,
-           m.groupe_bulletin::text         AS groupe,
-           m.ordre_bulletin                AS ordre,
-           mm.coefficient,
-           mm.moyenne::text                AS moyenne,
-           ${moyenneFamille("controle")}  AS moyenne_devoirs,
-           ${moyenneFamille("composition")} AS note_composition,
-           am.appreciation                 AS appreciation_professeur
-      FROM moyennes_matiere mm
-      JOIN matieres m ON m.id = mm.matiere_id
-      -- E-41 : l'appréciation écrite par le professeur, quand elle existe.
+    SELECT m.libelle AS matiere,
+           m.groupe_bulletin::text AS groupe,
+           m.ordre_bulletin AS ordre,
+           COALESCE(mm.coefficient, co.coefficient)::float8 AS coefficient,
+           mm.moyenne::text AS moyenne,
+           ${moyenneFamille("controle", inscriptionId, periodeId, "m.id")} AS moyenne_devoirs,
+           ${moyenneFamille("composition", inscriptionId, periodeId, "m.id")} AS note_composition,
+           am.appreciation AS appreciation_professeur
+      FROM inscriptions i
+      JOIN classes cl ON cl.id = i.classe_id
+      JOIN matieres m ON TRUE
+      JOIN LATERAL (
+        SELECT co.coefficient
+          FROM coefficients co
+         WHERE co.annee_id = cl.annee_id
+           AND co.niveau_id = cl.niveau_id
+           AND co.matiere_id = m.id
+           AND (co.serie_id IS NULL OR co.serie_id = cl.serie_id)
+         ORDER BY CASE WHEN co.serie_id IS NOT DISTINCT FROM cl.serie_id THEN 0 ELSE 1 END
+         LIMIT 1
+      ) co ON TRUE
+      LEFT JOIN moyennes_matiere mm
+             ON mm.inscription_id = i.id
+            AND mm.periode_id = ${periodeId}::uuid
+            AND mm.matiere_id = m.id
       LEFT JOIN appreciations_matiere am
-             ON am.inscription_id = mm.inscription_id
-            AND am.periode_id     = mm.periode_id
-            AND am.matiere_id     = mm.matiere_id
-     WHERE mm.inscription_id = ${inscriptionId}::uuid
-       AND mm.periode_id = ${periodeId}::uuid
+             ON am.inscription_id = i.id
+            AND am.periode_id = ${periodeId}::uuid
+            AND am.matiere_id = m.id
+     WHERE i.id = ${inscriptionId}::uuid
      ORDER BY m.ordre_bulletin NULLS LAST, m.libelle
   `);
 
@@ -229,14 +247,15 @@ export async function chargerBulletin(
     SELECT nc.note::text AS note,
            nc.appreciation,
            COALESCE((SELECT valeur FROM parametres WHERE cle = 'coefficient_conduite'), '2') AS coefficient
-      FROM notes_conduite nc
-     WHERE nc.inscription_id = ${inscriptionId}::uuid
+      FROM (SELECT 1) AS une_ligne
+      LEFT JOIN notes_conduite nc
+        ON nc.inscription_id = ${inscriptionId}::uuid
        AND nc.periode_id = ${periodeId}::uuid
   `);
 
   const c = conduite.rows[0];
-  if (c && c.note !== null) {
-    const note = Number(c.note);
+  if (c) {
+    const note = c.note === null ? null : Number(c.note);
     const coefficient = Number(c.coefficient) || 2;
 
     // Elle rejoint les matières complémentaires — le bloc du document papier —
@@ -258,7 +277,7 @@ export async function chargerBulletin(
       noteComposition: note,
       moyenne: note,
       coefficient,
-      points: note * coefficient,
+      points: note === null ? null : note * coefficient,
       // L'appréciation de conduite est écrite par le conseil, pas déduite d'un
       // seuil : « Le conseil » figure sur le document papier quand elle manque.
       appreciation: c.appreciation ?? "Le conseil",
