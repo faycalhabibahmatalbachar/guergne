@@ -1,54 +1,122 @@
-/* Grille à colonnes indépendantes : la sidebar réduit la largeur disponible,
-   sans étirer artificiellement les cartes Informations personnelles / Tuteurs. */
+/* Maquette dossier élève : trois colonnes strictement alignées sur
+   desktop, puis deux et une selon la largeur du contenu après la sidebar. */
 .shell { container-type: inline-size; }
 .layout {
   display: grid;
   grid-template-columns: minmax(0,1fr);
-  grid-template-areas: "primary" "middle" "side" "finance" "activity";
-  gap: 16px;
+  grid-template-areas:
+    "primary"
+    "middle"
+    "side"
+    "finance"
+    "activity";
+  gap: 18px;
   align-items: start;
 }
-.primary { grid-area: primary; min-width: 0; }
-.middle { grid-area: middle; min-width: 0; display: grid; gap: 16px; align-content: start; }
-.side { grid-area: side; min-width: 0; display: grid; gap: 16px; align-content: start; }
-.finance { grid-area: finance; min-width: 0; }
-.activity { grid-area: activity; min-width: 0; }
-.card { min-width: 0; border: 1px solid #e5ebf2; background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 4px 16px rgba(18,39,72,.038); }
-.schoolHero { display: grid; grid-template-columns: minmax(0,1fr); align-items: center; gap: 12px; padding: 17px; border-radius: 17px; background: linear-gradient(115deg,#f0f6ff,#f7fbff); border: 1px solid #e6effc; }
-.schoolSecondary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 17px 13px; }
-.personalGroup { display: grid; gap: 13px; }
+.primary, .middle, .side, .finance, .activity { min-width: 0; }
+.primary { grid-area: primary; }
+.middle { grid-area: middle; display: grid; gap: 18px; align-content: start; }
+.side { grid-area: side; display: grid; gap: 18px; align-content: start; }
+.finance { grid-area: finance; }
+.activity { grid-area: activity; }
+.card {
+  min-width: 0;
+  border: 1px solid #e7edf4;
+  background: #fff;
+  border-radius: 17px;
+  padding: 19px;
+  box-shadow: 0 3px 14px rgba(20,40,80,.04);
+}
+.sectionIcon {
+  width: 47px;
+  height: 47px;
+  border-radius: 14px;
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  align-items: center;
+}
+.identityCard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.identityGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+.identityFooter { margin-top: 18px; }
+.schoolHero {
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  gap: 0;
+  padding: 17px;
+  border-radius: 14px;
+  background: #f1f6fd;
+}
+.schoolSecondary {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 16px;
+  padding: 17px;
+  background: #f7f9fc;
+  border-radius: 14px;
+}
 .tutorInfo { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; }
-.actionTiles { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
-.documentRow { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; }
-
-@container (min-width: 690px) {
+.documentRow {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.actionTiles { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+@container (min-width: 740px) {
   .layout {
-    grid-template-columns: minmax(0,.92fr) minmax(0,1.08fr);
-    grid-template-areas: "primary middle" "side side" "finance activity";
+    grid-template-columns: minmax(0, .92fr) minmax(0,1.08fr);
+    grid-template-areas:
+      "primary middle"
+      "side side"
+      "finance activity";
   }
+  .middle, .side { height: 100%; }
   .side { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .schoolHero { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
-@container (min-width: 1050px) {
+@container (min-width: 1120px) {
   .layout {
-    grid-template-columns: minmax(0,.94fr) minmax(0,1.42fr) minmax(0,1.06fr);
-    grid-template-areas: "primary middle side" "finance finance activity";
-    gap: 16px;
+    grid-template-columns: minmax(0, .95fr) minmax(0,1.16fr) minmax(0,1.04fr);
+    grid-template-areas:
+      "primary middle side"
+      "finance finance activity";
+    align-items: stretch;
   }
-  .side { grid-template-columns: minmax(0,1fr); }
-  .schoolSecondary { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .primary { height: 100%; }
+  .middle, .side {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .middle > *, .side > * { min-width: 0; flex: 1 1 0; }
+  .middle > :first-child { flex-grow: .93; }
+  .middle > :last-child { flex-grow: 1.07; }
+  .side > :first-child { flex-grow: .93; }
+  .side > :last-child { flex-grow: 1.07; }
+  .schoolSecondary { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .tutorInfo { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
-@container (min-width: 1380px) {
-  .card { padding: 23px; }
-  .schoolHero { padding: 22px; }
+@container (min-width: 1450px) {
+  .schoolSecondary { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .card { padding: 22px; }
 }
 @media (prefers-color-scheme: dark) {
   .card { background: var(--card); border-color: var(--border); }
-  .schoolHero { background: var(--muted); border-color: var(--border); }
+  .schoolHero { background: var(--muted); }
+  .schoolSecondary { background: var(--muted); }
 }
 @media print {
   .shell { container-type: normal; }
-  .layout { display:block; }
-  .layout > *, .middle > *, .side > * { margin-bottom:12px; box-shadow:none!important; break-inside:avoid; }
+  .layout { display: block; }
+  .layout > *, .middle > *, .side > * { margin-bottom: 12px; box-shadow: none!important; break-inside: avoid; }
 }

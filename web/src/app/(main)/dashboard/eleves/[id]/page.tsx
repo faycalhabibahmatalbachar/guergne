@@ -343,6 +343,32 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
         <TabsContent value="ensemble" className="mt-1">
           <VueEnsembleEleve
             dossier={dossier}
+            modifierDossier={peutModifierSensible ? <ModifierDossier
+            eleveId={eleve.id}
+            dossier={{
+              nom: eleve.nom,
+              prenom: eleve.prenom,
+              sexe: eleve.sexe,
+              // L'input `type="date"` n'accepte que AAAA-MM-JJ : une date
+              // horodatée le laisserait vide, sans le dire.
+              dateNaissance: String(eleve.dateNaissance).slice(0, 10),
+              lieuNaissance: eleve.lieuNaissance,
+              nationalite: eleve.nationalite,
+              acteNaissanceNumero: eleve.acteNaissanceNumero,
+              adresse: eleve.adresse,
+              quartier: eleve.quartier,
+              telephone: eleve.telephone,
+              email: eleve.email,
+              groupeSanguin: eleve.groupeSanguin,
+              allergies: eleve.allergies,
+              observationsMedicales: eleve.observationsMedicales,
+              situationParticuliere: eleve.situationParticuliere,
+              urgenceNom: eleve.urgenceNom,
+              urgenceTelephone: eleve.urgenceTelephone,
+              urgenceLien: eleve.urgenceLien,
+              ecoleOrigine: eleve.ecoleOrigine,
+            }}
+          /> : null}
             scolarite={scolarite}
             peutVoirFinances={peutVoirFinances}
             peutVoirNotes={peutVoirNotes}
@@ -358,7 +384,8 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
             /> : null}
             documents={peutEmettreDocument ? <DocumentsEleve eleveId={eleve.id} estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)} bulletins={bulletinsDisponibles} /> : null}
-            gestionTuteurs={peutGererTuteurs ? <GestionTuteurs eleveId={eleve.id} compact tuteurs={tuteurs.map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom }))} /> : null}
+            gestionTuteurs={peutGererTuteurs ? <GestionTuteurs eleveId={eleve.id} compact placement="ajout" tuteurs={tuteurs.map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom }))} /> : null}
+            gestionTuteursHeader={peutGererTuteurs ? <GestionTuteurs eleveId={eleve.id} compact placement="gestion" tuteurs={tuteurs.map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom }))} /> : null}
             bulletins={bulletinsDisponibles}
           />
         </TabsContent>

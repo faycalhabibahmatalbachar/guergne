@@ -1,5 +1,5 @@
 import {
-  ArrowRight, BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronRight,
+  ArrowRight, BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronRight, Zap,
   CircleUserRound, ClipboardList, Clock3, CreditCard, FileBadge2, FileCheck2,
   FileClock, FileText, Flag, GraduationCap, History, House, IdCard, Mail,
   MapPin, Phone, School2, Send, ShieldCheck, UserRound, UsersRound, Wallet,
@@ -37,7 +37,7 @@ function TitreSection({
   titre, description, icon: Icon, tone = "blue", right,
 }: {
   titre: string; description?: string; icon: typeof IdCard;
-  tone?: "blue" | "green" | "navy" | "violet";
+  tone?: "blue" | "green" | "navy" | "violet" | "orange" | "rose";
   right?: React.ReactNode;
 }) {
   const tones = {
@@ -45,10 +45,12 @@ function TitreSection({
     green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
     navy: "bg-[#0d2d69] text-white",
     violet: "bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+    orange: "bg-orange-50 text-orange-600 dark:bg-orange-950 dark:text-orange-300",
+    rose: "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-300",
   };
   return <header className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-2.5">
     <div className="flex min-w-0 items-center gap-3">
-      <span className={"flex size-10 shrink-0 items-center justify-center rounded-xl " + tones[tone]}>
+      <span className={styles.sectionIcon + " " + tones[tone]}>
         <Icon className="size-5" aria-hidden />
       </span>
       <div className="min-w-0">
@@ -69,10 +71,11 @@ function LienOnglet({
 }
 
 export function VueEnsembleEleve({
-  dossier, scolarite, peutVoirFinances, peutVoirNotes, peutVoirAssiduite,
-  peutVoirTuteurs, actions, notification, documents, gestionTuteurs, bulletins,
+  dossier, modifierDossier, scolarite, peutVoirFinances, peutVoirNotes, peutVoirAssiduite,
+  peutVoirTuteurs, actions, notification, documents, gestionTuteurs, gestionTuteursHeader, bulletins,
 }: {
   dossier: DossierComplet;
+  modifierDossier: React.ReactNode;
   scolarite: DossierScolarite | null;
   peutVoirFinances: boolean;
   peutVoirNotes: boolean;
@@ -82,6 +85,7 @@ export function VueEnsembleEleve({
   notification: React.ReactNode;
   documents: React.ReactNode;
   gestionTuteurs: React.ReactNode;
+  gestionTuteursHeader: React.ReactNode;
   bulletins: Bulletin[];
 }) {
   const { eleve, inscription, tuteurs, parcours, historiqueStatuts, changementsClasse } = dossier;
@@ -118,17 +122,17 @@ export function VueEnsembleEleve({
   return <div className={styles.shell}>
     <div className={styles.layout}>
       <div className={styles.primary}>
-      <section className={cardClass} aria-label="Informations personnelles">
-        <TitreSection titre="Informations personnelles" description="Identité et coordonnées" icon={IdCard} />
-        <div className="flex items-center gap-3 rounded-xl bg-blue-50/70 px-4 py-3 dark:bg-blue-950/20">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-base font-bold text-blue-700 dark:bg-blue-900 dark:text-white">
+      <section className={cardClass + " " + styles.identityCard} aria-label="Informations personnelles">
+        <TitreSection titre="Informations personnelles" description="Identité et coordonnées de l’élève" icon={UserRound} right={modifierDossier ?? <LienOnglet onglet="identite">Voir la fiche</LienOnglet>} />
+        <div className="flex items-center gap-3 rounded-2xl bg-blue-50/65 px-4 py-4 dark:bg-blue-950/20">
+          <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-bold text-blue-700 dark:bg-blue-900 dark:text-white">
             {eleve.prenom.slice(0,1)}{eleve.nom.slice(0,1)}
           </span>
           <div className="min-w-0"><p className={subdued}>Nom complet</p>
-            <p className="mt-0.5 break-words text-sm font-bold text-[#101e3f] dark:text-foreground">{eleve.prenom} {eleve.nom}</p></div>
+            <p className="mt-1 break-words text-base font-bold text-[#101e3f] dark:text-foreground">{eleve.prenom} {eleve.nom}</p><span className="mt-1.5 inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">{eleve.statut === "INSCRIT" ? "Élève actif" : eleve.statut.replaceAll("_", " ").toLowerCase()}</span></div>
         </div>
-        <div className="mt-4 grid gap-4">
-          <div className="grid grid-cols-2 gap-3 border-b border-slate-100 pb-4 dark:border-border">
+        <div className={"mt-5 " + styles.identityGroups}>
+          <div className="grid grid-cols-2 gap-3 border-b border-slate-100 pb-5 dark:border-border">
             <Donnee label="Sexe">{eleve.sexe === "F" ? "Féminin" : eleve.sexe === "M" ? "Masculin" : "Non renseigné"}</Donnee>
             <Donnee label="Naissance"><DateCourte value={eleve.dateNaissance} /></Donnee>
           </div>
@@ -144,17 +148,15 @@ export function VueEnsembleEleve({
             <div className="flex gap-3"><Mail className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Adresse e-mail">{eleve.email}</Donnee></div>
           </div>
         </div>
-        <div className="mt-4 flex justify-end border-t border-slate-100 pt-3 dark:border-border">
-          <LienOnglet onglet="identite">Voir la fiche complète</LienOnglet>
-        </div>
+
       </section>
       </div>
       <div className={styles.middle}>
       <section className={cardClass} aria-label="Scolarité actuelle">
-        <TitreSection titre="Scolarité actuelle" description="Informations sur le parcours scolaire" icon={GraduationCap} tone="navy"
+        <TitreSection titre="Scolarité actuelle" description="Informations sur le parcours scolaire" icon={GraduationCap} tone="violet"
           right={inscription ? <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300"><CalendarDays className="size-4" aria-hidden />{inscription.anneeLibelle}</span> : null} />
         {inscription ? <>
-          <div className={styles.schoolHero}>
+          <div className={styles.schoolHero + " dark:bg-muted"}>
             <div className="min-w-0">
               <p className="text-[11px] font-medium text-blue-600">Classe actuelle</p>
               <p className="mt-1 break-words text-2xl font-extrabold tracking-tight text-[#0e2d61] dark:text-foreground">{inscription.classeLibelle}</p>
@@ -168,11 +170,11 @@ export function VueEnsembleEleve({
               <p className="mt-1 text-sm font-semibold text-[#12234c] dark:text-foreground">Non renseigné</p>
             </div>
           </div>
-          <div className={"mt-5 " + styles.schoolSecondary}>
-            <Donnee label="Date d’inscription"><DateCourte value={inscription.dateInscription} /></Donnee>
-            <Donnee label="Redoublement">{inscription.estRedoublant ? "Oui" : "Non"}</Donnee>
-            <Donnee label="Ancienne classe">{parcours[1]?.classeLibelle ?? "—"}</Donnee>
-            <Donnee label="Établissement précédent">{eleve.ecoleOrigine ?? "—"}</Donnee>
+          <div className={"mt-3.5 " + styles.schoolSecondary + " dark:bg-muted"}>
+            <div className="flex min-w-0 gap-2"><CalendarDays className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Date d’inscription"><DateCourte value={inscription.dateInscription} /></Donnee></div>
+            <div className="flex min-w-0 gap-2"><RotateCcw className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Redoublement">{inscription.estRedoublant ? "Oui" : "Non"}</Donnee></div>
+            <div className="flex min-w-0 gap-2"><IdCard className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Ancienne classe">{parcours[1]?.classeLibelle ?? "—"}</Donnee></div>
+            <div className="flex min-w-0 gap-2"><Building2 className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Établissement précédent">{eleve.ecoleOrigine ?? "—"}</Donnee></div>
           </div>
         </> : <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500 dark:bg-muted">Aucune inscription active enregistrée.</p>}
         <div className="mt-5 flex justify-end border-t border-slate-100 pt-3 dark:border-border">
@@ -180,9 +182,9 @@ export function VueEnsembleEleve({
         </div>
       </section>
       {peutVoirTuteurs ? <section className={cardClass} aria-label="Parents et tuteurs">
-        <TitreSection titre="Parents & tuteurs" description="Responsables rattachés à l’élève" icon={UsersRound} tone="green" />
+        <TitreSection titre="Parents & tuteurs" description="Responsables rattachés à l’élève" icon={UsersRound} tone="green" right={gestionTuteursHeader} />
         {tuteurs.length ? <div className="grid gap-3">
-          {tuteurs.slice(0,3).map(t => <article key={t.id} className="min-w-0 rounded-xl border border-emerald-100 bg-emerald-50/30 px-4 py-4 dark:border-emerald-950 dark:bg-emerald-950/10">
+          {tuteurs.slice(0,3).map(t => <article key={t.id} className="min-w-0 rounded-xl border border-emerald-100 bg-emerald-50/30 px-4 py-3.5 dark:border-emerald-950 dark:bg-emerald-950/10">
             <div className="flex min-w-0 items-center gap-3">
               <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-200">{t.prenom[0] ?? ""}{t.nom[0] ?? ""}</span>
               <div className="min-w-0 flex-1"><p className="break-words text-sm font-bold text-[#101e3f] dark:text-foreground">{t.prenom} {t.nom}</p>
@@ -205,31 +207,28 @@ export function VueEnsembleEleve({
       </div>
       <div className={styles.side}>
       <section className={cardClass} aria-label="Actions rapides">
-        <TitreSection titre="Actions rapides" description="Accéder aux fonctions du dossier" icon={Clock3} tone="violet" />
-        {notification ? <div className="mb-3 rounded-xl bg-emerald-700 p-1 text-white [&_button]:!h-11 [&_button]:!w-full [&_button]:!justify-center [&_button]:!border-0 [&_button]:!bg-transparent [&_button]:!text-sm [&_button]:!font-semibold [&_button]:!text-white [&_button]:hover:!bg-emerald-800/40">
-          {notification}
-        </div> : null}
-        {actions ? <div className="mb-4 [&_button]:!h-10 [&_button]:!w-full [&_button]:!justify-center [&_button]:!rounded-xl [&_button]:!border-slate-200 [&_button]:!bg-white [&_button]:!text-slate-800 dark:[&_button]:!border-border dark:[&_button]:!bg-card dark:[&_button]:!text-foreground">
-          {actions}
-        </div> : null}
-        <div className="mb-3 border-t border-slate-100 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:border-border">Accès direct</div>
-        <div className={styles.actionTiles}>
-          {peutVoirNotes ? <RaccourciOnglet onglet="notes" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-violet-100 bg-violet-50/60 p-3 text-xs font-semibold shadow-none hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/20">
-            <span className="flex items-center gap-2"><BookOpenCheck className="size-5 shrink-0 text-violet-700" aria-hidden />Notes</span><ChevronRight className="size-4 text-violet-600" aria-hidden />
-          </RaccourciOnglet> : null}
-          {peutVoirAssiduite ? <RaccourciOnglet onglet="assiduite" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-blue-100 bg-blue-50/60 p-3 text-xs font-semibold shadow-none hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/20">
-            <span className="flex items-center gap-2"><CalendarCheck2 className="size-5 shrink-0 text-blue-700" aria-hidden />Assiduité</span><ChevronRight className="size-4 text-blue-600" aria-hidden />
-          </RaccourciOnglet> : null}
-          {peutVoirFinances ? <RaccourciOnglet onglet="finances" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-orange-100 bg-orange-50/60 p-3 text-xs font-semibold shadow-none hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-950/20">
-            <span className="flex items-center gap-2"><CreditCard className="size-5 shrink-0 text-orange-700" aria-hidden />Paiements</span><ChevronRight className="size-4 text-orange-600" aria-hidden />
-          </RaccourciOnglet> : null}
-          <RaccourciOnglet onglet="documents" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-emerald-100 bg-emerald-50/60 p-3 text-xs font-semibold shadow-none hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/20">
-            <span className="flex items-center gap-2"><FileCheck2 className="size-5 shrink-0 text-emerald-700" aria-hidden />Documents</span><ChevronRight className="size-4 text-emerald-600" aria-hidden />
+        <TitreSection titre="Actions rapides" description="Fonctions essentielles du dossier" icon={Zap} tone="orange" />
+        <div className="flex flex-col gap-2.5">
+          {notification ? <div className="rounded-xl bg-emerald-700 p-1 text-white [&_button]:!h-11 [&_button]:!w-full [&_button]:!justify-center [&_button]:!border-0 [&_button]:!bg-transparent [&_button]:!text-[13px] [&_button]:!font-semibold [&_button]:!text-white [&_button]:hover:!bg-emerald-800/40">
+            {notification}
+          </div> : null}
+          {actions ? (
+            <div className="space-y-2.5 [&>div]:!flex [&>div]:!flex-col [&>div]:!gap-2.5 [&_button]:!h-11 [&_button]:!w-full [&_button]:!justify-center [&_button]:!rounded-xl [&_button]:!border-blue-100 [&_button]:!bg-blue-50/70 [&_button]:!text-[13px] [&_button]:!font-semibold [&_button]:!text-[#143568] dark:[&_button]:!border-border dark:[&_button]:!bg-muted dark:[&_button]:!text-foreground">
+              {actions}
+            </div>
+          ) : null}
+          {documents ? (
+            <a href={"/api/documents/certificat-scolarite/" + eleve.id} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-violet-100 bg-violet-50/70 px-3 py-2 text-[13px] font-semibold text-violet-700 hover:bg-violet-100 focus-visible:outline-2 focus-visible:outline-violet-600 dark:border-violet-900 dark:bg-violet-950/20 dark:text-violet-300">
+              <FileBadge2 className="size-4" aria-hidden /> Générer un certificat
+            </a>
+          ) : null}
+          <RaccourciOnglet onglet="documents" className="min-h-11 w-full justify-center gap-2 rounded-xl border-slate-200 bg-white px-3 text-[13px] font-semibold text-[#142450] shadow-none hover:bg-slate-50 dark:border-border dark:bg-background dark:text-foreground">
+            <FileText className="size-4" aria-hidden /> Dossier documentaire <ChevronRight className="ml-auto size-4" aria-hidden />
           </RaccourciOnglet>
         </div>
       </section>
       <section className={cardClass} aria-label="Documents scolaires">
-        <TitreSection titre="Documents scolaires" description="Pièces administratives et bulletins" icon={FileBadge2} tone="navy"
+        <TitreSection titre="Documents scolaires" description="Pièces administratives et bulletins" icon={FileBadge2} tone="rose"
           right={<LienOnglet onglet="documents">Voir tous</LienOnglet>} />
         <ul className="divide-y divide-slate-100 dark:divide-border">
           {[
@@ -237,21 +236,20 @@ export function VueEnsembleEleve({
             { nom:"Fiche d’inscription", chemin:"fiche-inscription" },
           ].map(item => <li key={item.chemin} className={styles.documentRow + " py-3"}>
             <div className="flex min-w-0 items-center gap-3">
-              <FileClock className="size-5 shrink-0 text-blue-600" aria-hidden />
+              <FileText className="size-5 shrink-0 text-blue-600" aria-hidden />
               <span className="min-w-0"><span className="block break-words text-xs font-semibold text-[#142450] dark:text-foreground">{item.nom}</span><span className="text-[11px] text-slate-500">Document à éditer</span></span>
             </div>
             {documents ? <a href={"/api/documents/" + item.chemin + "/" + eleve.id} target="_blank" rel="noopener noreferrer" className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700 hover:bg-blue-100 focus-visible:outline-2 focus-visible:outline-blue-600">Éditer</a> : <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-500">À éditer</span>}
           </li>)}
           {bulletins.slice(0,4).map(b => <li key={b.periodeId} className={styles.documentRow + " py-3"}>
             <a href={"/api/bulletins/" + b.inscriptionId + "/" + b.periodeId} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-3 hover:underline">
-              <FileText className="size-5 shrink-0 text-blue-600" aria-hidden />
+              <FileCheck2 className="size-5 shrink-0 text-emerald-600" aria-hidden />
               <span className="min-w-0"><span className="block break-words text-xs font-semibold text-[#142450] dark:text-foreground">Bulletin {b.periodeLibelle}</span><span className="text-[11px] text-slate-500">Document scolaire</span></span>
             </a>
             <span className={"inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold " + (b.publie ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950" : "bg-amber-50 text-amber-700 dark:bg-amber-950")}>{b.publie ? <Check className="size-3" aria-hidden /> : null}{b.publie ? "Publié" : "Brouillon"}</span>
           </li>)}
         </ul>
         {!bulletins.length ? <p className="mt-2 text-xs text-muted-foreground">Aucun bulletin disponible pour cette période.</p> : null}
-        {documents ? <div className="mt-3 flex justify-end border-t border-slate-100 pt-3 dark:border-border">{documents}</div> : null}
         <p className="mt-2 text-[11px] text-slate-500">Une pièce à éditer n’est pas une pièce déposée ou validée.</p>
       </section>
       </div>
