@@ -12,6 +12,11 @@ export interface LigneTuteur {
   nom: string;
   prenom: string;
   telephone: string;
+  telephoneSecondaire: string | null;
+  sexe: string | null;
+  adresse: string | null;
+  quartier: string | null;
+  employeur: string | null;
   email: string | null;
   profession: string | null;
   utilisateurId: string | null;
@@ -51,7 +56,7 @@ export interface ResultatTuteurs {
  */
 export async function listerTuteurs(filtres: FiltresTuteurs = {}): Promise<ResultatTuteurs> {
   const page = Math.max(1, filtres.page ?? 1);
-  const parPage = Math.min(100, filtres.parPage ?? 25);
+  const parPage = Math.min(100, Math.max(8, filtres.parPage ?? 25));
   const decalage = (page - 1) * parPage;
 
   const recherche = filtres.recherche?.trim() ?? "";
@@ -75,7 +80,8 @@ export async function listerTuteurs(filtres: FiltresTuteurs = {}): Promise<Resul
 
   const [lignes, total] = await Promise.all([
     db.execute<LigneTuteur & Record<string, unknown>>(sql`
-      SELECT t.id, t.nom, t.prenom, t.telephone, t.email, t.profession,
+      SELECT t.id, t.nom, t.prenom, t.telephone, t.telephone_secondaire AS "telephoneSecondaire", t.sexe::text AS sexe,
+             t.adresse, t.quartier, t.employeur, t.email, t.profession,
              t.utilisateur_id AS "utilisateurId",
              u.actif AS "compteActif",
              t.app_activee AS "appActivee",

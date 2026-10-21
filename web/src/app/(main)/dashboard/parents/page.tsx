@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 import { listerTuteurs, statistiquesParents } from "@/server/domain/parents";
 import { listerClassesEtMatieres } from "@/server/domain/personnel";
@@ -14,12 +16,13 @@ export const dynamic = "force-dynamic";
 export default async function PageParents({
   searchParams,
 }: {
-  searchParams: Promise<{ recherche?: string; etat?: string; classe?: string; page?: string }>;
+  searchParams: Promise<{ recherche?: string; etat?: string; classe?: string; page?: string; parPage?: string }>;
 }) {
   await exigerPage("tuteur:gerer");
 
   const params = await searchParams;
   const annee = await chargerAnneeCourante();
+  const parPage = [8, 16, 25, 50, 100].includes(Number(params.parPage)) ? Number(params.parPage) : 25;
 
   const filtres = {
     recherche: params.recherche ?? "",
@@ -33,6 +36,7 @@ export default async function PageParents({
       etat: filtres.etat,
       classeId: filtres.classeId,
       page: Number(params.page) || 1,
+      parPage,
     }),
     statistiquesParents(),
     annee ? listerClassesEtMatieres(annee.id) : Promise.resolve({ classes: [], matieres: [] }),
@@ -48,7 +52,10 @@ export default async function PageParents({
           </div>
           <p className="mt-1.5 text-sm text-slate-500 dark:text-muted-foreground">Consultez les responsables, leurs enfants et l’accès à l’application parent.</p>
         </div>
-        <div role="group" aria-label="Actions sur les comptes parents" className="flex items-center gap-2">
+        <div role="group" aria-label="Actions sur les comptes parents" className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <Button asChild variant="outline" className="h-10 gap-2 border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 dark:bg-card dark:text-foreground">
+            <a href="/api/export/parents" title="Export Excel de tous les responsables"><Download className="size-4" aria-hidden />Exporter Excel</a>
+          </Button>
           <CreerParent />
         </div>
       </header>

@@ -167,7 +167,7 @@ export function CreerParent() {
 
   return (
     <>
-      <Button size="sm" onClick={() => setOuvert(true)}>
+      <Button size="sm" className="h-10 gap-2 rounded-lg bg-emerald-700 px-4 font-semibold text-white shadow-sm hover:bg-emerald-800" onClick={() => setOuvert(true)}>
         <UserPlus aria-hidden />
         Nouveau compte parent
       </Button>
