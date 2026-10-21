@@ -7,7 +7,7 @@ import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
  */
 type Style = ReturnType<typeof StyleSheet.create>[string];
 
-import { EnTete, type Etablissement } from "./gabarit";
+import type { Etablissement } from "./gabarit";
 
 /**
  * Bulletin de notes trimestriel.
@@ -57,9 +57,9 @@ const s = StyleSheet.create({
     fontFamily: "Times-Bold",
     textAlign: "center",
     textTransform: "uppercase",
-    letterSpacing: 0.8,
+    letterSpacing: 0.4,
     marginTop: 6,
-    marginBottom: 10,
+    marginBottom: 16,
   },
 
   // --- Bandeau d'identité ---------------------------------------------------
@@ -79,7 +79,9 @@ const s = StyleSheet.create({
     borderRightWidth: 0.7,
     borderRightColor: "#0f172a",
     justifyContent: "center",
+    alignItems: "stretch",
   },
+  identiteCentre: { textAlign: "center" },
   identiteCaseFin: { borderRightWidth: 0 },
   identiteLibelle: { fontSize: 8, color: "#0f172a" },
   identiteValeur: { fontSize: 9, fontFamily: "Times-Bold" },
@@ -119,16 +121,16 @@ const s = StyleSheet.create({
   centre: { textAlign: "center" },
   droite: { textAlign: "right" },
 
-  // Largeurs : la somme fait 100 %. La ligne de groupe fusionne les quatre
-  // premières colonnes et place sa moyenne sous « Moyenne Coefficient ».
-  cTitreBloc: { width: "59%" },
-  cDiscipline: { width: "26%" },
-  cDevoirs: { width: "11%" },
-  cCompos: { width: "11%" },
-  cMoyenne: { width: "11%" },
-  cCoeff: { width: "7%" },
+  // Largeurs calquées sur les colonnes A:G du modèle Excel.
+  // La ligne des blocs fusionne Disciplines à Moyenne générale (63 %).
+  cTitreBloc: { width: "63%" },
+  cDiscipline: { width: "24%" },
+  cDevoirs: { width: "12%" },
+  cCompos: { width: "15%" },
+  cMoyenne: { width: "12%" },
+  cCoeff: { width: "8%" },
   cPoints: { width: "13%" },
-  cAppreciation: { width: "21%" },
+  cAppreciation: { width: "16%" },
 
   // --- Bas de page ----------------------------------------------------------
   bas: { flexDirection: "row", marginTop: 10, gap: 10 },
@@ -151,7 +153,7 @@ const s = StyleSheet.create({
   conseilLibelle: { width: "42%", color: "#475569" },
   conseilValeur: { width: "58%", fontFamily: "Times-Bold" },
 
-  historique: { width: "42%", borderWidth: 0.7, borderColor: "#0f172a" },
+  historique: { width: "49%", borderWidth: 0.7, borderColor: "#0f172a" },
 
   decision: {
     marginTop: 8,
@@ -279,43 +281,44 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
       author={d.etablissement.nom}
     >
       <Page size="A4" style={s.page}>
-        <EnTete etablissement={d.etablissement} />
-
         <Text style={s.titre}>Bulletin de notes du {d.periodeLibelle}</Text>
-        <Text style={[s.centre, { marginBottom: 8, color: "#475569" }]}>
-          Année scolaire {d.anneeScolaire}
-        </Text>
 
-        {/* --- Identité : grille à trois rangées, comme le modèle Excel --- */}
+        {/* Grille d'identification alignée sur les fusions de cellules Excel. */}
         <View style={s.identite}>
           <View style={s.identiteRangee}>
-            <View style={[s.identiteCase, { width: "68%" }]}>
-              <Text><Text style={s.identiteLibelle}>Nom & Prénom : </Text><Text style={s.identiteValeur}>{identite.nomComplet}</Text></Text>
+            <View style={[s.identiteCase, { width: "24%" }]}>
+              <Text style={[s.identiteLibelle, s.identiteCentre]}>Nom & Prénom :</Text>
+            </View>
+            <View style={[s.identiteCase, { width: "44%" }]}>
+              <Text style={[s.identiteValeur, s.identiteCentre]}>{identite.nomComplet}</Text>
             </View>
             <View style={[s.identiteCase, s.identiteCaseFin, { width: "32%" }]}>
-              <Text><Text style={s.identiteLibelle}>Classe : </Text><Text style={s.identiteValeur}>{identite.classe}</Text></Text>
+              <Text style={s.identiteCentre}><Text style={s.identiteLibelle}>Classe : </Text><Text style={s.identiteValeur}>{identite.classe}</Text></Text>
             </View>
           </View>
           <View style={s.identiteRangee}>
-            <View style={[s.identiteCase, { width: "25%" }]}>
-              <Text><Text style={s.identiteLibelle}>Matricule : </Text><Text style={s.identiteValeur}>{identite.matricule}</Text></Text>
+            <View style={[s.identiteCase, { width: "24%" }]}>
+              <Text style={[s.identiteLibelle, s.identiteCentre]}>Matricule :</Text>
             </View>
-            <View style={[s.identiteCase, { width: "40%" }]}>
-              <Text><Text style={s.identiteLibelle}>Statut : </Text><Text style={s.identiteValeur}>{identite.statut}</Text></Text>
+            <View style={[s.identiteCase, { width: "12%" }]}>
+              <Text style={[s.identiteValeur, s.identiteCentre]}>{identite.matricule}</Text>
             </View>
-            <View style={[s.identiteCase, s.identiteCaseFin, { width: "35%" }]}>
-              <Text><Text style={s.identiteLibelle}>Effectif : </Text><Text style={s.identiteValeur}>{identite.effectif}</Text></Text>
+            <View style={[s.identiteCase, { width: "35%" }]}>
+              <Text style={s.identiteCentre}><Text style={s.identiteLibelle}>Statut : </Text><Text style={s.identiteValeur}>{identite.statut}</Text></Text>
+            </View>
+            <View style={[s.identiteCase, s.identiteCaseFin, { width: "29%" }]}>
+              <Text style={s.identiteCentre}><Text style={s.identiteLibelle}>Effectif : </Text><Text style={s.identiteValeur}>{identite.effectif}</Text></Text>
             </View>
           </View>
           <View style={[s.identiteRangee, { borderBottomWidth: 0 }]}>
-            <View style={[s.identiteCase, { width: "33.333%" }]}>
-              <Text><Text style={s.identiteLibelle}>Retards : </Text><Text style={s.identiteValeur}>{identite.retards}</Text></Text>
+            <View style={[s.identiteCase, { width: "36%" }]}>
+              <Text style={s.identiteCentre}><Text style={s.identiteLibelle}>Retards : </Text><Text style={s.identiteValeur}>{identite.retards}</Text></Text>
             </View>
-            <View style={[s.identiteCase, { width: "33.333%" }]}>
-              <Text><Text style={s.identiteLibelle}>Classes manquées : </Text><Text style={s.identiteValeur}>{identite.heuresManquees}</Text></Text>
+            <View style={[s.identiteCase, { width: "35%" }]}>
+              <Text style={s.identiteCentre}><Text style={s.identiteLibelle}>Classes manquées : </Text><Text style={s.identiteValeur}>{identite.heuresManquees}</Text></Text>
             </View>
-            <View style={[s.identiteCase, s.identiteCaseFin, { width: "33.334%" }]}>
-              <Text><Text style={s.identiteLibelle}>Jours manqués : </Text><Text style={s.identiteValeur}>{identite.joursManques}</Text></Text>
+            <View style={[s.identiteCase, s.identiteCaseFin, { width: "29%" }]}>
+              <Text style={s.identiteCentre}><Text style={s.identiteLibelle}>Jours manqués : </Text><Text style={s.identiteValeur}>{identite.joursManques}</Text></Text>
             </View>
           </View>
         </View>
@@ -363,17 +366,9 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
           ))}
 
           <View style={s.ligneTotal}>
-            <Cellule largeur={s.cDiscipline} style={s.gras}>Total</Cellule>
-            <Cellule largeur={s.cDevoirs}>{" "}</Cellule>
-            <Cellule largeur={s.cCompos}>{" "}</Cellule>
-            <Cellule largeur={s.cMoyenne}>{" "}</Cellule>
+            <Cellule largeur={s.cTitreBloc} style={s.gras}>Total</Cellule>
             <Cellule largeur={s.cCoeff} style={[s.centre, s.gras]}>{d.totalCoefficients}</Cellule>
             <Cellule largeur={s.cPoints} style={[s.centre, s.gras]}>{n2(d.totalPoints)}</Cellule>
-            {/*
-              Le document papier laisse cette case vide : la moyenne générale
-              et le rang figurent dans le tableau de suivi, en bas. Les répéter
-              ici créerait deux endroits à corriger le jour où le calcul change.
-            */}
             <Cellule largeur={s.cAppreciation} fin>{" "}</Cellule>
           </View>
         </View>
@@ -407,7 +402,7 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
                 <Text style={[{ width: "22%" }, s.centre]}>{p.rang ?? "—"}</Text>
               </View>
             ))}
-            <View style={[s.conseilLigne, { backgroundColor: "#e2e8f0", borderBottomWidth: 0 }]}>
+            <View style={[s.conseilLigne, { backgroundColor: "#ffffff", borderBottomWidth: 0 }]}>
               <Text style={[s.conseilLibelle, { width: "50%" }, s.gras]}>Annuelle</Text>
               <Text style={[{ width: "28%" }, s.centre, s.gras]}>{n2(d.moyenneAnnuelle)}</Text>
               <Text style={[{ width: "22%" }, s.centre, s.gras]}>{d.rangAnnuel ?? "—"}</Text>
@@ -422,22 +417,11 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
         ) : null}
 
         <View style={s.signature}>
-          <Text style={{ color: "#0f172a", fontSize: 8 }}>
+          <Text style={{ color: "#0f172a" }}>
             {d.ville}, le {d.dateEdition}
           </Text>
-          <View style={{ alignItems: "center", minWidth: 130 }}>
-            <Text style={s.gras}>Le Proviseur</Text>
-            {d.etablissement.nomProviseur ? (
-              <Text style={{ marginTop: 24, color: "#475569" }}>{d.etablissement.nomProviseur}</Text>
-            ) : (
-              <View style={{ height: 28 }} />
-            )}
-          </View>
+          <Text style={[s.gras, { minWidth: 130, textAlign: "center" }]}>Le Proviseur</Text>
         </View>
-
-        <Text style={s.mentionLegale}>
-          NB : toute surcharge ou rature annule la validité de ce bulletin de notes.
-        </Text>
       </Page>
     </Document>
   );
