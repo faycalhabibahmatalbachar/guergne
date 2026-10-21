@@ -1,6 +1,8 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { EnTete, type Etablissement } from "./gabarit";
 
+type Style = ReturnType<typeof StyleSheet.create>[string];
+
 export interface LigneConseilOrientation {
   numero: number;
   matricule: string;
@@ -37,7 +39,7 @@ const s = StyleSheet.create({
 const moyenne = (v: number | null) => v === null || !Number.isFinite(v) ? "—" : v.toFixed(2);
 
 function Cellule({ children, largeur, centre = false, gras = false, fin = false }: {
-  children: React.ReactNode; largeur: object; centre?: boolean; gras?: boolean; fin?: boolean;
+  children: React.ReactNode; largeur: Style; centre?: boolean; gras?: boolean; fin?: boolean;
 }) {
   return <View style={[s.cellule, largeur, ...(centre ? [s.centre] : []), ...(fin ? [s.fin] : [])]}>
     <Text style={gras ? s.gras : undefined}>{children}</Text>
