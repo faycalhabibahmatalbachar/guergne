@@ -71,10 +71,11 @@ function LienOnglet({
 }
 
 export function VueEnsembleEleve({
-  dossier, scolarite, peutVoirFinances, peutVoirNotes, peutVoirAssiduite,
+  dossier, modifierDossier, scolarite, peutVoirFinances, peutVoirNotes, peutVoirAssiduite,
   peutVoirTuteurs, actions, notification, documents, gestionTuteurs, gestionTuteursHeader, bulletins,
 }: {
   dossier: DossierComplet;
+  modifierDossier: React.ReactNode;
   scolarite: DossierScolarite | null;
   peutVoirFinances: boolean;
   peutVoirNotes: boolean;
@@ -122,7 +123,7 @@ export function VueEnsembleEleve({
     <div className={styles.layout}>
       <div className={styles.primary}>
       <section className={cardClass + " " + styles.identityCard} aria-label="Informations personnelles">
-        <TitreSection titre="Informations personnelles" description="Identité et coordonnées de l’élève" icon={UserRound} right={<LienOnglet onglet="identite">Modifier</LienOnglet>} />
+        <TitreSection titre="Informations personnelles" description="Identité et coordonnées de l’élève" icon={UserRound} right={modifierDossier ?? <LienOnglet onglet="identite">Voir la fiche</LienOnglet>} />
         <div className="flex items-center gap-3 rounded-2xl bg-blue-50/65 px-4 py-4 dark:bg-blue-950/20">
           <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-bold text-blue-700 dark:bg-blue-900 dark:text-white">
             {eleve.prenom.slice(0,1)}{eleve.nom.slice(0,1)}
