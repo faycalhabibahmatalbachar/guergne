@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 
-import { BellRing, MessageSquare, Smartphone } from "lucide-react";
+import { AlertCircle, BellRing, LoaderCircle, MessageSquare, Send, Smartphone, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -59,15 +59,20 @@ export function BoutonNotifier({
   cible,
   variante = "outline",
   libelle = "Prévenir les parents",
+  contexteEleves = false,
 }: {
   cible: Cible;
   variante?: "default" | "outline" | "ghost";
   libelle?: string;
+  contexteEleves?: boolean;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const [titre, setTitre] = useState("");
   const [corps, setCorps] = useState("");
   const [apercu, setApercu] = useState<Apercu | null>(null);
+  const [chargeApercu, setChargeApercu] = useState(false);
+  const [erreurApercu, setErreurApercu] = useState(false);
+  const cibleSignature = cible.type === "selection" ? cible.ids.join(",") : cible.id;
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
   const [enCours, demarrer] = useTransition();
 
@@ -75,7 +80,10 @@ export function BoutonNotifier({
   // ferait une requête par caractère.
   useEffect(() => {
     if (!ouvert) return;
-
+    let actif = true;
+    setApercu(null);
+    setErreurApercu(false);
+    setChargeApercu(true);
     const minuteur = setTimeout(async () => {
       try {
         const a =
@@ -84,19 +92,27 @@ export function BoutonNotifier({
             : cible.type === "classe"
               ? await apercuClasse(cible.id, titre || "Message", corps || "…")
               : await apercuSelection(cible.ids, titre || "Message", corps || "…");
-        setApercu(a);
+        if (actif) setApercu(a);
       } catch {
-        // Un aperçu indisponible ne doit pas bloquer l'envoi : on le masque.
-        setApercu(null);
+        if (actif) { setApercu(null); setErreurApercu(true); }
+      } finally {
+        if (actif) setChargeApercu(false);
       }
-    }, 400);
-
-    return () => clearTimeout(minuteur);
-  }, [ouvert, titre, corps, cible]);
+    }, 450);
+    return () => { actif = false; clearTimeout(minuteur); };
+    // La signature primitive empêche des rechargements continus dus à un
+    // nouvel objet « cible » construit par la barre de sélection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ouvert, titre, corps, cible.type, cibleSignature]);
 
   function envoyer() {
+    if (contexteEleves && (!apercu || apercu.total === 0 || chargeApercu)) {
+      toast.error("Vérifiez les destinataires avant d’envoyer ce message.");
+      return;
+    }
     setErreurs({});
     demarrer(async () => {
+      try {
       const r =
         cible.type === "eleve"
           ? await notifierEleve(cible.id, { titre, corps })
@@ -113,36 +129,42 @@ export function BoutonNotifier({
         setErreurs(r.erreurs ?? {});
         toast.error(r.message ?? Object.values(r.erreurs ?? {})[0] ?? "Envoi impossible.");
       }
+      } catch {
+        toast.error("Envoi indisponible. Aucun nouveau message n’a été confirmé.");
+      }
     });
   }
 
   return (
     <Dialog open={ouvert} onOpenChange={setOuvert}>
       <DialogTrigger asChild>
-        <Button variant={variante} size="sm">
+        <Button variant={variante} size="sm" className={contexteEleves ? "h-9 gap-2 rounded-lg px-3 font-medium text-emerald-950 hover:bg-emerald-100 dark:text-emerald-50" : undefined}>
           <BellRing aria-hidden />
           {libelle}
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Prévenir les parents</DialogTitle>
-          <DialogDescription>
+      <DialogContent className={contexteEleves ? "max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] gap-0 overflow-y-auto rounded-2xl border border-slate-200 p-0 shadow-2xl sm:max-w-xl dark:border-border" : "sm:max-w-lg"}>
+        <DialogHeader className={contexteEleves ? "border-b border-slate-100 bg-slate-50/60 px-6 py-6 pr-14 dark:border-border dark:bg-muted/15" : undefined}>
+          <DialogTitle className={contexteEleves ? "flex items-center gap-2 text-lg font-semibold tracking-tight" : undefined}>{contexteEleves ? <span aria-hidden className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><BellRing className="size-[19px]" /></span> : null}Prévenir les parents</DialogTitle>
+          <DialogDescription className={contexteEleves ? "pt-1 text-sm leading-relaxed" : undefined}>
             {cible.type === "eleve"
-              ? `Les tuteurs de ${cible.nom} seront prévenus.`
-              : `Les tuteurs de tous les élèves de ${cible.nom} seront prévenus.`}
+              ? `Les responsables de ${cible.nom} seront prévenus.`
+              : cible.type === "selection"
+                ? `Vous vous adressez aux responsables de ${cible.ids.length} élève${cible.ids.length > 1 ? "s" : ""} sélectionné${cible.ids.length > 1 ? "s" : ""}.`
+                : `Les responsables des élèves de la classe ${cible.nom} seront prévenus.`}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className={contexteEleves ? "space-y-5 px-6 py-5" : "space-y-4"}>
           <div className="space-y-1.5">
-            <Label htmlFor="titre-notif">Titre</Label>
+            <Label htmlFor="titre-notif" className={contexteEleves ? "text-sm font-semibold" : undefined}>Objet du message</Label>
             <Input
               id="titre-notif"
               value={titre}
               onChange={(e) => setTitre(e.target.value)}
-              placeholder="Réunion de parents"
+              placeholder="Ex. : Réunion avec les familles"
+              className={contexteEleves ? "h-11 rounded-lg border-slate-200 bg-white dark:bg-background" : undefined}
               maxLength={80}
               aria-invalid={Boolean(erreurs.titre)}
             />
@@ -150,13 +172,14 @@ export function BoutonNotifier({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="corps-notif">Message</Label>
+            <Label htmlFor="corps-notif" className={contexteEleves ? "text-sm font-semibold" : undefined}>Message</Label>
             <Textarea
               id="corps-notif"
               value={corps}
               onChange={(e) => setCorps(e.target.value)}
               rows={4}
-              placeholder="Une réunion se tiendra samedi 30 août à 9 h dans la cour."
+              placeholder="Saisissez votre message aux responsables des élèves concernés…"
+              className={contexteEleves ? "min-h-[120px] resize-y rounded-lg border-slate-200 bg-white dark:bg-background" : undefined}
               maxLength={600}
               aria-invalid={Boolean(erreurs.corps)}
             />
@@ -170,8 +193,11 @@ export function BoutonNotifier({
             </div>
           </div>
 
+          {contexteEleves && chargeApercu ? <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-border dark:bg-muted/20"><LoaderCircle className="size-4 animate-spin" aria-hidden /> Vérification des destinataires et du coût…</div> : null}
+          {contexteEleves && erreurApercu ? <div role="alert" className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden /> Impossible de calculer les destinataires. Vérifiez votre connexion avant l’envoi.</div> : null}
+          {contexteEleves && !chargeApercu && apercu?.total === 0 ? <div role="status" className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><Users className="mt-0.5 size-4 shrink-0" aria-hidden /> Aucun responsable joignable trouvé pour cette sélection.</div> : null}
           {apercu && apercu.total > 0 ? (
-            <div className="bg-muted/50 space-y-2 rounded-md border p-3 text-sm">
+            <div className={contexteEleves ? "space-y-2 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 text-sm dark:border-emerald-900 dark:bg-emerald-950/20" : "bg-muted/50 space-y-2 rounded-md border p-3 text-sm"}>
               <p className="font-medium">{apercu.total} destinataire(s)</p>
               <div className="text-muted-foreground flex flex-wrap gap-x-5 gap-y-1">
                 <span className="flex items-center gap-1.5">
@@ -210,12 +236,12 @@ export function BoutonNotifier({
           ) : null}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOuvert(false)}>
+        <DialogFooter className={contexteEleves ? "mx-0 mb-0 rounded-b-2xl border-t border-slate-100 bg-slate-50/80 px-6 py-4 dark:border-border dark:bg-muted/10" : undefined}>
+          <Button variant="outline" onClick={() => setOuvert(false)} className={contexteEleves ? "h-10 rounded-lg bg-white px-4 dark:bg-card" : undefined}>
             Annuler
           </Button>
-          <Button onClick={envoyer} disabled={enCours || titre.length < 3 || corps.length < 5}>
-            {enCours ? "Envoi…" : "Envoyer"}
+          <Button onClick={envoyer} className={contexteEleves ? "h-10 gap-2 rounded-lg bg-emerald-700 px-5 font-semibold text-white hover:bg-emerald-800" : undefined} disabled={enCours || titre.trim().length < 3 || corps.trim().length < 5 || (contexteEleves && (chargeApercu || !apercu || apercu.total < 1))}>
+            <Send className="size-4" aria-hidden /> {enCours ? "Envoi…" : "Envoyer aux parents"}
           </Button>
         </DialogFooter>
       </DialogContent>
