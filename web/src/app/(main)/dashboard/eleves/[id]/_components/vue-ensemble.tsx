@@ -91,6 +91,8 @@ export function VueEnsembleEleve({
   const paye = echeances.reduce((acc, e) => acc + e.paye, 0);
   const reste = echeances.reduce((acc, e) => acc + e.reste, 0);
   const progression = netDu > 0 ? Math.max(0, Math.min(100, Math.round(100 * paye / netDu))) : 0;
+  const echeancesFacturees = echeances.filter((e) => e.du - e.exonere > 0);
+  const echeancesSoldees = echeancesFacturees.filter((e) => e.reste <= 0).length;
   const activites = [
     ...historiqueStatuts.map((e) => ({
       id: "h-" + e.id, date: e.creeLe || e.dateEffet,
@@ -247,27 +249,84 @@ export function VueEnsembleEleve({
         <p className="mt-2 text-[11px] text-slate-500">Une pièce à éditer n’est pas une pièce déposée ou validée.</p>
       </section>
 
-      {peutVoirFinances ? <section className={cardClass + " " + styles.finance} aria-label="Situation financière">
-        <TitreSection titre="Situation financière" description="Suivi des échéances de l’inscription" icon={Wallet} tone="green" right={<LienOnglet onglet="finances">Paiements</LienOnglet>} />
-        {echeances.length ? <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl bg-slate-50 px-4 py-3 dark:bg-muted"><p className={subdued}>Montant net dû</p><p className="mt-1 text-lg font-bold text-[#12234c] dark:text-foreground">{montant(netDu)}</p></div>
-            <div className="rounded-xl bg-emerald-50 px-4 py-3 dark:bg-emerald-950/30"><p className={subdued}>Montant payé</p><p className="mt-1 text-lg font-bold text-emerald-700">{montant(paye)}</p></div>
-            <div className="rounded-xl bg-rose-50 px-4 py-3 dark:bg-rose-950/20"><p className={subdued}>Reste à payer</p><p className="mt-1 text-lg font-bold text-rose-700">{montant(reste)}</p></div>
-          </div>
-          <div className="mt-4 flex items-center gap-3"><div role="progressbar" aria-label="Paiements effectués" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progression} className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-muted"><div className="h-full rounded-full bg-emerald-500" style={{width:progression+"%"}} /></div><span className="text-xs font-semibold tabular-nums">{progression} % payé</span></div>
-        </> : <p className="text-sm text-muted-foreground">Aucune échéance enregistrée.</p>}
-      </section> : <div className={styles.finance} />}
+      {peutVoirFinances ? (
+        <section className={cardClass + " " + styles.finance} aria-label="Situation financière">
+          <TitreSection
+            titre="Situation financière"
+            description="Solde et progression des règlements"
+            icon={Wallet}
+            tone="green"
+            right={<LienOnglet onglet="finances">Détail des paiements</LienOnglet>}
+          />
+          {echeances.length ? (
+            <div className="space-y-3.5">
+              <dl className="grid gap-2.5 sm:grid-cols-3">
+                <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/85 p-3.5 dark:border-border dark:bg-muted/25">
+                  <dt className="text-[11px] font-medium text-slate-600 dark:text-muted-foreground">Montant net dû</dt>
+                  <dd className="mt-1 break-words text-[17px] font-bold tabular-nums leading-snug text-[#12234c] dark:text-foreground">{montant(netDu)}</dd>
+                </div>
+                <div className="min-w-0 rounded-xl border border-emerald-100 bg-emerald-50/75 p-3.5 dark:border-emerald-900 dark:bg-emerald-950/20">
+                  <dt className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300">Montant payé</dt>
+                  <dd className="mt-1 break-words text-[17px] font-bold tabular-nums leading-snug text-emerald-700 dark:text-emerald-300">{montant(paye)}</dd>
+                </div>
+                <div className="min-w-0 rounded-xl border border-rose-100 bg-rose-50/70 p-3.5 dark:border-rose-900 dark:bg-rose-950/20">
+                  <dt className="text-[11px] font-medium text-rose-800 dark:text-rose-300">Reste à payer</dt>
+                  <dd className="mt-1 break-words text-[17px] font-bold tabular-nums leading-snug text-rose-700 dark:text-rose-300">{montant(reste)}</dd>
+                </div>
+              </dl>
+              <div className="rounded-xl border border-slate-100 bg-white px-3.5 py-3 dark:border-border dark:bg-card">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                  <span className="text-xs font-semibold text-[#12234c] dark:text-foreground">Progression des paiements</span>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold tabular-nums text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">{progression} % réglé</span>
+                </div>
+                <div
+                  role="progressbar"
+                  aria-label="Part du montant net dû déjà payée"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={progression}
+                  className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-muted"
+                >
+                  <div className="h-full rounded-full bg-emerald-500" style={{ width: progression + "%" }} />
+                </div>
+                {echeancesFacturees.length ? (
+                  <p className="mt-2 text-[11px] leading-relaxed text-slate-500 dark:text-muted-foreground">
+                    {echeancesSoldees} échéance{echeancesSoldees > 1 ? "s" : ""} soldée{echeancesSoldees > 1 ? "s" : ""} sur {echeancesFacturees.length} facturée{echeancesFacturees.length > 1 ? "s" : ""}.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-5 text-sm text-muted-foreground dark:border-border dark:bg-muted/20">Aucune échéance financière enregistrée pour cette inscription.</p>
+          )}
+        </section>
+      ) : null}
 
       <section className={cardClass + " " + styles.activity} aria-label="Dernières activités">
-        <TitreSection titre="Dernières activités" icon={History} tone="violet" right={<LienOnglet onglet="historique">Historique</LienOnglet>} />
-        {activites.length ? <ol className="space-y-3">
-          {activites.map(e => <li key={e.id} className="flex min-w-0 items-start gap-3 text-xs">
-            <span aria-hidden className={"mt-1.5 size-2.5 shrink-0 rounded-full " + e.dot} />
-            <time className="w-20 shrink-0 text-slate-500"><DateCourte value={e.date}/></time>
-            <div className="min-w-0 flex-1"><p className="break-words text-[#12234c] dark:text-foreground">{e.texte}</p><p className="mt-1 text-[11px] text-slate-400">{e.type}</p></div>
-          </li>)}
-        </ol> : <p className="text-sm text-muted-foreground">Aucun événement enregistré.</p>}
+        <TitreSection
+          titre="Dernières activités"
+          description="Les événements récents du dossier"
+          icon={History}
+          tone="violet"
+          right={<LienOnglet onglet="historique">Tout l’historique</LienOnglet>}
+        />
+        {activites.length ? (
+          <ol className="ml-2.5 border-l border-slate-200 dark:border-border">
+            {activites.map((e) => (
+              <li key={e.id} className="relative min-w-0 pb-4 pl-5 last:pb-0">
+                <span aria-hidden className={"absolute -left-[5px] top-1.5 size-[9px] rounded-full ring-[3px] ring-white dark:ring-card " + e.dot} />
+                <p className="break-words text-[12px] font-semibold leading-snug text-[#142450] dark:text-foreground">{e.texte}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500 dark:text-muted-foreground">
+                  <time dateTime={e.date}><DateCourte value={e.date} /></time>
+                  <span aria-hidden className="text-slate-300">·</span>
+                  <span>{e.type}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="rounded-xl bg-slate-50 px-4 py-5 text-sm text-muted-foreground dark:bg-muted/20">Aucun événement enregistré dans l’historique.</p>
+        )}
       </section>
     </div>
   </div>;
