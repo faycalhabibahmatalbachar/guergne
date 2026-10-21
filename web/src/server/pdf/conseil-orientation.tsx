@@ -36,7 +36,7 @@ const s = StyleSheet.create({
   annuelle: { width: "9%" }, conduite: { width: "8%" }, observation: { width: "23%" },
   pied: { position: "absolute", bottom: 12, left: 24, right: 24, textAlign: "right", fontSize: 7, color: "#6b7280" },
 });
-const moyenne = (v: number | null) => v === null || !Number.isFinite(v) ? "—" : v.toFixed(2);
+const moyenne = (v: number | null) => v === null || !Number.isFinite(v) ? "" : v.toFixed(2);
 
 function Cellule({ children, largeur, centre = false, gras = false, fin = false }: {
   children: React.ReactNode; largeur: Style; centre?: boolean; gras?: boolean; fin?: boolean;
