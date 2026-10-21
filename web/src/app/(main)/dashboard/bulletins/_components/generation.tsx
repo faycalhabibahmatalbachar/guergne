@@ -254,7 +254,7 @@ export function GenerationBulletins({
           <p><strong>{rapport.bulletinsEcrits}</strong> bulletin(s) produit(s) pour {rapport.classe} — {rapport.periode}, soit <strong>{rapport.moyennesEcrites}</strong> moyennes de matière.</p>
           {rapport.ignores.length > 0 ? <p className="mt-2 text-amber-700 dark:text-amber-300">{rapport.sansNote} élève(s) ignoré(s) : {rapport.ignores.map((i) => `${i.nom} — ${i.raison}`).join("; ")}</p> : null}
         </div> : null}
-        {classeChoisie && periodeChoisie && (publies > 0 || enAttente > 0) ? (
+        {classeChoisie && periodeChoisie && (publiesSelectionnes > 0 || attenteSelectionnes > 0) ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/10 px-4 py-3">
             <p className="text-muted-foreground text-sm">{publiesSelectionnes} publié(s) · {attenteSelectionnes} en attente. La publication rend les bulletins visibles aux familles.</p>
             <div className="flex gap-2">
