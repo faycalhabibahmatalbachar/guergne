@@ -55,7 +55,7 @@ const ORDRE_BLOCS = ["LITTERAIRE", "SCIENTIFIQUE", "COMPLEMENTAIRE"];
  * ne voudrait plus rien dire.
  */
 export function appreciationMoyenne(moyenne: number | null): string {
-  if (moyenne === null) return "—";
+  if (moyenne === null) return "";
   if (moyenne >= 16) return "Très Bien";
   if (moyenne >= 14) return "Bien";
   if (moyenne >= 12) return "Assez Bien";
