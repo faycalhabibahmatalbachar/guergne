@@ -24,7 +24,7 @@ import type { BlocMatieres, DonneesBulletin, LigneMatiere } from "@/server/pdf/b
  * ------------------------------------
  * Règle du projet, verrouillée par les tests du moteur de calcul : une matière
  * sans note ne compte ni au numérateur ni au dénominateur. Elle apparaît au
- * bulletin — sa ligne existe — mais avec des tirets, et son coefficient n'entre
+ * bulletin — sa ligne existe — mais avec les cellules de notes vides, et son coefficient n'entre
  * pas dans le total.
  */
 
