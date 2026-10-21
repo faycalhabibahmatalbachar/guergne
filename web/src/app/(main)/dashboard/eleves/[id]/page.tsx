@@ -193,6 +193,8 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             eleveId={eleve.id}
             photoId={eleve.photoId}
             nomComplet={`${eleve.prenom} ${eleve.nom}`}
+            sexe={eleve.sexe}
+            peutModifier={peutModifierSensible}
           />
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl dark:text-foreground">
