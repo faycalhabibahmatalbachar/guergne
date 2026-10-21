@@ -197,6 +197,7 @@ export default async function PageBulletins({
         classeChoisie={classeChoisie}
         periodeChoisie={periodeChoisie}
         bulletins={bulletins}
+        effectifTotal={stats.effectifTotal}
       />
     </div>
   );
