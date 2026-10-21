@@ -1,36 +1,32 @@
-/* Cartes du tableau de bord Parents : cinq mesures, sans case vide.
- * Breakpoints calculés à partir de la largeur réellement disponible après la sidebar.
- * Sur écran large : cinq colonnes identiques. Sur écran intermédiaire :
- * trois cartes, puis deux cartes de même largeur centrées sous la première rangée.
+/* Les 5 indicateurs sont alignés, sans seconde rangée centrée.
+ * La largeur est mesurée dans le contenu, après la barre latérale.
+ * Les cartes gardent exactement le même gabarit.
  */
-.region { container-name: parents-stats; container-type: inline-size; }
+.region { container: parents-stats / inline-size; min-width: 0; }
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   align-items: stretch;
 }
-.card {
-  min-width: 0;
-  min-height: 126px;
-  height: 100%;
+.card { min-width: 0; min-height: 164px; height: 100%; }
+/* À largeur intermédiaire, un ruban horizontal garde les cinq cartes
+   de dimensions identiques plutôt que des rangées 3+2 déséquilibrées. */
+@container parents-stats (min-width: 560px) and (max-width: 929px) {
+  .grid {
+    grid-template-columns: repeat(5, minmax(220px, 1fr));
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    padding-bottom: 6px;
+  }
+  .card { scroll-snap-align: start; }
 }
-@container parents-stats (min-width: 540px) {
-  .grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .grid > :last-child { grid-column: 1 / -1; }
-}
-@container parents-stats (min-width: 880px) {
-  .grid { grid-template-columns: repeat(6, minmax(0,1fr)); }
-  .grid > :nth-child(-n+3) { grid-column: span 2; }
-  .grid > :nth-child(4) { grid-column: 2 / span 2; }
-  .grid > :nth-child(5) { grid-column: 4 / span 2; }
-}
-@container parents-stats (min-width: 1320px) {
-  .grid { grid-template-columns: repeat(5, minmax(0,1fr)); }
-  .grid > * { grid-column: auto; }
+@container parents-stats (min-width: 930px) {
+  .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 @media print {
   .region { container-type: normal; }
-  .grid { grid-template-columns: repeat(5, 1fr); }
-  .grid > * { grid-column: auto; break-inside: avoid; }
+  .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
+  .card { break-inside: avoid; }
 }
