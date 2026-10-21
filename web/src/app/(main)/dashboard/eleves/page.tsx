@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   AlertTriangle, ChevronDown, ClipboardList,
-  Download, Eye, FileText, GraduationCap, MoreHorizontal, Pencil, Plus,
+  Download, Eye, FileText, GraduationCap, MoreHorizontal, Plus,
   Search, Upload, UserPlus, Users,
 } from "lucide-react";
 
@@ -21,6 +21,7 @@ import { listerAnneesEleves, listerClassesCourantes, listerEleves, statistiquesE
 import { BadgeStatut } from "./_components/badge-statut";
 import { FiltresEleves, PaginationEleves } from "./_components/filtres";
 import { ActionsLotEleves } from "./_components/actions-lot";
+import { ModifierDossier } from "./[id]/_components/modifier-dossier";
 
 export const metadata: Metadata = { title: "Élèves" };
 export const dynamic = "force-dynamic";
@@ -82,7 +83,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
   const niveauId = classes.some((c) => c.niveauId === p.niveau) ? p.niveau : undefined;
   const classeId = classes.some((c) => c.id === p.classe) ? p.classe : undefined;
 
-  const [resultat, stats, peutCreer, peutAffecter, peutEnvoyer, peutModifier] = await Promise.all([
+  const [resultat, stats, peutCreer, peutAffecter, peutEnvoyer, peutModifier, peutVoirParents] = await Promise.all([
     listerEleves({
       recherche: p.q, classeId, niveauId, statut, dossier, rapide, anneeId,
       page: Math.max(1, Number(p.page) || 1), parPage, tri: p.tri, sens: p.sens,
@@ -92,6 +93,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
     peut(principal, "eleve:affecter"),
     peut(principal, "message:envoyer"),
     peut(principal, "eleve:modifier"),
+    peut(principal, "tuteur:gerer"),
   ]);
   const { lignes, total, page, nbPages } = resultat;
   const filtreActif = Boolean(p.q || classeId || niveauId || statut || dossier || rapide || anneeId);
@@ -198,14 +200,16 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
                       <td className="whitespace-nowrap px-3 py-2 text-slate-600 tabular-nums dark:text-muted-foreground">{e.matricule}</td>
                       <td className="whitespace-nowrap px-3 py-2 font-medium">{e.classeLibelle ?? <span className="font-normal text-slate-400">Non affecté</span>}</td>
                       <td className="whitespace-nowrap px-3 py-2">{ageDepuis(e.dateNaissance)} ans</td>
-                      <td className="px-3 py-2"><div className="max-w-[165px] truncate font-medium">{e.parentNom ?? "Non renseigné"}</div><div className="text-[11px] text-slate-500">{e.parentLien ? LIENS_PARENTE[e.parentLien as keyof typeof LIENS_PARENTE] ?? e.parentLien : "—"}</div></td>
+                      <td className="px-3 py-2"><div className="max-w-[185px] truncate font-medium">
+                        {e.parentId && peutVoirParents ? <Link href={"/dashboard/parents/" + e.parentId} title={"Ouvrir la fiche du tuteur " + (e.parentNom ?? "")} className="rounded-sm text-[#15264e] underline-offset-4 hover:text-emerald-700 hover:underline focus-visible:outline-2 focus-visible:outline-emerald-600 dark:text-foreground dark:hover:text-emerald-400">{e.parentNom ?? "Non renseigné"}</Link> : (e.parentNom ?? "Non renseigné")}
+                      </div><div className="text-[11px] text-slate-500">{e.parentLien ? LIENS_PARENTE[e.parentLien as keyof typeof LIENS_PARENTE] ?? e.parentLien : "—"}</div></td>
                       <td className="whitespace-nowrap px-3 py-2">{e.parentTelephone ? <a href={`tel:${e.parentTelephone.replace(/[^+0-9]/g, "")}`} className="text-slate-700 hover:underline dark:text-foreground">{e.parentTelephone}</a> : <span className="text-slate-400">—</span>}</td>
                       <td className="px-3 py-2"><BadgeStatut statut={e.statut} className="whitespace-nowrap border-0 px-2.5 py-1 text-xs" /></td>
                       <td className="px-3 py-2"><BadgeDossier statut={e.statutDossier} /></td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1.5">
                           <Button asChild variant="outline" size="icon" className="size-8" title="Consulter le dossier"><Link href={`/dashboard/eleves/${e.id}`} aria-label={`Consulter le dossier de ${e.prenom} ${e.nom}`}><Eye className="size-4" aria-hidden /></Link></Button>
-                          {peutModifier ? <Button asChild variant="outline" size="icon" className="size-8" title="Modifier le dossier"><Link href={`/dashboard/eleves/${e.id}`} aria-label={`Modifier le dossier de ${e.prenom} ${e.nom}`}><Pencil className="size-4" aria-hidden /></Link></Button> : null}
+                          {peutModifier && Boolean(principal && ["SUPER_ADMIN", "DIRECTION", "CENSEUR", "SURVEILLANT"].includes(principal.role)) ? <ModifierDossier eleveId={e.id} declencheur="icone" nomEleve={`${e.prenom} ${e.nom}`} /> : null}
                           <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="size-8" aria-label={`Plus d'actions pour ${e.prenom} ${e.nom}`}><MoreHorizontal className="size-4" aria-hidden /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem asChild><Link href={`/dashboard/eleves/${e.id}`}><ClipboardList className="size-4" aria-hidden /> Ouvrir le dossier</Link></DropdownMenuItem></DropdownMenuContent></DropdownMenu>
                         </div>
                       </td>
