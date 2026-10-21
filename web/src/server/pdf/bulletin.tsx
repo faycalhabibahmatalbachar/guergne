@@ -240,7 +240,7 @@ export interface DonneesBulletin {
 
 /** Deux décimales, virgule française — comme sur le document papier. */
 function n2(valeur: number | null | undefined): string {
-  if (valeur === null || valeur === undefined) return "—";
+  if (valeur === null || valeur === undefined) return "";
   return valeur.toFixed(2).replace(".", ",");
 }
 
@@ -383,7 +383,7 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
             ].map((l) => (
               <View key={l.libelle} style={s.conseilLigne}>
                 <Text style={s.conseilLibelle}>{l.libelle}</Text>
-                <Text style={s.conseilValeur}>{l.valeur ?? "—"}</Text>
+                <Text style={s.conseilValeur}>{l.valeur ?? ""}</Text>
               </View>
             ))}
           </View>
@@ -398,22 +398,16 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
               <View key={p.libelle} style={s.conseilLigne}>
                 <Text style={[s.conseilLibelle, { width: "50%" }]}>{p.libelle}</Text>
                 <Text style={[{ width: "28%" }, s.centre]}>{n2(p.moyenne)}</Text>
-                <Text style={[{ width: "22%" }, s.centre]}>{p.rang ?? "—"}</Text>
+                <Text style={[{ width: "22%" }, s.centre]}>{p.rang ?? ""}</Text>
               </View>
             ))}
             <View style={[s.conseilLigne, { backgroundColor: "#ffffff", borderBottomWidth: 0 }]}>
               <Text style={[s.conseilLibelle, { width: "50%" }, s.gras]}>Annuelle</Text>
               <Text style={[{ width: "28%" }, s.centre, s.gras]}>{n2(d.moyenneAnnuelle)}</Text>
-              <Text style={[{ width: "22%" }, s.centre, s.gras]}>{d.rangAnnuel ?? "—"}</Text>
+              <Text style={[{ width: "22%" }, s.centre, s.gras]}>{d.rangAnnuel ?? ""}</Text>
             </View>
           </View>
         </View>
-
-        {d.orientation ? (
-          <View style={s.decision}>
-            <Text style={s.gras}>{d.orientation}</Text>
-          </View>
-        ) : null}
 
         <View style={s.signature}>
           <Text style={{ color: "#0f172a" }}>
