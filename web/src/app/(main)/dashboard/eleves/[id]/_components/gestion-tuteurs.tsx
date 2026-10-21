@@ -4,7 +4,8 @@ import { useEffect, useState, useTransition } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { Link2, UserMinus, UserPlus, Users } from "lucide-react";
+import { ChevronDown, Link2, UserMinus, UserPlus, Users } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -63,13 +64,16 @@ const LIENS: Array<[string, string]> = [
 export function GestionTuteurs({
   eleveId,
   tuteurs,
+  compact = false,
 }: {
   eleveId: string;
   tuteurs: Array<{ id: string; nom: string; prenom: string }>;
+  compact?: boolean;
 }) {
   const routeur = useRouter();
   const [enCours, demarrer] = useTransition();
   const [ouvert, setOuvert] = useState(false);
+  const [retrait, setRetrait] = useState<{ id: string; libelle: string } | null>(null);
 
   const [telephone, setTelephone] = useState("");
   const [trouve, setTrouve] = useState<TuteurTrouve | null>(null);
@@ -156,23 +160,52 @@ export function GestionTuteurs({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button size="sm" onClick={() => setOuvert(true)}>
-        <UserPlus aria-hidden />
+      <Button size="sm" onClick={() => setOuvert(true)} className={compact ? "h-9 gap-1.5 rounded-lg bg-[#0d2d69] px-3 text-xs font-semibold text-white hover:bg-[#163f86]" : undefined}>
+        <UserPlus className="size-4" aria-hidden />
         Rattacher un tuteur
       </Button>
 
-      {tuteurs.map((t) => (
-        <Button
-          key={t.id}
-          size="sm"
-          variant="ghost"
-          disabled={enCours}
-          onClick={() => detacher(t.id, `${t.prenom} ${t.nom}`)}
-        >
+      {compact ? (tuteurs.length ? <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="outline" className="h-9 gap-1.5 rounded-lg bg-white px-3 text-xs shadow-none dark:bg-card">
+            Gérer <ChevronDown className="size-3.5" aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-60">
+          <DropdownMenuLabel>Gestion des responsables</DropdownMenuLabel>
+          {tuteurs.map(t => <DropdownMenuItem key={t.id} disabled={enCours}
+            className="gap-2 text-red-700 focus:text-red-700"
+            onSelect={() => setRetrait({ id: t.id, libelle: t.prenom + " " + t.nom })}>
+            <UserMinus className="size-4" aria-hidden />
+            Retirer {t.prenom} {t.nom}
+          </DropdownMenuItem>)}
+        </DropdownMenuContent>
+      </DropdownMenu> : null) : tuteurs.map((t) => (
+        <Button key={t.id} size="sm" variant="ghost" disabled={enCours}
+          onClick={() => setRetrait({ id: t.id, libelle: t.prenom + " " + t.nom })}>
           <UserMinus aria-hidden />
           Retirer {t.prenom} {t.nom}
         </Button>
       ))}
+
+      <Dialog open={retrait !== null} onOpenChange={(next) => { if (!next) setRetrait(null); }}>
+        <DialogContent className="rounded-2xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Retirer un responsable ?</DialogTitle>
+            <DialogDescription>
+              Vous allez retirer le lien entre cet élève et {retrait?.libelle}. Cette action ne supprime pas le compte du responsable.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={enCours} onClick={() => setRetrait(null)}>Annuler</Button>
+            <Button variant="destructive" disabled={enCours || !retrait} onClick={() => {
+              if (!retrait) return;
+              detacher(retrait.id, retrait.libelle);
+              setRetrait(null);
+            }}>Confirmer le retrait</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={ouvert} onOpenChange={setOuvert}>
         <DialogContent className="sm:max-w-lg">

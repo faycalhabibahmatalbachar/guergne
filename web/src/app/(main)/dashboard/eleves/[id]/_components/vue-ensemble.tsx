@@ -1,8 +1,11 @@
 import {
-  Activity, CalendarDays, ClipboardList, CreditCard, FileCheck2, FileText,
-  GraduationCap, History, Mail, MapPin, Phone, UserRound, Users, Wallet,
-  ArrowRight,
+  ArrowRight, BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronRight,
+  CircleUserRound, ClipboardList, Clock3, CreditCard, FileBadge2, FileCheck2,
+  FileClock, FileText, Flag, GraduationCap, History, House, IdCard, Mail,
+  MapPin, Phone, School2, Send, ShieldCheck, UserRound, UsersRound, Wallet,
+  BriefcaseBusiness, Building2, RotateCcw, Layers3, BookOpen,
 } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import type { DossierComplet } from "@/server/domain/dossier";
 import type { DossierScolarite } from "@/server/domain/dossier-eleve";
@@ -16,42 +19,55 @@ const LIEN: Record<string, string> = {
   TANTE: "Tante", GRAND_PARENT: "Grand-parent", FRERE_SOEUR: "Frère / sœur", AUTRE: "Autre",
 };
 
-const classCard = "min-w-0 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-border dark:bg-card sm:p-4.5";
-const classTitre = "flex min-w-0 items-center gap-2.5 text-[15px] font-bold tracking-tight text-slate-900 dark:text-foreground";
-const classIcone = "size-5 shrink-0 text-[#102b53] dark:text-foreground";
-
-const dt = "text-[11px] font-medium leading-4 text-slate-500 dark:text-muted-foreground";
-const dd = "mt-1 break-words text-[13px] font-semibold leading-5 text-[#142450] dark:text-foreground";
+const heading = "text-base font-bold tracking-tight text-[#101e3f] dark:text-foreground";
+const subdued = "text-xs text-slate-500 dark:text-muted-foreground";
+const valueClass = "mt-0.5 break-words text-sm font-semibold leading-relaxed text-[#12234c] dark:text-foreground";
+const cardClass = styles.card + " dark:bg-card dark:border-border";
 
 function DateCourte({ value }: { value: string | null }) {
-  return <>{value ? new Date(value).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</>;
+  if (!value) return <>—</>;
+  return <>{new Date(value).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}</>;
 }
 
-function Valeur({ nom, valeur, className = "" }: { nom: string; valeur: React.ReactNode; className?: string }) {
-  return <div className={"min-w-0 " + className}><dt className={dt}>{nom}</dt><dd className={dd}>{valeur || "—"}</dd></div>;
+function Donnee({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div className="min-w-0"><span className={subdued}>{label}</span><div className={valueClass}>{children || "—"}</div></div>;
 }
 
-function EnteteCarte({
-  icon: Icon, titre, action,
+function TitreSection({
+  titre, description, icon: Icon, tone = "blue", right,
 }: {
-  icon: typeof UserRound; titre: string; action?: React.ReactNode;
+  titre: string; description?: string; icon: typeof IdCard;
+  tone?: "blue" | "green" | "navy" | "violet";
+  right?: React.ReactNode;
 }) {
-  return (
-    <header className="mb-3.5 flex min-h-9 flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3 dark:border-border">
-      <h2 className={classTitre}><Icon className={classIcone} aria-hidden />{titre}</h2>
-      {action ? <div className="flex shrink-0 items-center">{action}</div> : null}
-    </header>
-  );
+  const tones = {
+    blue: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+    green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    navy: "bg-[#0d2d69] text-white",
+    violet: "bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+  };
+  return <header className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-2.5">
+    <div className="flex min-w-0 items-center gap-3">
+      <span className={"flex size-10 shrink-0 items-center justify-center rounded-xl " + tones[tone]}>
+        <Icon className="size-5" aria-hidden />
+      </span>
+      <div className="min-w-0">
+        <h2 className={heading}>{titre}</h2>
+        {description ? <p className="mt-0.5 text-[11px] text-slate-500 dark:text-muted-foreground">{description}</p> : null}
+      </div>
+    </div>
+    {right ? <div className="flex min-w-0 flex-wrap items-center gap-2">{right}</div> : null}
+  </header>;
 }
 
-/**
- * Gabarit conforme aux trois colonnes de la maquette, sans surcharge
- * horizontale : le navigateur choisit 1, 2 ou 3 colonnes selon l'espace réel
- * restant après le menu de l'administration.
- *
- * Tous les nombres, dates, parents, bulletins et événements sont issus des
- * vrais domaines de l'application. Aucun document absent n'est dit « validé ».
- */
+function LienOnglet({
+  onglet, children,
+}: { onglet: string; children: React.ReactNode }) {
+  return <RaccourciOnglet onglet={onglet} className="h-9 gap-1.5 rounded-xl border-slate-200 bg-white px-3 text-xs font-medium shadow-none hover:bg-slate-50 dark:border-border dark:bg-background">
+    {children}<ArrowRight className="size-3.5" aria-hidden />
+  </RaccourciOnglet>;
+}
+
 export function VueEnsembleEleve({
   dossier, scolarite, peutVoirFinances, peutVoirNotes, peutVoirAssiduite,
   peutVoirTuteurs, actions, notification, documents, gestionTuteurs, bulletins,
@@ -69,157 +85,190 @@ export function VueEnsembleEleve({
   bulletins: Bulletin[];
 }) {
   const { eleve, inscription, tuteurs, parcours, historiqueStatuts, changementsClasse } = dossier;
-  const argent = (v: number) => v.toLocaleString("fr-FR") + " FCFA";
+  const montant = (n: number) => n.toLocaleString("fr-FR") + " FCFA";
   const echeances = scolarite?.echeances ?? [];
-  const netDu = echeances.reduce((s, e) => s + e.du - e.exonere, 0);
-  const paye = echeances.reduce((s, e) => s + e.paye, 0);
-  const reste = echeances.reduce((s, e) => s + e.reste, 0);
-  const pourcentage = netDu > 0 ? Math.max(0, Math.min(100, Math.round(100 * paye / netDu))) : 0;
-
+  const netDu = echeances.reduce((acc, e) => acc + e.du - e.exonere, 0);
+  const paye = echeances.reduce((acc, e) => acc + e.paye, 0);
+  const reste = echeances.reduce((acc, e) => acc + e.reste, 0);
+  const progression = netDu > 0 ? Math.max(0, Math.min(100, Math.round(100 * paye / netDu))) : 0;
   const activites = [
-    ...historiqueStatuts.map((h) => ({
-      id: "statut-" + h.id, date: h.creeLe || h.dateEffet,
-      libelle: "Situation : " + h.nouveauStatut.replaceAll("_", " ").toLowerCase(),
-      categorie: "Scolarité", couleur: "bg-emerald-500",
+    ...historiqueStatuts.map((e) => ({
+      id: "h-" + e.id, date: e.creeLe || e.dateEffet,
+      texte: "Situation scolaire : " + e.nouveauStatut.replaceAll("_", " ").toLowerCase(),
+      type: "Scolarité", dot: "bg-emerald-500",
     })),
-    ...changementsClasse.map((c) => ({
-      id: "classe-" + c.id, date: c.dateEffet,
-      libelle: c.origine + " → " + c.destination,
-      categorie: "Scolarité", couleur: "bg-blue-500",
+    ...changementsClasse.map((e) => ({
+      id: "c-" + e.id, date: e.dateEffet,
+      texte: "Changement de classe : " + e.origine + " → " + e.destination,
+      type: "Scolarité", dot: "bg-blue-500",
     })),
-    ...(peutVoirAssiduite ? (scolarite?.assiduite ?? []).map((a) => ({
-      id: "assiduite-" + a.id, date: a.date,
-      libelle: a.type === "absence" ? "Absence enregistrée" : "Retard enregistré",
-      categorie: "Assiduité", couleur: "bg-orange-400",
+    ...(peutVoirAssiduite ? (scolarite?.assiduite ?? []).map((e) => ({
+      id: "a-" + e.id, date: e.date,
+      texte: e.type === "absence" ? "Absence enregistrée" : "Retard enregistré",
+      type: "Assiduité", dot: "bg-amber-500",
     })) : []),
-    ...(peutVoirFinances ? (scolarite?.paiements ?? []).filter((p) => !p.annule).map((p) => ({
-      id: "paiement-" + p.id, date: p.date,
-      libelle: "Paiement : " + argent(p.montant),
-      categorie: "Finances", couleur: "bg-violet-500",
+    ...(peutVoirFinances ? (scolarite?.paiements ?? []).filter((p) => !p.annule).map((e) => ({
+      id: "p-" + e.id, date: e.date, texte: "Paiement enregistré : " + montant(e.montant),
+      type: "Finances", dot: "bg-violet-500",
     })) : []),
-  ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+  ].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 5);
 
-  return (
-    <div className={styles.shell}>
-      <div className={styles.layout}>
-        <section className={classCard + " " + styles.personal} aria-label="Informations personnelles">
-          <EnteteCarte icon={UserRound} titre="Informations personnelles" action={<RaccourciOnglet onglet="identite">Détails <ArrowRight className="size-3.5" aria-hidden /></RaccourciOnglet>} />
-          <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 rounded-lg border border-slate-100 p-3 dark:border-border">
-            <Valeur nom="Nom complet" valeur={eleve.prenom + " " + eleve.nom} />
-            <Valeur nom="Sexe" valeur={eleve.sexe === "F" ? "Féminin" : eleve.sexe === "M" ? "Masculin" : "Non renseigné"} />
-            <Valeur nom="Date de naissance" valeur={<DateCourte value={eleve.dateNaissance} />} />
-            <Valeur nom="Lieu de naissance" valeur={eleve.lieuNaissance} />
-            <Valeur nom="Nationalité" valeur={eleve.nationalite} className="col-span-2 border-t border-slate-100 pt-3 dark:border-border" />
-            <Valeur nom="Adresse" valeur={[eleve.quartier, eleve.adresse].filter(Boolean).join(", ")} className="col-span-2 border-t border-slate-100 pt-3 dark:border-border" />
-            <div className="col-span-2 flex items-start gap-2 border-t border-slate-100 pt-3 dark:border-border">
-              <Phone className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden />
-              <Valeur nom="Téléphone" valeur={eleve.telephone} />
+  return <div className={styles.shell}>
+    <div className={styles.layout}>
+      <section className={cardClass + " " + styles.personal} aria-label="Informations personnelles">
+        <TitreSection titre="Informations personnelles" description="Données d’identification de l’élève" icon={IdCard}
+          right={<LienOnglet onglet="identite">Voir la fiche</LienOnglet>} />
+        <div className="flex items-center gap-3 rounded-xl bg-blue-50/70 px-4 py-3 dark:bg-blue-950/20">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-base font-bold text-blue-700 dark:bg-blue-900 dark:text-white">
+            {eleve.prenom.slice(0,1)}{eleve.nom.slice(0,1)}
+          </span>
+          <div className="min-w-0"><p className={subdued}>Nom complet</p>
+            <p className="mt-0.5 break-words text-sm font-bold text-[#101e3f] dark:text-foreground">{eleve.prenom} {eleve.nom}</p></div>
+        </div>
+        <div className="mt-4 grid gap-4">
+          <div className="grid grid-cols-2 gap-3 border-b border-slate-100 pb-4 dark:border-border">
+            <Donnee label="Sexe">{eleve.sexe === "F" ? "Féminin" : eleve.sexe === "M" ? "Masculin" : "Non renseigné"}</Donnee>
+            <Donnee label="Naissance"><DateCourte value={eleve.dateNaissance} /></Donnee>
+          </div>
+          <div className={styles.personalGroup}>
+            <div className="flex gap-3"><MapPin className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Lieu de naissance">{eleve.lieuNaissance}</Donnee></div>
+            <div className="flex gap-3"><Flag className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Nationalité">{eleve.nationalite}</Donnee></div>
+          </div>
+          <div className="border-t border-slate-100 pt-4 dark:border-border">
+            <div className="flex gap-3"><House className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Adresse">{[eleve.quartier, eleve.adresse].filter(Boolean).join(", ")}</Donnee></div>
+          </div>
+          <div className="grid gap-4 border-t border-slate-100 pt-4 dark:border-border">
+            <div className="flex gap-3"><Phone className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Téléphone">{eleve.telephone}</Donnee></div>
+            <div className="flex gap-3"><Mail className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Adresse e-mail">{eleve.email}</Donnee></div>
+          </div>
+        </div>
+      </section>
+
+      <section className={cardClass + " " + styles.school} aria-label="Scolarité actuelle">
+        <TitreSection titre="Scolarité actuelle" description="Informations sur le parcours scolaire" icon={GraduationCap} tone="navy"
+          right={inscription ? <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300"><CalendarDays className="size-4" aria-hidden />{inscription.anneeLibelle}</span> : null} />
+        {inscription ? <>
+          <div className={styles.schoolHero}>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-blue-600">Classe actuelle</p>
+              <p className="mt-1 break-words text-2xl font-extrabold tracking-tight text-[#0e2d61] dark:text-foreground">{inscription.classeLibelle}</p>
             </div>
-            <div className="col-span-2 flex items-start gap-2 border-t border-slate-100 pt-3 dark:border-border">
-              <Mail className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden />
-              <Valeur nom="E-mail" valeur={eleve.email} />
+            <div className="min-w-0 border-l border-blue-100 pl-3 dark:border-border">
+              <p className="flex items-center gap-2 text-[11px] text-slate-500"><Layers3 className="size-4 text-blue-600" aria-hidden />Niveau</p>
+              <p className="mt-1 break-words text-sm font-semibold text-[#12234c] dark:text-foreground">{inscription.niveauLibelle}</p>
+            </div>
+            <div className="min-w-0 border-l border-blue-100 pl-3 dark:border-border">
+              <p className="flex items-center gap-2 text-[11px] text-slate-500"><BookOpen className="size-4 text-blue-600" aria-hidden />Régime</p>
+              <p className="mt-1 text-sm font-semibold text-[#12234c] dark:text-foreground">Non renseigné</p>
             </div>
           </div>
-        </section>
-
-        <section className={classCard + " " + styles.school} aria-label="Scolarité actuelle">
-          <EnteteCarte icon={GraduationCap} titre="Scolarité actuelle" action={<RaccourciOnglet onglet="scolarite">Détails <ArrowRight className="size-3.5" aria-hidden /></RaccourciOnglet>} />
-          {inscription ? <div className={styles.schoolFacts + " rounded-lg border border-slate-100 p-3 dark:border-border"}>
-            <Valeur nom="Année scolaire" valeur={inscription.anneeLibelle} />
-            <Valeur nom="Classe" valeur={inscription.classeLibelle} />
-            <Valeur nom="Niveau" valeur={inscription.niveauLibelle} />
-            <Valeur nom="Régime" valeur="Non renseigné" />
-            <Valeur nom="Date d’inscription" valeur={<DateCourte value={inscription.dateInscription} />} />
-            <Valeur nom="Redoublement" valeur={inscription.estRedoublant ? <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Oui</Badge> : "Non"} />
-            <Valeur nom="Ancienne classe" valeur={parcours[1]?.classeLibelle ?? "—"} />
-            <Valeur nom="Établissement précédent" valeur={eleve.ecoleOrigine ?? "—"} />
-          </div> : <p className="rounded-lg bg-slate-50 p-4 text-sm text-muted-foreground">Aucune inscription active.</p>}
-        </section>
-
-        {peutVoirTuteurs ? <section className={classCard + " " + styles.guardians} aria-label="Parents et tuteurs">
-          <EnteteCarte icon={Users} titre="Parents & tuteurs" action={gestionTuteurs} />
-          {tuteurs.length ? <div className="grid gap-2 sm:grid-cols-2">
-            {tuteurs.slice(0, 4).map((t) => (
-              <article key={t.id} className="min-w-0 rounded-lg border border-slate-100 bg-slate-50/40 p-3 dark:border-border dark:bg-muted/20">
-                <div className="flex min-w-0 items-start gap-2.5">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-200">{t.prenom[0] ?? ""}{t.nom[0] ?? ""}</span>
-                  <div className="min-w-0">
-                    <p className="break-words text-[13px] font-bold leading-tight text-slate-900 dark:text-foreground">{t.prenom} {t.nom}</p>
-                    <p className="mt-1 text-[11px] text-slate-500">{LIEN[t.lien] ?? t.lien}{t.estPrincipal ? " · Principal" : ""}</p>
-                  </div>
-                </div>
-                <div className="mt-3 space-y-1.5 text-[11px] text-slate-600 dark:text-muted-foreground">
-                  <p className="flex min-w-0 gap-2"><Phone className="size-3.5 shrink-0" aria-hidden /><span className="break-all">{t.telephone}</span></p>
-                  {t.email ? <p className="flex min-w-0 gap-2"><Mail className="size-3.5 shrink-0" aria-hidden /><span className="break-all">{t.email}</span></p> : null}
-                  {t.profession ? <p className="break-words">{t.profession}</p> : null}
-                  {t.adresse ? <p className="flex min-w-0 gap-2"><MapPin className="size-3.5 shrink-0" aria-hidden /><span className="break-words">{t.adresse}</span></p> : null}
-                </div>
-              </article>
-            ))}
-          </div> : <p className="py-5 text-center text-sm text-muted-foreground">Aucun tuteur rattaché.</p>}
-          {tuteurs.length > 4 ? <p className="mt-2 text-xs text-muted-foreground">+{tuteurs.length - 4} autre(s) responsable(s) dans l’onglet Parents.</p> : null}
-        </section> : null}
-
-        <section className={classCard + " " + styles.actions} aria-label="Actions rapides">
-          <EnteteCarte icon={Activity} titre="Actions rapides" />
-          {actions || notification ? <div className="mb-3 flex flex-wrap gap-2 rounded-lg border border-emerald-100 bg-emerald-50/40 px-2 py-2 dark:border-emerald-950 dark:bg-emerald-950/20 [&>div]:flex [&>div]:flex-wrap [&>div]:gap-2">{notification}{actions}</div> : null}
-          <div className="grid grid-cols-2 gap-2">
-            {peutVoirNotes ? <RaccourciOnglet onglet="notes" className="h-9 w-full justify-start gap-1.5 rounded-lg px-2 text-[11px]"><GraduationCap className="size-4" aria-hidden />Notes</RaccourciOnglet> : null}
-            {peutVoirAssiduite ? <RaccourciOnglet onglet="assiduite" className="h-9 w-full justify-start gap-1.5 rounded-lg px-2 text-[11px]"><CalendarDays className="size-4" aria-hidden />Assiduité</RaccourciOnglet> : null}
-            {peutVoirFinances ? <RaccourciOnglet onglet="finances" className="h-9 w-full justify-start gap-1.5 rounded-lg px-2 text-[11px]"><CreditCard className="size-4" aria-hidden />Paiements</RaccourciOnglet> : null}
-            <RaccourciOnglet onglet="documents" className="h-9 w-full justify-start gap-1.5 rounded-lg px-2 text-[11px]"><FileText className="size-4" aria-hidden />Documents</RaccourciOnglet>
+          <div className={"mt-5 " + styles.schoolSecondary}>
+            <Donnee label="Date d’inscription"><DateCourte value={inscription.dateInscription} /></Donnee>
+            <Donnee label="Redoublement">{inscription.estRedoublant ? "Oui" : "Non"}</Donnee>
+            <Donnee label="Ancienne classe">{parcours[1]?.classeLibelle ?? "—"}</Donnee>
+            <Donnee label="Établissement précédent">{eleve.ecoleOrigine ?? "—"}</Donnee>
           </div>
-        </section>
+        </> : <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500 dark:bg-muted">Aucune inscription active enregistrée.</p>}
+        <div className="mt-5 flex justify-end border-t border-slate-100 pt-3 dark:border-border">
+          <LienOnglet onglet="scolarite">Parcours scolaire</LienOnglet>
+        </div>
+      </section>
 
-        <section className={classCard + " " + styles.documents} aria-label="Documents scolaires">
-          <EnteteCarte icon={FileText} titre="Documents scolaires" action={documents ?? <RaccourciOnglet onglet="documents">Voir tout</RaccourciOnglet>} />
-          <ul className="divide-y divide-slate-100 dark:divide-border">
-            {[
-              ["Certificat de scolarité", "À éditer"],
-              ["Fiche d’inscription", "À éditer"],
-            ].map(([nom, etat]) => <li key={nom} className="flex min-w-0 items-center justify-between gap-2 py-2 text-[12px]">
-              <span className="flex min-w-0 items-center gap-2"><FileCheck2 className="size-4 shrink-0 text-blue-600" aria-hidden /><span className="break-words">{nom}</span></span>
-              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] text-slate-500 dark:bg-muted">{etat}</span>
-            </li>)}
-            {bulletins.slice(0, 3).map((b) => <li key={b.periodeId} className="flex items-center justify-between gap-2 py-2 text-[12px]">
-              <a href={"/api/bulletins/" + b.inscriptionId + "/" + b.periodeId} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-2 text-blue-700 hover:underline dark:text-blue-300">
-                <FileText className="size-4 shrink-0" aria-hidden /><span className="break-words">Bulletin {b.periodeLibelle}</span>
-              </a>
-              <span className={"shrink-0 rounded-full px-2 py-1 text-[10px] " + (b.publie ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>{b.publie ? "Publié" : "Brouillon"}</span>
-            </li>)}
-          </ul>
-          <p className="mt-2 text-[11px] text-slate-500">Les pièces à éditer ne sont pas des documents déposés ou validés.</p>
-        </section>
+      <section className={cardClass + " " + styles.actions} aria-label="Actions rapides">
+        <TitreSection titre="Actions rapides" description="Accéder aux fonctions du dossier" icon={Clock3} tone="violet" />
+        {notification ? <div className="mb-3 rounded-xl bg-emerald-700 p-1 text-white [&_button]:!h-11 [&_button]:!w-full [&_button]:!justify-center [&_button]:!border-0 [&_button]:!bg-transparent [&_button]:!text-sm [&_button]:!font-semibold [&_button]:!text-white [&_button]:hover:!bg-emerald-800/40">
+          {notification}
+        </div> : null}
+        {actions ? <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-border dark:bg-muted/20 [&_button]:!w-full [&_button]:!justify-center">
+          {actions}
+        </div> : null}
+        <div className="mb-3 border-t border-slate-100 dark:border-border" />
+        <div className={styles.actionTiles}>
+          {peutVoirNotes ? <RaccourciOnglet onglet="notes" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-violet-100 bg-violet-50/60 p-3 text-xs font-semibold shadow-none hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/20">
+            <span className="flex items-center gap-2"><BookOpenCheck className="size-5 shrink-0 text-violet-700" aria-hidden />Notes</span><ChevronRight className="size-4 text-violet-600" aria-hidden />
+          </RaccourciOnglet> : null}
+          {peutVoirAssiduite ? <RaccourciOnglet onglet="assiduite" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-blue-100 bg-blue-50/60 p-3 text-xs font-semibold shadow-none hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/20">
+            <span className="flex items-center gap-2"><CalendarCheck2 className="size-5 shrink-0 text-blue-700" aria-hidden />Assiduité</span><ChevronRight className="size-4 text-blue-600" aria-hidden />
+          </RaccourciOnglet> : null}
+          {peutVoirFinances ? <RaccourciOnglet onglet="finances" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-orange-100 bg-orange-50/60 p-3 text-xs font-semibold shadow-none hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-950/20">
+            <span className="flex items-center gap-2"><CreditCard className="size-5 shrink-0 text-orange-700" aria-hidden />Paiements</span><ChevronRight className="size-4 text-orange-600" aria-hidden />
+          </RaccourciOnglet> : null}
+          <RaccourciOnglet onglet="documents" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-emerald-100 bg-emerald-50/60 p-3 text-xs font-semibold shadow-none hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/20">
+            <span className="flex items-center gap-2"><FileCheck2 className="size-5 shrink-0 text-emerald-700" aria-hidden />Documents</span><ChevronRight className="size-4 text-emerald-600" aria-hidden />
+          </RaccourciOnglet>
+        </div>
+      </section>
 
-        {peutVoirFinances ? <section className={classCard + " " + styles.finance} aria-label="Situation financière">
-          <EnteteCarte icon={Wallet} titre="Situation financière" action={<RaccourciOnglet onglet="finances">Voir les paiements</RaccourciOnglet>} />
-          {echeances.length ? <>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div className="min-w-0 rounded-xl bg-amber-50/80 px-3 py-3 dark:bg-amber-950/20"><p className={dt}>Montant net dû</p><p className="mt-1 break-words text-base font-bold tabular-nums text-amber-700">{argent(netDu)}</p></div>
-              <div className="min-w-0 rounded-xl bg-emerald-50/80 px-3 py-3 dark:bg-emerald-950/20"><p className={dt}>Montant payé</p><p className="mt-1 break-words text-base font-bold tabular-nums text-emerald-700">{argent(paye)}</p></div>
-              <div className="min-w-0 rounded-xl bg-rose-50/80 px-3 py-3 dark:bg-rose-950/20"><p className={dt}>Reste à payer</p><p className="mt-1 break-words text-base font-bold tabular-nums text-rose-700">{argent(reste)}</p></div>
+      {peutVoirTuteurs ? <section className={cardClass + " " + styles.guardians} aria-label="Parents et tuteurs">
+        <TitreSection titre="Parents & tuteurs" description="Responsables rattachés à l’élève" icon={UsersRound} tone="green" right={gestionTuteurs} />
+        {tuteurs.length ? <div className="grid gap-3">
+          {tuteurs.slice(0,3).map(t => <article key={t.id} className="min-w-0 rounded-xl border border-emerald-100 bg-emerald-50/30 px-4 py-4 dark:border-emerald-950 dark:bg-emerald-950/10">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-200">{t.prenom[0] ?? ""}{t.nom[0] ?? ""}</span>
+              <div className="min-w-0 flex-1"><p className="break-words text-sm font-bold text-[#101e3f] dark:text-foreground">{t.prenom} {t.nom}</p>
+                <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">{LIEN[t.lien] ?? t.lien}{t.estPrincipal ? " · Principal" : ""}</span></div>
             </div>
-            <div className="mt-4 flex items-center gap-3">
-              <div role="progressbar" aria-label="Progression des paiements" aria-valuenow={pourcentage} aria-valuemin={0} aria-valuemax={100} className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-muted"><div className="h-full rounded-full bg-emerald-500" style={{ width: pourcentage + "%" }} /></div>
-              <span className="text-xs font-semibold tabular-nums">{pourcentage} % payé</span>
+            <div className={"mt-3 border-t border-emerald-100 pt-3 dark:border-border " + styles.tutorInfo}>
+              <div className="flex min-w-0 gap-2"><Phone className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Téléphone">{t.telephone}</Donnee></div>
+              <div className="flex min-w-0 gap-2"><BriefcaseBusiness className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Profession">{t.profession}</Donnee></div>
+              <div className="flex min-w-0 gap-2"><MapPin className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Adresse">{t.adresse}</Donnee></div>
             </div>
-          </> : <p className="py-4 text-sm text-muted-foreground">Aucune échéance enregistrée pour cette scolarité.</p>}
-        </section> : <div className={styles.finance} />}
+            {t.email ? <p className="mt-3 flex min-w-0 gap-2 text-xs text-slate-600"><Mail className="size-4 shrink-0" aria-hidden /><span className="break-all">{t.email}</span></p> : null}
+          </article>)}
+          {tuteurs.length > 3 ? <p className="text-xs text-muted-foreground">{tuteurs.length - 3} autre(s) responsable(s) dans l’onglet Parents.</p> : null}
+        </div> : <p className="rounded-xl bg-slate-50 p-4 text-sm text-muted-foreground dark:bg-muted">Aucun responsable rattaché à cet élève.</p>}
+        <div className="mt-3 flex justify-end"><LienOnglet onglet="tuteurs">Tous les responsables</LienOnglet></div>
+      </section> : null}
 
-        <section className={classCard + " " + styles.activity} aria-label="Dernières activités">
-          <EnteteCarte icon={History} titre="Dernières activités" action={<RaccourciOnglet onglet="historique">Voir tout</RaccourciOnglet>} />
-          {activites.length ? <ol className="space-y-3">
-            {activites.map((a) => <li key={a.id} className="flex min-w-0 items-start gap-2 text-[11px]">
-              <span className={"mt-1.5 size-2.5 shrink-0 rounded-full " + a.couleur} aria-hidden />
-              <time className="w-[72px] shrink-0 text-slate-500"><DateCourte value={a.date} /></time>
-              <div className="min-w-0 flex-1">
-                <p className="break-words leading-4 text-[#142450] dark:text-foreground">{a.libelle}</p>
-                <p className="mt-0.5 text-[10px] text-slate-400">{a.categorie}</p>
-              </div>
-            </li>)}
-          </ol> : <p className="py-4 text-sm text-muted-foreground">Aucune activité enregistrée.</p>}
-        </section>
-      </div>
+      <section className={cardClass + " " + styles.documents} aria-label="Documents scolaires">
+        <TitreSection titre="Documents scolaires" description="Pièces administratives et bulletins" icon={FileBadge2} tone="navy"
+          right={<LienOnglet onglet="documents">Voir tous</LienOnglet>} />
+        <ul className="divide-y divide-slate-100 dark:divide-border">
+          {[
+            { nom:"Certificat de scolarité", chemin:"certificat-scolarite" },
+            { nom:"Fiche d’inscription", chemin:"fiche-inscription" },
+          ].map(item => <li key={item.chemin} className={styles.documentRow + " py-3"}>
+            <div className="flex min-w-0 items-center gap-3">
+              <FileClock className="size-5 shrink-0 text-blue-600" aria-hidden />
+              <span className="min-w-0"><span className="block break-words text-xs font-semibold text-[#142450] dark:text-foreground">{item.nom}</span><span className="text-[11px] text-slate-500">Document à éditer</span></span>
+            </div>
+            {documents ? <a href={"/api/documents/" + item.chemin + "/" + eleve.id} target="_blank" rel="noopener noreferrer" className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700 hover:bg-blue-100 focus-visible:outline-2 focus-visible:outline-blue-600">Éditer</a> : <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-500">À éditer</span>}
+          </li>)}
+          {bulletins.slice(0,4).map(b => <li key={b.periodeId} className={styles.documentRow + " py-3"}>
+            <a href={"/api/bulletins/" + b.inscriptionId + "/" + b.periodeId} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-3 hover:underline">
+              <FileText className="size-5 shrink-0 text-blue-600" aria-hidden />
+              <span className="min-w-0"><span className="block break-words text-xs font-semibold text-[#142450] dark:text-foreground">Bulletin {b.periodeLibelle}</span><span className="text-[11px] text-slate-500">Document scolaire</span></span>
+            </a>
+            <span className={"inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold " + (b.publie ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950" : "bg-amber-50 text-amber-700 dark:bg-amber-950")}>{b.publie ? <Check className="size-3" aria-hidden /> : null}{b.publie ? "Publié" : "Brouillon"}</span>
+          </li>)}
+        </ul>
+        {!bulletins.length ? <p className="mt-2 text-xs text-muted-foreground">Aucun bulletin disponible pour cette période.</p> : null}
+        {documents ? <div className="mt-3 flex justify-end border-t border-slate-100 pt-3 dark:border-border">{documents}</div> : null}
+        <p className="mt-2 text-[11px] text-slate-500">Une pièce à éditer n’est pas une pièce déposée ou validée.</p>
+      </section>
+
+      {peutVoirFinances ? <section className={cardClass + " " + styles.finance} aria-label="Situation financière">
+        <TitreSection titre="Situation financière" description="Suivi des échéances de l’inscription" icon={Wallet} tone="green" right={<LienOnglet onglet="finances">Paiements</LienOnglet>} />
+        {echeances.length ? <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-slate-50 px-4 py-3 dark:bg-muted"><p className={subdued}>Montant net dû</p><p className="mt-1 text-lg font-bold text-[#12234c] dark:text-foreground">{montant(netDu)}</p></div>
+            <div className="rounded-xl bg-emerald-50 px-4 py-3 dark:bg-emerald-950/30"><p className={subdued}>Montant payé</p><p className="mt-1 text-lg font-bold text-emerald-700">{montant(paye)}</p></div>
+            <div className="rounded-xl bg-rose-50 px-4 py-3 dark:bg-rose-950/20"><p className={subdued}>Reste à payer</p><p className="mt-1 text-lg font-bold text-rose-700">{montant(reste)}</p></div>
+          </div>
+          <div className="mt-4 flex items-center gap-3"><div role="progressbar" aria-label="Paiements effectués" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progression} className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-muted"><div className="h-full rounded-full bg-emerald-500" style={{width:progression+"%"}} /></div><span className="text-xs font-semibold tabular-nums">{progression} % payé</span></div>
+        </> : <p className="text-sm text-muted-foreground">Aucune échéance enregistrée.</p>}
+      </section> : <div className={styles.finance} />}
+
+      <section className={cardClass + " " + styles.activity} aria-label="Dernières activités">
+        <TitreSection titre="Dernières activités" icon={History} tone="violet" right={<LienOnglet onglet="historique">Historique</LienOnglet>} />
+        {activites.length ? <ol className="space-y-3">
+          {activites.map(e => <li key={e.id} className="flex min-w-0 items-start gap-3 text-xs">
+            <span aria-hidden className={"mt-1.5 size-2.5 shrink-0 rounded-full " + e.dot} />
+            <time className="w-20 shrink-0 text-slate-500"><DateCourte value={e.date}/></time>
+            <div className="min-w-0 flex-1"><p className="break-words text-[#12234c] dark:text-foreground">{e.texte}</p><p className="mt-1 text-[11px] text-slate-400">{e.type}</p></div>
+          </li>)}
+        </ol> : <p className="text-sm text-muted-foreground">Aucun événement enregistré.</p>}
+      </section>
     </div>
-  );
+  </div>;
 }
