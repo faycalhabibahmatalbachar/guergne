@@ -26,8 +26,8 @@ export function PhotoEleve({
   });
   return (
     <>
-      <div className="relative size-[100px] shrink-0 sm:size-[116px]">
-        <div className="size-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm dark:border-border">
+      <div className="relative size-[92px] shrink-0 sm:size-[136px] xl:size-[156px]">
+        <div className="size-full overflow-hidden rounded-full border-[5px] border-white bg-slate-100 shadow-[0_5px_20px_rgba(15,23,42,0.14)] ring-1 ring-slate-200 dark:border-slate-900 dark:ring-border">
           {/* Image privée authentifiée, ou avatar SVG local. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt={photoId ? "Photo de " + nomComplet : "Avatar illustré de " + nomComplet} className="size-full object-cover" />
@@ -38,7 +38,7 @@ export function PhotoEleve({
             aria-label={"Modifier la photo de " + nomComplet}
             title="Modifier la photo"
             onClick={() => setOuvert(true)}
-            className="absolute -bottom-1 -right-1 size-8 rounded-lg border-white bg-slate-900 text-white shadow-md hover:bg-slate-700 hover:text-white dark:border-border"
+            className="absolute bottom-0 right-0 size-9 rounded-full border-[3px] border-white bg-[#10244b] text-white shadow-md hover:bg-[#203c72] hover:text-white focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-background"
           >
             <Camera className="size-4" aria-hidden />
           </Button>
