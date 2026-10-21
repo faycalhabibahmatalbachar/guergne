@@ -117,9 +117,9 @@ export function VueEnsembleEleve({
 
   return <div className={styles.shell}>
     <div className={styles.layout}>
-      <section className={cardClass + " " + styles.personal} aria-label="Informations personnelles">
-        <TitreSection titre="Informations personnelles" description="Données d’identification de l’élève" icon={IdCard}
-          right={<LienOnglet onglet="identite">Voir la fiche</LienOnglet>} />
+      <div className={styles.primary}>
+      <section className={cardClass} aria-label="Informations personnelles">
+        <TitreSection titre="Informations personnelles" description="Identité et coordonnées" icon={IdCard} />
         <div className="flex items-center gap-3 rounded-xl bg-blue-50/70 px-4 py-3 dark:bg-blue-950/20">
           <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-base font-bold text-blue-700 dark:bg-blue-900 dark:text-white">
             {eleve.prenom.slice(0,1)}{eleve.nom.slice(0,1)}
@@ -144,9 +144,13 @@ export function VueEnsembleEleve({
             <div className="flex gap-3"><Mail className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Adresse e-mail">{eleve.email}</Donnee></div>
           </div>
         </div>
+        <div className="mt-4 flex justify-end border-t border-slate-100 pt-3 dark:border-border">
+          <LienOnglet onglet="identite">Voir la fiche complète</LienOnglet>
+        </div>
       </section>
-
-      <section className={cardClass + " " + styles.school} aria-label="Scolarité actuelle">
+      </div>
+      <div className={styles.middle}>
+      <section className={cardClass} aria-label="Scolarité actuelle">
         <TitreSection titre="Scolarité actuelle" description="Informations sur le parcours scolaire" icon={GraduationCap} tone="navy"
           right={inscription ? <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300"><CalendarDays className="size-4" aria-hidden />{inscription.anneeLibelle}</span> : null} />
         {inscription ? <>
@@ -175,34 +179,8 @@ export function VueEnsembleEleve({
           <LienOnglet onglet="scolarite">Parcours scolaire</LienOnglet>
         </div>
       </section>
-
-      <section className={cardClass + " " + styles.actions} aria-label="Actions rapides">
-        <TitreSection titre="Actions rapides" description="Accéder aux fonctions du dossier" icon={Clock3} tone="violet" />
-        {notification ? <div className="mb-3 rounded-xl bg-emerald-700 p-1 text-white [&_button]:!h-11 [&_button]:!w-full [&_button]:!justify-center [&_button]:!border-0 [&_button]:!bg-transparent [&_button]:!text-sm [&_button]:!font-semibold [&_button]:!text-white [&_button]:hover:!bg-emerald-800/40">
-          {notification}
-        </div> : null}
-        {actions ? <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-border dark:bg-muted/20 [&_button]:!w-full [&_button]:!justify-center">
-          {actions}
-        </div> : null}
-        <div className="mb-3 border-t border-slate-100 dark:border-border" />
-        <div className={styles.actionTiles}>
-          {peutVoirNotes ? <RaccourciOnglet onglet="notes" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-violet-100 bg-violet-50/60 p-3 text-xs font-semibold shadow-none hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/20">
-            <span className="flex items-center gap-2"><BookOpenCheck className="size-5 shrink-0 text-violet-700" aria-hidden />Notes</span><ChevronRight className="size-4 text-violet-600" aria-hidden />
-          </RaccourciOnglet> : null}
-          {peutVoirAssiduite ? <RaccourciOnglet onglet="assiduite" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-blue-100 bg-blue-50/60 p-3 text-xs font-semibold shadow-none hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/20">
-            <span className="flex items-center gap-2"><CalendarCheck2 className="size-5 shrink-0 text-blue-700" aria-hidden />Assiduité</span><ChevronRight className="size-4 text-blue-600" aria-hidden />
-          </RaccourciOnglet> : null}
-          {peutVoirFinances ? <RaccourciOnglet onglet="finances" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-orange-100 bg-orange-50/60 p-3 text-xs font-semibold shadow-none hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-950/20">
-            <span className="flex items-center gap-2"><CreditCard className="size-5 shrink-0 text-orange-700" aria-hidden />Paiements</span><ChevronRight className="size-4 text-orange-600" aria-hidden />
-          </RaccourciOnglet> : null}
-          <RaccourciOnglet onglet="documents" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-emerald-100 bg-emerald-50/60 p-3 text-xs font-semibold shadow-none hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/20">
-            <span className="flex items-center gap-2"><FileCheck2 className="size-5 shrink-0 text-emerald-700" aria-hidden />Documents</span><ChevronRight className="size-4 text-emerald-600" aria-hidden />
-          </RaccourciOnglet>
-        </div>
-      </section>
-
-      {peutVoirTuteurs ? <section className={cardClass + " " + styles.guardians} aria-label="Parents et tuteurs">
-        <TitreSection titre="Parents & tuteurs" description="Responsables rattachés à l’élève" icon={UsersRound} tone="green" right={gestionTuteurs} />
+      {peutVoirTuteurs ? <section className={cardClass} aria-label="Parents et tuteurs">
+        <TitreSection titre="Parents & tuteurs" description="Responsables rattachés à l’élève" icon={UsersRound} tone="green" />
         {tuteurs.length ? <div className="grid gap-3">
           {tuteurs.slice(0,3).map(t => <article key={t.id} className="min-w-0 rounded-xl border border-emerald-100 bg-emerald-50/30 px-4 py-4 dark:border-emerald-950 dark:bg-emerald-950/10">
             <div className="flex min-w-0 items-center gap-3">
@@ -219,10 +197,38 @@ export function VueEnsembleEleve({
           </article>)}
           {tuteurs.length > 3 ? <p className="text-xs text-muted-foreground">{tuteurs.length - 3} autre(s) responsable(s) dans l’onglet Parents.</p> : null}
         </div> : <p className="rounded-xl bg-slate-50 p-4 text-sm text-muted-foreground dark:bg-muted">Aucun responsable rattaché à cet élève.</p>}
-        <div className="mt-3 flex justify-end"><LienOnglet onglet="tuteurs">Tous les responsables</LienOnglet></div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-border">
+          {gestionTuteurs ? <div className="flex min-w-0 flex-wrap gap-2">{gestionTuteurs}</div> : <span />}
+          <LienOnglet onglet="tuteurs">Tous les responsables</LienOnglet>
+        </div>
       </section> : null}
-
-      <section className={cardClass + " " + styles.documents} aria-label="Documents scolaires">
+      </div>
+      <div className={styles.side}>
+      <section className={cardClass} aria-label="Actions rapides">
+        <TitreSection titre="Actions rapides" description="Accéder aux fonctions du dossier" icon={Clock3} tone="violet" />
+        {notification ? <div className="mb-3 rounded-xl bg-emerald-700 p-1 text-white [&_button]:!h-11 [&_button]:!w-full [&_button]:!justify-center [&_button]:!border-0 [&_button]:!bg-transparent [&_button]:!text-sm [&_button]:!font-semibold [&_button]:!text-white [&_button]:hover:!bg-emerald-800/40">
+          {notification}
+        </div> : null}
+        {actions ? <div className="mb-4 [&_button]:!h-10 [&_button]:!w-full [&_button]:!justify-center [&_button]:!rounded-xl [&_button]:!border-slate-200 [&_button]:!bg-white [&_button]:!text-slate-800 dark:[&_button]:!border-border dark:[&_button]:!bg-card dark:[&_button]:!text-foreground">
+          {actions}
+        </div> : null}
+        <div className="mb-3 border-t border-slate-100 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:border-border">Accès direct</div>
+        <div className={styles.actionTiles}>
+          {peutVoirNotes ? <RaccourciOnglet onglet="notes" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-violet-100 bg-violet-50/60 p-3 text-xs font-semibold shadow-none hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/20">
+            <span className="flex items-center gap-2"><BookOpenCheck className="size-5 shrink-0 text-violet-700" aria-hidden />Notes</span><ChevronRight className="size-4 text-violet-600" aria-hidden />
+          </RaccourciOnglet> : null}
+          {peutVoirAssiduite ? <RaccourciOnglet onglet="assiduite" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-blue-100 bg-blue-50/60 p-3 text-xs font-semibold shadow-none hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/20">
+            <span className="flex items-center gap-2"><CalendarCheck2 className="size-5 shrink-0 text-blue-700" aria-hidden />Assiduité</span><ChevronRight className="size-4 text-blue-600" aria-hidden />
+          </RaccourciOnglet> : null}
+          {peutVoirFinances ? <RaccourciOnglet onglet="finances" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-orange-100 bg-orange-50/60 p-3 text-xs font-semibold shadow-none hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-950/20">
+            <span className="flex items-center gap-2"><CreditCard className="size-5 shrink-0 text-orange-700" aria-hidden />Paiements</span><ChevronRight className="size-4 text-orange-600" aria-hidden />
+          </RaccourciOnglet> : null}
+          <RaccourciOnglet onglet="documents" className="h-auto min-h-16 justify-between gap-2 rounded-xl border-emerald-100 bg-emerald-50/60 p-3 text-xs font-semibold shadow-none hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/20">
+            <span className="flex items-center gap-2"><FileCheck2 className="size-5 shrink-0 text-emerald-700" aria-hidden />Documents</span><ChevronRight className="size-4 text-emerald-600" aria-hidden />
+          </RaccourciOnglet>
+        </div>
+      </section>
+      <section className={cardClass} aria-label="Documents scolaires">
         <TitreSection titre="Documents scolaires" description="Pièces administratives et bulletins" icon={FileBadge2} tone="navy"
           right={<LienOnglet onglet="documents">Voir tous</LienOnglet>} />
         <ul className="divide-y divide-slate-100 dark:divide-border">
@@ -248,7 +254,7 @@ export function VueEnsembleEleve({
         {documents ? <div className="mt-3 flex justify-end border-t border-slate-100 pt-3 dark:border-border">{documents}</div> : null}
         <p className="mt-2 text-[11px] text-slate-500">Une pièce à éditer n’est pas une pièce déposée ou validée.</p>
       </section>
-
+      </div>
       {peutVoirFinances ? (
         <section className={cardClass + " " + styles.finance} aria-label="Situation financière">
           <TitreSection
@@ -301,7 +307,6 @@ export function VueEnsembleEleve({
           )}
         </section>
       ) : null}
-
       <section className={cardClass + " " + styles.activity} aria-label="Dernières activités">
         <TitreSection
           titre="Dernières activités"
