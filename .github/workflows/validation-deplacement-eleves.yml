@@ -27,3 +27,5 @@ jobs:
       # Le build dépend de DATABASE_URL : Vercel vérifie ce point avec Neon configuré.
 
 # Deuxième passage : correction de la portée SQL des notifications.
+
+# Revalidation : test de non-régression UUID scalaire pour la sélection.
