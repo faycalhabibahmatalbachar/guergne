@@ -1,5 +1,5 @@
-/* Maquette dossier élève : trois colonnes strictement alignées sur
-   desktop, puis deux et une selon la largeur du contenu après la sidebar. */
+/* Vue d’ensemble sans fiche d’identité redondante : deux colonnes sur bureau,
+   une sur petit écran, calculées après la largeur du menu latéral. */
 .shell { container-type: inline-size; }
 .layout {
   display: grid;
@@ -34,18 +34,6 @@
   justify-content: center;
   align-items: center;
 }
-.identityCard {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-.identityGroups {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  flex: 1;
-}
-.identityFooter { margin-top: 18px; }
 .schoolHero {
   display: grid;
   grid-template-columns: minmax(0,1fr);
@@ -69,7 +57,6 @@
   align-items: center;
   gap: 8px;
 }
-.actionTiles { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
 @container (min-width: 740px) {
   .layout {
     grid-template-columns: minmax(0, 1.1fr) minmax(0,1fr);
@@ -86,7 +73,7 @@
     grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
     grid-template-areas:
       "middle side"
-      "finance finance activity";
+      "finance activity";
     align-items: stretch;
   }
   .middle, .side {
