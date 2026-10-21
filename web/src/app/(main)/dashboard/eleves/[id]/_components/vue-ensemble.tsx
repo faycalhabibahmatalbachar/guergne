@@ -18,6 +18,8 @@ export function VueEnsembleEleve({
   dossier,
   scolarite,
   peutVoirFinances,
+  peutVoirNotes,
+  peutVoirAssiduite,
   peutVoirTuteurs,
   actions,
   documents,
@@ -27,6 +29,8 @@ export function VueEnsembleEleve({
   dossier: DossierComplet;
   scolarite: DossierScolarite | null;
   peutVoirFinances: boolean;
+  peutVoirNotes: boolean;
+  peutVoirAssiduite: boolean;
   peutVoirTuteurs: boolean;
   actions: React.ReactNode;
   documents: React.ReactNode;
@@ -177,8 +181,8 @@ export function VueEnsembleEleve({
             </div>
             <div className="grid grid-cols-2 gap-2">
               {actions}
-              <RaccourciOnglet onglet="notes" className="h-9 justify-start gap-2 text-xs"><GraduationCap className="size-4" aria-hidden />Voir les notes</RaccourciOnglet>
-              <RaccourciOnglet onglet="assiduite" className="h-9 justify-start gap-2 text-xs"><CalendarDays className="size-4" aria-hidden />Assiduité</RaccourciOnglet>
+              {peutVoirNotes ? <RaccourciOnglet onglet="notes" className="h-9 justify-start gap-2 text-xs"><GraduationCap className="size-4" aria-hidden />Voir les notes</RaccourciOnglet> : null}
+              {peutVoirAssiduite ? <RaccourciOnglet onglet="assiduite" className="h-9 justify-start gap-2 text-xs"><CalendarDays className="size-4" aria-hidden />Assiduité</RaccourciOnglet> : null}
               {peutVoirFinances ? <RaccourciOnglet onglet="finances" className="h-9 justify-start gap-2 text-xs"><CreditCard className="size-4" aria-hidden />Paiements</RaccourciOnglet> : null}
               <RaccourciOnglet onglet="documents" className="h-9 justify-start gap-2 text-xs"><FileText className="size-4" aria-hidden />Documents</RaccourciOnglet>
             </div>
