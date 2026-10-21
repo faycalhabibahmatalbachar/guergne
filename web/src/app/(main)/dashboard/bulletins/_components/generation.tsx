@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Download, EyeOff, FileText, Play, Search, Send,
-  GraduationCap, Clock3, CheckCircle2, Users,
+  Clock3, CheckCircle2, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -86,7 +86,11 @@ export function GenerationBulletins({
   const periode = periodes.find((p) => p.id === periodeChoisie);
   const publies = bulletins.filter((b) => b.publie).length;
   const enAttente = bulletins.length - publies;
-  const taux = effectifTotal > 0 ? (bulletins.length / effectifTotal) * 100 : 0;
+  const bulletinsSelectionnes = bulletins.filter(
+    (b) => b.classeId === classeChoisie && b.periodeId === periodeChoisie,
+  );
+  const publiesSelectionnes = bulletinsSelectionnes.filter((b) => b.publie).length;
+  const attenteSelectionnes = bulletinsSelectionnes.length - publiesSelectionnes;
   const tauxPublies = bulletins.length > 0 ? (publies / bulletins.length) * 100 : 0;
   const tauxAttente = bulletins.length > 0 ? (enAttente / bulletins.length) * 100 : 0;
 
@@ -201,7 +205,7 @@ export function GenerationBulletins({
         <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-700 dark:text-cyan-300"><Users className="size-5" aria-hidden /></div>
-            <div><p className="text-muted-foreground text-sm">Total des bulletins</p><p className="text-2xl font-semibold tabular-nums">{bulletins.length}</p><p className="text-muted-foreground text-xs">{taux.toFixed(1).replace(".", ",")}% de l’effectif inscrit</p></div>
+            <div><p className="text-muted-foreground text-sm">Total des élèves</p><p className="text-2xl font-semibold tabular-nums">{effectifTotal}</p><p className="text-muted-foreground text-xs">Inscrits dans l’année courante</p></div>
           </CardContent>
         </Card>
         <Card className="rounded-2xl border-border/70 shadow-sm">
@@ -252,14 +256,14 @@ export function GenerationBulletins({
         </div> : null}
         {classeChoisie && periodeChoisie && (publies > 0 || enAttente > 0) ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/10 px-4 py-3">
-            <p className="text-muted-foreground text-sm">{publies} publié(s) · {enAttente} en attente. La publication rend les bulletins visibles aux familles.</p>
+            <p className="text-muted-foreground text-sm">{publiesSelectionnes} publié(s) · {attenteSelectionnes} en attente. La publication rend les bulletins visibles aux familles.</p>
             <div className="flex gap-2">
-              {enAttente > 0 ? <Button size="sm" disabled={enCours} onClick={() => demarrer(async () => {
+              {attenteSelectionnes > 0 ? <Button size="sm" disabled={enCours} onClick={() => demarrer(async () => {
                 const r = await publierClasse(classeChoisie, periodeChoisie);
                 toast[r.ok ? "success" : "error"](r.message ?? "Terminé.");
                 routeur.refresh();
               })}><Send aria-hidden /> Publier la classe</Button> : null}
-              {publies > 0 ? <Button size="sm" variant="outline" disabled={enCours} onClick={() => {
+              {publiesSelectionnes > 0 ? <Button size="sm" variant="outline" disabled={enCours} onClick={() => {
                 if (!window.confirm("Retirer ces bulletins de la publication ? Les notifications déjà envoyées ne seront pas rappelées.")) return;
                 demarrer(async () => {
                   const r = await depublierClasse(classeChoisie, periodeChoisie);
