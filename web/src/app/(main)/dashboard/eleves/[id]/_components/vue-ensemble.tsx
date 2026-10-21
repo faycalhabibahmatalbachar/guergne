@@ -1,5 +1,5 @@
 import {
-  ArrowRight, BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronRight,
+  ArrowRight, BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronRight, Zap,
   CircleUserRound, ClipboardList, Clock3, CreditCard, FileBadge2, FileCheck2,
   FileClock, FileText, Flag, GraduationCap, History, House, IdCard, Mail,
   MapPin, Phone, School2, Send, ShieldCheck, UserRound, UsersRound, Wallet,
@@ -37,7 +37,7 @@ function TitreSection({
   titre, description, icon: Icon, tone = "blue", right,
 }: {
   titre: string; description?: string; icon: typeof IdCard;
-  tone?: "blue" | "green" | "navy" | "violet";
+  tone?: "blue" | "green" | "navy" | "violet" | "orange" | "rose";
   right?: React.ReactNode;
 }) {
   const tones = {
@@ -45,10 +45,12 @@ function TitreSection({
     green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
     navy: "bg-[#0d2d69] text-white",
     violet: "bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+    orange: "bg-orange-50 text-orange-600 dark:bg-orange-950 dark:text-orange-300",
+    rose: "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-300",
   };
   return <header className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-2.5">
     <div className="flex min-w-0 items-center gap-3">
-      <span className={"flex size-10 shrink-0 items-center justify-center rounded-xl " + tones[tone]}>
+      <span className={styles.sectionIcon + " " + tones[tone]}>
         <Icon className="size-5" aria-hidden />
       </span>
       <div className="min-w-0">
@@ -118,17 +120,17 @@ export function VueEnsembleEleve({
   return <div className={styles.shell}>
     <div className={styles.layout}>
       <div className={styles.primary}>
-      <section className={cardClass} aria-label="Informations personnelles">
-        <TitreSection titre="Informations personnelles" description="Identité et coordonnées" icon={IdCard} />
-        <div className="flex items-center gap-3 rounded-xl bg-blue-50/70 px-4 py-3 dark:bg-blue-950/20">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-base font-bold text-blue-700 dark:bg-blue-900 dark:text-white">
+      <section className={cardClass + " " + styles.identityCard} aria-label="Informations personnelles">
+        <TitreSection titre="Informations personnelles" description="Identité et coordonnées de l’élève" icon={UserRound} right={<LienOnglet onglet="identite">Modifier</LienOnglet>} />
+        <div className="flex items-center gap-3 rounded-2xl bg-blue-50/65 px-4 py-4 dark:bg-blue-950/20">
+          <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-bold text-blue-700 dark:bg-blue-900 dark:text-white">
             {eleve.prenom.slice(0,1)}{eleve.nom.slice(0,1)}
           </span>
           <div className="min-w-0"><p className={subdued}>Nom complet</p>
-            <p className="mt-0.5 break-words text-sm font-bold text-[#101e3f] dark:text-foreground">{eleve.prenom} {eleve.nom}</p></div>
+            <p className="mt-1 break-words text-base font-bold text-[#101e3f] dark:text-foreground">{eleve.prenom} {eleve.nom}</p><span className="mt-1.5 inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">{eleve.statut === "INSCRIT" ? "Élève actif" : eleve.statut.replaceAll("_", " ").toLowerCase()}</span></div>
         </div>
-        <div className="mt-4 grid gap-4">
-          <div className="grid grid-cols-2 gap-3 border-b border-slate-100 pb-4 dark:border-border">
+        <div className={"mt-5 " + styles.identityGroups}>
+          <div className="grid grid-cols-2 gap-3 border-b border-slate-100 pb-5 dark:border-border">
             <Donnee label="Sexe">{eleve.sexe === "F" ? "Féminin" : eleve.sexe === "M" ? "Masculin" : "Non renseigné"}</Donnee>
             <Donnee label="Naissance"><DateCourte value={eleve.dateNaissance} /></Donnee>
           </div>
@@ -144,14 +146,12 @@ export function VueEnsembleEleve({
             <div className="flex gap-3"><Mail className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Adresse e-mail">{eleve.email}</Donnee></div>
           </div>
         </div>
-        <div className="mt-4 flex justify-end border-t border-slate-100 pt-3 dark:border-border">
-          <LienOnglet onglet="identite">Voir la fiche complète</LienOnglet>
-        </div>
+
       </section>
       </div>
       <div className={styles.middle}>
       <section className={cardClass} aria-label="Scolarité actuelle">
-        <TitreSection titre="Scolarité actuelle" description="Informations sur le parcours scolaire" icon={GraduationCap} tone="navy"
+        <TitreSection titre="Scolarité actuelle" description="Informations sur le parcours scolaire" icon={GraduationCap} tone="violet"
           right={inscription ? <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300"><CalendarDays className="size-4" aria-hidden />{inscription.anneeLibelle}</span> : null} />
         {inscription ? <>
           <div className={styles.schoolHero}>
@@ -168,7 +168,7 @@ export function VueEnsembleEleve({
               <p className="mt-1 text-sm font-semibold text-[#12234c] dark:text-foreground">Non renseigné</p>
             </div>
           </div>
-          <div className={"mt-5 " + styles.schoolSecondary}>
+          <div className={"mt-3.5 " + styles.schoolSecondary}>
             <Donnee label="Date d’inscription"><DateCourte value={inscription.dateInscription} /></Donnee>
             <Donnee label="Redoublement">{inscription.estRedoublant ? "Oui" : "Non"}</Donnee>
             <Donnee label="Ancienne classe">{parcours[1]?.classeLibelle ?? "—"}</Donnee>
@@ -205,7 +205,7 @@ export function VueEnsembleEleve({
       </div>
       <div className={styles.side}>
       <section className={cardClass} aria-label="Actions rapides">
-        <TitreSection titre="Actions rapides" description="Accéder aux fonctions du dossier" icon={Clock3} tone="violet" />
+        <TitreSection titre="Actions rapides" description="Fonctions essentielles du dossier" icon={Zap} tone="orange" />
         {notification ? <div className="mb-3 rounded-xl bg-emerald-700 p-1 text-white [&_button]:!h-11 [&_button]:!w-full [&_button]:!justify-center [&_button]:!border-0 [&_button]:!bg-transparent [&_button]:!text-sm [&_button]:!font-semibold [&_button]:!text-white [&_button]:hover:!bg-emerald-800/40">
           {notification}
         </div> : null}
@@ -229,7 +229,7 @@ export function VueEnsembleEleve({
         </div>
       </section>
       <section className={cardClass} aria-label="Documents scolaires">
-        <TitreSection titre="Documents scolaires" description="Pièces administratives et bulletins" icon={FileBadge2} tone="navy"
+        <TitreSection titre="Documents scolaires" description="Pièces administratives et bulletins" icon={FileBadge2} tone="rose"
           right={<LienOnglet onglet="documents">Voir tous</LienOnglet>} />
         <ul className="divide-y divide-slate-100 dark:divide-border">
           {[
