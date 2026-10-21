@@ -82,9 +82,84 @@ export function GenerationBulletins({
   const classe = classes.find((c) => c.id === classeChoisie);
   const periode = periodes.find((p) => p.id === periodeChoisie);
   const pret = Boolean(classeChoisie && periodeChoisie);
+  const moyennesValides = bulletins
+    .map((b) => (b.moyenne !== null && b.moyenne !== "" ? Number(b.moyenne) : NaN))
+    .filter((m) => Number.isFinite(m));
+  const moyenneClasse =
+    moyennesValides.length > 0
+      ? (moyennesValides.reduce((total, m) => total + m, 0) / moyennesValides.length)
+          .toFixed(2)
+          .replace(".", ",")
+      : "—";
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div className="space-y-1">
+          <p className="text-muted-foreground text-sm font-medium">SCOLARITÉ · RÉSULTATS</p>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Gestion des bulletins
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Produisez, vérifiez et publiez les résultats de vos élèves.
+          </p>
+        </div>
+        {pret ? (
+          <div className="text-muted-foreground rounded-lg border bg-card px-3 py-2 text-sm">
+            <span className="font-medium text-foreground">{classe?.libelle}</span>
+            <span className="mx-2">·</span>
+            {periode?.libelle}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="rounded-lg bg-primary/10 p-2.5 text-primary">
+              <FileText className="size-5" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-sm">Bulletins produits</p>
+              <p className="text-2xl font-semibold tabular-nums">{bulletins.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="rounded-lg bg-emerald-500/10 p-2.5 text-emerald-600">
+              <Send className="size-5" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-sm">Bulletins publiés</p>
+              <p className="text-2xl font-semibold tabular-nums">{publies}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="rounded-lg bg-amber-500/10 p-2.5 text-amber-600">
+              <EyeOff className="size-5" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-sm">En brouillon</p>
+              <p className="text-2xl font-semibold tabular-nums">{brouillons}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="rounded-lg bg-sky-500/10 p-2.5 text-sky-600">
+              <Play className="size-5" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-sm">Moyenne de la classe</p>
+              <p className="text-2xl font-semibold tabular-nums">{moyenneClasse}<span className="text-muted-foreground ml-1 text-sm font-normal">/ 20</span></p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Produire les bulletins</CardTitle>
