@@ -244,6 +244,13 @@ export function GenerationBulletins({
                 <option value="">Période à produire</option>
                 {periodes.map((p) => <option key={p.id} value={p.id}>{p.libelle}</option>)}
               </NativeSelect>
+              {classeChoisie ? (
+                <Button asChild variant="outline">
+                  <a href={`/api/bulletins/conseil-orientation/${classeChoisie}`} target="_blank" rel="noopener noreferrer">
+                    <FileText aria-hidden /> Conseil d’orientation
+                  </a>
+                </Button>
+              ) : null}
               <Button onClick={generer} disabled={!classeChoisie || !periodeChoisie || enCours} className="bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500">
                 <Play aria-hidden /> {enCours ? "Calcul…" : "Produire"}
               </Button>
