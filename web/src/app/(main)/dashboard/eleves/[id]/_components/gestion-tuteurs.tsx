@@ -65,10 +65,12 @@ export function GestionTuteurs({
   eleveId,
   tuteurs,
   compact = false,
+  placement = "complet",
 }: {
   eleveId: string;
   tuteurs: Array<{ id: string; nom: string; prenom: string }>;
   compact?: boolean;
+  placement?: "complet" | "ajout" | "gestion";
 }) {
   const routeur = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -160,12 +162,12 @@ export function GestionTuteurs({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button size="sm" onClick={() => setOuvert(true)} className={compact ? "h-9 gap-1.5 rounded-lg bg-[#0d2d69] px-3 text-xs font-semibold text-white hover:bg-[#163f86]" : undefined}>
+      {placement !== "gestion" ? <Button size="sm" onClick={() => setOuvert(true)} className={compact ? "h-9 gap-1.5 rounded-lg bg-[#0d2d69] px-3 text-xs font-semibold text-white hover:bg-[#163f86]" : undefined}>
         <UserPlus className="size-4" aria-hidden />
         Rattacher un tuteur
-      </Button>
+      </Button> : null}
 
-      {compact ? (tuteurs.length ? <DropdownMenu>
+      {placement !== "ajout" ? (compact ? (tuteurs.length ? <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="outline" className="h-9 gap-1.5 rounded-lg bg-white px-3 text-xs shadow-none dark:bg-card">
             Gérer <ChevronDown className="size-3.5" aria-hidden />
@@ -186,7 +188,7 @@ export function GestionTuteurs({
           <UserMinus aria-hidden />
           Retirer {t.prenom} {t.nom}
         </Button>
-      ))}
+      ))) : null}
 
       <Dialog open={retrait !== null} onOpenChange={(next) => { if (!next) setRetrait(null); }}>
         <DialogContent className="rounded-2xl sm:max-w-md">
