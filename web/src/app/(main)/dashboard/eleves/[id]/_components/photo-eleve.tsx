@@ -24,7 +24,7 @@ export function PhotoEleve({
     <TeleverserPhoto
       photoActuelleId={photoId}
       alt={`Photo de ${nomComplet}`}
-      taille="size-24"
+      taille="size-32 sm:size-36"
       onEnvoyer={(donnees) => definirPhotoEleve(eleveId, donnees)}
       onRetirer={() => retirerPhotoEleve(eleveId)}
     />
