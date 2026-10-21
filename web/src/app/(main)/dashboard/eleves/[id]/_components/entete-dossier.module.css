@@ -1,0 +1,91 @@
+/* L'en-tête s'adapte à l'espace réellement disponible après la sidebar. */
+.header {
+  container: dossier / inline-size;
+}
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 22px;
+  padding-top: 20px;
+}
+.identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 18px;
+}
+.identityText { min-width: 0; flex: 1; }
+.meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 16px;
+  padding-top: 15px;
+  border-top: 1px solid #e9edf3;
+}
+.cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: stretch;
+  gap: 12px;
+}
+.card {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 122px;
+  align-items: center;
+  gap: 13px;
+  border-radius: 17px;
+  border-width: 1px;
+  padding: 18px;
+  text-align: left;
+  white-space: normal;
+  transition: box-shadow 160ms ease, transform 160ms ease, border-color 160ms ease;
+}
+.card:hover { transform: translateY(-1px); box-shadow: 0 5px 17px rgb(15 23 42 / 0.055); }
+.card:focus-visible { outline: 2px solid #059669; outline-offset: 3px; }
+.iconTile {
+  display: flex;
+  flex: 0 0 auto;
+  width: 51px;
+  height: 51px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  color: white;
+}
+.cardText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cardArrow {
+  display: flex;
+  flex: 0 0 auto;
+  width: 29px;
+  height: 29px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+@container dossier (min-width: 540px) {
+  .meta { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container dossier (min-width: 1080px) {
+  .body { grid-template-columns: minmax(0, .93fr) minmax(0, 1.17fr); gap: 30px; }
+}
+@container dossier (max-width: 540px) {
+  .identity { align-items: flex-start; gap: 12px; }
+  .card { min-height: 98px; padding: 13px; }
+  .iconTile { height: 43px; width: 43px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+  .card:hover { transform: none; }
+}
+@media print {
+  .header { container: normal; box-shadow: none !important; }
+  .body { display: grid; grid-template-columns: 1fr 1.2fr; }
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  .card { break-inside: avoid; }
+}
