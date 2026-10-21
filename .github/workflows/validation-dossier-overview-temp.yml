@@ -24,3 +24,5 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npx tsc --noEmit
+
+# Validation finale de la fenêtre Modifier conservant les permissions.
