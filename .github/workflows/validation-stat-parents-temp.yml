@@ -1,0 +1,26 @@
+name: Vérification temporaire - Indicateurs Parents
+on:
+  push:
+    branches:
+      - style/parents-stat-cards-aligned
+    paths:
+      - .github/workflows/validation-stat-parents-temp.yml
+permissions:
+  contents: read
+jobs:
+  verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noEmit
