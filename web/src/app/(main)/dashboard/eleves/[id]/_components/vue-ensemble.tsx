@@ -1,9 +1,5 @@
 import {
-  ArrowRight, BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronRight, Zap,
-  CircleUserRound, ClipboardList, Clock3, CreditCard, FileBadge2, FileCheck2,
-  FileClock, FileText, Flag, GraduationCap, History, House, IdCard, Mail,
-  MapPin, Phone, School2, Send, ShieldCheck, UserRound, UsersRound, Wallet,
-  BriefcaseBusiness, Building2, RotateCcw, Layers3, BookOpen,
+  ArrowRight, CalendarDays, Check, ChevronRight, Zap, FileBadge2, FileCheck2, FileText, GraduationCap, History, IdCard, Mail, MapPin, Phone, UsersRound, Wallet, BriefcaseBusiness, Building2, RotateCcw, Layers3, BookOpen
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
