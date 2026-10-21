@@ -53,10 +53,9 @@ const s = StyleSheet.create({
   },
 
   titre: {
-    fontSize: 13,
-    fontFamily: "Times-Bold",
+    fontSize: 12,
+    fontFamily: "Times-BoldItalic",
     textAlign: "center",
-    textTransform: "uppercase",
     letterSpacing: 0.4,
     marginTop: 6,
     marginBottom: 16,
@@ -281,7 +280,7 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
       author={d.etablissement.nom}
     >
       <Page size="A4" style={s.page}>
-        <Text style={s.titre}>Bulletin de notes du {d.periodeLibelle}</Text>
+        <Text style={s.titre}>BULLETIN DE NOTES DU {d.periodeLibelle.replace(/\s+trimestre$/i, " TRIMESTRE")}</Text>
 
         {/* Grille d'identification alignée sur les fusions de cellules Excel. */}
         <View style={s.identite}>
@@ -380,7 +379,7 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
             {[
               { libelle: "Travail", valeur: d.appreciationTravail },
               { libelle: "Discipline", valeur: d.appreciationDiscipline },
-              { libelle: "Décision du conseil", valeur: d.decisionConseil },
+              { libelle: "Décision du Conseil", valeur: d.orientation ?? d.decisionConseil },
             ].map((l) => (
               <View key={l.libelle} style={s.conseilLigne}>
                 <Text style={s.conseilLibelle}>{l.libelle}</Text>
