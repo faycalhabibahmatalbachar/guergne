@@ -187,37 +187,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
 
       {/* En-tête */}
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <PhotoEleve
-            eleveId={eleve.id}
-            photoId={eleve.photoId}
-            nomComplet={`${eleve.prenom} ${eleve.nom}`}
-            sexe={eleve.sexe}
-            peutModifier={peutModifierSensible}
-          />
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl dark:text-foreground">
-              {eleve.prenom} {eleve.nom}
-            </h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="font-mono text-xs">
-                {eleve.matricule}
-              </Badge>
-              <BadgeStatut statut={eleve.statut} />
-              {inscription ? (
-                <span className="text-muted-foreground text-sm">
-                  {inscription.classeLibelle} — {inscription.anneeLibelle}
-                </span>
-              ) : (
-                <span className="text-amber-600 text-sm dark:text-amber-400">
-                  Aucune inscription active
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
+      <div className="mb-4 flex flex-wrap justify-end gap-2 print:hidden">
         <div className="flex flex-wrap items-center gap-2">
           {voisins?.precedent ? <Button asChild variant="outline" size="sm" className="h-9 gap-1 rounded-lg"><Link href={"/dashboard/eleves/" + voisins.precedent}><ArrowLeft className="size-4" aria-hidden />Précédent</Link></Button> : null}
           {voisins?.suivant ? <Button asChild variant="outline" size="sm" className="h-9 gap-1 rounded-lg"><Link href={"/dashboard/eleves/" + voisins.suivant}>Suivant <ChevronRight className="size-4" aria-hidden /></Link></Button> : null}
@@ -258,7 +228,39 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           <ImprimerDossier />
         </div>
       </div>
-      <div className="mt-4 grid gap-2 border-t border-slate-100 pt-4 dark:border-border sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid items-start gap-4 border-t border-slate-100 pt-4 dark:border-border xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1.65fr)]">
+
+        <div className="flex items-start gap-4">
+          <PhotoEleve
+            eleveId={eleve.id}
+            photoId={eleve.photoId}
+            nomComplet={`${eleve.prenom} ${eleve.nom}`}
+            sexe={eleve.sexe}
+            peutModifier={peutModifierSensible}
+          />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl dark:text-foreground">
+              {eleve.prenom} {eleve.nom}
+            </h1>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="font-mono text-xs">
+                {eleve.matricule}
+              </Badge>
+              <BadgeStatut statut={eleve.statut} />
+              {inscription ? (
+                <span className="text-muted-foreground text-sm">
+                  {inscription.classeLibelle} — {inscription.anneeLibelle}
+                </span>
+              ) : (
+                <span className="text-amber-600 text-sm dark:text-amber-400">
+                  Aucune inscription active
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+      <div className="grid min-w-0 gap-2 sm:grid-cols-2 2xl:grid-cols-4">
         <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
           <GraduationCap className="mb-2 size-5 text-emerald-600" aria-hidden /><p className="text-xs text-slate-500">Statut scolaire</p><p className="mt-1 font-bold text-emerald-700">{eleve.statut.replaceAll("_", " ")}</p><p className="mt-1 text-xs text-slate-500">{inscription ? inscription.classeLibelle : "Sans inscription"}</p>
         </div>
@@ -271,6 +273,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
         <div className="rounded-xl border border-violet-100 bg-violet-50/50 p-3 dark:border-violet-900 dark:bg-violet-950/20">
           <Clock3 className="mb-2 size-5 text-violet-600" aria-hidden /><p className="text-xs text-slate-500">Dernière activité</p><p className="mt-1 font-bold text-violet-700">{derniereActivite ? dateFr(derniereActivite) : "Aucune"}</p><p className="mt-1 text-xs text-slate-500">Donnée enregistrée</p>
         </div>
+      </div>
       </div>
       </section>
 
