@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { sql } from "drizzle-orm";
+import { parametresUuid } from "@/lib/sql-uuid";
 import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
@@ -67,7 +68,7 @@ export async function changerClasseEnLot(donnees: unknown): Promise<ResultatLot>
     const cibles = await db.execute<{ id: string; eleve_id: string; classe_id: string }>(sql`
       SELECT i.id, i.eleve_id, i.classe_id
         FROM inscriptions i
-       WHERE i.eleve_id IN (${sql.join(eleveIds.map((id) => sql`${id}::uuid`), sql`, `)})
+       WHERE i.eleve_id IN (${parametresUuid(eleveIds)})
          AND i.active
          AND i.annee_id = ${classeCible.annee_id}::uuid
     `);
