@@ -54,7 +54,7 @@ function EnteteCarte({
  */
 export function VueEnsembleEleve({
   dossier, scolarite, peutVoirFinances, peutVoirNotes, peutVoirAssiduite,
-  peutVoirTuteurs, actions, documents, gestionTuteurs, bulletins,
+  peutVoirTuteurs, actions, notification, documents, gestionTuteurs, bulletins,
 }: {
   dossier: DossierComplet;
   scolarite: DossierScolarite | null;
@@ -63,6 +63,7 @@ export function VueEnsembleEleve({
   peutVoirAssiduite: boolean;
   peutVoirTuteurs: boolean;
   actions: React.ReactNode;
+  notification: React.ReactNode;
   documents: React.ReactNode;
   gestionTuteurs: React.ReactNode;
   bulletins: Bulletin[];
@@ -101,7 +102,7 @@ export function VueEnsembleEleve({
   return (
     <div className={styles.shell}>
       <div className={styles.layout}>
-        <section className={classCard + " " + styles.personal} aria-labelledby="carte-identite">
+        <section className={classCard + " " + styles.personal} aria-label="Informations personnelles">
           <EnteteCarte icon={UserRound} titre="Informations personnelles" action={<RaccourciOnglet onglet="identite">Détails <ArrowRight className="size-3.5" aria-hidden /></RaccourciOnglet>} />
           <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 rounded-lg border border-slate-100 p-3 dark:border-border">
             <Valeur nom="Nom complet" valeur={eleve.prenom + " " + eleve.nom} />
@@ -121,7 +122,7 @@ export function VueEnsembleEleve({
           </div>
         </section>
 
-        <section className={classCard + " " + styles.school} aria-labelledby="carte-scolarite">
+        <section className={classCard + " " + styles.school} aria-label="Scolarité actuelle">
           <EnteteCarte icon={GraduationCap} titre="Scolarité actuelle" action={<RaccourciOnglet onglet="scolarite">Détails <ArrowRight className="size-3.5" aria-hidden /></RaccourciOnglet>} />
           {inscription ? <div className={styles.schoolFacts + " rounded-lg border border-slate-100 p-3 dark:border-border"}>
             <Valeur nom="Année scolaire" valeur={inscription.anneeLibelle} />
@@ -135,7 +136,7 @@ export function VueEnsembleEleve({
           </div> : <p className="rounded-lg bg-slate-50 p-4 text-sm text-muted-foreground">Aucune inscription active.</p>}
         </section>
 
-        {peutVoirTuteurs ? <section className={classCard + " " + styles.guardians} aria-labelledby="carte-tuteurs">
+        {peutVoirTuteurs ? <section className={classCard + " " + styles.guardians} aria-label="Parents et tuteurs">
           <EnteteCarte icon={Users} titre="Parents & tuteurs" action={gestionTuteurs} />
           {tuteurs.length ? <div className="grid gap-2 sm:grid-cols-2">
             {tuteurs.slice(0, 4).map((t) => (
@@ -159,9 +160,9 @@ export function VueEnsembleEleve({
           {tuteurs.length > 4 ? <p className="mt-2 text-xs text-muted-foreground">+{tuteurs.length - 4} autre(s) responsable(s) dans l’onglet Parents.</p> : null}
         </section> : null}
 
-        <section className={classCard + " " + styles.actions} aria-labelledby="carte-actions">
+        <section className={classCard + " " + styles.actions} aria-label="Actions rapides">
           <EnteteCarte icon={Activity} titre="Actions rapides" />
-          {actions ? <div className="mb-3 rounded-lg border border-emerald-100 bg-emerald-50/40 px-2 py-2 dark:border-emerald-950 dark:bg-emerald-950/20 [&>div]:flex [&>div]:flex-wrap [&>div]:gap-2">{actions}</div> : null}
+          {actions || notification ? <div className="mb-3 flex flex-wrap gap-2 rounded-lg border border-emerald-100 bg-emerald-50/40 px-2 py-2 dark:border-emerald-950 dark:bg-emerald-950/20 [&>div]:flex [&>div]:flex-wrap [&>div]:gap-2">{notification}{actions}</div> : null}
           <div className="grid grid-cols-2 gap-2">
             {peutVoirNotes ? <RaccourciOnglet onglet="notes" className="h-9 w-full justify-start gap-1.5 rounded-lg px-2 text-[11px]"><GraduationCap className="size-4" aria-hidden />Notes</RaccourciOnglet> : null}
             {peutVoirAssiduite ? <RaccourciOnglet onglet="assiduite" className="h-9 w-full justify-start gap-1.5 rounded-lg px-2 text-[11px]"><CalendarDays className="size-4" aria-hidden />Assiduité</RaccourciOnglet> : null}
@@ -170,7 +171,7 @@ export function VueEnsembleEleve({
           </div>
         </section>
 
-        <section className={classCard + " " + styles.documents} aria-labelledby="carte-documents">
+        <section className={classCard + " " + styles.documents} aria-label="Documents scolaires">
           <EnteteCarte icon={FileText} titre="Documents scolaires" action={documents ?? <RaccourciOnglet onglet="documents">Voir tout</RaccourciOnglet>} />
           <ul className="divide-y divide-slate-100 dark:divide-border">
             {[
@@ -190,7 +191,7 @@ export function VueEnsembleEleve({
           <p className="mt-2 text-[11px] text-slate-500">Les pièces à éditer ne sont pas des documents déposés ou validés.</p>
         </section>
 
-        {peutVoirFinances ? <section className={classCard + " " + styles.finance} aria-labelledby="carte-finances">
+        {peutVoirFinances ? <section className={classCard + " " + styles.finance} aria-label="Situation financière">
           <EnteteCarte icon={Wallet} titre="Situation financière" action={<RaccourciOnglet onglet="finances">Voir les paiements</RaccourciOnglet>} />
           {echeances.length ? <>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -205,7 +206,7 @@ export function VueEnsembleEleve({
           </> : <p className="py-4 text-sm text-muted-foreground">Aucune échéance enregistrée pour cette scolarité.</p>}
         </section> : <div className={styles.finance} />}
 
-        <section className={classCard + " " + styles.activity} aria-labelledby="carte-activites">
+        <section className={classCard + " " + styles.activity} aria-label="Dernières activités">
           <EnteteCarte icon={History} titre="Dernières activités" action={<RaccourciOnglet onglet="historique">Voir tout</RaccourciOnglet>} />
           {activites.length ? <ol className="space-y-3">
             {activites.map((a) => <li key={a.id} className="flex min-w-0 items-start gap-2 text-[11px]">
