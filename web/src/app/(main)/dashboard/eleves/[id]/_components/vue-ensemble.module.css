@@ -1,62 +1,52 @@
-/* Grille propre au dossier élève. Le gabarit se base sur la largeur
-   réellement disponible, pas sur celle de la fenêtre (sidebar du lycée). */
+/* Vue d'ensemble V3 : système de grille propre au dossier, indépendant de la sidebar */
 .shell { container-type: inline-size; }
-
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "personal"
-    "school"
-    "guardians"
-    "actions"
-    "documents"
-    "finance"
-    "activity";
-  gap: 14px;
-  align-items: start;
+  grid-template-columns: minmax(0,1fr);
+  grid-template-areas: "school" "actions" "personal" "guardians" "documents" "finance" "activity";
+  gap: 16px;
+  align-items: stretch;
 }
-.personal { grid-area: personal; align-self: stretch; }
+.personal { grid-area: personal; }
 .school { grid-area: school; }
-.guardians { grid-area: guardians; }
 .actions { grid-area: actions; }
+.guardians { grid-area: guardians; }
 .documents { grid-area: documents; }
 .finance { grid-area: finance; }
 .activity { grid-area: activity; }
-
-.schoolFacts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px 12px;
-}
-
+.card { min-width: 0; border: 1px solid #e5ebf2; background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 4px 16px rgba(18,39,72,.038); }
+.schoolHero { display: grid; grid-template-columns: minmax(0,1fr); align-items: center; gap: 12px; padding: 17px; border-radius: 17px; background: linear-gradient(115deg,#f0f6ff,#f7fbff); border: 1px solid #e6effc; }
+.schoolSecondary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 17px 13px; }
+.personalGroup { display: grid; gap: 13px; }
+.tutorInfo { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; }
+.actionTiles { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.documentRow { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; }
 @container (min-width: 700px) {
   .layout {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas:
-      "personal school"
-      "personal guardians"
-      "actions documents"
-      "finance finance"
-      "activity activity";
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    grid-template-areas: "personal school" "personal actions" "guardians documents" "finance finance" "activity activity";
+  }
+  .schoolHero { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}
+@container (min-width: 1090px) {
+  .layout {
+    grid-template-columns: minmax(0,.87fr) minmax(0,1.45fr) minmax(0,1.04fr);
+    grid-template-areas: "personal school actions" "personal guardians documents" "finance finance activity";
     gap: 16px;
   }
+  .schoolSecondary { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .tutorInfo { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
-
-@container (min-width: 1110px) {
-  .layout {
-    grid-template-columns: minmax(0, 1.02fr) minmax(0, 1.3fr) minmax(0, 1.1fr);
-    grid-template-areas:
-      "personal school actions"
-      "personal guardians documents"
-      "finance finance activity";
-  }
-  .schoolFacts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@container (min-width: 1380px) {
+  .card { padding: 23px; }
+  .schoolHero { padding: 24px; }
 }
-
-/* Une fiche imprimée ne doit pas masquer ses cartes ou couper un encart. */
+@media (prefers-color-scheme:dark) {
+  .card { background: var(--card); border-color: var(--border); }
+  .schoolHero { background: var(--muted); border-color: var(--border); }
+}
 @media print {
   .shell { container-type: normal; }
-  .layout { display: block; }
-  .layout > * { break-inside: avoid; margin-bottom: 12px; box-shadow: none !important; }
+  .layout { display:block; }
+  .layout > * { margin-bottom:12px; box-shadow:none!important; break-inside:avoid; }
 }
