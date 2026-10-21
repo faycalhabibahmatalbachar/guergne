@@ -21,8 +21,9 @@ function observation(decision: string | null, appreciation: string | null): stri
     REORIENTE: "Réorienté(e)",
     EN_ATTENTE: "En attente d'une décision",
   };
-  const base = decision ? (messages[decision] ?? decision.replace(/_/g, " ")) : "Décision à renseigner";
+  const base = decision ? (messages[decision] ?? decision.replace(/_/g, " ")) : "";
   const detail = appreciation?.trim();
+  if (!base) return detail ?? "";
   return detail && !base.toLocaleLowerCase("fr").includes(detail.toLocaleLowerCase("fr"))
     ? `${base} — ${detail}`
     : base;
@@ -116,7 +117,7 @@ export async function GET(
       LEFT JOIN moyennes m ON m.inscription_id = i.id
       LEFT JOIN conduites co ON co.inscription_id = i.id
      WHERE i.classe_id = ${classeId}::uuid AND i.active
-     ORDER BY e.nom, e.prenom
+     ORDER BY e.prenom, e.nom
   `);
 
   const lignes: LigneConseilOrientation[] = resultat.rows.map((r, index) => ({
