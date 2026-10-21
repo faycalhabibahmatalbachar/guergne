@@ -26,3 +26,5 @@ jobs:
       - run: npx tsc --noEmit
 
 # Validation finale des droits sur les photos et documents.
+
+# Validation du bandeau aligné avec la maquette et des contrôles d'accès.
