@@ -5,13 +5,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import {
-  ArrowLeft,
-  CalendarDays,
-  FileText,
-  HeartPulse,
-  Phone,
-  ShieldAlert,
-  Users,
+  ArrowLeft, CalendarDays, ChevronRight, Clock3, CreditCard, FileText, GraduationCap,
+  HeartPulse, MapPin, Phone, ShieldAlert, Users, UserRound, Wallet, History, ClipboardList,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +38,8 @@ import {
   OngletNotes,
 } from "./_components/dossier-scolarite";
 import { PhotoEleve } from "./_components/photo-eleve";
+import { VueEnsembleEleve } from "./_components/vue-ensemble";
+import { ImprimerDossier } from "./_components/raccourci-onglet";
 
 export const dynamic = "force-dynamic";
 
@@ -100,10 +97,14 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
   // ne pourrait pas enregistrer.
   const proposition = peutInscrire ? await preparerReinscription(id) : null;
 
+  const [peutVoirBulletins, peutNotifier] = await Promise.all([
+    peut(principal, "bulletin:lire", { eleveId: id, classeId: inscription?.classeId }),
+    peut(principal, "message:envoyer", { eleveId: id, classeId: inscription?.classeId }),
+  ]);
   // Périodes pour lesquelles un bulletin existe. On les charge ici plutôt que
   // dans le composant : c'est une page serveur, la requête ne coûte pas un
   // aller-retour supplémentaire au navigateur.
-  const bulletinsDisponibles = inscription
+  const bulletinsDisponibles = inscription && peutVoirBulletins
     ? (
         await db.execute<{
           inscription_id: string;
@@ -135,6 +136,35 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
     ? await chargerDossierScolarite(inscription.id, periode?.id ?? null)
     : null;
 
+  const [peutVoirFinances, peutVoirNotes, peutVoirAssiduite, peutVoirDiscipline, peutVoirSante, peutModifier, peutGererActions, peutEmettreDocument] = await Promise.all([
+    peut(principal, "finance:lire", { eleveId: id, classeId: inscription?.classeId }),
+    peut(principal, "note:lire", { eleveId: id, classeId: inscription?.classeId }),
+    peut(principal, "assiduite:lire", { eleveId: id, classeId: inscription?.classeId }),
+    peut(principal, "discipline:lire", { eleveId: id, classeId: inscription?.classeId }),
+    Promise.resolve(Boolean(principal && ["SUPER_ADMIN", "DIRECTION", "CENSEUR", "SURVEILLANT"].includes(principal.role))),
+    peut(principal, "eleve:modifier", { eleveId: id, classeId: inscription?.classeId }),
+    peut(principal, "eleve:affecter", { eleveId: id, classeId: inscription?.classeId }),
+    peut(principal, "document:emettre", { eleveId: id, classeId: inscription?.classeId }),
+  ]);
+  const peutModifierSensible = peutModifier && peutVoirSante;
+  const peutAdministrer = peutGererActions && Boolean(principal && ["SUPER_ADMIN", "DIRECTION", "CENSEUR"].includes(principal.role));
+  const resteFinancier = peutVoirFinances && scolarite?.echeances.length ? scolarite.echeances.reduce((s, e) => s + e.reste, 0) : null;
+  const derniereActivite = [
+    ...historiqueStatuts.map((h) => h.creeLe || h.dateEffet),
+    ...changementsClasse.map((c) => c.dateEffet),
+    ...(peutVoirAssiduite ? (scolarite?.assiduite ?? []).map((a) => a.date) : []),
+    ...(peutVoirFinances ? (scolarite?.paiements ?? []).map((p) => p.date) : []),
+  ].sort((a, b) => b.localeCompare(a))[0] ?? null;
+  // Navigation par voisins dans la classe courante, fondée sur les élèves actifs.
+  const voisins = inscription ? (await db.execute<{ precedent: string | null; suivant: string | null }>(sql`
+    WITH ordre AS (
+      SELECT e.id,
+             lag(e.id) OVER (ORDER BY e.nom, e.prenom, e.id) AS precedent,
+             lead(e.id) OVER (ORDER BY e.nom, e.prenom, e.id) AS suivant
+        FROM eleves e JOIN inscriptions i ON i.eleve_id = e.id
+       WHERE i.classe_id = ${inscription.classeId}::uuid AND i.active
+    ) SELECT precedent, suivant FROM ordre WHERE id = ${id}::uuid
+  `)).rows[0] : null;
   const age = Math.floor(
     (Date.now() - new Date(eleve.dateNaissance).getTime()) / (365.25 * 24 * 3600 * 1000),
   );
@@ -147,8 +177,8 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
   );
 
   return (
-    <div className="space-y-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
+    <div className="space-y-4">
+      <Button asChild variant="ghost" size="sm" className="-ml-2 print:hidden">
         <Link href="/dashboard/eleves">
           <ArrowLeft aria-hidden />
           Tous les élèves
@@ -156,45 +186,20 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
       </Button>
 
       {/* En-tête */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <PhotoEleve
-            eleveId={eleve.id}
-            photoId={eleve.photoId}
-            nomComplet={`${eleve.prenom} ${eleve.nom}`}
-          />
-          <div>
-            <h1 className="font-semibold text-2xl tracking-tight">
-              {eleve.prenom} {eleve.nom}
-            </h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="font-mono text-xs">
-                {eleve.matricule}
-              </Badge>
-              <BadgeStatut statut={eleve.statut} />
-              {inscription ? (
-                <span className="text-muted-foreground text-sm">
-                  {inscription.classeLibelle} — {inscription.anneeLibelle}
-                </span>
-              ) : (
-                <span className="text-amber-600 text-sm dark:text-amber-400">
-                  Aucune inscription active
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card sm:p-5">
+      <div className="mb-4 flex flex-wrap justify-end gap-2 print:hidden">
         <div className="flex flex-wrap items-center gap-2">
-          <DocumentsEleve
+          {voisins?.precedent ? <Button asChild variant="outline" size="sm" className="h-9 gap-1 rounded-lg"><Link href={"/dashboard/eleves/" + voisins.precedent}><ArrowLeft className="size-4" aria-hidden />Précédent</Link></Button> : null}
+          {voisins?.suivant ? <Button asChild variant="outline" size="sm" className="h-9 gap-1 rounded-lg"><Link href={"/dashboard/eleves/" + voisins.suivant}>Suivant <ChevronRight className="size-4" aria-hidden /></Link></Button> : null}
+          {peutEmettreDocument ? <DocumentsEleve
             eleveId={eleve.id}
             estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)}
             bulletins={bulletinsDisponibles}
-          />
-          <BoutonNotifier
+          /> : null}
+          {peutNotifier ? <BoutonNotifier
             cible={{ type: "eleve", id: eleve.id, nom: `${eleve.prenom} ${eleve.nom}` }}
-          />
-          <ModifierDossier
+          /> : null}
+          {peutModifierSensible ? <ModifierDossier
             eleveId={eleve.id}
             dossier={{
               nom: eleve.nom,
@@ -219,29 +224,105 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               urgenceLien: eleve.urgenceLien,
               ecoleOrigine: eleve.ecoleOrigine,
             }}
-          />
-          <ActionsDossier
-          eleveId={eleve.id}
-          statut={eleve.statut}
-          inscriptionId={inscription?.id ?? null}
-          classeActuelleId={inscription?.classeId ?? null}
-          statutDossier={inscription?.statutDossier ?? null}
-          classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
-          />
+          /> : null}
+          <ImprimerDossier />
         </div>
       </div>
+      <div className="grid items-start gap-4 border-t border-slate-100 pt-4 dark:border-border xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1.65fr)]">
 
-      <Tabs defaultValue="identite">
-        <TabsList>
-          <TabsTrigger value="identite">Identité</TabsTrigger>
-          <TabsTrigger value="tuteurs">Tuteurs ({tuteurs.length})</TabsTrigger>
-          <TabsTrigger value="notes">Notes</TabsTrigger>
-          <TabsTrigger value="assiduite">Assiduité</TabsTrigger>
-          <TabsTrigger value="discipline">Discipline</TabsTrigger>
-          <TabsTrigger value="finances">Finances</TabsTrigger>
-          <TabsTrigger value="scolarite">Scolarité</TabsTrigger>
-          <TabsTrigger value="historique">Historique</TabsTrigger>
-        </TabsList>
+        <div className="flex items-start gap-4">
+          <PhotoEleve
+            eleveId={eleve.id}
+            photoId={eleve.photoId}
+            nomComplet={`${eleve.prenom} ${eleve.nom}`}
+            sexe={eleve.sexe}
+            peutModifier={peutModifierSensible}
+          />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl dark:text-foreground">
+              {eleve.prenom} {eleve.nom}
+            </h1>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="font-mono text-xs">
+                {eleve.matricule}
+              </Badge>
+              <BadgeStatut statut={eleve.statut} />
+              {inscription ? (
+                <span className="text-muted-foreground text-sm">
+                  {inscription.classeLibelle} — {inscription.anneeLibelle}
+                </span>
+              ) : (
+                <span className="text-amber-600 text-sm dark:text-amber-400">
+                  Aucune inscription active
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+      <div className="grid min-w-0 gap-2 sm:grid-cols-2 2xl:grid-cols-4">
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
+          <GraduationCap className="mb-2 size-5 text-emerald-600" aria-hidden /><p className="text-xs text-slate-500">Statut scolaire</p><p className="mt-1 font-bold text-emerald-700">{eleve.statut.replaceAll("_", " ")}</p><p className="mt-1 text-xs text-slate-500">{inscription ? inscription.classeLibelle : "Sans inscription"}</p>
+        </div>
+        <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/20">
+          <ClipboardList className="mb-2 size-5 text-blue-600" aria-hidden /><p className="text-xs text-slate-500">Dossier administratif</p><p className="mt-1 font-bold text-blue-700">{inscription ? STATUTS_DOSSIER[inscription.statutDossier] ?? inscription.statutDossier : "Non renseigné"}</p><p className="mt-1 text-xs text-slate-500">Situation enregistrée</p>
+        </div>
+        {peutVoirFinances ? <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-3 dark:border-orange-900 dark:bg-orange-950/20">
+          <CreditCard className="mb-2 size-5 text-orange-600" aria-hidden /><p className="text-xs text-slate-500">Situation financière</p><p className="mt-1 font-bold text-orange-700">{resteFinancier === null ? "Non renseignée" : resteFinancier > 0 ? "En attente" : "À jour"}</p>{resteFinancier !== null ? <p className="mt-1 text-xs text-slate-500">Reste : {resteFinancier.toLocaleString("fr-FR")} FCFA</p> : null}
+        </div> : null}
+        <div className="rounded-xl border border-violet-100 bg-violet-50/50 p-3 dark:border-violet-900 dark:bg-violet-950/20">
+          <Clock3 className="mb-2 size-5 text-violet-600" aria-hidden /><p className="text-xs text-slate-500">Dernière activité</p><p className="mt-1 font-bold text-violet-700">{derniereActivite ? dateFr(derniereActivite) : "Aucune"}</p><p className="mt-1 text-xs text-slate-500">Donnée enregistrée</p>
+        </div>
+      </div>
+      </div>
+      </section>
+
+      <Tabs defaultValue="ensemble" className="gap-3">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-border dark:bg-card">
+          <TabsList variant="line" className="flex h-14 w-max min-w-full items-stretch justify-between gap-1 px-2 py-0 sm:px-3">
+            <TabsTrigger id="dossier-onglet-ensemble" value="ensemble" className="gap-2 px-3 text-xs data-active:text-emerald-700 sm:text-sm"><GraduationCap className="size-4" aria-hidden />Vue d’ensemble</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-identite" value="identite" className="gap-2 px-3 text-xs sm:text-sm"><UserRound className="size-4" aria-hidden />Identité</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-scolarite" value="scolarite" className="gap-2 px-3 text-xs sm:text-sm"><GraduationCap className="size-4" aria-hidden />Scolarité</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-tuteurs" value="tuteurs" className="gap-2 px-3 text-xs sm:text-sm"><Users className="size-4" aria-hidden />Parents & tuteurs</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-documents" value="documents" className="gap-2 px-3 text-xs sm:text-sm"><FileText className="size-4" aria-hidden />Documents</TabsTrigger>
+            {peutVoirNotes ? <TabsTrigger id="dossier-onglet-notes" value="notes" className="gap-2 px-3 text-xs sm:text-sm"><GraduationCap className="size-4" aria-hidden />Notes</TabsTrigger> : null}
+            {peutVoirAssiduite ? <TabsTrigger id="dossier-onglet-assiduite" value="assiduite" className="gap-2 px-3 text-xs sm:text-sm"><CalendarDays className="size-4" aria-hidden />Assiduité</TabsTrigger> : null}
+            {peutVoirFinances ? <TabsTrigger id="dossier-onglet-finances" value="finances" className="gap-2 px-3 text-xs sm:text-sm"><Wallet className="size-4" aria-hidden />Finances</TabsTrigger> : null}
+            <TabsTrigger id="dossier-onglet-historique" value="historique" className="gap-2 px-3 text-xs sm:text-sm"><History className="size-4" aria-hidden />Historique</TabsTrigger>
+            {peutVoirDiscipline ? <TabsTrigger id="dossier-onglet-discipline" value="discipline" className="gap-2 px-3 text-xs sm:text-sm"><ShieldAlert className="size-4" aria-hidden />Discipline</TabsTrigger> : null}
+          </TabsList>
+        </div>
+
+        <TabsContent value="ensemble" className="mt-1">
+          <VueEnsembleEleve
+            dossier={dossier}
+            scolarite={scolarite}
+            peutVoirFinances={peutVoirFinances}
+            peutVoirNotes={peutVoirNotes}
+            peutVoirAssiduite={peutVoirAssiduite}
+            peutVoirTuteurs={true}
+            actions={peutAdministrer ? <ActionsDossier
+              eleveId={eleve.id}
+              statut={eleve.statut}
+              inscriptionId={inscription?.id ?? null}
+              classeActuelleId={inscription?.classeId ?? null}
+              statutDossier={inscription?.statutDossier ?? null}
+              classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
+            /> : null}
+            documents={peutEmettreDocument ? <DocumentsEleve eleveId={eleve.id} estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)} bulletins={bulletinsDisponibles} /> : null}
+            gestionTuteurs={peutGererTuteurs ? <GestionTuteurs eleveId={eleve.id} tuteurs={tuteurs.map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom }))} /> : null}
+            bulletins={bulletinsDisponibles}
+          />
+        </TabsContent>
+        <TabsContent value="documents" className="mt-5 space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Documents officiels du dossier</CardTitle><CardDescription>Les documents éditables ne sont pas assimilés à des pièces déjà déposées ou validées.</CardDescription></CardHeader>
+            <CardContent className="space-y-3">
+              {peutEmettreDocument ? <DocumentsEleve eleveId={eleve.id} estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)} bulletins={bulletinsDisponibles} /> : <p className="text-sm text-muted-foreground">Édition non autorisée pour ce compte.</p>}
+              {bulletinsDisponibles.map((b) => <a key={b.periodeId} href={"/api/bulletins/" + b.inscriptionId + "/" + b.periodeId} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm hover:bg-slate-50 dark:hover:bg-muted"><span>Bulletin — {b.periodeLibelle}</span><Badge variant={b.publie ? "default" : "outline"}>{b.publie ? "Publié" : "Brouillon"}</Badge></a>)}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* --- Identité --- */}
         <TabsContent value="identite" className="mt-6 space-y-6">
@@ -267,6 +348,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             </CardContent>
           </Card>
 
+          {peutVoirSante ? (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -298,6 +380,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               </dl>
             </CardContent>
           </Card>
+          ) : null}
         </TabsContent>
 
         {/* --- Tuteurs --- */}
@@ -390,7 +473,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           )}
         </TabsContent>
 
-        <TabsContent value="notes" className="mt-6">
+        {peutVoirNotes ?         <TabsContent value="notes" className="mt-6">
           {scolarite ? (
             <OngletNotes dossier={scolarite} />
           ) : (
@@ -398,19 +481,19 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               Cet élève n&apos;a pas d&apos;inscription active cette année.
             </p>
           )}
-        </TabsContent>
+        </TabsContent> : null}
 
-        <TabsContent value="assiduite" className="mt-6">
+        {peutVoirAssiduite ?         <TabsContent value="assiduite" className="mt-6">
           {scolarite ? <OngletAssiduite dossier={scolarite} /> : null}
-        </TabsContent>
+        </TabsContent> : null}
 
-        <TabsContent value="discipline" className="mt-6">
+        {peutVoirDiscipline ?         <TabsContent value="discipline" className="mt-6">
           {scolarite ? <OngletDiscipline dossier={scolarite} /> : null}
-        </TabsContent>
+        </TabsContent> : null}
 
-        <TabsContent value="finances" className="mt-6">
+        {peutVoirFinances ?         <TabsContent value="finances" className="mt-6">
           {scolarite ? <OngletFinances dossier={scolarite} /> : null}
-        </TabsContent>
+        </TabsContent> : null}
 
         {/* --- Scolarité --- */}
         <TabsContent value="scolarite" className="mt-6 space-y-6">
