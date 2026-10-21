@@ -117,8 +117,8 @@ export function ModifierDossier({
   return (
     <Dialog open={ouvert} onOpenChange={setOuvert}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Pencil aria-hidden />
+        <Button variant="default" size="sm" className="h-9 gap-2 rounded-lg bg-emerald-700 px-4 font-semibold text-white shadow-sm hover:bg-emerald-800">
+          <Pencil className="size-4" aria-hidden />
           Modifier le dossier
         </Button>
       </DialogTrigger>
