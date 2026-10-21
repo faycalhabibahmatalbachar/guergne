@@ -305,6 +305,36 @@ export async function chargerBulletin(
   const moyennes = historique.rows.map((h) => nombre(h.moyenne)).filter((m): m is number => m !== null);
   const moyenneAnnuelle = moyennes.length > 0 ? moyennes.reduce((a, x) => a + x, 0) / moyennes.length : null;
 
+  // Le rang annuel se calcule sur les MOYENNES ANNUELLES de tous les élèves
+  // de la même classe, pas sur le rang du dernier trimestre. Le bulletin Excel
+  // réserve une ligne distincte à ce classement annuel.
+  const classementAnnuel = await db.execute<{ rang_annuel: number | null }>(sql`
+    WITH moyennes_annuelles AS (
+      SELECT i.id AS inscription_id,
+             AVG(b.moyenne_generale) AS moyenne_annuelle
+        FROM inscriptions i
+        LEFT JOIN bulletins b
+          ON b.inscription_id = i.id
+         AND b.periode_id IN (
+           SELECT p2.id FROM periodes p2 WHERE p2.annee_id = i.annee_id
+         )
+       WHERE i.classe_id = (
+         SELECT i2.classe_id FROM inscriptions i2 WHERE i2.id = ${inscriptionId}::uuid
+       )
+         AND i.active
+       GROUP BY i.id
+    ),
+    rangs AS (
+      SELECT inscription_id,
+             CASE WHEN moyenne_annuelle IS NULL THEN NULL
+                  ELSE RANK() OVER (ORDER BY moyenne_annuelle DESC)::int
+              END AS rang_annuel
+        FROM moyennes_annuelles
+    )
+    SELECT rang_annuel FROM rangs WHERE inscription_id = ${inscriptionId}::uuid
+  `);
+  const rangAnnuelCalcule = classementAnnuel.rows[0]?.rang_annuel ?? null;
+
   return {
     etablissement: {
       nom: e.nom ?? "Lycée Guergné La Renaissance",
@@ -345,9 +375,9 @@ export async function chargerBulletin(
       rang: h.rang,
     })),
     moyenneAnnuelle,
-    // Le rang annuel n'est arrêté qu'au conseil de fin d'année : l'inventer
-    // avant reviendrait à classer des élèves sur des trimestres incomplets.
-    rangAnnuel: ctx.est_derniere_periode ? (b?.rang ?? null) : null,
+    // Le rang annuel n'est affiché qu'à la dernière période. Il est calculé
+    // à partir des moyennes annuelles de la classe, avec ex æquo au même rang.
+    rangAnnuel: ctx.est_derniere_periode ? rangAnnuelCalcule : null,
 
     appreciationTravail: b?.appreciation_generale ?? null,
     appreciationDiscipline: c?.appreciation ?? (b?.note_conduite ? `Conduite : ${b.note_conduite}/20` : null),
