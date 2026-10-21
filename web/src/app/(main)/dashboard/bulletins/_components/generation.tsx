@@ -93,30 +93,34 @@ export function GenerationBulletins({
       : "—";
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+    <div className="space-y-6 pb-6">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950 p-6 text-white shadow-sm sm:p-8">
+        <div className="pointer-events-none absolute -right-10 -top-16 size-56 rounded-full border border-white/10" />
+        <div className="pointer-events-none absolute -right-2 -top-8 size-40 rounded-full border border-cyan-300/15" />
+        <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div className="space-y-1">
-          <p className="text-muted-foreground text-sm font-medium">SCOLARITÉ · RÉSULTATS</p>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Guergné la Renaissance · Scolarité</p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Gestion des bulletins
           </h1>
-          <p className="text-muted-foreground text-sm">
-            Produisez, vérifiez et publiez les résultats de vos élèves.
+          <p className="max-w-xl text-sm text-slate-300">
+            Produisez, vérifiez et publiez les résultats de vos élèves depuis un espace clair et centralisé.
           </p>
         </div>
         {pret ? (
-          <div className="text-muted-foreground rounded-lg border bg-card px-3 py-2 text-sm">
-            <span className="font-medium text-foreground">{classe?.libelle}</span>
-            <span className="mx-2">·</span>
+          <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-slate-200 backdrop-blur-sm">
+            <span className="font-semibold text-white">{classe?.libelle}</span>
+            <span className="mx-2 text-cyan-200">·</span>
             {periode?.libelle}
           </div>
         ) : null}
+        </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="rounded-lg bg-primary/10 p-2.5 text-primary">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card className="rounded-2xl border-border/70 shadow-sm transition-shadow hover:shadow-md">
+          <CardContent className="flex items-center gap-3 p-5">
+            <div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-700 dark:text-cyan-300">
               <FileText className="size-5" aria-hidden />
             </div>
             <div className="min-w-0">
@@ -125,9 +129,9 @@ export function GenerationBulletins({
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="rounded-lg bg-emerald-500/10 p-2.5 text-emerald-600">
+        <Card className="rounded-2xl border-border/70 shadow-sm transition-shadow hover:shadow-md">
+          <CardContent className="flex items-center gap-3 p-5">
+            <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-600">
               <Send className="size-5" aria-hidden />
             </div>
             <div className="min-w-0">
@@ -136,9 +140,9 @@ export function GenerationBulletins({
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="rounded-lg bg-amber-500/10 p-2.5 text-amber-600">
+        <Card className="rounded-2xl border-border/70 shadow-sm transition-shadow hover:shadow-md">
+          <CardContent className="flex items-center gap-3 p-5">
+            <div className="rounded-xl bg-amber-500/10 p-3 text-amber-600">
               <EyeOff className="size-5" aria-hidden />
             </div>
             <div className="min-w-0">
@@ -147,9 +151,9 @@ export function GenerationBulletins({
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="rounded-lg bg-sky-500/10 p-2.5 text-sky-600">
+        <Card className="rounded-2xl border-border/70 shadow-sm transition-shadow hover:shadow-md">
+          <CardContent className="flex items-center gap-3 p-5">
+            <div className="rounded-xl bg-sky-500/10 p-3 text-sky-600">
               <Play className="size-5" aria-hidden />
             </div>
             <div className="min-w-0">
@@ -160,9 +164,9 @@ export function GenerationBulletins({
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Produire les bulletins</CardTitle>
+      <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
+        <CardHeader className="border-b bg-muted/20 pb-4">
+          <CardTitle className="flex items-center gap-2 text-base"><Play className="size-4 text-cyan-600" aria-hidden /> Produire les bulletins</CardTitle>
           <CardDescription>
             Les moyennes par matière, la moyenne générale et le rang sont recalculés pour
             toute la classe. Les appréciations du conseil et la publication sont conservées :
@@ -204,7 +208,7 @@ export function GenerationBulletins({
             </div>
 
             <div className="flex items-end">
-              <Button onClick={generer} disabled={!pret || enCours} className="w-full">
+              <Button onClick={generer} disabled={!pret || enCours} className="w-full bg-cyan-700 text-white shadow-sm hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500">
                 <Play aria-hidden />
                 {enCours ? "Calcul en cours…" : "Produire les bulletins"}
               </Button>
@@ -238,8 +242,8 @@ export function GenerationBulletins({
       </Card>
 
       {pret ? (
-        <Card>
-          <CardHeader className="pb-3">
+        <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
+          <CardHeader className="border-b bg-muted/20 pb-4">
             <CardTitle className="text-base">
               {classe?.libelle} — {periode?.libelle}
               <span className="text-muted-foreground ml-2 font-normal">
@@ -249,7 +253,7 @@ export function GenerationBulletins({
           </CardHeader>
           <CardContent className="p-0">
             {bulletins.length > 0 ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/10 px-4 py-4">
                 <p className="text-muted-foreground text-sm">
                   {publies} publié{publies > 1 ? "s" : ""} · {brouillons} en brouillon.
                   {brouillons > 0
@@ -260,6 +264,7 @@ export function GenerationBulletins({
                   {brouillons > 0 ? (
                     <Button
                       size="sm"
+                      className="bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500"
                       disabled={enCours}
                       onClick={() =>
                         demarrer(async () => {
@@ -312,7 +317,7 @@ export function GenerationBulletins({
             ) : (
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-muted/40">
                     <TableRow>
                       <TableHead className="w-16">Rang</TableHead>
                       <TableHead>Élève</TableHead>
@@ -326,7 +331,7 @@ export function GenerationBulletins({
                   </TableHeader>
                   <TableBody>
                     {bulletins.map((b) => (
-                      <TableRow key={b.inscriptionId}>
+                      <TableRow key={b.inscriptionId} className="transition-colors hover:bg-cyan-500/[0.04]">
                         <TableCell className="tabular-nums font-medium">
                           {b.rang ?? "—"}
                         </TableCell>
