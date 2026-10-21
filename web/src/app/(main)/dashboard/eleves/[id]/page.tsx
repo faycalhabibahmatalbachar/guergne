@@ -97,10 +97,14 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
   // ne pourrait pas enregistrer.
   const proposition = peutInscrire ? await preparerReinscription(id) : null;
 
+  const [peutVoirBulletins, peutNotifier] = await Promise.all([
+    peut(principal, "bulletin:lire", { eleveId: id, classeId: inscription?.classeId }),
+    peut(principal, "message:envoyer", { eleveId: id, classeId: inscription?.classeId }),
+  ]);
   // Périodes pour lesquelles un bulletin existe. On les charge ici plutôt que
   // dans le composant : c'est une page serveur, la requête ne coûte pas un
   // aller-retour supplémentaire au navigateur.
-  const bulletinsDisponibles = inscription
+  const bulletinsDisponibles = inscription && peutVoirBulletins
     ? (
         await db.execute<{
           inscription_id: string;
@@ -220,9 +224,9 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)}
             bulletins={bulletinsDisponibles}
           /> : null}
-          <BoutonNotifier
+          {peutNotifier ? <BoutonNotifier
             cible={{ type: "eleve", id: eleve.id, nom: `${eleve.prenom} ${eleve.nom}` }}
-          />
+          /> : null}
           {peutModifierSensible ? <ModifierDossier
             eleveId={eleve.id}
             dossier={{
