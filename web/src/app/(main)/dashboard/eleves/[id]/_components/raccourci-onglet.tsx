@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 /** Active l'onglet Radix déjà monté, sans recharger la page ni perdre le dossier. */
 export function RaccourciOnglet({
   onglet,
-  enfants,
+  children,
   className,
 }: {
   onglet: string;
-  enfants: ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
   return (
@@ -22,7 +22,7 @@ export function RaccourciOnglet({
         declencheur?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }}
     >
-      {enfants}
+      {children}
     </Button>
   );
 }
