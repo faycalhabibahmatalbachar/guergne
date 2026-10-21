@@ -38,7 +38,7 @@ const s = StyleSheet.create({
   annuelle: { width: "9%" }, conduite: { width: "8%" }, observation: { width: "23%" },
   pied: { position: "absolute", bottom: 12, left: 24, right: 24, textAlign: "right", fontSize: 7, color: "#6b7280" },
 });
-const moyenne = (v: number | null) => v === null || !Number.isFinite(v) ? "" : v.toFixed(2);
+const moyenne = (v: number | null) => v === null || !Number.isFinite(v) ? "" : v.toFixed(2).replace(".", ",");
 
 function Cellule({ children, largeur, centre = false, gras = false, fin = false }: {
   children: React.ReactNode; largeur: Style; centre?: boolean; gras?: boolean; fin?: boolean;
@@ -52,7 +52,7 @@ export function ConseilOrientationPDF({ d }: { d: DonneesConseilOrientation }) {
   return <Document title={`Conseil d’orientation — ${d.classe} — ${d.anneeScolaire}`} author={d.etablissement.nom}>
     <Page size="A4" orientation="landscape" style={s.page} wrap>
       <Text style={s.etablissement}>{d.etablissement.nom.toLocaleUpperCase("fr")}</Text>
-      <Text style={s.annee}>Année scolaire : {d.anneeScolaire}</Text>
+      <Text style={s.annee}>Année scolaire : {d.anneeScolaire.replace(/(\\d{4})\\s*-\\s*(\\d{4})/, "$1 – $2")}</Text>
       <Text style={s.titre}>CONSEIL D'ORIENTATION</Text>
       <Text style={s.sousTitre}>CLASSE DE {d.classe}</Text>
       <View style={s.tableau}>
