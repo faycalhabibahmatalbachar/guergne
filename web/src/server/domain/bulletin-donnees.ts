@@ -92,7 +92,6 @@ function moyenneFamille(
   famille: "controle" | "composition",
   inscriptionId: string,
   periodeId: string,
-  matiereId: string,
 ) {
   const types =
     famille === "controle"
@@ -107,7 +106,7 @@ function moyenneFamille(
                 FROM notes n
                 JOIN evaluations ev ON ev.id = n.evaluation_id
                WHERE n.inscription_id = ${inscriptionId}::uuid
-                 AND ev.matiere_id = ${matiereId}::uuid
+                 AND ev.matiere_id = m.id
                  AND ev.periode_id = ${periodeId}::uuid
                  AND ev.compte_dans_moyenne
                  AND ev.type::text IN ${types})`;
@@ -170,8 +169,8 @@ export async function chargerBulletin(
            m.ordre_bulletin AS ordre,
            COALESCE(mm.coefficient, co.coefficient)::float8 AS coefficient,
            mm.moyenne::text AS moyenne,
-           ${moyenneFamille("controle", inscriptionId, periodeId, "m.id")} AS moyenne_devoirs,
-           ${moyenneFamille("composition", inscriptionId, periodeId, "m.id")} AS note_composition,
+           ${moyenneFamille("controle", inscriptionId, periodeId)} AS moyenne_devoirs,
+           ${moyenneFamille("composition", inscriptionId, periodeId)} AS note_composition,
            am.appreciation AS appreciation_professeur
       FROM inscriptions i
       JOIN classes cl ON cl.id = i.classe_id
