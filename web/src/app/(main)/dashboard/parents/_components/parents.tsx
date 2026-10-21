@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { LigneTuteur, StatistiquesParents } from "@/server/domain/parents";
 import { inviterClasse } from "../actions";
+import statistiquesStyles from "./statistiques-parents.module.css";
 import { ActionsParent } from "./actions-parent";
 
 interface Option { id: string; libelle: string }
@@ -26,14 +27,14 @@ function CarteStatistique({
 }: {
   titre: string; valeur: number; icone: typeof Users; couleur: string; fond: string; detail: string;
 }) {
-  return <article className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3.5 py-4 shadow-sm dark:border-border dark:bg-card">
-    <div className={`flex size-14 shrink-0 items-center justify-center rounded-xl ${fond}`}>
-      <Icone className={`size-7 ${couleur}`} strokeWidth={1.8} aria-hidden />
-    </div>
+  return <article className={statistiquesStyles.card + " flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm dark:border-border dark:bg-card"}>
+    <span className={`flex size-[52px] shrink-0 items-center justify-center rounded-xl ${fond}`}>
+      <Icone className={`size-[26px] ${couleur}`} strokeWidth={1.8} aria-hidden />
+    </span>
     <div className="min-w-0 flex-1">
-      <p className="truncate text-[12px] font-medium text-slate-600 dark:text-muted-foreground">{titre}</p>
-      <p className="mt-1 text-[27px] font-bold leading-none tracking-tight text-slate-950 tabular-nums dark:text-foreground">{valeur.toLocaleString("fr-FR")}</p>
-      <p className="mt-1.5 text-[11px] text-slate-400">{detail}</p>
+      <h2 className="min-h-[17px] text-[12px] font-semibold leading-snug text-slate-600 dark:text-muted-foreground">{titre}</h2>
+      <p className="mt-1 text-[28px] font-bold leading-none tracking-tight text-slate-950 tabular-nums dark:text-foreground">{valeur.toLocaleString("fr-FR")}</p>
+      <p className="mt-2 text-[11px] leading-snug text-slate-500 dark:text-muted-foreground">{detail}</p>
     </div>
   </article>;
 }
@@ -90,8 +91,10 @@ export function Parents({
   };
 
   return <div className="space-y-4">
-    <section aria-label="Indicateurs des comptes parents" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-      {cartes.map(c => <CarteStatistique key={c.titre} {...c} />)}
+    <section aria-label="Indicateurs des comptes parents" className={statistiquesStyles.region}>
+      <div className={statistiquesStyles.grid}>
+        {cartes.map(c => <CarteStatistique key={c.titre} {...c} />)}
+      </div>
     </section>
 
     {stats.sansCompte > 0 ? (
