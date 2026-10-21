@@ -151,6 +151,16 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
     ...(peutVoirAssiduite ? (scolarite?.assiduite ?? []).map((a) => a.date) : []),
     ...(peutVoirFinances ? (scolarite?.paiements ?? []).map((p) => p.date) : []),
   ].sort((a, b) => b.localeCompare(a))[0] ?? null;
+  // Navigation par voisins dans la classe courante, fondée sur les élèves actifs.
+  const voisins = inscription ? (await db.execute<{ precedent: string | null; suivant: string | null }>(sql`
+    WITH ordre AS (
+      SELECT e.id,
+             lag(e.id) OVER (ORDER BY e.nom, e.prenom, e.id) AS precedent,
+             lead(e.id) OVER (ORDER BY e.nom, e.prenom, e.id) AS suivant
+        FROM eleves e JOIN inscriptions i ON i.eleve_id = e.id
+       WHERE i.classe_id = ${inscription.classeId}::uuid AND i.active
+    ) SELECT precedent, suivant FROM ordre WHERE id = ${id}::uuid
+  `)).rows[0] : null;
   const age = Math.floor(
     (Date.now() - new Date(eleve.dateNaissance).getTime()) / (365.25 * 24 * 3600 * 1000),
   );
@@ -203,6 +213,8 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {voisins?.precedent ? <Button asChild variant="outline" size="sm" className="h-9 gap-1 rounded-lg"><Link href={"/dashboard/eleves/" + voisins.precedent}><ArrowLeft className="size-4" aria-hidden />Précédent</Link></Button> : null}
+          {voisins?.suivant ? <Button asChild variant="outline" size="sm" className="h-9 gap-1 rounded-lg"><Link href={"/dashboard/eleves/" + voisins.suivant}>Suivant <ChevronRight className="size-4" aria-hidden /></Link></Button> : null}
           {peutEmettreDocument ? <DocumentsEleve
             eleveId={eleve.id}
             estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)}
@@ -237,14 +249,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               ecoleOrigine: eleve.ecoleOrigine,
             }}
           /> : null}
-          {peutAdministrer ? <ActionsDossier
-          eleveId={eleve.id}
-          statut={eleve.statut}
-          inscriptionId={inscription?.id ?? null}
-          classeActuelleId={inscription?.classeId ?? null}
-          statutDossier={inscription?.statutDossier ?? null}
-          classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
-          /> : null}
+          <ImprimerDossier />
         </div>
       </div>
       <div className="mt-4 grid gap-2 border-t border-slate-100 pt-4 dark:border-border sm:grid-cols-2 xl:grid-cols-4">
@@ -284,8 +289,17 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             dossier={dossier}
             scolarite={scolarite}
             peutVoirFinances={peutVoirFinances}
+            peutVoirNotes={peutVoirNotes}
+            peutVoirAssiduite={peutVoirAssiduite}
             peutVoirTuteurs={true}
-            actions={null}
+            actions={peutAdministrer ? <ActionsDossier
+              eleveId={eleve.id}
+              statut={eleve.statut}
+              inscriptionId={inscription?.id ?? null}
+              classeActuelleId={inscription?.classeId ?? null}
+              statutDossier={inscription?.statutDossier ?? null}
+              classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
+            /> : null}
             documents={peutEmettreDocument ? <DocumentsEleve eleveId={eleve.id} estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)} bulletins={bulletinsDisponibles} /> : null}
             gestionTuteurs={peutGererTuteurs ? <GestionTuteurs eleveId={eleve.id} tuteurs={tuteurs.map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom }))} /> : null}
             bulletins={bulletinsDisponibles}
