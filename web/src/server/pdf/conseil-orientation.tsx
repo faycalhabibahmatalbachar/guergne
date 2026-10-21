@@ -52,7 +52,7 @@ export function ConseilOrientationPDF({ d }: { d: DonneesConseilOrientation }) {
   return <Document title={`Conseil d’orientation — ${d.classe} — ${d.anneeScolaire}`} author={d.etablissement.nom}>
     <Page size="A4" orientation="landscape" style={s.page} wrap>
       <Text style={s.etablissement}>{d.etablissement.nom.toLocaleUpperCase("fr")}</Text>
-      <Text style={s.annee}>Année scolaire : {d.anneeScolaire.replace(/(\\d{4})\\s*-\\s*(\\d{4})/, "$1 – $2")}</Text>
+      <Text style={s.annee}>Année scolaire : {d.anneeScolaire.replace(/(\d{4})\s*-\s*(\d{4})/, "$1 – $2")}</Text>
       <Text style={s.titre}>CONSEIL D'ORIENTATION</Text>
       <Text style={s.sousTitre}>CLASSE DE {d.classe}</Text>
       <View style={s.tableau}>
