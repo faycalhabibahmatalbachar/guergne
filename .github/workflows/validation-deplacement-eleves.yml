@@ -25,3 +25,5 @@ jobs:
       - run: npm test
       - run: npx tsc --noEmit
       - run: npm run build
+
+# Deuxième passage : correction de la portée SQL des notifications.
