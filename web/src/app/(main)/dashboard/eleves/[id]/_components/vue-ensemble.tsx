@@ -72,7 +72,7 @@ function LienOnglet({
 
 export function VueEnsembleEleve({
   dossier, scolarite, peutVoirFinances, peutVoirNotes, peutVoirAssiduite,
-  peutVoirTuteurs, actions, notification, documents, gestionTuteurs, bulletins,
+  peutVoirTuteurs, actions, notification, documents, gestionTuteurs, gestionTuteursHeader, bulletins,
 }: {
   dossier: DossierComplet;
   scolarite: DossierScolarite | null;
@@ -84,6 +84,7 @@ export function VueEnsembleEleve({
   notification: React.ReactNode;
   documents: React.ReactNode;
   gestionTuteurs: React.ReactNode;
+  gestionTuteursHeader: React.ReactNode;
   bulletins: Bulletin[];
 }) {
   const { eleve, inscription, tuteurs, parcours, historiqueStatuts, changementsClasse } = dossier;
@@ -180,7 +181,7 @@ export function VueEnsembleEleve({
         </div>
       </section>
       {peutVoirTuteurs ? <section className={cardClass} aria-label="Parents et tuteurs">
-        <TitreSection titre="Parents & tuteurs" description="Responsables rattachés à l’élève" icon={UsersRound} tone="green" />
+        <TitreSection titre="Parents & tuteurs" description="Responsables rattachés à l’élève" icon={UsersRound} tone="green" right={gestionTuteursHeader} />
         {tuteurs.length ? <div className="grid gap-3">
           {tuteurs.slice(0,3).map(t => <article key={t.id} className="min-w-0 rounded-xl border border-emerald-100 bg-emerald-50/30 px-4 py-3.5 dark:border-emerald-950 dark:bg-emerald-950/10">
             <div className="flex min-w-0 items-center gap-3">
