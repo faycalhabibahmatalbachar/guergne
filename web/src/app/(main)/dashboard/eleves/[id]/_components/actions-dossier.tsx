@@ -129,9 +129,9 @@ export function ActionsDossier({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" disabled={enCours}>
-              <MoreHorizontal aria-hidden />
-              Actions
+            <Button variant="outline" size="sm" disabled={enCours} className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 font-medium shadow-none dark:border-border dark:bg-card">
+              <MoreHorizontal className="size-4" aria-hidden />
+              Autres actions
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">

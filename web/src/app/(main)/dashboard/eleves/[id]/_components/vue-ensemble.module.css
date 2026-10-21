@@ -1,20 +1,18 @@
-/* Vue d'ensemble V3 : système de grille propre au dossier, indépendant de la sidebar */
+/* Grille à colonnes indépendantes : la sidebar réduit la largeur disponible,
+   sans étirer artificiellement les cartes Informations personnelles / Tuteurs. */
 .shell { container-type: inline-size; }
 .layout {
   display: grid;
   grid-template-columns: minmax(0,1fr);
-  grid-template-areas: "school" "actions" "personal" "guardians" "documents" "finance" "activity";
+  grid-template-areas: "primary" "middle" "side" "finance" "activity";
   gap: 16px;
-  /* Évite les grandes zones vides dans la carte Finances lorsque la chronologie est plus longue. */
   align-items: start;
 }
-.personal { grid-area: personal; align-self: stretch; }
-.school { grid-area: school; }
-.actions { grid-area: actions; }
-.guardians { grid-area: guardians; }
-.documents { grid-area: documents; }
-.finance { grid-area: finance; align-self: start; }
-.activity { grid-area: activity; align-self: start; }
+.primary { grid-area: primary; min-width: 0; }
+.middle { grid-area: middle; min-width: 0; display: grid; gap: 16px; align-content: start; }
+.side { grid-area: side; min-width: 0; display: grid; gap: 16px; align-content: start; }
+.finance { grid-area: finance; min-width: 0; }
+.activity { grid-area: activity; min-width: 0; }
 .card { min-width: 0; border: 1px solid #e5ebf2; background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 4px 16px rgba(18,39,72,.038); }
 .schoolHero { display: grid; grid-template-columns: minmax(0,1fr); align-items: center; gap: 12px; padding: 17px; border-radius: 17px; background: linear-gradient(115deg,#f0f6ff,#f7fbff); border: 1px solid #e6effc; }
 .schoolSecondary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 17px 13px; }
@@ -22,32 +20,35 @@
 .tutorInfo { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; }
 .actionTiles { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
 .documentRow { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; }
-@container (min-width: 700px) {
+
+@container (min-width: 690px) {
   .layout {
-    grid-template-columns: repeat(2,minmax(0,1fr));
-    grid-template-areas: "personal school" "personal actions" "guardians documents" "finance finance" "activity activity";
+    grid-template-columns: minmax(0,.92fr) minmax(0,1.08fr);
+    grid-template-areas: "primary middle" "side side" "finance activity";
   }
+  .side { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .schoolHero { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
-@container (min-width: 1090px) {
+@container (min-width: 1050px) {
   .layout {
-    grid-template-columns: minmax(0,.87fr) minmax(0,1.45fr) minmax(0,1.04fr);
-    grid-template-areas: "personal school actions" "personal guardians documents" "finance finance activity";
+    grid-template-columns: minmax(0,.94fr) minmax(0,1.42fr) minmax(0,1.06fr);
+    grid-template-areas: "primary middle side" "finance finance activity";
     gap: 16px;
   }
+  .side { grid-template-columns: minmax(0,1fr); }
   .schoolSecondary { grid-template-columns: repeat(4,minmax(0,1fr)); }
   .tutorInfo { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
 @container (min-width: 1380px) {
   .card { padding: 23px; }
-  .schoolHero { padding: 24px; }
+  .schoolHero { padding: 22px; }
 }
-@media (prefers-color-scheme:dark) {
+@media (prefers-color-scheme: dark) {
   .card { background: var(--card); border-color: var(--border); }
   .schoolHero { background: var(--muted); border-color: var(--border); }
 }
 @media print {
   .shell { container-type: normal; }
   .layout { display:block; }
-  .layout > * { margin-bottom:12px; box-shadow:none!important; break-inside:avoid; }
+  .layout > *, .middle > *, .side > * { margin-bottom:12px; box-shadow:none!important; break-inside:avoid; }
 }
