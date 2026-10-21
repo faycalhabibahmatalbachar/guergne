@@ -1,5 +1,5 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import { EnTete, type Etablissement } from "./gabarit";
+import type { Etablissement } from "./gabarit";
 
 type Style = ReturnType<typeof StyleSheet.create>[string];
 
@@ -23,7 +23,9 @@ export interface DonneesConseilOrientation {
 
 const s = StyleSheet.create({
   page: { paddingTop: 22, paddingBottom: 30, paddingHorizontal: 24, fontSize: 8, fontFamily: "Times-Roman", color: "#111827" },
-  titre: { marginTop: 8, fontSize: 12, fontFamily: "Times-Bold", textAlign: "center" },
+  etablissement: { marginTop: 5, fontSize: 12, fontFamily: "Times-Bold", textAlign: "center" },
+  annee: { marginTop: 3, fontSize: 9, textAlign: "center" },
+  titre: { marginTop: 6, fontSize: 12, fontFamily: "Times-Bold", textAlign: "center" },
   sousTitre: { marginTop: 4, marginBottom: 12, fontSize: 10, fontFamily: "Times-Bold", textAlign: "center" },
   tableau: { borderWidth: 0.7, borderColor: "#111827" },
   entete: { flexDirection: "row", backgroundColor: "#d9d9d9", borderBottomWidth: 0.8, borderBottomColor: "#111827" },
@@ -49,9 +51,10 @@ function Cellule({ children, largeur, centre = false, gras = false, fin = false 
 export function ConseilOrientationPDF({ d }: { d: DonneesConseilOrientation }) {
   return <Document title={`Conseil d’orientation — ${d.classe} — ${d.anneeScolaire}`} author={d.etablissement.nom}>
     <Page size="A4" orientation="landscape" style={s.page} wrap>
-      <EnTete etablissement={d.etablissement} />
-      <Text style={s.titre}>CONSEIL D’ORIENTATION</Text>
-      <Text style={s.sousTitre}>Année scolaire : {d.anneeScolaire} · CLASSE DE {d.classe}</Text>
+      <Text style={s.etablissement}>{d.etablissement.nom.toLocaleUpperCase("fr")}</Text>
+      <Text style={s.annee}>Année scolaire : {d.anneeScolaire}</Text>
+      <Text style={s.titre}>CONSEIL D'ORIENTATION</Text>
+      <Text style={s.sousTitre}>CLASSE DE {d.classe}</Text>
       <View style={s.tableau}>
         <View style={s.entete} fixed>
           <Cellule largeur={s.n} centre gras>N°</Cellule>
@@ -65,7 +68,7 @@ export function ConseilOrientationPDF({ d }: { d: DonneesConseilOrientation }) {
           <Cellule largeur={s.observation} centre gras fin>Observation</Cellule>
         </View>
         {d.lignes.map((l) => <View key={l.numero + l.matricule} style={s.ligne} wrap={false}>
-          <Cellule largeur={s.n} centre>{l.numero}</Cellule>
+          <Cellule largeur={s.n} centre>{String(l.numero).padStart(2, "0")}</Cellule>
           <Cellule largeur={s.matricule} centre>{l.matricule}</Cellule>
           <Cellule largeur={s.nom}>{l.nomComplet}</Cellule>
           <Cellule largeur={s.trimestre} centre>{moyenne(l.moyenneT1)}</Cellule>
