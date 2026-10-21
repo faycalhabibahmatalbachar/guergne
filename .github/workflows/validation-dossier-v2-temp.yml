@@ -24,3 +24,5 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npx tsc --noEmit
+
+# Dernière validation du gabarit et du contrôle des actions.
