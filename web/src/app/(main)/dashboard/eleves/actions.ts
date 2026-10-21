@@ -17,6 +17,8 @@ import {
   tuteurs,
 } from "@/server/db/schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
+import { sessionCourante } from "@/server/auth/session";
+import type { DossierModifiable } from "./[id]/_components/modifier-dossier";
 import { reveillerFile } from "@/server/notifications/reveil";
 
 export interface Resultat {
@@ -704,6 +706,39 @@ const schemaModification = z
  * précisément dans ce module qu'on vient chercher qui a changé quoi, le jour où
  * une date de naissance ne correspond plus à l'acte.
  */
+/** Lecture autorisée à la demande pour le crayon de la liste. */
+export async function chargerDossierPourModification(eleveId: string): Promise<
+  { ok: true; dossier: DossierModifiable } | { ok: false; message: string }
+> {
+  try {
+    await requirePermission("eleve:modifier");
+    const principal = await sessionCourante();
+    if (!principal || !["SUPER_ADMIN", "DIRECTION", "CENSEUR", "SURVEILLANT"].includes(principal.role)) {
+      return { ok: false, message: "Informations sensibles non accessibles pour ce rôle." };
+    }
+    if (!z.string().uuid().safeParse(eleveId).success) {
+      return { ok: false, message: "Identifiant d'élève invalide." };
+    }
+    const [e] = await db.select({
+      nom: eleves.nom, prenom: eleves.prenom, sexe: eleves.sexe,
+      dateNaissance: eleves.dateNaissance, lieuNaissance: eleves.lieuNaissance,
+      nationalite: eleves.nationalite, acteNaissanceNumero: eleves.acteNaissanceNumero,
+      adresse: eleves.adresse, quartier: eleves.quartier,
+      telephone: eleves.telephone, email: eleves.email,
+      groupeSanguin: eleves.groupeSanguin, allergies: eleves.allergies,
+      observationsMedicales: eleves.observationsMedicales,
+      situationParticuliere: eleves.situationParticuliere,
+      urgenceNom: eleves.urgenceNom, urgenceTelephone: eleves.urgenceTelephone,
+      urgenceLien: eleves.urgenceLien, ecoleOrigine: eleves.ecoleOrigine,
+    }).from(eleves).where(eq(eleves.id, eleveId)).limit(1);
+    if (!e) return { ok: false, message: "Élève introuvable." };
+    return { ok: true, dossier: e };
+  } catch (erreur) {
+    const resultat = echec(erreur, "Chargement du dossier impossible.");
+    return { ok: false, message: resultat.message ?? "Chargement du dossier impossible." };
+  }
+}
+
 export async function modifierEleve(eleveId: string, donnees: unknown): Promise<Resultat> {
   try {
     const acteur = await requirePermission("eleve:modifier");
