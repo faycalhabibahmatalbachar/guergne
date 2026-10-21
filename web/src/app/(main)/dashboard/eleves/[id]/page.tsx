@@ -156,7 +156,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
     ...(peutVoirFinances ? (scolarite?.paiements ?? []).map((p) => p.date) : []),
   ].sort((a, b) => b.localeCompare(a))[0] ?? null;
   // Navigation par voisins dans la classe courante, fondée sur les élèves actifs.
-  const voisins = inscription ? (await db.execute<{ precedent: string | null; suivant: string | null }>(sql`
+  const voisins = inscription && peutAdministrer ? (await db.execute<{ precedent: string | null; suivant: string | null }>(sql`
     WITH ordre AS (
       SELECT e.id,
              lag(e.id) OVER (ORDER BY e.nom, e.prenom, e.id) AS precedent,
