@@ -207,7 +207,6 @@ export async function notifierClasse(
       return { ok: false, erreurs: s };
     }
 
-    const idsSql = sql.join(eleveIds.map((id) => sql`${id}::uuid`), sql`, `);
     const r = await db.execute<{ posees: number }>(sql`
       SELECT COALESCE(sum(fn_notifier_tuteurs(
         e.id,
@@ -292,6 +291,7 @@ export async function notifierSelection(
       return { ok: false, erreurs: s };
     }
 
+    const idsSql = sql.join(eleveIds.map((id) => sql`${id}::uuid`), sql`, `);
     const r = await db.execute<{ posees: number }>(sql`
       SELECT COALESCE(sum(fn_notifier_tuteurs(
         e.id,
