@@ -33,6 +33,7 @@ export interface LigneEleve {
   niveauLibelle: string | null;
   serieCode: string | null;
   estRedoublant: boolean;
+  parentId: string | null;
   parentNom: string | null;
   parentLien: string | null;
   parentTelephone: string | null;
@@ -156,6 +157,7 @@ export async function listerEleves(filtres: FiltresEleves = {}): Promise<Resulta
         serieCode: series.code,
         estRedoublant: inscriptions.estRedoublant,
         statutDossier: inscriptions.statutDossier,
+        parentId: sql<string | null>`(SELECT et.tuteur_id::text FROM eleve_tuteur et WHERE et.eleve_id = eleves.id ORDER BY et.est_principal DESC, et.cree_le ASC LIMIT 1)`,
         parentNom: sql<string | null>`(SELECT t.nom || ' ' || t.prenom FROM eleve_tuteur et JOIN tuteurs t ON t.id = et.tuteur_id WHERE et.eleve_id = eleves.id ORDER BY et.est_principal DESC, et.cree_le ASC LIMIT 1)`,
         parentLien: sql<string | null>`(SELECT et.lien::text FROM eleve_tuteur et WHERE et.eleve_id = eleves.id ORDER BY et.est_principal DESC, et.cree_le ASC LIMIT 1)`,
         parentTelephone: sql<string | null>`(SELECT t.telephone FROM eleve_tuteur et JOIN tuteurs t ON t.id = et.tuteur_id WHERE et.eleve_id = eleves.id ORDER BY et.est_principal DESC, et.cree_le ASC LIMIT 1)`,

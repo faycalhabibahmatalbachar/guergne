@@ -6,6 +6,7 @@ import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
 import { exigerPage } from "@/server/guard";
 
 import { Parents } from "./_components/parents";
+import { CreerParent } from "./_components/creer-parent";
 
 export const metadata: Metadata = { title: "Comptes parents" };
 export const dynamic = "force-dynamic";
@@ -38,14 +39,19 @@ export default async function PageParents({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-semibold text-2xl tracking-tight">Comptes parents</h1>
-        <p className="mt-1 text-muted-foreground text-sm">
-          L&apos;accès se fait par numéro de téléphone et code d&apos;activation, sans mot de passe :
-          un parent change souvent de téléphone, rarement de numéro.
-        </p>
-      </div>
+    <div className="space-y-4 pb-6 text-slate-950 dark:text-foreground">
+      <header aria-label="En-tête de la page Parents" className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 dark:border-border xl:flex-row xl:items-end xl:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-[29px] font-bold leading-tight tracking-tight sm:text-[34px]">Parents & tuteurs</h1>
+            <span className="inline-flex items-center rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-sm font-semibold text-emerald-800 tabular-nums dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">{stats.total.toLocaleString("fr-FR")} dossiers</span>
+          </div>
+          <p className="mt-1.5 text-sm text-slate-500 dark:text-muted-foreground">Consultez les responsables, leurs enfants et l’accès à l’application parent.</p>
+        </div>
+        <div role="group" aria-label="Actions sur les comptes parents" className="flex items-center gap-2">
+          <CreerParent />
+        </div>
+      </header>
 
       <Parents
         tuteurs={resultat.lignes}

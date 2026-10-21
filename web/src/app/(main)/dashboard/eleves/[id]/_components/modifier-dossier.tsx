@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
-import { Pencil } from "lucide-react";
+import { LoaderCircle, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { modifierEleve } from "../../actions";
+import { chargerDossierPourModification, modifierEleve } from "../../actions";
 
 export interface DossierModifiable {
   nom: string;
@@ -65,11 +66,36 @@ export interface DossierModifiable {
 export function ModifierDossier({
   eleveId,
   dossier,
+  declencheur = "bouton",
+  nomEleve,
 }: {
   eleveId: string;
-  dossier: DossierModifiable;
+  dossier?: DossierModifiable;
+  declencheur?: "bouton" | "icone";
+  nomEleve?: string;
 }) {
+  const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
+  const [charge, setCharge] = useState<DossierModifiable | null>(null);
+  const [chargement, setChargement] = useState(false);
+  const [erreurChargement, setErreurChargement] = useState("");
+  const valeurs = dossier ?? charge;
+  async function changerOuverture(next: boolean) {
+    setOuvert(next);
+    if (!next || dossier) return;
+    setCharge(null);
+    setErreurChargement("");
+    setChargement(true);
+    try {
+      const reponse = await chargerDossierPourModification(eleveId);
+      if (reponse.ok) setCharge(reponse.dossier);
+      else setErreurChargement(reponse.message);
+    } catch {
+      setErreurChargement("Chargement du dossier impossible.");
+    } finally {
+      setChargement(false);
+    }
+  }
   const [enCours, demarrer] = useTransition();
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
 
@@ -86,6 +112,7 @@ export function ModifierDossier({
       if (r.ok) {
         toast.success(r.message ?? "Dossier mis à jour.");
         setOuvert(false);
+        router.refresh();
       } else {
         setErreurs(r.erreurs ?? {});
         toast.error(r.message ?? Object.values(r.erreurs ?? {})[0] ?? "La modification a échoué.");
@@ -107,7 +134,7 @@ export function ModifierDossier({
         id={nom}
         name={nom}
         type={options?.type ?? "text"}
-        defaultValue={dossier[nom] ?? ""}
+        defaultValue={valeurs?.[nom] ?? ""}
         aria-invalid={Boolean(erreurs[nom])}
       />
       {erreur(nom)}
@@ -115,11 +142,18 @@ export function ModifierDossier({
   );
 
   return (
-    <Dialog open={ouvert} onOpenChange={setOuvert}>
+    <Dialog open={ouvert} onOpenChange={changerOuverture}>
       <DialogTrigger asChild>
-        <Button variant="default" size="sm" className="h-9 gap-2 rounded-lg bg-emerald-700 px-4 font-semibold text-white shadow-sm hover:bg-emerald-800">
+        <Button
+          type="button"
+          variant={declencheur === "icone" ? "outline" : "default"}
+          size={declencheur === "icone" ? "icon" : "sm"}
+          className={declencheur === "icone" ? "size-8 rounded-lg border-slate-200 bg-white text-[#10234b] shadow-none hover:bg-emerald-50 dark:border-border dark:bg-card" : "h-9 gap-2 rounded-lg bg-emerald-700 px-4 font-semibold text-white shadow-sm hover:bg-emerald-800"}
+          title={declencheur === "icone" ? "Modifier le dossier" : undefined}
+          aria-label={declencheur === "icone" ? "Modifier le dossier de " + (nomEleve ?? "cet élève") : undefined}
+        >
           <Pencil className="size-4" aria-hidden />
-          Modifier le dossier
+          {declencheur === "icone" ? null : "Modifier le dossier"}
         </Button>
       </DialogTrigger>
 
@@ -132,6 +166,7 @@ export function ModifierDossier({
           </DialogDescription>
         </DialogHeader>
 
+        {chargement ? <div className="flex min-h-36 items-center justify-center gap-3 text-sm text-muted-foreground"><LoaderCircle className="size-5 animate-spin" aria-hidden />Chargement des informations…</div> : erreurChargement ? <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-800">{erreurChargement}</p> : valeurs ? (
         <form onSubmit={soumettre} className="space-y-6">
           <section className="space-y-3">
             <h3 className="font-semibold text-sm">État civil</h3>
@@ -143,7 +178,7 @@ export function ModifierDossier({
                 <Label htmlFor="sexe">
                   Sexe<span className="text-destructive"> *</span>
                 </Label>
-                <NativeSelect id="sexe" name="sexe" defaultValue={dossier.sexe}>
+                <NativeSelect id="sexe" name="sexe" defaultValue={valeurs.sexe}>
                   <option value="M">Masculin</option>
                   <option value="F">Féminin</option>
                 </NativeSelect>
@@ -179,7 +214,7 @@ export function ModifierDossier({
 
             <div className="space-y-1.5">
               <Label htmlFor="allergies">Allergies</Label>
-              <Textarea id="allergies" name="allergies" rows={2} defaultValue={dossier.allergies ?? ""} />
+              <Textarea id="allergies" name="allergies" rows={2} defaultValue={valeurs.allergies ?? ""} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="observationsMedicales">Observations médicales</Label>
@@ -187,7 +222,7 @@ export function ModifierDossier({
                 id="observationsMedicales"
                 name="observationsMedicales"
                 rows={2}
-                defaultValue={dossier.observationsMedicales ?? ""}
+                defaultValue={valeurs.observationsMedicales ?? ""}
               />
             </div>
             <div className="space-y-1.5">
@@ -196,7 +231,7 @@ export function ModifierDossier({
                 id="situationParticuliere"
                 name="situationParticuliere"
                 rows={2}
-                defaultValue={dossier.situationParticuliere ?? ""}
+                defaultValue={valeurs.situationParticuliere ?? ""}
               />
             </div>
           </section>
@@ -210,6 +245,7 @@ export function ModifierDossier({
             </Button>
           </DialogFooter>
         </form>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
