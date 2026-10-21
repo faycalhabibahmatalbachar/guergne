@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { sql } from "drizzle-orm";
+import { parametresUuid } from "@/lib/sql-uuid";
 import { z } from "zod";
 
 import { segmentsSms } from "@/lib/segments-sms";
@@ -76,7 +77,7 @@ async function repartition(eleveIds: string[], titre: string, corps: string): Pr
     return { total: 0, parPush: 0, parSms: 0, sansCanal: 0, segments: 0, coutFcfa: 0 };
   }
 
-  const idsSql = sql.join(eleveIds.map((id) => sql`${id}::uuid`), sql`, `);
+  const idsSql = parametresUuid(eleveIds);
 
   const r = await db.execute<{ canal: string; n: number }>(sql`
     SELECT fn_canal_tuteur(t.id)::text AS canal, count(DISTINCT t.id) AS n
@@ -291,7 +292,7 @@ export async function notifierSelection(
       return { ok: false, erreurs: s };
     }
 
-    const idsSql = sql.join(eleveIds.map((id) => sql`${id}::uuid`), sql`, `);
+    const idsSql = parametresUuid(eleveIds);
     const r = await db.execute<{ posees: number }>(sql`
       SELECT COALESCE(sum(fn_notifier_tuteurs(
         e.id,
