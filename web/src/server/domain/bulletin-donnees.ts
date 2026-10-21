@@ -67,6 +67,19 @@ export function appreciationMoyenne(moyenne: number | null): string {
 
 const nombre = (v: string | null): number | null => (v === null ? null : Number(v));
 
+function libelleDecisionConseil(decision: string | null): string | null {
+  if (!decision) return null;
+  const libelles: Record<string, string> = {
+    ADMIS: "Admis(e) en classe supérieure",
+    ADMIS_CONDITION: "Admis(e) en classe supérieure mais efforts à fournir",
+    REDOUBLE: "Admis(e) à redoubler",
+    EXCLU: "Exclu(e)",
+    REORIENTE: "Réorienté(e)",
+    EN_ATTENTE: "En attente d'une décision",
+  };
+  return libelles[decision] ?? decision.replace(/_/g, " ");
+}
+
 /**
  * Moyenne d'une famille d'évaluations, ramenée sur 20.
  *
@@ -392,7 +405,9 @@ export async function chargerBulletin(
       moyenne: nombre(h.moyenne),
       rang: h.rang,
     })),
-    moyenneAnnuelle,
+    // Le modèle Excel laisse la ligne annuelle vide tant que le conseil de fin
+    // d'année n'a pas statué ; ne pas afficher la moyenne T1 comme une annuelle.
+    moyenneAnnuelle: ctx.est_derniere_periode ? moyenneAnnuelle : null,
     // Le rang annuel n'est affiché qu'à la dernière période. Il est calculé
     // à partir des moyennes annuelles de la classe, avec ex æquo au même rang.
     rangAnnuel: ctx.est_derniere_periode ? rangAnnuelCalcule : null,
@@ -400,7 +415,7 @@ export async function chargerBulletin(
     appreciationTravail: b?.appreciation_generale ?? null,
     appreciationDiscipline: c?.appreciation ?? (b?.note_conduite ? `Conduite : ${b.note_conduite}/20` : null),
     decisionConseil: b?.mention ? String(b.mention).replace(/_/g, " ") : null,
-    orientation: ctx.est_derniere_periode && b?.decision ? String(b.decision).replace(/_/g, " ") : null,
+    orientation: ctx.est_derniere_periode ? libelleDecisionConseil(b?.decision ?? null) : null,
 
     ville: e.ville ?? "N'Djamena",
     dateEdition: new Date().toLocaleDateString("fr-FR"),
