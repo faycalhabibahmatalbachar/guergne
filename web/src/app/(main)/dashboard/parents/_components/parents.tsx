@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
-  ChevronDown, ChevronLeft, ChevronRight, Download, Eye, KeyRound,
-  Search, Send, ShieldOff, Smartphone, Users, UserRoundCheck,
+  ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, KeyRound,
+  Search, Send, Smartphone, Users, UserRoundCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { LigneTuteur, StatistiquesParents } from "@/server/domain/parents";
-import { inviterClasse, inviterTuteur, revoquerAcces } from "../actions";
+import { inviterClasse } from "../actions";
+import { ActionsParent } from "./actions-parent";
 
 interface Option { id: string; libelle: string }
 
@@ -63,7 +64,7 @@ export function Parents({
   const naviguer = (params: Record<string, string>) => {
     const url = new URLSearchParams({
       recherche: filtres.recherche, etat: filtres.etat,
-      classe: filtres.classeId, ...params,
+      classe: filtres.classeId, parPage: String(parPage), ...params,
     });
     for (const [cle, valeur] of [...url.entries()]) if (!valeur) url.delete(cle);
     routeur.push(`/dashboard/parents?${url}`);
@@ -81,26 +82,11 @@ export function Parents({
     { titre: "Application installée", valeur: stats.avecAppareil, icone: Smartphone, couleur: "text-teal-600", fond: "bg-teal-50", detail: "Avec appareil actif" },
   ];
 
-  const inviter = (t: LigneTuteur) => demarrer(async () => {
-    const r = await inviterTuteur(t.id);
-    if (r.ok) toast.success(r.message ?? "Invitation envoyée.", {
-      duration: 12000,
-      description: r.code ? `Code : ${r.code} — valable 7 jours, à communiquer au tuteur.` : undefined,
-    });
-    else toast.error(r.message ?? "Échec de l'invitation.");
-    routeur.refresh();
-  });
-
-  const revoquer = (t: LigneTuteur) => {
-    const motif = window.prompt(
-      `Révoquer l'accès de ${t.prenom} ${t.nom} ?\n\nSes sessions seront fermées immédiatement.\n\nMotif :`,
-    );
-    if (!motif?.trim()) return;
-    demarrer(async () => {
-      const r = await revoquerAcces(t.id, motif.trim());
-      toast[r.ok ? "success" : "error"](r.message ?? "Échec.");
-      routeur.refresh();
-    });
+  const pages = [...new Set([1, Math.max(1, page - 1), page, Math.min(nbPages, page + 1), nbPages])]
+    .filter(n => n >= 1 && n <= nbPages);
+  const naviguerPage = (numero: number, taille = parPage) => {
+    if (numero < 1 || numero > (taille === parPage ? nbPages : Math.max(1, Math.ceil(total / taille)))) return;
+    naviguer({ page: String(numero), parPage: String(taille) });
   };
 
   return <div className="space-y-4">
@@ -165,9 +151,7 @@ export function Parents({
         <option value="">Toutes les classes</option>
         {classes.map(c => <option value={c.id} key={c.id}>{c.libelle}</option>)}
       </NativeSelect>
-      <Button asChild variant="outline" className="h-10 gap-2 border-slate-200 bg-white shadow-none dark:bg-card">
-        <a href="/api/export/parents" title="Exporter tous les parents, indépendamment des filtres"><Download className="size-4" aria-hidden />Exporter Excel</a>
-      </Button>
+
     </section>
 
     <section aria-label="Liste des comptes parents" className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
@@ -214,34 +198,46 @@ export function Parents({
                 </td>
                 <td className="px-4 py-3"><EtatCompte t={t} /></td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600 tabular-nums dark:text-muted-foreground">{dateFr(t.derniereConnexion)}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-1.5">
-                    <Button asChild variant="outline" size="icon" className="size-8 rounded-lg border-slate-200 shadow-none" title="Voir le compte parent">
-                      <Link href={`/dashboard/parents/${t.id}`} aria-label={`Consulter la fiche de ${t.prenom} ${t.nom}`}><Eye className="size-4" aria-hidden /></Link>
-                    </Button>
-                    {sansCompte || jamaisConnecte || desactive ? (
-                      <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg border-slate-200 px-2.5 text-xs shadow-none" disabled={enCours} onClick={() => inviter(t)}>
-                        <Send className="size-3.5" aria-hidden />{sansCompte ? "Inviter" : "Renvoyer"}
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg border-slate-200 px-2.5 text-xs text-red-700 shadow-none hover:text-red-800" disabled={enCours} onClick={() => revoquer(t)}>
-                        <ShieldOff className="size-3.5" aria-hidden />Révoquer
-                      </Button>
-                    )}
-                  </div>
-                </td>
+                <td className="px-4 py-3"><ActionsParent t={t} /></td>
               </tr>;
             })}
           </tbody>
         </table>
       </div>}
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 bg-white px-4 py-3 text-xs text-slate-600 dark:border-border dark:bg-card dark:text-muted-foreground">
-        <p className="tabular-nums">{premier.toLocaleString("fr-FR")}–{dernier.toLocaleString("fr-FR")} sur {total.toLocaleString("fr-FR")} parents</p>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" className="h-8 gap-1 rounded-lg shadow-none" disabled={page <= 1 || enCours} onClick={() => naviguer({ page: String(page - 1) })}><ChevronLeft className="size-4" aria-hidden />Précédent</Button>
-          <span className="min-w-12 text-center font-medium tabular-nums">{page}/{nbPages}</span>
-          <Button size="sm" variant="outline" className="h-8 gap-1 rounded-lg shadow-none" disabled={page >= nbPages || enCours} onClick={() => naviguer({ page: String(page + 1) })}>Suivant<ChevronRight className="size-4" aria-hidden /></Button>
+      <footer aria-label="Pied du tableau des parents" className="border-t border-slate-200/80 bg-slate-50/60 px-4 py-3.5 text-sm dark:border-border dark:bg-muted/15 sm:px-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <p className="whitespace-nowrap text-slate-600 dark:text-muted-foreground" aria-live="polite">
+              <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">{premier}–{dernier}</span> sur <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">{total.toLocaleString("fr-FR")}</span> parents
+            </p>
+            <span aria-hidden className="hidden h-5 w-px bg-slate-200 dark:bg-border sm:block" />
+            <label className="inline-flex items-center gap-2 whitespace-nowrap text-xs text-slate-600 dark:text-muted-foreground">
+              Par page
+              <select aria-label="Nombre de parents par page" className="h-9 min-w-16 rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-medium text-slate-800 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:border-border dark:bg-background dark:text-foreground"
+                value={parPage} onChange={e => naviguerPage(1, Number(e.target.value))}>
+                {[8, 16, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+          </div>
+          <nav aria-label="Pagination des parents" className="flex items-center justify-between gap-3 sm:justify-end">
+            <span className="text-xs font-medium text-slate-600 tabular-nums dark:text-muted-foreground sm:hidden">Page {page} sur {nbPages}</span>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" className="hidden size-9 bg-white shadow-none sm:inline-flex dark:bg-card" disabled={page <= 1} onClick={() => naviguerPage(1)} aria-label="Première page"><ChevronsLeft className="size-4" aria-hidden /></Button>
+              <Button variant="outline" size="icon" className="size-9 bg-white shadow-none dark:bg-card" disabled={page <= 1} onClick={() => naviguerPage(page - 1)} aria-label="Page précédente"><ChevronLeft className="size-4" aria-hidden /></Button>
+              <div className="hidden items-center gap-1 sm:flex">
+                {pages.map((numero, index) => <span key={numero} className="flex items-center gap-1">
+                  {index > 0 && numero - pages[index - 1] > 1 ? <span className="px-1 text-slate-400" aria-hidden>…</span> : null}
+                  <Button size="icon" variant={numero === page ? "default" : "outline"}
+                    className={`size-9 font-semibold tabular-nums shadow-none ${numero === page ? "bg-emerald-700 text-white hover:bg-emerald-800" : "bg-white dark:bg-card"}`}
+                    aria-label={`Aller à la page ${numero}`} aria-current={numero === page ? "page" : undefined}
+                    onClick={() => naviguerPage(numero)}>{numero}</Button>
+                </span>)}
+              </div>
+              <Button variant="outline" size="icon" className="size-9 bg-white shadow-none dark:bg-card" disabled={page >= nbPages} onClick={() => naviguerPage(page + 1)} aria-label="Page suivante"><ChevronRight className="size-4" aria-hidden /></Button>
+              <Button variant="outline" size="icon" className="hidden size-9 bg-white shadow-none sm:inline-flex dark:bg-card" disabled={page >= nbPages} onClick={() => naviguerPage(nbPages)} aria-label="Dernière page"><ChevronsRight className="size-4" aria-hidden /></Button>
+            </div>
+          </nav>
         </div>
       </footer>
     </section>
