@@ -115,8 +115,12 @@ export async function changerClasseEnLot(donnees: unknown): Promise<ResultatLot>
     } catch (auditErreur) {
       console.error("[lot-classe] Audit applicatif indisponible", (auditErreur as { code?: string })?.code ?? "inconnu");
     }
-    revalidatePath("/dashboard/eleves");
-    revalidatePath("/dashboard/classes");
+    try {
+      revalidatePath("/dashboard/eleves");
+      revalidatePath("/dashboard/classes");
+    } catch (erreurCache) {
+      console.error("[lot-classe] Déplacement confirmé, actualisation du cache indisponible", (erreurCache as { code?: string })?.code ?? "inconnu");
+    }
     return {
       ok: true,
       traites: cibles.rows.length,
