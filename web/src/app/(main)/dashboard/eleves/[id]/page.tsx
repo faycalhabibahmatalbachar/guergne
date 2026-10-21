@@ -264,16 +264,42 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
       </section>
 
       <Tabs defaultValue="ensemble" className="gap-3">
-        <TabsList>
-          <TabsTrigger value="identite">Identité</TabsTrigger>
-          <TabsTrigger value="tuteurs">Tuteurs ({tuteurs.length})</TabsTrigger>
-          <TabsTrigger value="notes">Notes</TabsTrigger>
-          <TabsTrigger value="assiduite">Assiduité</TabsTrigger>
-          <TabsTrigger value="discipline">Discipline</TabsTrigger>
-          <TabsTrigger value="finances">Finances</TabsTrigger>
-          <TabsTrigger value="scolarite">Scolarité</TabsTrigger>
-          <TabsTrigger value="historique">Historique</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-border dark:bg-card">
+          <TabsList variant="line" className="flex h-14 w-max min-w-full items-stretch justify-between gap-1 px-2 py-0 sm:px-3">
+            <TabsTrigger id="dossier-onglet-ensemble" value="ensemble" className="gap-2 px-3 text-xs data-active:text-emerald-700 sm:text-sm"><GraduationCap className="size-4" aria-hidden />Vue d’ensemble</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-identite" value="identite" className="gap-2 px-3 text-xs sm:text-sm"><UserRound className="size-4" aria-hidden />Identité</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-scolarite" value="scolarite" className="gap-2 px-3 text-xs sm:text-sm"><GraduationCap className="size-4" aria-hidden />Scolarité</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-tuteurs" value="tuteurs" className="gap-2 px-3 text-xs sm:text-sm"><Users className="size-4" aria-hidden />Parents & tuteurs</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-documents" value="documents" className="gap-2 px-3 text-xs sm:text-sm"><FileText className="size-4" aria-hidden />Documents</TabsTrigger>
+            {peutVoirNotes ? <TabsTrigger id="dossier-onglet-notes" value="notes" className="gap-2 px-3 text-xs sm:text-sm"><GraduationCap className="size-4" aria-hidden />Notes</TabsTrigger> : null}
+            {peutVoirAssiduite ? <TabsTrigger id="dossier-onglet-assiduite" value="assiduite" className="gap-2 px-3 text-xs sm:text-sm"><CalendarDays className="size-4" aria-hidden />Assiduité</TabsTrigger> : null}
+            {peutVoirFinances ? <TabsTrigger id="dossier-onglet-finances" value="finances" className="gap-2 px-3 text-xs sm:text-sm"><Wallet className="size-4" aria-hidden />Finances</TabsTrigger> : null}
+            <TabsTrigger id="dossier-onglet-historique" value="historique" className="gap-2 px-3 text-xs sm:text-sm"><History className="size-4" aria-hidden />Historique</TabsTrigger>
+            {peutVoirDiscipline ? <TabsTrigger id="dossier-onglet-discipline" value="discipline" className="gap-2 px-3 text-xs sm:text-sm"><ShieldAlert className="size-4" aria-hidden />Discipline</TabsTrigger> : null}
+          </TabsList>
+        </div>
+
+        <TabsContent value="ensemble" className="mt-1">
+          <VueEnsembleEleve
+            dossier={dossier}
+            scolarite={scolarite}
+            peutVoirFinances={peutVoirFinances}
+            peutVoirTuteurs={true}
+            actions={null}
+            documents={peutEmettreDocument ? <DocumentsEleve eleveId={eleve.id} estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)} bulletins={bulletinsDisponibles} /> : null}
+            gestionTuteurs={peutGererTuteurs ? <GestionTuteurs eleveId={eleve.id} tuteurs={tuteurs.map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom }))} /> : null}
+            bulletins={bulletinsDisponibles}
+          />
+        </TabsContent>
+        <TabsContent value="documents" className="mt-5 space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Documents officiels du dossier</CardTitle><CardDescription>Les documents éditables ne sont pas assimilés à des pièces déjà déposées ou validées.</CardDescription></CardHeader>
+            <CardContent className="space-y-3">
+              {peutEmettreDocument ? <DocumentsEleve eleveId={eleve.id} estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)} bulletins={bulletinsDisponibles} /> : <p className="text-sm text-muted-foreground">Édition non autorisée pour ce compte.</p>}
+              {bulletinsDisponibles.map((b) => <a key={b.periodeId} href={"/api/bulletins/" + b.inscriptionId + "/" + b.periodeId} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm hover:bg-slate-50 dark:hover:bg-muted"><span>Bulletin — {b.periodeLibelle}</span><Badge variant={b.publie ? "default" : "outline"}>{b.publie ? "Publié" : "Brouillon"}</Badge></a>)}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* --- Identité --- */}
         <TabsContent value="identite" className="mt-6 space-y-6">
@@ -299,6 +325,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             </CardContent>
           </Card>
 
+          {peutVoirSante ? (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -330,6 +357,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               </dl>
             </CardContent>
           </Card>
+          ) : null}
         </TabsContent>
 
         {/* --- Tuteurs --- */}
@@ -422,7 +450,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           )}
         </TabsContent>
 
-        <TabsContent value="notes" className="mt-6">
+        {peutVoirNotes ?         <TabsContent value="notes" className="mt-6">
           {scolarite ? (
             <OngletNotes dossier={scolarite} />
           ) : (
@@ -430,19 +458,19 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               Cet élève n&apos;a pas d&apos;inscription active cette année.
             </p>
           )}
-        </TabsContent>
+        </TabsContent> : null}
 
-        <TabsContent value="assiduite" className="mt-6">
+        {peutVoirAssiduite ?         <TabsContent value="assiduite" className="mt-6">
           {scolarite ? <OngletAssiduite dossier={scolarite} /> : null}
-        </TabsContent>
+        </TabsContent> : null}
 
-        <TabsContent value="discipline" className="mt-6">
+        {peutVoirDiscipline ?         <TabsContent value="discipline" className="mt-6">
           {scolarite ? <OngletDiscipline dossier={scolarite} /> : null}
-        </TabsContent>
+        </TabsContent> : null}
 
-        <TabsContent value="finances" className="mt-6">
+        {peutVoirFinances ?         <TabsContent value="finances" className="mt-6">
           {scolarite ? <OngletFinances dossier={scolarite} /> : null}
-        </TabsContent>
+        </TabsContent> : null}
 
         {/* --- Scolarité --- */}
         <TabsContent value="scolarite" className="mt-6 space-y-6">
