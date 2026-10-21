@@ -338,3 +338,136 @@ export async function modifierCoordonnees(tuteurId: string, donnees: unknown): P
     return echec(e, "La modification a échoué.");
   }
 }
+
+/**
+ * Mise à jour complète d'un tuteur : coordonnées et identité, sans toucher
+ * aux liens enfants ni aux permissions du compte. Aucun champ n'est modifié
+ * avant la validation intégrale et la vérification des doublons.
+ */
+const schemaProfilTuteur = z.object({
+  nom: z.string().trim().min(2, "Nom requis").max(120),
+  prenom: z.string().trim().min(2, "Prénom requis").max(120),
+  sexe: z.union([z.enum(["M", "F"]), z.literal("")]).optional(),
+  telephone: z.string().trim().regex(/^\+?[0-9\s.-]{8,20}$/, "Numéro invalide"),
+  telephoneSecondaire: z.string().trim().regex(/^\+?[0-9\s.-]{8,20}$/, "Numéro secondaire invalide").or(z.literal("")).optional(),
+  email: z.string().trim().email("Adresse invalide").or(z.literal("")).optional(),
+  profession: z.string().trim().max(150).optional(),
+  employeur: z.string().trim().max(150).optional(),
+  adresse: z.string().trim().max(400).optional(),
+  quartier: z.string().trim().max(150).optional(),
+  accepteSms: z.boolean(),
+});
+
+export async function modifierProfilTuteur(tuteurId: string, donnees: unknown): Promise<Resultat> {
+  try {
+    const acteur = await requirePermission("tuteur:gerer");
+    if (!z.string().uuid().safeParse(tuteurId).success) return { ok: false, message: "Identifiant invalide." };
+    const a = schemaProfilTuteur.safeParse(donnees);
+    if (!a.success) {
+      const erreurs: Record<string, string> = {};
+      for (const p of a.error.issues) erreurs[String(p.path[0])] ??= p.message;
+      return { ok: false, erreurs, message: "Vérifiez les champs du formulaire." };
+    }
+
+    const v = a.data;
+    const numero = normaliserNumero(v.telephone);
+    const secondaire = v.telephoneSecondaire ? normaliserNumero(v.telephoneSecondaire) : null;
+    const [avant] = await db.select().from(tuteurs).where(eq(tuteurs.id, tuteurId)).limit(1);
+    if (!avant) return { ok: false, message: "Tuteur introuvable." };
+    if (numero !== avant.telephone) {
+      const [doublon] = await db.select({ id: tuteurs.id }).from(tuteurs)
+        .where(sql`telephone = ${numero} AND id <> ${tuteurId}::uuid`).limit(1);
+      if (doublon || !(await telephoneDisponible(numero, tuteurId))) {
+        return { ok: false, erreurs: { telephone: "Numéro déjà utilisé par un autre tuteur ou compte." } };
+      }
+    }
+
+    const maj = {
+      nom: v.nom, prenom: v.prenom,
+      sexe: v.sexe ? v.sexe : null,
+      telephone: numero, telephoneSecondaire: secondaire,
+      email: v.email || null, profession: v.profession || null,
+      employeur: v.employeur || null, adresse: v.adresse || null,
+      quartier: v.quartier || null, accepteSms: v.accepteSms,
+    } as const;
+    const changements: Record<string, { avant: unknown; apres: unknown }> = {};
+    for (const [champ, valeur] of Object.entries(maj)) {
+      const precedente = (avant as Record<string, unknown>)[champ] ?? null;
+      if (String(precedente ?? "") !== String(valeur ?? "")) {
+        changements[champ] = { avant: precedente, apres: valeur };
+      }
+    }
+    if (!Object.keys(changements).length) return { ok: true, message: "Aucune modification." };
+
+    await db.transaction(async (tx) => {
+      await tx.update(tuteurs).set({ ...maj, modifieLe: new Date().toISOString() }).where(eq(tuteurs.id, tuteurId));
+      if (avant.utilisateurId) {
+        await tx.update(utilisateurs).set({
+          telephone: numero, email: v.email || null, nom: v.nom, prenom: v.prenom,
+          modifieLe: new Date().toISOString(),
+        }).where(eq(utilisateurs.id, avant.utilisateurId));
+        if (avant.telephone !== numero) {
+          await tx.execute(sql`DELETE FROM sessions WHERE utilisateur_id = ${avant.utilisateurId}::uuid`);
+          await tx.execute(sql`UPDATE jetons_rafraichissement SET revoque = TRUE WHERE utilisateur_id = ${avant.utilisateurId}::uuid`);
+        }
+      }
+    });
+
+    await journaliser(acteur, {
+      action: "tuteur.profil_modifie",
+      entite: "tuteurs", entiteId: tuteurId,
+      avant: Object.fromEntries(Object.entries(changements).map(([c, x]) => [c, x.avant])),
+      apres: Object.fromEntries(Object.entries(changements).map(([c, x]) => [c, x.apres])),
+    });
+    revalidatePath("/dashboard/parents");
+    revalidatePath(`/dashboard/parents/${tuteurId}`);
+    return { ok: true, message: "Profil du parent mis à jour." };
+  } catch (e) {
+    return echec(e, "La modification du profil a échoué.");
+  }
+}
+
+/**
+ * Suppression très limitée aux fiches ORPHELINES, jamais des responsables
+ * rattachés à un élève, possédant un compte ou ayant des notifications.
+ * Les liens familiaux et historiques ne sont donc pas effacés par un clic.
+ */
+export async function supprimerTuteurOrphelin(
+  tuteurId: string,
+  confirmation: string,
+  motif: string,
+): Promise<Resultat> {
+  try {
+    const acteur = await requirePermission("tuteur:gerer");
+    if (!z.string().uuid().safeParse(tuteurId).success) return { ok: false, message: "Identifiant invalide." };
+    if (motif.trim().length < 8) return { ok: false, message: "Un motif de 8 caractères minimum est nécessaire." };
+    const suppression = await db.transaction(async (tx) => {
+      const r = await tx.execute<{ id: string; nom: string; prenom: string; bloque: boolean }>(sql`
+        SELECT t.id, t.nom, t.prenom,
+          (
+            t.utilisateur_id IS NOT NULL
+            OR EXISTS (SELECT 1 FROM eleve_tuteur et WHERE et.tuteur_id = t.id)
+            OR EXISTS (SELECT 1 FROM notifications n WHERE n.telephone = t.telephone)
+          ) AS bloque
+        FROM tuteurs t WHERE t.id = ${tuteurId}::uuid FOR UPDATE
+      `);
+      const ligne = r.rows[0];
+      if (!ligne) return { ok: false as const, message: "Fiche introuvable." };
+      if (confirmation.trim() !== ligne.prenom + " " + ligne.nom) {
+        return { ok: false as const, message: "Saisissez exactement le nom et le prénom pour confirmer." };
+      }
+      if (ligne.bloque) return { ok: false as const, message: "Suppression impossible : un compte, des enfants ou un historique de notification est lié à ce tuteur. Vous pouvez révoquer l’accès au lieu de supprimer." };
+      await tx.delete(tuteurs).where(eq(tuteurs.id, tuteurId));
+      return { ok: true as const, nom: ligne.prenom + " " + ligne.nom };
+    });
+    if (!suppression.ok) return suppression;
+    await journaliser(acteur, {
+      action: "tuteur.fiche_orpheline_supprimee", entite: "tuteurs", entiteId: tuteurId,
+      motif: motif.trim(), avant: { nom: suppression.nom },
+    });
+    revalidatePath("/dashboard/parents");
+    return { ok: true, message: "Fiche orpheline supprimée. Aucun lien d’élève ni compte n’a été touché." };
+  } catch (e) {
+    return echec(e, "Suppression refusée : la fiche possède peut-être des données liées.");
+  }
+}
