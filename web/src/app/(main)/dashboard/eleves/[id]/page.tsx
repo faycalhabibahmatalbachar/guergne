@@ -7,7 +7,7 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeft, CalendarDays, ChevronRight, Clock3, CreditCard, FileText, GraduationCap,
   HeartPulse, MapPin, Phone, ShieldAlert, Users, UserRound, Wallet, History, ClipboardList,
-  RefreshCw,
+  RefreshCw, LayoutDashboard, ContactRound, School2, Files, BookOpenCheck, CalendarCheck2,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -325,20 +325,20 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
         </div>
       </section>
       <Tabs defaultValue="ensemble" className="gap-3">
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-border dark:bg-card">
-          <TabsList variant="line" className="flex h-14 w-max min-w-full items-stretch justify-between gap-1 px-2 py-0 sm:px-3">
-            <TabsTrigger id="dossier-onglet-ensemble" value="ensemble" className="gap-2 px-3 text-xs data-active:text-emerald-700 sm:text-sm"><GraduationCap className="size-4" aria-hidden />Vue d’ensemble</TabsTrigger>
-            <TabsTrigger id="dossier-onglet-identite" value="identite" className="gap-2 px-3 text-xs sm:text-sm"><UserRound className="size-4" aria-hidden />Identité</TabsTrigger>
-            <TabsTrigger id="dossier-onglet-scolarite" value="scolarite" className="gap-2 px-3 text-xs sm:text-sm"><GraduationCap className="size-4" aria-hidden />Scolarité</TabsTrigger>
-            <TabsTrigger id="dossier-onglet-tuteurs" value="tuteurs" className="gap-2 px-3 text-xs sm:text-sm"><Users className="size-4" aria-hidden />Parents & tuteurs</TabsTrigger>
-            <TabsTrigger id="dossier-onglet-documents" value="documents" className="gap-2 px-3 text-xs sm:text-sm"><FileText className="size-4" aria-hidden />Documents</TabsTrigger>
-            {peutVoirNotes ? <TabsTrigger id="dossier-onglet-notes" value="notes" className="gap-2 px-3 text-xs sm:text-sm"><GraduationCap className="size-4" aria-hidden />Notes</TabsTrigger> : null}
-            {peutVoirAssiduite ? <TabsTrigger id="dossier-onglet-assiduite" value="assiduite" className="gap-2 px-3 text-xs sm:text-sm"><CalendarDays className="size-4" aria-hidden />Assiduité</TabsTrigger> : null}
-            {peutVoirFinances ? <TabsTrigger id="dossier-onglet-finances" value="finances" className="gap-2 px-3 text-xs sm:text-sm"><Wallet className="size-4" aria-hidden />Finances</TabsTrigger> : null}
-            <TabsTrigger id="dossier-onglet-historique" value="historique" className="gap-2 px-3 text-xs sm:text-sm"><History className="size-4" aria-hidden />Historique</TabsTrigger>
-            {peutVoirDiscipline ? <TabsTrigger id="dossier-onglet-discipline" value="discipline" className="gap-2 px-3 text-xs sm:text-sm"><ShieldAlert className="size-4" aria-hidden />Discipline</TabsTrigger> : null}
+        <nav aria-label="Rubriques du dossier" className="min-w-0 overflow-x-auto overflow-y-hidden rounded-2xl border border-slate-200/80 bg-white px-2 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden dark:border-border dark:bg-card">
+          <TabsList variant="line" className="flex h-[56px] w-max min-w-full items-center justify-start gap-1.5 p-1.5">
+            <TabsTrigger id="dossier-onglet-ensemble" value="ensemble" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs font-semibold after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 dark:data-active:bg-emerald-950 sm:text-sm"><LayoutDashboard className="size-4" aria-hidden />Vue d’ensemble</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-identite" value="identite" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><ContactRound className="size-4" aria-hidden />Identité</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-scolarite" value="scolarite" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><School2 className="size-4" aria-hidden />Scolarité</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-tuteurs" value="tuteurs" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><Users className="size-4" aria-hidden />Parents & tuteurs</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-documents" value="documents" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><Files className="size-4" aria-hidden />Documents</TabsTrigger>
+            {peutVoirNotes ? <TabsTrigger id="dossier-onglet-notes" value="notes" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><BookOpenCheck className="size-4" aria-hidden />Notes</TabsTrigger> : null}
+            {peutVoirAssiduite ? <TabsTrigger id="dossier-onglet-assiduite" value="assiduite" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><CalendarCheck2 className="size-4" aria-hidden />Assiduité</TabsTrigger> : null}
+            {peutVoirFinances ? <TabsTrigger id="dossier-onglet-finances" value="finances" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><Wallet className="size-4" aria-hidden />Finances</TabsTrigger> : null}
+            <TabsTrigger id="dossier-onglet-historique" value="historique" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><History className="size-4" aria-hidden />Historique</TabsTrigger>
+            {peutVoirDiscipline ? <TabsTrigger id="dossier-onglet-discipline" value="discipline" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><ShieldAlert className="size-4" aria-hidden />Discipline</TabsTrigger> : null}
           </TabsList>
-        </div>
+        </nav>
 
         <TabsContent value="ensemble" className="mt-1">
           <VueEnsembleEleve
@@ -348,7 +348,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             peutVoirNotes={peutVoirNotes}
             peutVoirAssiduite={peutVoirAssiduite}
             peutVoirTuteurs={true}
-            notification={peutNotifier ? <BoutonNotifier cible={{ type: "eleve", id: eleve.id, nom: eleve.prenom + " " + eleve.nom }} /> : null}
+            notification={peutNotifier ? <BoutonNotifier cible={{ type: "eleve", id: eleve.id, nom: eleve.prenom + " " + eleve.nom }} contexteEleves variante="default" /> : null}
             actions={peutAdministrer ? <ActionsDossier
               eleveId={eleve.id}
               statut={eleve.statut}
@@ -358,7 +358,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
             /> : null}
             documents={peutEmettreDocument ? <DocumentsEleve eleveId={eleve.id} estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)} bulletins={bulletinsDisponibles} /> : null}
-            gestionTuteurs={peutGererTuteurs ? <GestionTuteurs eleveId={eleve.id} tuteurs={tuteurs.map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom }))} /> : null}
+            gestionTuteurs={peutGererTuteurs ? <GestionTuteurs eleveId={eleve.id} compact tuteurs={tuteurs.map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom }))} /> : null}
             bulletins={bulletinsDisponibles}
           />
         </TabsContent>
