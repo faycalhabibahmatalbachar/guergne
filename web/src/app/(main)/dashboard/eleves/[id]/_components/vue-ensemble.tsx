@@ -107,6 +107,7 @@ export function VueEnsembleEleve({
     !eleve.nationalite?.trim() ? "nationalité" : null,
     !eleve.lieuNaissance?.trim() ? "lieu de naissance" : null,
     !eleve.adresse?.trim() ? "adresse" : null,
+    !eleve.acteNaissanceNumero?.trim() ? "numéro d’acte de naissance" : null,
   ].filter((x): x is string => Boolean(x));
   const montant = (n: number) => n.toLocaleString("fr-FR") + " FCFA";
   const echeances = scolarite?.echeances ?? [];
@@ -155,8 +156,8 @@ export function VueEnsembleEleve({
               <p className="mt-1 break-words text-sm font-semibold text-[#12234c] dark:text-foreground">{inscription.niveauLibelle}</p>
             </div>
             <div className="min-w-0 border-l border-blue-100 pl-3 dark:border-border">
-              <p className="flex items-center gap-2 text-[11px] text-slate-500"><BookOpen className="size-4 text-blue-600" aria-hidden />Régime</p>
-              <p className="mt-1 text-sm font-semibold text-[#12234c] dark:text-foreground">Non renseigné</p>
+              <p className="flex items-center gap-2 text-[11px] text-slate-500"><BookOpen className="size-4 text-blue-600" aria-hidden />Type d’inscription</p>
+              <p className="mt-1 break-words text-sm font-semibold capitalize text-[#12234c] dark:text-foreground">{inscription.type.replaceAll("_", " ").toLowerCase()}</p>
             </div>
           </div>
           <div className={"mt-3.5 " + styles.schoolSecondary + " dark:bg-muted"}>
