@@ -95,58 +95,83 @@ export default async function PageBulletins({
     peut(await sessionCourante(), "finance:configurer"),
   ]);
 
-  let bulletins: BulletinListe[] = [];
-  if (classeChoisie && periodeChoisie) {
-    const r = await db.execute<{
-      inscription_id: string;
-      eleve: string;
-      matricule: string;
-      moyenne: string | null;
-      rang: number | null;
-      mention: string | null;
-      appreciation_generale: string | null;
-      decision: string | null;
-      est_publie: boolean;
-    }>(sql`
-      SELECT b.inscription_id,
-             e.prenom || ' ' || e.nom AS eleve,
-             e.matricule,
-             b.moyenne_generale::text AS moyenne,
-             b.rang,
-             b.mention::text AS mention,
-             b.appreciation_generale,
-             b.decision::text AS decision,
-             b.est_publie
-        FROM bulletins b
-        JOIN inscriptions i ON i.id = b.inscription_id
-        JOIN eleves e       ON e.id = i.eleve_id
-       WHERE i.classe_id = ${classeChoisie}::uuid
-         AND b.periode_id = ${periodeChoisie}::uuid
-       ORDER BY b.rang NULLS LAST, e.nom
-    `);
+  const rBulletins = await db.execute<{
+    inscription_id: string;
+    eleve: string;
+    matricule: string;
+    moyenne: string | null;
+    rang: number | null;
+    mention: string | null;
+    appreciation_generale: string | null;
+    decision: string | null;
+    est_publie: boolean;
+    classe_id: string;
+    classe: string;
+    periode_id: string;
+    periode: string;
+  }>(sql`
+    SELECT b.inscription_id,
+           e.prenom || ' ' || e.nom AS eleve,
+           e.matricule,
+           b.moyenne_generale::text AS moyenne,
+           b.rang,
+           b.mention::text AS mention,
+           b.appreciation_generale,
+           b.decision::text AS decision,
+           b.est_publie,
+           c.id AS classe_id,
+           c.libelle AS classe,
+           p.id AS periode_id,
+           p.libelle AS periode
+      FROM bulletins b
+      JOIN periodes p ON p.id = b.periode_id
+      JOIN annees_scolaires a ON a.id = p.annee_id AND a.est_courante
+      JOIN inscriptions i ON i.id = b.inscription_id
+      JOIN classes c ON c.id = i.classe_id AND c.annee_id = a.id
+      JOIN eleves e ON e.id = i.eleve_id
+     ORDER BY p.numero, c.libelle, b.rang NULLS LAST, e.nom
+  `);
 
-    bulletins = r.rows.map((x) => ({
-      inscriptionId: x.inscription_id,
-      eleve: x.eleve,
-      matricule: x.matricule,
-      moyenne: x.moyenne,
-      rang: x.rang,
-      mention: x.mention,
-      appreciation: x.appreciation_generale,
-      decision: x.decision,
-      publie: x.est_publie,
-    }));
-  }
+  const bulletins: BulletinListe[] = rBulletins.rows.map((x) => ({
+    inscriptionId: x.inscription_id,
+    eleve: x.eleve,
+    matricule: x.matricule,
+    moyenne: x.moyenne,
+    rang: x.rang,
+    mention: x.mention,
+    appreciation: x.appreciation_generale,
+    decision: x.decision,
+    publie: x.est_publie,
+    classeId: x.classe_id,
+    classe: x.classe,
+    periodeId: x.periode_id,
+    periode: x.periode,
+  }));
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-semibold text-2xl tracking-tight">Bulletins</h1>
-        <p className="mt-1 text-muted-foreground text-sm">
-          {stats.annee
-            ? `Année ${stats.annee.libelle} — ${classes.rows.length} classe(s)`
-            : "Aucune année scolaire configurée"}
-        </p>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700 dark:text-cyan-300">
+            Pédagogie · Résultats
+          </p>
+          <h1 className="mt-1 font-semibold text-2xl tracking-tight sm:text-3xl">
+            Gestion des bulletins scolaires
+          </h1>
+          <p className="mt-1 text-muted-foreground text-sm">
+            Consultez, générez et gérez les bulletins de notes de vos élèves.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="rounded-xl border bg-card px-3 py-2 text-sm">
+            <span className="text-muted-foreground">Année scolaire </span>
+            <span className="font-semibold">{stats.annee?.libelle ?? "Non configurée"}</span>
+          </div>
+          <div className="rounded-xl border bg-card px-3 py-2 text-sm">
+            <span className="font-semibold">{classes.rows.length}</span>
+            <span className="text-muted-foreground"> classe(s)</span>
+          </div>
+        </div>
       </div>
 
       {classeChoisie && periodeChoisie ? (
