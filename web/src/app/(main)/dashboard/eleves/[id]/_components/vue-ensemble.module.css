@@ -5,15 +5,16 @@
   grid-template-columns: minmax(0,1fr);
   grid-template-areas: "school" "actions" "personal" "guardians" "documents" "finance" "activity";
   gap: 16px;
-  align-items: stretch;
+  /* Évite les grandes zones vides dans la carte Finances lorsque la chronologie est plus longue. */
+  align-items: start;
 }
-.personal { grid-area: personal; }
+.personal { grid-area: personal; align-self: stretch; }
 .school { grid-area: school; }
 .actions { grid-area: actions; }
 .guardians { grid-area: guardians; }
 .documents { grid-area: documents; }
-.finance { grid-area: finance; }
-.activity { grid-area: activity; }
+.finance { grid-area: finance; align-self: start; }
+.activity { grid-area: activity; align-self: start; }
 .card { min-width: 0; border: 1px solid #e5ebf2; background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 4px 16px rgba(18,39,72,.038); }
 .schoolHero { display: grid; grid-template-columns: minmax(0,1fr); align-items: center; gap: 12px; padding: 17px; border-radius: 17px; background: linear-gradient(115deg,#f0f6ff,#f7fbff); border: 1px solid #e6effc; }
 .schoolSecondary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 17px 13px; }
