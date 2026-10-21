@@ -1,9 +1,5 @@
 import {
-  ArrowRight, BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronRight, Zap,
-  CircleUserRound, ClipboardList, Clock3, CreditCard, FileBadge2, FileCheck2,
-  FileClock, FileText, Flag, GraduationCap, History, House, IdCard, Mail,
-  MapPin, Phone, School2, Send, ShieldCheck, UserRound, UsersRound, Wallet,
-  BriefcaseBusiness, Building2, RotateCcw, Layers3, BookOpen,
+  ArrowRight, CalendarDays, Check, ChevronRight, Zap, FileBadge2, FileCheck2, FileText, GraduationCap, History, IdCard, Mail, MapPin, Phone, UsersRound, Wallet, BriefcaseBusiness, Building2, RotateCcw, Layers3, BookOpen
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +85,26 @@ export function VueEnsembleEleve({
   bulletins: Bulletin[];
 }) {
   const { eleve, inscription, tuteurs, parcours, historiqueStatuts, changementsClasse } = dossier;
+  // Ancienne classe vérifiée : changement lié à cette inscription, puis
+  // historique d'une année antérieure. Jamais de classe inférée de l'âge.
+  const changementCourant = inscription
+    ? changementsClasse.find((c) =>
+        c.destination === inscription.classeLibelle &&
+        c.dateEffet.slice(0, 10) >= inscription.dateInscription.slice(0, 10) &&
+        c.origine !== "—"
+      )
+    : null;
+  const parcoursPrecedent = parcours.find((p) => p.anneeLibelle !== inscription?.anneeLibelle);
+  const ancienneClasse = changementCourant?.origine ?? parcoursPrecedent?.classeLibelle ?? null;
+  const informationsManquantes = [
+    !eleve.ecoleOrigine?.trim() ? "établissement précédent" : null,
+    !eleve.telephone?.trim() ? "téléphone" : null,
+    !eleve.email?.trim() ? "adresse e-mail" : null,
+    !eleve.nationalite?.trim() ? "nationalité" : null,
+    !eleve.lieuNaissance?.trim() ? "lieu de naissance" : null,
+    !eleve.adresse?.trim() ? "adresse" : null,
+    !eleve.acteNaissanceNumero?.trim() ? "numéro d’acte de naissance" : null,
+  ].filter((x): x is string => Boolean(x));
   const montant = (n: number) => n.toLocaleString("fr-FR") + " FCFA";
   const echeances = scolarite?.echeances ?? [];
   const netDu = echeances.reduce((acc, e) => acc + e.du - e.exonere, 0);
@@ -121,36 +137,6 @@ export function VueEnsembleEleve({
 
   return <div className={styles.shell}>
     <div className={styles.layout}>
-      <div className={styles.primary}>
-      <section className={cardClass + " " + styles.identityCard} aria-label="Informations personnelles">
-        <TitreSection titre="Informations personnelles" description="Identité et coordonnées de l’élève" icon={UserRound} right={modifierDossier ?? <LienOnglet onglet="identite">Voir la fiche</LienOnglet>} />
-        <div className="flex items-center gap-3 rounded-2xl bg-blue-50/65 px-4 py-4 dark:bg-blue-950/20">
-          <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-bold text-blue-700 dark:bg-blue-900 dark:text-white">
-            {eleve.prenom.slice(0,1)}{eleve.nom.slice(0,1)}
-          </span>
-          <div className="min-w-0"><p className={subdued}>Nom complet</p>
-            <p className="mt-1 break-words text-base font-bold text-[#101e3f] dark:text-foreground">{eleve.prenom} {eleve.nom}</p><span className="mt-1.5 inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">{eleve.statut === "INSCRIT" ? "Élève actif" : eleve.statut.replaceAll("_", " ").toLowerCase()}</span></div>
-        </div>
-        <div className={"mt-5 " + styles.identityGroups}>
-          <div className="grid grid-cols-2 gap-3 border-b border-slate-100 pb-5 dark:border-border">
-            <Donnee label="Sexe">{eleve.sexe === "F" ? "Féminin" : eleve.sexe === "M" ? "Masculin" : "Non renseigné"}</Donnee>
-            <Donnee label="Naissance"><DateCourte value={eleve.dateNaissance} /></Donnee>
-          </div>
-          <div className={styles.personalGroup}>
-            <div className="flex gap-3"><MapPin className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Lieu de naissance">{eleve.lieuNaissance}</Donnee></div>
-            <div className="flex gap-3"><Flag className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Nationalité">{eleve.nationalite}</Donnee></div>
-          </div>
-          <div className="border-t border-slate-100 pt-4 dark:border-border">
-            <div className="flex gap-3"><House className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Adresse">{[eleve.quartier, eleve.adresse].filter(Boolean).join(", ")}</Donnee></div>
-          </div>
-          <div className="grid gap-4 border-t border-slate-100 pt-4 dark:border-border">
-            <div className="flex gap-3"><Phone className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Téléphone">{eleve.telephone}</Donnee></div>
-            <div className="flex gap-3"><Mail className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden /><Donnee label="Adresse e-mail">{eleve.email}</Donnee></div>
-          </div>
-        </div>
-
-      </section>
-      </div>
       <div className={styles.middle}>
       <section className={cardClass} aria-label="Scolarité actuelle">
         <TitreSection titre="Scolarité actuelle" description="Informations sur le parcours scolaire" icon={GraduationCap} tone="violet"
@@ -166,17 +152,28 @@ export function VueEnsembleEleve({
               <p className="mt-1 break-words text-sm font-semibold text-[#12234c] dark:text-foreground">{inscription.niveauLibelle}</p>
             </div>
             <div className="min-w-0 border-l border-blue-100 pl-3 dark:border-border">
-              <p className="flex items-center gap-2 text-[11px] text-slate-500"><BookOpen className="size-4 text-blue-600" aria-hidden />Régime</p>
-              <p className="mt-1 text-sm font-semibold text-[#12234c] dark:text-foreground">Non renseigné</p>
+              <p className="flex items-center gap-2 text-[11px] text-slate-500"><BookOpen className="size-4 text-blue-600" aria-hidden />Type d’inscription</p>
+              <p className="mt-1 break-words text-sm font-semibold capitalize text-[#12234c] dark:text-foreground">{inscription.type.replaceAll("_", " ").toLowerCase()}</p>
             </div>
           </div>
           <div className={"mt-3.5 " + styles.schoolSecondary + " dark:bg-muted"}>
             <div className="flex min-w-0 gap-2"><CalendarDays className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Date d’inscription"><DateCourte value={inscription.dateInscription} /></Donnee></div>
             <div className="flex min-w-0 gap-2"><RotateCcw className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Redoublement">{inscription.estRedoublant ? "Oui" : "Non"}</Donnee></div>
-            <div className="flex min-w-0 gap-2"><IdCard className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Ancienne classe">{parcours[1]?.classeLibelle ?? "—"}</Donnee></div>
-            <div className="flex min-w-0 gap-2"><Building2 className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Établissement précédent">{eleve.ecoleOrigine ?? "—"}</Donnee></div>
+            {ancienneClasse ? <div className="flex min-w-0 gap-2"><IdCard className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Ancienne classe">{ancienneClasse}</Donnee></div> : null}
+            {eleve.ecoleOrigine?.trim() ? <div className="flex min-w-0 gap-2"><Building2 className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden /><Donnee label="Établissement précédent">{eleve.ecoleOrigine}</Donnee></div> : null}
           </div>
         </> : <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500 dark:bg-muted">Aucune inscription active enregistrée.</p>}
+        {informationsManquantes.length ? (
+          <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-3 dark:border-amber-900 dark:bg-amber-950/20">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-amber-950 dark:text-amber-200">Informations à compléter</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                {informationsManquantes.join(", ")}. Une seule modification permet de renseigner ces champs.
+              </p>
+            </div>
+            {modifierDossier}
+          </div>
+        ) : null}
         <div className="mt-5 flex justify-end border-t border-slate-100 pt-3 dark:border-border">
           <LienOnglet onglet="scolarite">Parcours scolaire</LienOnglet>
         </div>
