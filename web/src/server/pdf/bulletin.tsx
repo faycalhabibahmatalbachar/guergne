@@ -48,13 +48,13 @@ const s = StyleSheet.create({
     paddingBottom: 30,
     paddingHorizontal: 28,
     fontSize: 8,
-    fontFamily: "Helvetica",
+    fontFamily: "Times-Roman",
     color: "#0f172a",
   },
 
   titre: {
     fontSize: 13,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "Times-Bold",
     textAlign: "center",
     textTransform: "uppercase",
     letterSpacing: 0.8,
@@ -64,34 +64,38 @@ const s = StyleSheet.create({
 
   // --- Bandeau d'identité ---------------------------------------------------
   identite: {
-    flexDirection: "row",
     borderWidth: 0.7,
     borderColor: "#0f172a",
     marginBottom: 10,
   },
+  identiteRangee: {
+    flexDirection: "row",
+    borderBottomWidth: 0.7,
+    borderBottomColor: "#0f172a",
+  },
   identiteCase: {
-    flex: 1,
     paddingVertical: 4,
     paddingHorizontal: 6,
     borderRightWidth: 0.7,
     borderRightColor: "#0f172a",
+    justifyContent: "center",
   },
   identiteCaseFin: { borderRightWidth: 0 },
-  identiteLibelle: { fontSize: 7, color: "#475569" },
-  identiteValeur: { fontSize: 9, fontFamily: "Helvetica-Bold", marginTop: 1 },
+  identiteLibelle: { fontSize: 8, color: "#0f172a" },
+  identiteValeur: { fontSize: 9, fontFamily: "Times-Bold" },
 
   // --- Tableau des notes ----------------------------------------------------
   table: { borderWidth: 0.7, borderColor: "#0f172a" },
   ligne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#94a3b8" },
   ligneEntete: {
     flexDirection: "row",
-    backgroundColor: "#e2e8f0",
+    backgroundColor: "#d9d9d9",
     borderBottomWidth: 0.7,
     borderBottomColor: "#0f172a",
   },
   ligneGroupe: {
     flexDirection: "row",
-    backgroundColor: "#f1f5f9",
+    backgroundColor: "#d9d9d9",
     borderTopWidth: 0.7,
     borderTopColor: "#0f172a",
     borderBottomWidth: 0.7,
@@ -99,7 +103,7 @@ const s = StyleSheet.create({
   },
   ligneTotal: {
     flexDirection: "row",
-    backgroundColor: "#cbd5e1",
+    backgroundColor: "#ffffff",
     borderTopWidth: 0.9,
     borderTopColor: "#0f172a",
   },
@@ -111,11 +115,13 @@ const s = StyleSheet.create({
     borderRightColor: "#94a3b8",
   },
   celFin: { borderRightWidth: 0 },
-  gras: { fontFamily: "Helvetica-Bold" },
+  gras: { fontFamily: "Times-Bold" },
   centre: { textAlign: "center" },
   droite: { textAlign: "right" },
 
-  // Largeurs : la somme fait 100.
+  // Largeurs : la somme fait 100 %. La ligne de groupe fusionne les quatre
+  // premières colonnes et place sa moyenne sous « Moyenne Coefficient ».
+  cTitreBloc: { width: "59%" },
   cDiscipline: { width: "26%" },
   cDevoirs: { width: "11%" },
   cCompos: { width: "11%" },
@@ -128,10 +134,10 @@ const s = StyleSheet.create({
   bas: { flexDirection: "row", marginTop: 10, gap: 10 },
   conseil: { flex: 1, borderWidth: 0.7, borderColor: "#0f172a" },
   conseilTitre: {
-    backgroundColor: "#e2e8f0",
+    backgroundColor: "#e2efda",
     paddingVertical: 3,
     paddingHorizontal: 5,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "Times-Bold",
     borderBottomWidth: 0.7,
     borderBottomColor: "#0f172a",
   },
@@ -143,7 +149,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 5,
   },
   conseilLibelle: { width: "42%", color: "#475569" },
-  conseilValeur: { width: "58%", fontFamily: "Helvetica-Bold" },
+  conseilValeur: { width: "58%", fontFamily: "Times-Bold" },
 
   historique: { width: "42%", borderWidth: 0.7, borderColor: "#0f172a" },
 
@@ -156,7 +162,13 @@ const s = StyleSheet.create({
     backgroundColor: "#f8fafc",
   },
 
-  signature: { marginTop: 16, alignItems: "flex-end", paddingRight: 20 },
+  signature: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginTop: 14,
+    paddingHorizontal: 8,
+  },
   mentionLegale: {
     marginTop: 14,
     fontSize: 6.5,
@@ -250,16 +262,16 @@ function Cellule({
 }
 
 export function Bulletin({ d }: { d: DonneesBulletin }) {
-  const identite = [
-    { libelle: "Nom & Prénom", valeur: d.eleve.nomComplet },
-    { libelle: "Classe", valeur: d.eleve.classe },
-    { libelle: "Matricule", valeur: d.eleve.matricule },
-    { libelle: "Statut", valeur: d.eleve.statut },
-    { libelle: "Effectif", valeur: String(d.eleve.effectifClasse) },
-    { libelle: "Retards", valeur: String(d.eleve.retards).padStart(2, "0") },
-    { libelle: "Classes manquées", valeur: `${d.eleve.heuresManquees}h` },
-    { libelle: "Jours manqués", valeur: String(d.eleve.joursManques).padStart(2, "0") },
-  ];
+  const identite = {
+    nomComplet: d.eleve.nomComplet,
+    classe: d.eleve.classe,
+    matricule: d.eleve.matricule,
+    statut: d.eleve.statut,
+    effectif: String(d.eleve.effectifClasse),
+    retards: String(d.eleve.retards).padStart(2, "0"),
+    heuresManquees: `${d.eleve.heuresManquees}h`,
+    joursManques: String(d.eleve.joursManques).padStart(2, "0"),
+  };
 
   return (
     <Document
@@ -274,20 +286,39 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
           Année scolaire {d.anneeScolaire}
         </Text>
 
-        {/* --- Identité, en deux rangées de quatre cases ---------------- */}
-        {[identite.slice(0, 4), identite.slice(4)].map((rangee, i) => (
-          <View key={i} style={[s.identite, ...(i === 0 ? [{ borderBottomWidth: 0 }] : [])]}>
-            {rangee.map((c, j) => (
-              <View
-                key={c.libelle}
-                style={[s.identiteCase, ...(j === rangee.length - 1 ? [s.identiteCaseFin] : [])]}
-              >
-                <Text style={s.identiteLibelle}>{c.libelle}</Text>
-                <Text style={s.identiteValeur}>{c.valeur}</Text>
-              </View>
-            ))}
+        {/* --- Identité : grille à trois rangées, comme le modèle Excel --- */}
+        <View style={s.identite}>
+          <View style={s.identiteRangee}>
+            <View style={[s.identiteCase, { width: "68%" }]}>
+              <Text><Text style={s.identiteLibelle}>Nom & Prénom : </Text><Text style={s.identiteValeur}>{identite.nomComplet}</Text></Text>
+            </View>
+            <View style={[s.identiteCase, s.identiteCaseFin, { width: "32%" }]}>
+              <Text><Text style={s.identiteLibelle}>Classe : </Text><Text style={s.identiteValeur}>{identite.classe}</Text></Text>
+            </View>
           </View>
-        ))}
+          <View style={s.identiteRangee}>
+            <View style={[s.identiteCase, { width: "25%" }]}>
+              <Text><Text style={s.identiteLibelle}>Matricule : </Text><Text style={s.identiteValeur}>{identite.matricule}</Text></Text>
+            </View>
+            <View style={[s.identiteCase, { width: "40%" }]}>
+              <Text><Text style={s.identiteLibelle}>Statut : </Text><Text style={s.identiteValeur}>{identite.statut}</Text></Text>
+            </View>
+            <View style={[s.identiteCase, s.identiteCaseFin, { width: "35%" }]}>
+              <Text><Text style={s.identiteLibelle}>Effectif : </Text><Text style={s.identiteValeur}>{identite.effectif}</Text></Text>
+            </View>
+          </View>
+          <View style={[s.identiteRangee, { borderBottomWidth: 0 }]}>
+            <View style={[s.identiteCase, { width: "33.333%" }]}>
+              <Text><Text style={s.identiteLibelle}>Retards : </Text><Text style={s.identiteValeur}>{identite.retards}</Text></Text>
+            </View>
+            <View style={[s.identiteCase, { width: "33.333%" }]}>
+              <Text><Text style={s.identiteLibelle}>Classes manquées : </Text><Text style={s.identiteValeur}>{identite.heuresManquees}</Text></Text>
+            </View>
+            <View style={[s.identiteCase, s.identiteCaseFin, { width: "33.334%" }]}>
+              <Text><Text style={s.identiteLibelle}>Jours manqués : </Text><Text style={s.identiteValeur}>{identite.joursManques}</Text></Text>
+            </View>
+          </View>
+        </View>
 
         {/* --- Tableau des notes ---------------------------------------- */}
         <View style={[s.table, { marginTop: 10 }]}>
@@ -323,15 +354,10 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
                 additionner.
               */}
               <View style={s.ligneGroupe}>
-                <Cellule largeur={s.cDiscipline} style={s.gras}>{bloc.titre}</Cellule>
-                <Cellule largeur={s.cDevoirs}>{" "}</Cellule>
-                <Cellule largeur={s.cCompos}>{" "}</Cellule>
-                <Cellule largeur={s.cMoyenne}>{" "}</Cellule>
+                <Cellule largeur={s.cTitreBloc} style={s.gras}>{bloc.titre}</Cellule>
                 <Cellule largeur={s.cCoeff} style={[s.centre, s.gras]}>{bloc.totalCoefficients}</Cellule>
-                <Cellule largeur={s.cPoints}>{" "}</Cellule>
-                <Cellule largeur={s.cAppreciation} style={[s.centre, s.gras]} fin>
-                  {n2(bloc.moyenne)}
-                </Cellule>
+                <Cellule largeur={s.cPoints} style={[s.centre, s.gras]}>{n2(bloc.moyenne)}</Cellule>
+                <Cellule largeur={s.cAppreciation} fin>{" "}</Cellule>
               </View>
             </View>
           ))}
@@ -369,10 +395,9 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
           </View>
 
           <View style={s.historique}>
-            <Text style={s.conseilTitre}>Suivi de l&apos;année</Text>
-            <View style={[s.conseilLigne, { backgroundColor: "#f8fafc" }]}>
-              <Text style={[s.conseilLibelle, { width: "50%" }]}>Période</Text>
-              <Text style={[{ width: "28%" }, s.centre, s.gras]}>Moy.</Text>
+            <View style={[s.conseilLigne, { backgroundColor: "#e2efda", paddingVertical: 5 }]}>
+              <Text style={[s.conseilLibelle, { width: "50%", color: "#0f172a" }]}>Période</Text>
+              <Text style={[{ width: "28%" }, s.centre, s.gras]}>Moyenne</Text>
               <Text style={[{ width: "22%" }, s.centre, s.gras]}>Rang</Text>
             </View>
             {d.historique.map((p) => (
@@ -397,15 +422,17 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
         ) : null}
 
         <View style={s.signature}>
-          <Text style={{ color: "#475569" }}>
+          <Text style={{ color: "#0f172a", fontSize: 8 }}>
             {d.ville}, le {d.dateEdition}
           </Text>
-          <Text style={[s.gras, { marginTop: 3 }]}>Le Proviseur</Text>
-          {d.etablissement.nomProviseur ? (
-            <Text style={{ marginTop: 30, color: "#475569" }}>{d.etablissement.nomProviseur}</Text>
-          ) : (
-            <View style={{ height: 34 }} />
-          )}
+          <View style={{ alignItems: "center", minWidth: 130 }}>
+            <Text style={s.gras}>Le Proviseur</Text>
+            {d.etablissement.nomProviseur ? (
+              <Text style={{ marginTop: 24, color: "#475569" }}>{d.etablissement.nomProviseur}</Text>
+            ) : (
+              <View style={{ height: 28 }} />
+            )}
+          </View>
         </View>
 
         <Text style={s.mentionLegale}>
