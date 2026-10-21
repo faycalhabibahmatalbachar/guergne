@@ -358,7 +358,8 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
             /> : null}
             documents={peutEmettreDocument ? <DocumentsEleve eleveId={eleve.id} estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)} bulletins={bulletinsDisponibles} /> : null}
-            gestionTuteurs={peutGererTuteurs ? <GestionTuteurs eleveId={eleve.id} compact tuteurs={tuteurs.map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom }))} /> : null}
+            gestionTuteurs={peutGererTuteurs ? <GestionTuteurs eleveId={eleve.id} compact placement="ajout" tuteurs={tuteurs.map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom }))} /> : null}
+            gestionTuteursHeader={peutGererTuteurs ? <GestionTuteurs eleveId={eleve.id} compact placement="gestion" tuteurs={tuteurs.map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom }))} /> : null}
             bulletins={bulletinsDisponibles}
           />
         </TabsContent>
