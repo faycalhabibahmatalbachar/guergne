@@ -1,12 +1,11 @@
-import Link from "next/link";
+import { RaccourciOnglet } from "./raccourci-onglet";
 import {
-  Activity, ArrowRightLeft, CalendarDays, CheckCircle2, CircleAlert, ClipboardList,
+  Activity, CalendarDays, ClipboardList,
   CreditCard, FileCheck2, FileText, GraduationCap, History, Mail, MapPin,
-  Phone, ShieldCheck, UserRound, Users, Wallet,
+  Phone, UserRound, Users, Wallet,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import type { DossierComplet } from "@/server/domain/dossier";
 import type { DossierScolarite } from "@/server/domain/dossier-eleve";
 
@@ -81,7 +80,6 @@ export function VueEnsembleEleve({
   const panneau = "rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-border dark:bg-card sm:p-5";
   const titre = "flex items-center gap-2.5 text-base font-bold tracking-tight text-slate-900 dark:text-foreground";
   const icon = "size-5 text-slate-800 dark:text-foreground";
-  const bouton = "h-8 gap-1.5 rounded-lg border-slate-200 bg-white text-xs shadow-none dark:border-border dark:bg-background";
 
   return (
     <div className="space-y-4">
@@ -89,7 +87,7 @@ export function VueEnsembleEleve({
         <section className={panneau} aria-label="Informations personnelles">
           <div className="mb-4 flex items-center justify-between gap-2">
             <h2 className={titre}><UserRound className={icon} aria-hidden />Informations personnelles</h2>
-            <Button asChild variant="outline" size="sm" className={bouton}><Link href="#identite-complete">Voir tout</Link></Button>
+            <RaccourciOnglet onglet="identite">Voir tout</RaccourciOnglet>
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-4 rounded-xl border border-slate-100 p-3 dark:border-border">
             {informations.map(([nom, valeur], index) => (
@@ -113,7 +111,7 @@ export function VueEnsembleEleve({
           <section className={panneau} aria-label="Scolarité actuelle">
             <div className="mb-4 flex items-center justify-between gap-2">
               <h2 className={titre}><GraduationCap className={icon} aria-hidden />Scolarité actuelle</h2>
-              <Button asChild variant="outline" size="sm" className={bouton}><Link href="#scolarite-complete">Détails</Link></Button>
+              <RaccourciOnglet onglet="scolarite">Détails</RaccourciOnglet>
             </div>
             {inscription ? (
               <div className="grid grid-cols-2 gap-4 rounded-xl border border-slate-100 p-3 dark:border-border sm:grid-cols-4">
@@ -179,10 +177,10 @@ export function VueEnsembleEleve({
             </div>
             <div className="grid grid-cols-2 gap-2">
               {actions}
-              <Button asChild variant="outline" size="sm" className="h-9 justify-start gap-2 text-xs"><Link href="#notes-completes"><GraduationCap className="size-4" aria-hidden />Voir les notes</Link></Button>
-              <Button asChild variant="outline" size="sm" className="h-9 justify-start gap-2 text-xs"><Link href="#assiduite-complete"><CalendarDays className="size-4" aria-hidden />Assiduité</Link></Button>
-              {peutVoirFinances ? <Button asChild variant="outline" size="sm" className="h-9 justify-start gap-2 text-xs"><Link href="#finances-completes"><CreditCard className="size-4" aria-hidden />Paiements</Link></Button> : null}
-              <Button asChild variant="outline" size="sm" className="h-9 justify-start gap-2 text-xs"><Link href="#documents-complets"><FileText className="size-4" aria-hidden />Documents</Link></Button>
+              <RaccourciOnglet onglet="notes" className="h-9 justify-start gap-2 text-xs"><GraduationCap className="size-4" aria-hidden />Voir les notes</RaccourciOnglet>
+              <RaccourciOnglet onglet="assiduite" className="h-9 justify-start gap-2 text-xs"><CalendarDays className="size-4" aria-hidden />Assiduité</RaccourciOnglet>
+              {peutVoirFinances ? <RaccourciOnglet onglet="finances" className="h-9 justify-start gap-2 text-xs"><CreditCard className="size-4" aria-hidden />Paiements</RaccourciOnglet> : null}
+              <RaccourciOnglet onglet="documents" className="h-9 justify-start gap-2 text-xs"><FileText className="size-4" aria-hidden />Documents</RaccourciOnglet>
             </div>
           </section>
 
@@ -219,7 +217,7 @@ export function VueEnsembleEleve({
           <section className={panneau} aria-label="Situation financière">
             <div className="mb-4 flex items-center justify-between gap-2">
               <h2 className={titre}><Wallet className={icon} aria-hidden />Situation financière</h2>
-              <Button asChild variant="outline" size="sm" className={bouton}><Link href="#finances-completes">Voir les paiements</Link></Button>
+              <RaccourciOnglet onglet="finances">Voir les paiements</RaccourciOnglet>
             </div>
             {scolarite?.echeances.length ? (
               <>
@@ -240,7 +238,7 @@ export function VueEnsembleEleve({
         <section className={panneau} aria-label="Dernières activités">
           <div className="mb-4 flex items-center justify-between gap-2">
             <h2 className={titre}><History className={icon} aria-hidden />Dernières activités</h2>
-            <Button asChild variant="outline" size="sm" className={bouton}><Link href="#historique-complet">Voir tout</Link></Button>
+            <RaccourciOnglet onglet="historique">Voir tout</RaccourciOnglet>
           </div>
           {activites.length ? (
             <ol className="space-y-3">
