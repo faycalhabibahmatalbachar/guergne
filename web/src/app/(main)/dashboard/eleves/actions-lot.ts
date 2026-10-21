@@ -19,9 +19,9 @@ import { ErreurAutorisation, requirePermission } from "@/server/guard";
  * onze élèves déplacés et neuf restés en arrière, situation qu'il faut ensuite
  * démêler à la main sans savoir qui est passé.
  *
- * Le déclencheur de capacité de la base reste l'autorité : on ne recompte pas
- * les places ici, on laisse la transaction échouer. Vérifier côté application
- * ce que la base vérifie déjà, c'est se donner deux vérités qui divergeront.
+ * Le déclencheur de capacité en base demeure l’autorité finale.
+ * Le précontrôle de capacité ci-dessous sert uniquement à afficher un message
+ * compréhensible avant la transaction, et ne remplace pas le déclencheur.
  *
  * LE MOTIF EST OBLIGATOIRE, ET COMMUN
  * ------------------------------------
@@ -37,9 +37,10 @@ export interface ResultatLot {
 }
 
 const schemaClasse = z.object({
-  eleveIds: z.array(z.string().uuid()).min(1, "Aucun élève sélectionné.").max(200),
+  eleveIds: z.array(z.string().uuid()).min(1, "Aucun élève sélectionné.").max(100)
+    .refine((ids) => new Set(ids).size === ids.length, "La sélection contient des doublons."),
   classeId: z.string().uuid(),
-  motif: z.string().trim().min(3, "Le motif est obligatoire."),
+  motif: z.string().trim().min(3, "Le motif est obligatoire.").max(500, "Motif trop long."),
 });
 
 export async function changerClasseEnLot(donnees: unknown): Promise<ResultatLot> {
@@ -68,7 +69,7 @@ export async function changerClasseEnLot(donnees: unknown): Promise<ResultatLot>
         FROM inscriptions i
        WHERE i.eleve_id IN (${sql.join(eleveIds.map((id) => sql`${id}::uuid`), sql`, `)})
          AND i.active
-         AND i.classe_id <> ${classeId}::uuid
+         AND i.annee_id = ${classeCible.annee_id}::uuid
     `);
 
     if (cibles.rows.length !== eleveIds.length) {
@@ -87,6 +88,8 @@ export async function changerClasseEnLot(donnees: unknown): Promise<ResultatLot>
       return { ok: false, message: `La classe ${classeCible.libelle} dispose de ${Math.max(0, Number(classeCible.capacite_max) - effectif)} place(s) pour ${cibles.rows.length} élève(s). Aucun dossier modifié.` };
     }
     await db.transaction(async (tx) => {
+      // Verrouiller la destination pour sérialiser les mouvements concurrents.
+      await tx.execute(sql`SELECT id FROM classes WHERE id = ${classeId}::uuid FOR UPDATE`);
       // Le déclencheur SQL conserve le contrôle définitif de capacité.
       for (const c of cibles.rows) {
         await tx.execute(sql`
