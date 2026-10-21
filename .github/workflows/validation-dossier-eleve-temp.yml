@@ -24,3 +24,5 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npx tsc --noEmit
+
+# Validation finale des droits sur les photos et documents.
