@@ -712,9 +712,22 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           </Card>
         </TabsContent>
       </Tabs>
-      <footer aria-label="Bas du dossier élève" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/70 px-4 py-3 text-xs text-slate-600 dark:border-border dark:bg-card dark:text-muted-foreground print:hidden">
-        <span>Fiche scolaire · {eleve.matricule}{inscription ? " · " + inscription.anneeLibelle : ""}</span>
-        <Link href="/dashboard/eleves" className="inline-flex items-center gap-1.5 font-semibold text-emerald-700 hover:underline dark:text-emerald-400"><ArrowLeft className="size-3.5" aria-hidden />Retour à la liste des élèves</Link>
+      <footer aria-label="Bas du dossier élève" className="mt-1 flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm dark:border-border dark:bg-card sm:flex-row sm:items-center sm:justify-between sm:px-5 print:hidden">
+        <div className="flex min-w-0 items-center gap-3">
+          <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+            <FileText className="size-[19px]" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-[#142450] dark:text-foreground">Fiche scolaire de l’élève</p>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500 dark:text-muted-foreground">
+              <span className="break-all tabular-nums">{eleve.matricule}</span>
+              {inscription ? <><span aria-hidden className="text-slate-300">·</span><span>Année scolaire {inscription.anneeLibelle}</span></> : null}
+            </p>
+          </div>
+        </div>
+        <Button asChild variant="outline" size="sm" className="h-10 w-full justify-center gap-2 rounded-xl border-slate-200 bg-white px-4 text-xs font-semibold text-[#142450] shadow-none hover:border-emerald-200 hover:bg-emerald-50 dark:border-border dark:bg-background dark:text-foreground sm:w-auto">
+          <Link href="/dashboard/eleves"><ArrowLeft className="size-4" aria-hidden />Retour à la liste des élèves</Link>
+        </Button>
       </footer>
     </div>
   );
