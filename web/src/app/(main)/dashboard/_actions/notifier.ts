@@ -76,11 +76,13 @@ async function repartition(eleveIds: string[], titre: string, corps: string): Pr
     return { total: 0, parPush: 0, parSms: 0, sansCanal: 0, segments: 0, coutFcfa: 0 };
   }
 
+  const idsSql = sql.join(eleveIds.map((id) => sql`${id}::uuid`), sql`, `);
+
   const r = await db.execute<{ canal: string; n: number }>(sql`
     SELECT fn_canal_tuteur(t.id)::text AS canal, count(DISTINCT t.id) AS n
       FROM eleve_tuteur et
       JOIN tuteurs t ON t.id = et.tuteur_id
-     WHERE et.eleve_id = ANY(${eleveIds}::uuid[])
+     WHERE et.eleve_id IN (${idsSql})
      GROUP BY 1
   `);
 
@@ -205,6 +207,7 @@ export async function notifierClasse(
       return { ok: false, erreurs: s };
     }
 
+    const idsSql = sql.join(eleveIds.map((id) => sql`${id}::uuid`), sql`, `);
     const r = await db.execute<{ posees: number }>(sql`
       SELECT COALESCE(sum(fn_notifier_tuteurs(
         e.id,
@@ -255,7 +258,8 @@ export async function apercuSelection(
   corps: string,
 ): Promise<Apercu> {
   await requirePermission("message:envoyer");
-  return repartition(eleveIds.slice(0, 200), titre, corps);
+  const ids = [...new Set(eleveIds.filter((id) => z.string().uuid().safeParse(id).success))].slice(0, 200);
+  return repartition(ids, titre, corps);
 }
 
 /**
@@ -277,6 +281,9 @@ export async function notifierSelection(
     if (eleveIds.length > 200) {
       return { ok: false, message: "Sélection trop large : 200 élèves au maximum." };
     }
+    if (eleveIds.some((id) => !z.string().uuid().safeParse(id).success) || new Set(eleveIds).size !== eleveIds.length) {
+      return { ok: false, message: "La sélection contient des identifiants invalides ou en double." };
+    }
 
     const a = schema.safeParse(donnees);
     if (!a.success) {
@@ -295,7 +302,7 @@ export async function notifierSelection(
         ${JSON.stringify({ origine: "selection" })}::jsonb
       )), 0) AS posees
         FROM eleves e
-       WHERE e.id = ANY(${eleveIds}::uuid[])
+       WHERE e.id IN (${idsSql})
     `);
 
     const posees = Number(r.rows[0]?.posees ?? 0);
