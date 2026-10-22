@@ -193,6 +193,21 @@ export async function tuteursDeLEleve(eleveId: string) {
     .where(eq(eleveTuteur.eleveId, eleveId));
 }
 
+/** Détection conservative des numéros partagés entre fiches de tuteurs.
+ * Aucune fiche n'est fusionnée automatiquement. À résoudre par un agent habilité.
+ */
+export async function numeroTuteurDejaUtilise(numero: string, saufTuteurId?: string): Promise<boolean> {
+  const r = await db.execute<{ id: string }>(sql`
+    SELECT id::text
+    FROM tuteurs
+    WHERE regexp_replace(telephone, '[^0-9]', '', 'g') =
+          regexp_replace(${numero}, '[^0-9]', '', 'g')
+      AND (${saufTuteurId ?? null}::uuid IS NULL OR id <> ${saufTuteurId ?? null}::uuid)
+    LIMIT 1
+  `);
+  return r.rows.length > 0;
+}
+
 /** Vérifie qu'un numéro n'est pas déjà rattaché à un autre compte. */
 export async function telephoneDisponible(telephone: string, saufTuteurId?: string) {
   const [existant] = await db
