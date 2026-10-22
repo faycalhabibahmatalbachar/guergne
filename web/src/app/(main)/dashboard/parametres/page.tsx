@@ -7,6 +7,7 @@ import {
   Bell,
   BookOpenText,
   CalendarDays,
+  ClipboardCheck,
   ChevronRight,
   GraduationCap,
   Megaphone,
@@ -179,6 +180,12 @@ export default async function PageParametres({
           titre="Année scolaire et référentiel"
           description="Les paramètres structurants des inscriptions, des notes et des bulletins."
           liens={peutConfigurer ? [
+            {
+              titre: "Diagnostic de configuration",
+              description: "Vérifier l'identité, les périodes, les classes, les inscriptions et coefficients.",
+              url: "/dashboard/parametres/diagnostic",
+              icone: ClipboardCheck,
+            },
             {
               titre: "Années scolaires et périodes",
               description: "Année courante, trimestres ou semestres, dates et clôture contrôlée.",
