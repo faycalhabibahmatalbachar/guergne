@@ -46,10 +46,11 @@ export function NotificationsGroupe({
   const [cle, setCle] = useState<string | null>(null);
   const [enCours, demarrer] = useTransition();
 
-  const programmeLe = planifier && dateLocale ? new Date(dateLocale).toISOString() : null;
+  const tempsLocal = planifier && dateLocale ? Date.parse(dateLocale) : NaN;
+  const programmeLe = Number.isFinite(tempsLocal) ? new Date(tempsLocal).toISOString() : null;
   const signature = JSON.stringify([ids, titre, corps, canal, programmeLe]);
   const valide = titre.trim().length >= 3 && corps.trim().length >= 5 && ids.length > 0 && ids.length <= 30 &&
-    (!planifier || (dateLocale && !!programmeLe));
+    (!planifier || !!programmeLe);
   const apercu = devis?.signature === signature ? devis.valeur : null;
 
   useEffect(() => {
