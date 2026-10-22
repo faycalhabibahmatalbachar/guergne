@@ -19,7 +19,7 @@ export default async function PageParents({
   searchParams: Promise<{ recherche?: string; etat?: string; classe?: string; page?: string; parPage?: string }>;
 }) {
   const principal = await exigerPage("tuteur:gerer");
-  const peutInviter = await peut(principal, "tuteur:inviter");
+  const [peutInviter, peutNotifier] = await Promise.all([peut(principal, "tuteur:inviter"), peut(principal, "message:envoyer")]);
 
   const params = await searchParams;
   const annee = await chargerAnneeCourante();
@@ -75,6 +75,7 @@ export default async function PageParents({
         classes={referentiel.classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
         stats={stats}
         peutInviter={peutInviter}
+        peutNotifier={peutNotifier}
         filtres={filtres}
       />
     </div>
