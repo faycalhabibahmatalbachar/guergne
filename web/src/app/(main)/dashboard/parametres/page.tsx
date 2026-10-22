@@ -392,7 +392,13 @@ export default async function PageParametres({
         </div>
 
         <TabsContent value="annees" className="mt-6">
-          <OngletAnnees annees={annees} periodesParAnnee={periodesParAnnee} />
+          <OngletAnnees
+            annees={annees}
+            periodesParAnnee={periodesParAnnee}
+            peutGererAnnees={peutGererAnnees}
+            peutGererPeriodes={peutGererPeriodes}
+            peutDeverrouillerPeriodes={peutDeverrouillerPeriodes}
+          />
         </TabsContent>
 
         <TabsContent value="matieres" className="mt-6">
