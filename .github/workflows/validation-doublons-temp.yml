@@ -22,3 +22,5 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npx tsc --noEmit
+
+# Nouvelle validation après ajout des quatre tests de sécurité.
