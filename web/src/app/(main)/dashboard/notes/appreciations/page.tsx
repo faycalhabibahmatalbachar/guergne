@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { sql } from "drizzle-orm";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessageSquareText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { db } from "@/server/db";
@@ -39,7 +39,7 @@ export default async function PageAppreciations({
     return (
       <div className="space-y-6">
         <h1 className="font-semibold text-2xl tracking-tight">Appréciations</h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-slate-600 dark:text-slate-300 text-sm">
           Aucune période d&apos;évaluation n&apos;est ouverte.
         </p>
       </div>
@@ -72,21 +72,21 @@ export default async function PageAppreciations({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-semibold text-2xl tracking-tight">Appréciations par matière</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
-            Année {stats.annee.libelle}. Elles remplacent au bulletin la mention automatique
-            déduite de la moyenne.
-          </p>
+      <section className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+        <div className="h-1.5 bg-gradient-to-r from-cyan-700 via-sky-600 to-indigo-600" />
+        <div className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center sm:p-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-700/20 bg-cyan-700/[0.06] px-3 py-1.5 text-xs font-semibold tracking-wide text-cyan-800 dark:text-cyan-300">
+              <MessageSquareText className="size-4" aria-hidden /> SUIVI PÉDAGOGIQUE
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Appréciations par matière</h1>
+            <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">Année scolaire <span className="font-medium text-foreground">{stats.annee.libelle}</span>. Rédigez et suivez les appréciations de chaque classe avant le conseil.</p>
+          </div>
+          <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
+            <Link href="/dashboard/notes" style={{ color: "#0f172a", backgroundColor: "#ffffff", borderColor: "#cbd5e1" }}><ArrowLeft className="size-4 shrink-0" aria-hidden /><span style={{ color: "#0f172a" }}>Retour à la saisie des notes</span></Link>
+          </Button>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/dashboard/notes">
-            <ArrowLeft aria-hidden />
-            Saisie des notes
-          </Link>
-        </Button>
-      </div>
+      </section>
 
       {/*
         `key` remonte le composant quand la cible change. Sans elle, l'état
