@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Baby, CheckCircle2, ChevronLeft, ChevronRight,
+  AlertTriangle, ArrowLeft, ArrowRight, Baby, ChevronLeft, ChevronRight, GitCompareArrows,
   CircleHelp, Search, ShieldCheck, Users, UserRoundCheck, House,
 } from "lucide-react";
 
@@ -58,9 +58,14 @@ export default async function FamillesPage({
           </div>
         </div>
       </div>
-      <Button asChild variant="outline" className="h-10 rounded-xl border-slate-200 bg-white shadow-none dark:border-border dark:bg-card">
-        <Link href="/dashboard/parents">Tous les comptes <ArrowRight className="ml-1 size-4" aria-hidden /></Link>
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild className="h-10 gap-2 rounded-xl bg-amber-700 text-white hover:bg-amber-800">
+          <Link href="/dashboard/parents/familles/doublons"><GitCompareArrows className="size-4" aria-hidden />Vérifier les doublons</Link>
+        </Button>
+        <Button asChild variant="outline" className="h-10 rounded-xl border-slate-200 bg-white shadow-none dark:border-border dark:bg-card">
+          <Link href="/dashboard/parents">Tous les comptes <ArrowRight className="ml-1 size-4" aria-hidden /></Link>
+        </Button>
+      </div>
     </header>
 
     <section aria-label="Indicateurs du regroupement" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
