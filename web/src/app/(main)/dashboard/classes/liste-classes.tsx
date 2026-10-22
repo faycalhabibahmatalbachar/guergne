@@ -112,7 +112,7 @@ export function ListeClasses({ classes, peutModifier, peutNotifier, ouvrir }: Pr
         </span>
       </div>
 
-      <div className="hidden xl:block">
+      <div className="hidden 2xl:block">
         <table className="w-full table-fixed text-left" aria-label="Classes, effectifs et actions">
           <colgroup>
             <col className="w-[16%]" />
@@ -163,7 +163,7 @@ export function ListeClasses({ classes, peutModifier, peutNotifier, ouvrir }: Pr
         </table>
       </div>
 
-      <div className="divide-y divide-slate-100 dark:divide-slate-800 xl:hidden">
+      <div className="divide-y divide-slate-100 dark:divide-slate-800 2xl:hidden">
         {classes.map((classe, index) => {
           const couleur = COULEURS[index % COULEURS.length];
           return (
