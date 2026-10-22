@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { CalendarDays, MessageSquareText } from "lucide-react";
+import { ArrowUpRight, BookOpenText, CalendarDays, MessageSquareText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -80,26 +80,46 @@ export default async function PageNotes({
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950 p-5 text-white shadow-sm sm:p-7">
-        <div className="pointer-events-none absolute -right-8 -top-12 size-48 rounded-full border border-white/10" />
-        <div className="pointer-events-none absolute -right-1 -top-5 size-32 rounded-full border border-cyan-300/15" />
-        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Pédagogie · Évaluations</p>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Saisie des notes</h1>
-            <p className="text-sm text-slate-300">Année scolaire {stats.annee.libelle} · {stats.periode.libelle}</p>
-            <p className="max-w-xl text-sm text-slate-300">Saisissez les résultats, suivez les évaluations et préparez les moyennes de vos élèves.</p>
+      <section className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+        <div className="h-1.5 bg-gradient-to-r from-cyan-700 via-sky-600 to-indigo-600" />
+        <div className="flex flex-col justify-between gap-5 p-5 sm:p-6 xl:flex-row xl:items-center">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-700/20 bg-cyan-700/[0.06] px-3 py-1.5 text-xs font-semibold tracking-wide text-cyan-800 dark:text-cyan-300">
+              <BookOpenText className="size-3.5" aria-hidden />
+              ESPACE PÉDAGOGIQUE
+            </div>
+            <div className="space-y-1.5">
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Saisie des notes</h1>
+              <p className="text-sm text-muted-foreground">Année scolaire <span className="font-medium text-foreground">{stats.annee.libelle}</span> <span className="px-1 text-muted-foreground">/</span> Période <span className="font-medium text-foreground">{stats.periode.libelle}</span></p>
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">Saisissez les résultats, suivez l’avancement des évaluations et préparez les moyennes de vos élèves.</p>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10 hover:text-white"><Link href="/dashboard/notes/calendrier"><CalendarDays aria-hidden />Calendrier</Link></Button>
-            <Button asChild variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10 hover:text-white"><Link href="/dashboard/notes/appreciations"><MessageSquareText aria-hidden />Appréciations par matière</Link></Button>
+            <Button asChild variant="outline" size="sm" className="justify-between">
+              <Link href="/dashboard/notes/calendrier"><CalendarDays aria-hidden />Calendrier</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="justify-between">
+              <Link href="/dashboard/notes/appreciations"><MessageSquareText aria-hidden />Appréciations par matière</Link>
+            </Button>
+            <Button asChild size="sm" className="bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500">
+              <Link href="/dashboard/bulletins">Consulter les bulletins <ArrowUpRight className="size-4" aria-hidden /></Link>
+            </Button>
           </div>
         </div>
       </section>
-      <div className="flex flex-wrap gap-2">
-        <span className="rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground">{classes.length} classes</span>
-        <span className="rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground">{matieres.length} matières</span>
-        <span className="rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground">{evaluations.length} évaluations pour la période</span>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card px-4 py-3 shadow-sm">
+          <div className="rounded-lg bg-cyan-700/10 p-2.5 text-cyan-800 dark:text-cyan-300"><BookOpenText className="size-4" aria-hidden /></div>
+          <div><p className="text-xs text-muted-foreground">Classes</p><p className="font-semibold tabular-nums">{classes.length}</p></div>
+        </div>
+        <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card px-4 py-3 shadow-sm">
+          <div className="rounded-lg bg-indigo-500/10 p-2.5 text-indigo-700 dark:text-indigo-300"><MessageSquareText className="size-4" aria-hidden /></div>
+          <div><p className="text-xs text-muted-foreground">Matières</p><p className="font-semibold tabular-nums">{matieres.length}</p></div>
+        </div>
+        <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card px-4 py-3 shadow-sm">
+          <div className="rounded-lg bg-emerald-500/10 p-2.5 text-emerald-700 dark:text-emerald-300"><CalendarDays className="size-4" aria-hidden /></div>
+          <div><p className="text-xs text-muted-foreground">Évaluations planifiées</p><p className="font-semibold tabular-nums">{evaluations.length}</p></div>
+        </div>
       </div>
 
       <Notes

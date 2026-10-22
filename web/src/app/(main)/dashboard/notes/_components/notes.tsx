@@ -122,7 +122,7 @@ export function Notes({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm transition-shadow hover:shadow-md>
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Suivi de la période</p>
           <p className="mt-1 text-sm font-medium">{periodeLibelle} · {evaluations.length} évaluation{evaluations.length > 1 ? "s" : ""}</p>
@@ -130,10 +130,10 @@ export function Notes({
         <Button size="sm" onClick={() => setOuvert(true)}><Plus aria-hidden />Nouvelle évaluation</Button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="rounded-2xl border-border/70 shadow-sm"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-700 dark:text-cyan-300"><ClipboardList className="size-5" aria-hidden /></div><div><p className="text-muted-foreground text-xs">Évaluations</p><p className="text-2xl font-semibold tabular-nums">{evaluations.length}</p><p className="text-muted-foreground text-xs">Sur la période active</p></div></CardContent></Card>
-        <Card className="rounded-2xl border-border/70 shadow-sm"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="size-5" aria-hidden /></div><div><p className="text-muted-foreground text-xs">Saisie effectuée</p><p className="text-2xl font-semibold tabular-nums">{saisiesTotales} / {attenduesTotales}</p><p className="text-muted-foreground text-xs">{tauxSaisie}% des saisies attendues</p></div></CardContent></Card>
-        <Card className="rounded-2xl border-border/70 shadow-sm"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl bg-indigo-500/10 p-3 text-indigo-700 dark:text-indigo-300"><FilePenLine className="size-5" aria-hidden /></div><div><p className="text-muted-foreground text-xs">Complètes</p><p className="text-2xl font-semibold tabular-nums">{evaluationsTerminees}</p><p className="text-muted-foreground text-xs">Évaluations entièrement saisies</p></div></CardContent></Card>
-        <Card className="rounded-2xl border-border/70 shadow-sm"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl bg-amber-500/10 p-3 text-amber-700 dark:text-amber-300"><LockKeyhole className="size-5" aria-hidden /></div><div><p className="text-muted-foreground text-xs">Verrouillées</p><p className="text-2xl font-semibold tabular-nums">{evaluationsVerrouillees}</p><p className="text-muted-foreground text-xs">Évaluations protégées</p></div></CardContent></Card>
+        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-700 dark:text-cyan-300"><ClipboardList className="size-5" aria-hidden /></div><div><p className="text-muted-foreground text-xs">Évaluations</p><p className="text-2xl font-semibold tabular-nums">{evaluations.length}</p><p className="text-muted-foreground text-xs">Sur la période active</p></div></CardContent></Card>
+        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="size-5" aria-hidden /></div><div><p className="text-muted-foreground text-xs">Saisie effectuée</p><p className="text-2xl font-semibold tabular-nums">{saisiesTotales} / {attenduesTotales}</p><p className="text-muted-foreground text-xs">{tauxSaisie}% des saisies attendues</p></div></CardContent></Card>
+        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl bg-indigo-500/10 p-3 text-indigo-700 dark:text-indigo-300"><FilePenLine className="size-5" aria-hidden /></div><div><p className="text-muted-foreground text-xs">Complètes</p><p className="text-2xl font-semibold tabular-nums">{evaluationsTerminees}</p><p className="text-muted-foreground text-xs">Évaluations entièrement saisies</p></div></CardContent></Card>
+        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl bg-amber-500/10 p-3 text-amber-700 dark:text-amber-300"><LockKeyhole className="size-5" aria-hidden /></div><div><p className="text-muted-foreground text-xs">Verrouillées</p><p className="text-2xl font-semibold tabular-nums">{evaluationsVerrouillees}</p><p className="text-muted-foreground text-xs">Évaluations protégées</p></div></CardContent></Card>
       </div>
       {/* Grille de saisie */}
       {grille ? <GrilleSaisie grille={grille} /> : null}
@@ -141,11 +141,14 @@ export function Notes({
       {/* Liste des évaluations */}
       <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
         <CardHeader className="border-b bg-muted/20 pb-4">
-          <CardTitle className="text-base">Évaluations de la période</CardTitle>
-          <CardDescription>
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-cyan-700/10 p-2.5 text-cyan-800 dark:text-cyan-300"><ClipboardList className="size-5" aria-hidden /></div>
+            <div className="min-w-0"><CardTitle className="text-base">Évaluations de la période</CardTitle>
+            <CardDescription className="mt-1">
             L&apos;avancement montre qui n&apos;a pas encore saisi — c&apos;est la question posée
             avant chaque conseil de classe.
-          </CardDescription>
+          </CardDescription></div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {evaluations.length === 0 ? (
@@ -153,6 +156,7 @@ export function Notes({
               Aucune évaluation. Créez-en une pour commencer la saisie des notes.
             </p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/40">
                 <TableRow>
@@ -293,6 +297,7 @@ export function Notes({
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -472,6 +477,7 @@ function GrilleSaisie({
       <CardHeader className="border-b bg-muted/20 pb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Grille de saisie</p>
             <CardTitle className="text-base">{grille.evaluation.titre}</CardTitle>
             <CardDescription>
               Barème /{bareme} — {saisies} / {grille.lignes.length} élèves saisis
@@ -503,6 +509,7 @@ function GrilleSaisie({
           </p>
         ) : null}
 
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow className="bg-muted/40 hover:bg-muted/40">
@@ -574,6 +581,7 @@ function GrilleSaisie({
             })}
           </TableBody>
         </Table>
+        </div>
       </CardContent>
     </Card>
   );

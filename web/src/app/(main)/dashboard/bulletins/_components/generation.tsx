@@ -134,9 +134,12 @@ export function GenerationBulletins({
   return (
     <div className="space-y-6 pb-6">
       <Card className="rounded-2xl border-border/70 shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Rechercher et filtrer les bulletins</CardTitle>
-          <CardDescription>Recherchez un élève par son nom, son prénom ou son matricule, puis choisissez une classe et une période.</CardDescription>
+        <CardHeader className="border-b bg-muted/20 pb-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-cyan-700/10 p-2.5 text-cyan-800 dark:text-cyan-300"><Search className="size-5" aria-hidden /></div>
+            <div><CardTitle className="text-base">Rechercher et filtrer les bulletins</CardTitle>
+            <CardDescription className="mt-1">Recherchez un élève par son nom, son prénom ou son matricule, puis choisissez une classe et une période.</CardDescription></div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 lg:grid-cols-[minmax(220px,1.5fr)_1fr_1fr_auto]">
@@ -178,31 +181,31 @@ export function GenerationBulletins({
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-700 dark:text-cyan-300"><Users className="size-5" aria-hidden /></div>
             <div><p className="text-muted-foreground text-sm">Total des élèves</p><p className="text-2xl font-semibold tabular-nums">{effectifTotal}</p><p className="text-muted-foreground text-xs">Inscrits dans l’année courante</p></div>
           </CardContent>
         </Card>
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-indigo-500/10 p-3 text-indigo-600"><FileText className="size-5" aria-hidden /></div>
             <div><p className="text-muted-foreground text-sm">Bulletins générés</p><p className="text-2xl font-semibold tabular-nums">{bulletins.length}</p><p className="text-muted-foreground text-xs">Pour l’année scolaire courante</p></div>
           </CardContent>
         </Card>
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-amber-500/10 p-3 text-amber-600"><Clock3 className="size-5" aria-hidden /></div>
             <div><p className="text-muted-foreground text-sm">À publier</p><p className="text-2xl font-semibold tabular-nums">{enAttente}</p><p className="text-muted-foreground text-xs">{tauxAttente.toFixed(1).replace(".", ",")}% des bulletins produits</p></div>
           </CardContent>
         </Card>
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-600"><CheckCircle2 className="size-5" aria-hidden /></div>
             <div><p className="text-muted-foreground text-sm">Publiés</p><p className="text-2xl font-semibold tabular-nums">{publies}</p><p className="text-muted-foreground text-xs">{tauxPublies.toFixed(1).replace(".", ",")}% des bulletins</p></div>
           </CardContent>
         </Card>
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-violet-500/10 p-3 text-violet-700 dark:text-violet-300"><TrendingUp className="size-5" aria-hidden /></div>
             <div><p className="text-muted-foreground text-sm">Moyenne affichée</p><p className="text-2xl font-semibold tabular-nums">{moyenne}</p><p className="text-muted-foreground text-xs">Bulletins correspondant aux filtres</p></div>
@@ -272,6 +275,7 @@ export function GenerationBulletins({
             </div>
           ) : (
             <div className="overflow-x-auto">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted/40">
                   <TableRow>
@@ -306,6 +310,7 @@ export function GenerationBulletins({
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </div>
           )}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
