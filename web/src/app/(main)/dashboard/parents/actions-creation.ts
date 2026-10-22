@@ -11,7 +11,7 @@ import { z } from "zod";
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
 import { codesActivation, tuteurs, utilisateurs } from "@/server/db/schema";
-import { telephoneDisponible } from "@/server/domain/parents";
+import { numeroTuteurDejaUtilise, telephoneDisponible } from "@/server/domain/parents";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 import { normaliserNumero } from "@/server/notifications/sms";
 
@@ -129,6 +129,9 @@ export async function creerCompteParent(donnees: unknown): Promise<ResultatCreat
     const v = analyse.data;
     const numero = normaliserNumero(v.telephone);
 
+    if (await numeroTuteurDejaUtilise(numero)) {
+      return { ok: false, erreurs: { telephone: "Une fiche parent utilise déjà ce numéro. Vérifiez le dossier existant avant de créer un doublon." } };
+    }
     if (v.creerAcces && !(await telephoneDisponible(numero))) {
       return { ok: false, erreurs: { telephone: "Ce numéro est déjà rattaché à un compte parent." } };
     }
