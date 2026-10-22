@@ -24,3 +24,5 @@ jobs:
       - run: npx tsc --noEmit
 
 # Revalidation après correction du JSX des actions parents.
+
+# Dernière vérification du modèle détaillé et de la grille.
