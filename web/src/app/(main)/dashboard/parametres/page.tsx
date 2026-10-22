@@ -7,6 +7,7 @@ import {
   Bell,
   BookOpenText,
   CalendarDays,
+  ClipboardCheck,
   ChevronRight,
   GraduationCap,
   Megaphone,
@@ -160,10 +161,18 @@ export default async function PageParametres({
                 Établissement unique · Enseignement secondaire, de la 6ème à la Terminale
               </p>
               <p className="mt-1 text-muted-foreground text-xs">
-                Nom officiel, sigle {APP_CONFIG.sigle} et devise {APP_CONFIG.devise} sont pour l'instant définis dans la configuration de l'application.
+                Nom officiel, sigle {APP_CONFIG.sigle} et devise {APP_CONFIG.devise} restent stables.
+                Coordonnées et signataires sont modifiables depuis la fiche unique du lycée.
               </p>
             </div>
-            <Badge variant="outline" className="self-start sm:self-center">Identité actuelle</Badge>
+            <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-center">
+              <Badge variant="outline">Établissement unique</Badge>
+              <Button asChild size="sm" variant="outline">
+                <Link prefetch={false} href="/dashboard/parametres/etablissement">
+                  Modifier les coordonnées
+                </Link>
+              </Button>
+            </div>
           </section>
         ) : null}
 
@@ -171,6 +180,12 @@ export default async function PageParametres({
           titre="Année scolaire et référentiel"
           description="Les paramètres structurants des inscriptions, des notes et des bulletins."
           liens={peutConfigurer ? [
+            {
+              titre: "Diagnostic de configuration",
+              description: "Vérifier l'identité, les périodes, les classes, les inscriptions et coefficients.",
+              url: "/dashboard/parametres/diagnostic",
+              icone: ClipboardCheck,
+            },
             {
               titre: "Années scolaires et périodes",
               description: "Année courante, trimestres ou semestres, dates et clôture contrôlée.",
