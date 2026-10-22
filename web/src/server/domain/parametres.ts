@@ -280,3 +280,15 @@ export async function listerClassesAnnee(anneeId: string): Promise<LigneClassePa
 
   return lignes.map((l) => ({ ...l, effectif: Number(l.effectif) }));
 }
+
+
+/**
+ * Durée d'activation applicable uniquement aux nouveaux codes parents.
+ * Borne défensive en lecture : une valeur erronée en base ne doit jamais
+ * générer des codes sans expiration.
+ */
+export async function dureeInvitationJours(): Promise<number> {
+  const lignes = await db.execute<{ valeur: string }>(sql`SELECT valeur FROM parametres WHERE cle = 'invitation_parent_validite_jours'`);
+  const jours = Number(lignes.rows[0]?.valeur ?? 7);
+  return Number.isInteger(jours) && jours >= 1 && jours <= 30 ? jours : 7;
+}
