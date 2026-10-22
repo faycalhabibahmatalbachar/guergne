@@ -465,14 +465,17 @@ function GrilleSaisie({
     (v) => v.statut !== "NOTEE" || v.valeur !== "",
   ).length;
 
+  const tauxSaisie = grille.lignes.length ? Math.round((saisies / grille.lignes.length) * 100) : 0;
+
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
+      <CardHeader className="border-b bg-muted/20 pb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="text-base">{grille.evaluation.titre}</CardTitle>
             <CardDescription>
               Barème /{bareme} — {saisies} / {grille.lignes.length} élèves saisis
+              <span className="mt-2 block max-w-64"><Progress value={tauxSaisie} /></span>
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -501,8 +504,8 @@ function GrilleSaisie({
         ) : null}
 
         <Table>
-          <TableHeader>
-            <TableRow>
+          <TableHeader className="sticky top-0 z-10 bg-background">
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="w-12">#</TableHead>
               <TableHead>Élève</TableHead>
               <TableHead className="w-32">Note /{bareme}</TableHead>
@@ -515,9 +518,9 @@ function GrilleSaisie({
               const horsBareme = v.valeur !== "" && Number(v.valeur) > bareme;
 
               return (
-                <TableRow key={l.inscriptionId}>
-                  <TableCell className="text-muted-foreground tabular-nums">{index + 1}</TableCell>
-                  <TableCell>
+                <TableRow key={l.inscriptionId} className="transition-colors odd:bg-muted/10 hover:bg-cyan-500/[0.04]">
+                  <TableCell className="py-2 text-muted-foreground tabular-nums">{index + 1}</TableCell>
+                  <TableCell className="py-2">
                     <span className="font-medium">
                       {l.prenom} {l.nom}
                     </span>

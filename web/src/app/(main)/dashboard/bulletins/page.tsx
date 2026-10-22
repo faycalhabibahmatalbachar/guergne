@@ -153,16 +153,25 @@ export default async function PageBulletins({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-700 dark:text-cyan-300"><BookOpen className="size-5" aria-hidden /></div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Suivi de la scolarité</p>
-            <p className="mt-1 font-semibold">{stats.annee?.libelle ?? "Année non configurée"} · {classes.rows.length} classes · {stats.effectifTotal} élèves</p>
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950 p-5 text-white shadow-sm sm:p-7">
+        <div className="pointer-events-none absolute -right-8 -top-12 size-48 rounded-full border border-white/10" />
+        <div className="pointer-events-none absolute -right-1 -top-5 size-32 rounded-full border border-cyan-300/15" />
+        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Pédagogie · Résultats scolaires</p>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Gestion des bulletins scolaires</h1>
+            <p className="max-w-xl text-sm text-slate-300">Produisez, contrôlez et publiez les bulletins de vos élèves depuis un seul espace.</p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">{stats.annee?.libelle ?? "Année non configurée"}</span>
+              <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">{classes.rows.length} classes</span>
+              <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">{stats.effectifTotal} élèves</span>
+            </div>
           </div>
+          <Button asChild variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10 hover:text-white">
+            <Link href="/dashboard/notes">Accéder à la saisie des notes</Link>
+          </Button>
         </div>
-        <Button asChild variant="outline" size="sm"><Link href="/dashboard/notes">Accéder à la saisie des notes</Link></Button>
-      </div>
+      </section>
 
       {classeChoisie && periodeChoisie ? (
         <>

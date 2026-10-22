@@ -46,28 +46,31 @@ import type { Etablissement } from "./gabarit";
  */
 
 const s = StyleSheet.create({
-  page: { paddingTop: 16, paddingBottom: 22, paddingHorizontal: 28, fontSize: 10.2, fontFamily: "Times-Roman", color: "#111111" },
-  entete: { flexDirection: "row", alignItems: "center", marginBottom: 5, paddingBottom: 4, borderBottomWidth: 0.7, borderBottomColor: "#111111" },
+  page: { paddingTop: 8, paddingBottom: 10, paddingHorizontal: 22, fontSize: 8.1, fontFamily: "Times-Roman", color: "#111111" },
+  entete: { flexDirection: "row", alignItems: "center", marginBottom: 3, paddingBottom: 3, borderBottomWidth: 0.65, borderBottomColor: "#111111" },
+  enteteInstitution: { width: "31%", alignItems: "center", justifyContent: "center" },
+  enteteLogoZone: { width: "14%", alignItems: "center", justifyContent: "center" },
   logo: { width: 42, height: 42, objectFit: "contain" },
-  enteteCentre: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
-  enteteEtablissement: { fontSize: 10.5, fontFamily: "Times-Bold", textAlign: "center" },
-  enteteSecondaire: { marginTop: 2, fontSize: 7.5, textAlign: "center" },
-  enteteReserve: { width: 42 },
-  titre: { fontSize: 12, fontFamily: "Times-BoldItalic", textAlign: "center", marginTop: 4, marginBottom: 12 },
-  identite: { borderWidth: 0.7, borderColor: "#111111", marginBottom: 8 },
+  enteteEcole: { width: "55%", alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },
+  enteteMinistere: { fontSize: 5.7, textAlign: "center", lineHeight: 1.15 },
+  enteteDevise: { fontSize: 5.6, fontFamily: "Times-Italic", textAlign: "center", marginVertical: 1 },
+  enteteEtablissement: { fontSize: 9.2, fontFamily: "Times-Bold", textAlign: "center" },
+  enteteSecondaire: { marginTop: 1, fontSize: 5.9, textAlign: "center", lineHeight: 1.12 },
+  titre: { fontSize: 11.2, fontFamily: "Times-Bold", textAlign: "center", marginTop: 3, marginBottom: 6 },
+  identite: { borderWidth: 0.7, borderColor: "#111111", marginBottom: 4 },
   identiteRangee: { flexDirection: "row", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
-  identiteCase: { paddingVertical: 3, paddingHorizontal: 4, borderRightWidth: 0.7, borderRightColor: "#111111", justifyContent: "center", alignItems: "stretch" },
+  identiteCase: { paddingVertical: 1.7, paddingHorizontal: 3, borderRightWidth: 0.7, borderRightColor: "#111111", justifyContent: "center", alignItems: "stretch" },
   identiteCentre: { textAlign: "center" },
   identiteCaseFin: { borderRightWidth: 0 },
-  identiteLibelle: { fontSize: 9.4, color: "#111111" },
-  identiteValeur: { fontSize: 10.2, fontFamily: "Times-Bold" },
-  identiteNom: { fontSize: 11.7, fontFamily: "Times-BoldItalic", textAlign: "center" },
+  identiteLibelle: { fontSize: 8, color: "#111111" },
+  identiteValeur: { fontSize: 8.5, fontFamily: "Times-Bold" },
+  identiteNom: { fontSize: 10, fontFamily: "Times-Bold", textAlign: "center" },
   table: { borderWidth: 0.7, borderColor: "#111111" },
-  ligne: { flexDirection: "row", borderBottomWidth: 0.45, borderBottomColor: "#111111" },
+  ligne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111" },
   ligneEntete: { flexDirection: "row", backgroundColor: "#d9d9d9", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
   ligneGroupe: { flexDirection: "row", backgroundColor: "#d9d9d9", borderTopWidth: 0.7, borderTopColor: "#111111", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
   ligneTotal: { flexDirection: "row", backgroundColor: "#ffffff", borderTopWidth: 0.9, borderTopColor: "#111111" },
-  cel: { paddingVertical: 3, paddingHorizontal: 3, borderRightWidth: 0.4, borderRightColor: "#111111" },
+  cel: { paddingVertical: 1.5, paddingHorizontal: 2, borderRightWidth: 0.4, borderRightColor: "#111111" },
   celFin: { borderRightWidth: 0 },
   gras: { fontFamily: "Times-Bold" },
   centre: { textAlign: "center" },
@@ -80,15 +83,15 @@ const s = StyleSheet.create({
   cCoeff: { width: "8%" },
   cPoints: { width: "13%" },
   cAppreciation: { width: "16%" },
-  bas: { flexDirection: "row", marginTop: 9, gap: 0 },
+  bas: { flexDirection: "row", marginTop: 5, gap: 0 },
   conseil: { width: "51%", borderWidth: 0.7, borderColor: "#111111" },
-  conseilTitreFusion: { width: "51%", height: 18, justifyContent: "center", borderWidth: 0.7, borderColor: "#111111", backgroundColor: "#e2efda", paddingHorizontal: 5 },
-  conseilLigne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111", paddingVertical: 3, paddingHorizontal: 0 },
-  conseilValeur: { fontFamily: "Times-Bold", textAlign: "center" },
+  conseilTitreFusion: { width: "100%", height: 31, justifyContent: "center", borderWidth: 0.7, borderColor: "#111111", backgroundColor: "#e2efda", paddingHorizontal: 4 },
+  conseilLigne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111", paddingVertical: 1.7, paddingHorizontal: 0 },
+  conseilValeur: { fontFamily: "Times-Bold", textAlign: "center", fontSize: 7.6 },
   historique: { width: "49%", borderWidth: 0.7, borderColor: "#111111" },
-  historiqueCell: { paddingHorizontal: 4, borderRightWidth: 0.4, borderRightColor: "#111111", justifyContent: "center" },
-  orientation: { marginTop: 1, fontSize: 10.2, fontFamily: "Times-Bold", color: "#111111" },
-  signature: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 8, paddingHorizontal: 0 },
+  historiqueCell: { paddingHorizontal: 3, borderRightWidth: 0.4, borderRightColor: "#111111", justifyContent: "center" },
+  orientation: { marginTop: 1, fontSize: 8.4, fontFamily: "Times-Bold", color: "#111111" },
+  signature: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 5, paddingHorizontal: 0 },
 });
 
 export interface LigneMatiere {
@@ -96,7 +99,7 @@ export interface LigneMatiere {
   moyenneDevoirs: number | null;
   noteComposition: number | null;
   moyenne: number | null;
-  coefficient: number;
+  coefficient: number | null;
   points: number | null;
   appreciation: string;
 }
@@ -172,8 +175,7 @@ function Cellule({
       <Text style={style}>{children}</Text>
     </View>
   );
-}
-export function Bulletin({ d }: { d: DonneesBulletin }) {
+}export function Bulletin({ d }: { d: DonneesBulletin }) {
   const identite = {
     nomComplet: d.eleve.nomComplet,
     classe: d.eleve.classe,
@@ -190,14 +192,22 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
       title={`Bulletin ${d.periodeLibelle} — ${d.eleve.nomComplet}`}
       author={d.etablissement.nom}
     >
-      <Page size="A4" style={s.page}>
+      <Page size="A4" style={s.page} wrap={false}>
                 <View style={s.entete}>
-          <Image src={LOGO_ETABLISSEMENT} style={s.logo} />
-          <View style={s.enteteCentre}>
-            <Text style={s.enteteEtablissement}>{d.etablissement.nom.toLocaleUpperCase("fr").replace(/\s+LA RENAISSANCE$/i, " : LA RENAISSANCE")}</Text>
-            <Text style={s.enteteSecondaire}>RÉPUBLIQUE DU {(d.etablissement.pays ?? "TCHAD").toLocaleUpperCase("fr")} · MINISTÈRE DE L'ÉDUCATION NATIONALE</Text>
+          <View style={s.enteteInstitution}>
+            <Text style={s.enteteMinistere}>RÉPUBLIQUE DU {(d.etablissement.pays ?? "TCHAD").toLocaleUpperCase("fr")}</Text>
+            <Text style={s.enteteDevise}>Unité — Travail — Progrès</Text>
+            <Text style={s.enteteMinistere}>{(d.etablissement.ministereTutelle ?? "MINISTÈRE DE L'ÉDUCATION NATIONALE").toLocaleUpperCase("fr")}</Text>
           </View>
-          <View style={s.enteteReserve} />
+          <View style={s.enteteLogoZone}>
+            <Image src={LOGO_ETABLISSEMENT} style={s.logo} />
+          </View>
+          <View style={s.enteteEcole}>
+            <Text style={s.enteteEtablissement}>{d.etablissement.nom.toLocaleUpperCase("fr").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+LA RENAISSANCE$/i, " : LA RENAISSANCE")}</Text>
+            <Text style={s.enteteSecondaire}>{[d.etablissement.adresse, d.etablissement.ville].filter(Boolean).join(" · ")}</Text>
+            <Text style={s.enteteSecondaire}>{[d.etablissement.telephone, d.etablissement.email].filter(Boolean).join(" · ")}</Text>
+            {d.etablissement.autorisationNumero ? <Text style={s.enteteSecondaire}>Autorisation n° {d.etablissement.autorisationNumero}</Text> : null}
+          </View>
         </View>
         <Text style={s.titre}>BULLETIN DE NOTES DU {d.periodeLibelle.replace(/\s+trimestre$/i, " TRIMESTRE")}</Text>
 
@@ -242,7 +252,7 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
         </View>
 
         {/* --- Tableau des notes ---------------------------------------- */}
-        <View style={[s.table, { marginTop: 10 }]}>
+        <View style={[s.table, { marginTop: 4 }]}>
           <View style={s.ligneEntete}>
             <Cellule largeur={s.cDiscipline} style={s.gras}>Disciplines</Cellule>
             <Cellule largeur={s.cDevoirs} style={[s.gras, s.centre]}>Moyennes Devoirs</Cellule>
@@ -256,12 +266,12 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
           {d.blocs.map((bloc) => (
             <View key={bloc.titre}>
               {bloc.matieres.map((m) => (
-                <View key={m.libelle} style={s.ligne}>
+                <View key={m.libelle} style={s.ligne} wrap={false}>
                   <Cellule largeur={s.cDiscipline}>{m.libelle}</Cellule>
                   <Cellule largeur={s.cDevoirs} style={s.centre}>{n2(m.moyenneDevoirs)}</Cellule>
                   <Cellule largeur={s.cCompos} style={s.centre}>{n2(m.noteComposition)}</Cellule>
                   <Cellule largeur={s.cMoyenne} style={[s.centre, s.gras]}>{n2(m.moyenne)}</Cellule>
-                  <Cellule largeur={s.cCoeff} style={s.centre}>{m.coefficient}</Cellule>
+                  <Cellule largeur={s.cCoeff} style={s.centre}>{m.coefficient ?? ""}</Cellule>
                   <Cellule largeur={s.cPoints} style={s.centre}>{n2(m.points)}</Cellule>
                   <Cellule largeur={s.cAppreciation} fin>{m.appreciation}</Cellule>
                 </View>

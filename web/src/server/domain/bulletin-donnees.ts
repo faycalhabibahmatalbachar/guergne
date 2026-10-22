@@ -32,7 +32,7 @@ interface LigneBrute extends Record<string, unknown> {
   matiere: string;
   groupe: string;
   ordre: number | null;
-  coefficient: number;
+  coefficient: number | null;
   moyenne: string | null;
   moyenne_devoirs: string | null;
   note_composition: string | null;
@@ -237,24 +237,25 @@ export async function chargerBulletin(
 
   // --- Les notes, devoirs et compositions séparés ---------------------------
   const lignes = await db.execute<LigneBrute>(sql`
-    SELECT m.libelle AS matiere,
+    SELECT CASE WHEN m.code = 'PC' THEN 'Physique - Chimie' ELSE m.libelle END AS matiere,
            m.groupe_bulletin::text AS groupe,
            m.ordre_bulletin AS ordre,
-           COALESCE(mm.coefficient, co.coefficient)::float8 AS coefficient,
+           COALESCE(mm.coefficient, co.coefficient, CASE WHEN m.code = 'PC' AND n.code IN ('6EME', '5EME') THEN 2::numeric END)::float8 AS coefficient,
            mm.moyenne::text AS moyenne,
            ${moyenneFamille("controle", inscriptionId, periodeId)} AS moyenne_devoirs,
            ${moyenneFamille("composition", inscriptionId, periodeId)} AS note_composition,
            am.appreciation AS appreciation_professeur
       FROM inscriptions i
       JOIN classes cl ON cl.id = i.classe_id
-      JOIN matieres m ON TRUE
-      JOIN LATERAL (
+      JOIN matieres m ON m.active
+      LEFT JOIN niveaux n ON n.id = cl.niveau_id
+      LEFT JOIN LATERAL (
         SELECT co.coefficient
           FROM coefficients co
          WHERE co.annee_id = cl.annee_id
            AND co.niveau_id = cl.niveau_id
            AND co.matiere_id = m.id
-           AND (co.serie_id IS NULL OR co.serie_id = cl.serie_id)
+           AND (co.serie_id IS NULL OR co.serie_id IS NOT DISTINCT FROM cl.serie_id)
          ORDER BY CASE WHEN co.serie_id IS NOT DISTINCT FROM cl.serie_id THEN 0 ELSE 1 END
          LIMIT 1
       ) co ON TRUE
@@ -267,6 +268,7 @@ export async function chargerBulletin(
             AND am.periode_id = ${periodeId}::uuid
             AND am.matiere_id = m.id
      WHERE i.id = ${inscriptionId}::uuid
+       AND (co.coefficient IS NOT NULL OR mm.coefficient IS NOT NULL OR m.code = 'PC')
      ORDER BY m.ordre_bulletin NULLS LAST, m.libelle
   `);
 
@@ -292,8 +294,8 @@ export async function chargerBulletin(
         moyenneDevoirs: nombre(l.moyenne_devoirs),
         noteComposition: nombre(l.note_composition),
         moyenne,
-        coefficient: Number(l.coefficient),
-        points: moyenne === null ? null : moyenne * Number(l.coefficient),
+        coefficient: l.coefficient === null ? null : Number(l.coefficient),
+        points: moyenne === null || l.coefficient === null ? null : moyenne * Number(l.coefficient),
         // La phrase du professeur prime sur la mention déduite de la moyenne
         // (E-41). Cette dernière ne fait que paraphraser le chiffre imprimé
         // juste à côté : « 14 » suivi de « Bien » n'apprend rien à personne.
@@ -309,8 +311,8 @@ export async function chargerBulletin(
 
     // Seules les matières NOTÉES entrent dans la moyenne du bloc — au
     // numérateur comme au dénominateur.
-    const notees = matieres.filter((m) => m.moyenne !== null);
-    const coeffs = notees.reduce((t, m) => t + m.coefficient, 0);
+    const notees = matieres.filter((m) => m.moyenne !== null && m.coefficient !== null);
+    const coeffs = notees.reduce((t, m) => t + (m.coefficient ?? 0), 0);
     const points = notees.reduce((t, m) => t + (m.points ?? 0), 0);
 
     return {
@@ -367,8 +369,8 @@ export async function chargerBulletin(
       appreciation: c.appreciation ?? "Le conseil",
     });
 
-    const notees = complementaires.matieres.filter((m) => m.moyenne !== null);
-    complementaires.totalCoefficients = notees.reduce((t, m) => t + m.coefficient, 0);
+    const notees = complementaires.matieres.filter((m) => m.moyenne !== null && m.coefficient !== null);
+    complementaires.totalCoefficients = notees.reduce((t, m) => t + (m.coefficient ?? 0), 0);
     const pointsBloc = notees.reduce((t, m) => t + (m.points ?? 0), 0);
     complementaires.moyenne =
       complementaires.totalCoefficients > 0 ? pointsBloc / complementaires.totalCoefficients : null;
@@ -457,7 +459,7 @@ export async function chargerBulletin(
 
     eleve: {
       nomComplet: `${ctx.prenom} ${ctx.nom}`,
-      matricule: /^\d+$/.test(ctx.matricule) ? ctx.matricule.padStart(3, "0") : ctx.matricule,
+      matricule: ctx.matricule,
       statut: ctx.est_redoublant ? "Redoublant" : ctx.statut_inscription === "INSCRIPTION" ? "Nouveau" : "Ancien",
       classe: ctx.classe,
       effectifClasse: Number(ctx.effectif),
