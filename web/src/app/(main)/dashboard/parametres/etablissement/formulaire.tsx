@@ -122,8 +122,9 @@ export function FormulaireIdentite({ initial }: { initial: Champs }) {
             <FileBadge2 className="size-5" aria-hidden /> Administration et signataires
           </CardTitle>
           <CardDescription>
-            Vérifiez les noms avant toute émission de document. Les modifications ne changent
-            pas les bulletins déjà délivrés.
+            Vérifiez les noms avant toute émission : les PDF générés ou réexportés ensuite
+            pourront afficher les nouvelles informations. L'historisation des versions PDF
+            fera l'objet d'un contrôle dédié.
           </CardDescription>
         </CardHeader>
         <CardContent><Groupe liste={ADMIN} initial={initial} enCours={enCours} erreurs={erreurs} /></CardContent>
