@@ -5,6 +5,15 @@ import { useState, useTransition } from "react";
 import { CalendarRange, Lock, LockOpen, Plus, Star } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -49,6 +59,8 @@ export function OngletAnnees({
   periodesParAnnee: Record<string, LignePeriode[]>;
 }) {
   const [enCours, demarrer] = useTransition();
+  const [clotureCible, setClotureCible] = useState<LigneAnnee | null>(null);
+  const [motifCloture, setMotifCloture] = useState("");
   const [ouvert, setOuvert] = useState(false);
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
 
@@ -88,15 +100,18 @@ export function OngletAnnees({
     });
   }
 
-  function cloturer(id: string, libelle: string) {
-    const motif = window.prompt(
-      `Clôturer définitivement ${libelle} ?\n\nToutes les périodes seront verrouillées et les notes deviendront non modifiables.\n\nMotif de la clôture :`,
-    );
-    if (!motif) return;
-
+  function cloturer() {
+    if (!clotureCible || motifCloture.trim().length < 3) return;
     demarrer(async () => {
-      const r = await cloturerAnnee(id, motif);
-      toast[r.ok ? "success" : "error"](r.ok ? `${libelle} clôturée.` : (r.message ?? "Échec."));
+      const cible = clotureCible;
+      const resultat = await cloturerAnnee(cible.id, motifCloture.trim());
+      if (resultat.ok) {
+        toast.success("Année " + cible.libelle + " clôturée.");
+        setClotureCible(null);
+        setMotifCloture("");
+      } else {
+        toast.error(resultat.message ?? "La clôture a échoué.");
+      }
     });
   }
 
@@ -250,7 +265,7 @@ export function OngletAnnees({
                           variant="outline"
                           size="sm"
                           disabled={enCours}
-                          onClick={() => cloturer(annee.id, annee.libelle)}
+                          onClick={() => { setClotureCible(annee); setMotifCloture(""); }}
                         >
                           <Lock aria-hidden />
                           Clôturer
@@ -312,6 +327,49 @@ export function OngletAnnees({
           })}
         </div>
       )}
+      <AlertDialog
+        open={clotureCible !== null}
+        onOpenChange={(ouvert) => {
+          if (!ouvert && !enCours) {
+            setClotureCible(null);
+            setMotifCloture("");
+          }
+        }}
+      >
+        <AlertDialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clôturer l'année {clotureCible?.libelle} ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette opération verrouille toutes les périodes de l'année et empêche la modification
+              des notes. Elle ne peut pas être annulée depuis cette page.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="motif-cloture">Motif de clôture (obligatoire)</Label>
+            <Textarea
+              id="motif-cloture"
+              value={motifCloture}
+              onChange={(evenement) => setMotifCloture(evenement.target.value)}
+              placeholder="Précisez pourquoi cette année est clôturée…"
+              maxLength={500}
+              rows={3}
+              disabled={enCours}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={enCours}>Annuler</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={enCours || motifCloture.trim().length < 3}
+              onClick={cloturer}
+            >
+              <Lock className="size-4" aria-hidden />
+              {enCours ? "Clôture…" : "Confirmer la clôture"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
