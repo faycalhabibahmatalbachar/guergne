@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, KeyRound,
   Search, Send, Smartphone, Users, UserRoundCheck,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,7 +58,6 @@ export function Parents({
   filtres: { recherche: string; etat: string; classeId: string };
 }) {
   const routeur = useRouter();
-  const [enCours, demarrer] = useTransition();
   const [recherche, setRecherche] = useState(filtres.recherche);
 
   const naviguer = (params: Record<string, string>) => {
