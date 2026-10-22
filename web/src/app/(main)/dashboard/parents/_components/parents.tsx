@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, KeyRound,
-  Search, Send, Smartphone, Users, UserRoundCheck, AlertTriangle, ShieldOff,
+  Search, Send, Smartphone, Users, UserRoundCheck, AlertTriangle, ShieldOff, MessageSquare, CircleOff,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,23 @@ function CarteStatistique({
     <p className="mt-0.5 text-[32px] font-bold leading-none tracking-tight text-slate-950 tabular-nums dark:text-foreground">{valeur.toLocaleString("fr-FR")}</p>
     <p className="mt-auto border-t border-slate-100 pt-2.5 text-[11px] leading-snug text-slate-500 dark:border-border dark:text-muted-foreground">{detail}</p>
   </article>;
+}
+
+function CanalParent({ t }: { t: LigneTuteur }) {
+  const push = t.canalJoignable === "PUSH" && t.compteActif === true;
+  const sms = t.canalJoignable === "SMS" && !!t.telephone && t.accepteSms;
+  const interne = t.canalJoignable === "IN_APP" && !!t.utilisateurId && t.compteActif === true;
+  const styles = push
+    ? "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
+    : sms ? "bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300"
+    : interne ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+    : "bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300";
+  const texte = push ? "Push" : sms ? "SMS" : interne ? "Interne" : "Indisponible";
+  const Icon = push || interne ? Smartphone : sms ? MessageSquare : CircleOff;
+  return <span className={"inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold " + styles}
+    title={push ? "Appareil enregistré" : sms ? "SMS autorisé" : interne ? "Le message reste dans l’application jusqu’à consultation" : "Aucun moyen de contact confirmé"}>
+    <Icon className="size-3.5" aria-hidden />{texte}
+  </span>;
 }
 
 function EtatCompte({ t }: { t: LigneTuteur }) {
@@ -146,13 +163,14 @@ export function Parents({
         <p className="text-sm font-semibold">Aucun tuteur ne correspond à cette recherche.</p>
         <Button size="sm" variant="outline" onClick={() => { setRecherche(""); naviguer({ recherche: "", etat: "", classe: "", page: "" }); }}>Réinitialiser les filtres</Button>
       </div> : <div className="overflow-x-auto">
-        <table className="w-full min-w-[1030px] border-collapse text-left text-[13px]">
+        <table className="w-full min-w-[1160px] border-collapse text-left text-[13px]">
           <thead className="bg-slate-50/90 text-xs text-slate-500 dark:bg-muted/30 dark:text-muted-foreground">
             <tr className="border-b border-slate-200 dark:border-border">
               <th scope="col" className="px-4 py-3 font-medium">Parent / Tuteur</th>
               <th scope="col" className="px-4 py-3 font-medium">Téléphone</th>
               <th scope="col" className="px-4 py-3 font-medium">Enfants</th>
               <th scope="col" className="px-4 py-3 font-medium">Accès</th>
+              <th scope="col" className="px-4 py-3 font-medium">Canal disponible</th>
               <th scope="col" className="px-4 py-3 font-medium">Dernière connexion</th>
               <th scope="col" className="px-4 py-3 text-right font-medium">Actions</th>
             </tr>
@@ -181,6 +199,7 @@ export function Parents({
                   <span className="block max-w-[270px] truncate text-[11px] text-slate-500" title={t.enfants}>{t.enfants || "Aucun enfant rattaché"}</span>
                 </td>
                 <td className="px-4 py-3"><EtatCompte t={t} /></td>
+                <td className="px-4 py-3"><CanalParent t={t} /></td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600 tabular-nums dark:text-muted-foreground">{dateFr(t.derniereConnexion)}</td>
                 <td className="px-4 py-3"><ActionsParent t={t} peutInviter={peutInviter} peutNotifier={peutNotifier} onNotifier={setDestinataire} /></td>
               </tr>;
