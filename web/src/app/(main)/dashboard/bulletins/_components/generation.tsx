@@ -82,8 +82,6 @@ export function GenerationBulletins({
     });
   }
 
-  const classe = classes.find((c) => c.id === classeChoisie);
-  const periode = periodes.find((p) => p.id === periodeChoisie);
   const publies = bulletins.filter((b) => b.publie).length;
   const enAttente = bulletins.length - publies;
   const bulletinsSelectionnes = bulletins.filter(
@@ -135,28 +133,6 @@ export function GenerationBulletins({
 
   return (
     <div className="space-y-6 pb-6">
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950 p-6 text-white shadow-sm sm:p-8">
-        <div className="pointer-events-none absolute -right-10 -top-16 size-56 rounded-full border border-white/10" />
-        <div className="pointer-events-none absolute -right-2 -top-8 size-40 rounded-full border border-cyan-300/15" />
-        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Lycée La Renaissance · Scolarité</p>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Gestion des bulletins scolaires</h2>
-            <p className="max-w-xl text-sm text-slate-300">Consultez, générez et gérez les bulletins de notes de vos élèves.</p>
-          </div>
-          <div className="flex flex-wrap gap-2 text-sm">
-            <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-3">
-              <span className="block text-xs text-slate-300">Classe de production</span>
-              <span className="font-semibold">{classe?.libelle ?? "Toutes les classes"}</span>
-            </div>
-            <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-3">
-              <span className="block text-xs text-slate-300">Période</span>
-              <span className="font-semibold">{periode?.libelle ?? "Toutes les périodes"}</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <Card className="rounded-2xl border-border/70 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Rechercher et filtrer les bulletins</CardTitle>

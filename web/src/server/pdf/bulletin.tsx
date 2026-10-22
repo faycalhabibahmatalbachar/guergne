@@ -8,7 +8,7 @@ import { join } from "node:path";
  */
 type Style = ReturnType<typeof StyleSheet.create>[string];
 
-const LOGO_ETABLISSEMENT = join(process.cwd(), "public", "icone-192.png");
+const LOGO_ETABLISSEMENT = join(process.cwd(), "public", "icone-512-pleine.png");
 
 import type { Etablissement } from "./gabarit";
 
@@ -47,16 +47,12 @@ import type { Etablissement } from "./gabarit";
 
 const s = StyleSheet.create({
   page: { paddingTop: 8, paddingBottom: 10, paddingHorizontal: 22, fontSize: 8.1, fontFamily: "Times-Roman", color: "#111111" },
-  entete: { flexDirection: "row", alignItems: "center", marginBottom: 3, paddingBottom: 3, borderBottomWidth: 0.65, borderBottomColor: "#111111" },
-  enteteInstitution: { width: "31%", alignItems: "center", justifyContent: "center" },
-  enteteLogoZone: { width: "14%", alignItems: "center", justifyContent: "center" },
-  logo: { width: 42, height: 42, objectFit: "contain" },
-  enteteEcole: { width: "55%", alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },
-  enteteMinistere: { fontSize: 5.7, textAlign: "center", lineHeight: 1.15 },
-  enteteDevise: { fontSize: 5.6, fontFamily: "Times-Italic", textAlign: "center", marginVertical: 1 },
-  enteteEtablissement: { fontSize: 9.2, fontFamily: "Times-Bold", textAlign: "center" },
-  enteteSecondaire: { marginTop: 1, fontSize: 5.9, textAlign: "center", lineHeight: 1.12 },
-  titre: { fontSize: 11.2, fontFamily: "Times-Bold", textAlign: "center", marginTop: 3, marginBottom: 6 },
+  entete: { flexDirection: "row", alignItems: "center", marginBottom: 2, paddingBottom: 1 },
+  enteteLogoZone: { width: "13%", alignItems: "center", justifyContent: "center" },
+  logo: { width: 34, height: 34, objectFit: "contain" },
+  enteteEtablissement: { width: "74%", fontSize: 9.3, fontFamily: "Times-Bold", textAlign: "center" },
+  enteteReserve: { width: "13%" },
+  titre: { fontSize: 11.2, fontFamily: "Times-Bold", textAlign: "center", marginTop: 1, marginBottom: 6 },
   identite: { borderWidth: 0.7, borderColor: "#111111", marginBottom: 4 },
   identiteRangee: { flexDirection: "row", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
   identiteCase: { paddingVertical: 1.7, paddingHorizontal: 3, borderRightWidth: 0.7, borderRightColor: "#111111", justifyContent: "center", alignItems: "stretch" },
@@ -194,20 +190,11 @@ function Cellule({
     >
       <Page size="A4" style={s.page} wrap={false}>
                 <View style={s.entete}>
-          <View style={s.enteteInstitution}>
-            <Text style={s.enteteMinistere}>RÉPUBLIQUE DU {(d.etablissement.pays ?? "TCHAD").toLocaleUpperCase("fr")}</Text>
-            <Text style={s.enteteDevise}>Unité — Travail — Progrès</Text>
-            <Text style={s.enteteMinistere}>{(d.etablissement.ministereTutelle ?? "MINISTÈRE DE L'ÉDUCATION NATIONALE").toLocaleUpperCase("fr")}</Text>
-          </View>
           <View style={s.enteteLogoZone}>
             <Image src={LOGO_ETABLISSEMENT} style={s.logo} />
           </View>
-          <View style={s.enteteEcole}>
-            <Text style={s.enteteEtablissement}>{d.etablissement.nom.toLocaleUpperCase("fr").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+LA RENAISSANCE$/i, " : LA RENAISSANCE")}</Text>
-            <Text style={s.enteteSecondaire}>{[d.etablissement.adresse, d.etablissement.ville].filter(Boolean).join(" · ")}</Text>
-            <Text style={s.enteteSecondaire}>{[d.etablissement.telephone, d.etablissement.email].filter(Boolean).join(" · ")}</Text>
-            {d.etablissement.autorisationNumero ? <Text style={s.enteteSecondaire}>Autorisation n° {d.etablissement.autorisationNumero}</Text> : null}
-          </View>
+          <Text style={s.enteteEtablissement}>{d.etablissement.nom.toLocaleUpperCase("fr").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+LA RENAISSANCE$/i, " : LA RENAISSANCE")}</Text>
+          <View style={s.enteteReserve} />
         </View>
         <Text style={s.titre}>BULLETIN DE NOTES DU {d.periodeLibelle.replace(/\s+trimestre$/i, " TRIMESTRE")}</Text>
 

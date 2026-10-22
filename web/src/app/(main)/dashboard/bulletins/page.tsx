@@ -1,7 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { BookOpen } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 import { sql } from "drizzle-orm";
 
@@ -82,6 +79,8 @@ export default async function PageBulletins({
 
   const classeChoisie = params.classe ?? "";
   const periodeChoisie = params.periode ?? "";
+  const classeLibelle = classes.rows.find((c) => c.id === classeChoisie)?.libelle ?? "Toutes les classes";
+  const periodeLibelle = periodes.rows.find((p) => p.id === periodeChoisie)?.libelle ?? "Toutes les périodes";
 
   // E-45 : ce qui manque AVANT de produire. E-58 : qui ne recevra rien, et
   // pourquoi. Les deux se lisent au même moment — juste avant de cliquer — et
@@ -167,9 +166,16 @@ export default async function PageBulletins({
               <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-200">{stats.effectifTotal} élèves</span>
             </div>
           </div>
-          <Button asChild variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10 hover:text-white">
-            <Link href="/dashboard/notes">Accéder à la saisie des notes</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2 text-sm">
+            <div className="min-w-36 rounded-xl border border-white/15 bg-white/10 px-4 py-3">
+              <span className="block text-xs text-slate-300">Classe de production</span>
+              <span className="font-semibold">{classeLibelle}</span>
+            </div>
+            <div className="min-w-36 rounded-xl border border-white/15 bg-white/10 px-4 py-3">
+              <span className="block text-xs text-slate-300">Période</span>
+              <span className="font-semibold">{periodeLibelle}</span>
+            </div>
+          </div>
         </div>
       </section>
 

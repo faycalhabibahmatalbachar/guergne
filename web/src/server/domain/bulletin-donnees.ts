@@ -29,6 +29,7 @@ import type { BlocMatieres, DonneesBulletin, LigneMatiere } from "@/server/pdf/b
  */
 
 interface LigneBrute extends Record<string, unknown> {
+  code: string;
   matiere: string;
   groupe: string;
   ordre: number | null;
@@ -237,7 +238,8 @@ export async function chargerBulletin(
 
   // --- Les notes, devoirs et compositions séparés ---------------------------
   const lignes = await db.execute<LigneBrute>(sql`
-    SELECT CASE WHEN m.code = 'PC' THEN 'Physique - Chimie' ELSE m.libelle END AS matiere,
+    SELECT m.code AS code,
+           CASE WHEN m.code = 'PC' THEN 'Physique - Chimie' ELSE m.libelle END AS matiere,
            m.groupe_bulletin::text AS groupe,
            m.ordre_bulletin AS ordre,
            COALESCE(mm.coefficient, co.coefficient, CASE WHEN m.code = 'PC' AND n.code IN ('6EME', '5EME') THEN 2::numeric END)::float8 AS coefficient,
@@ -268,58 +270,98 @@ export async function chargerBulletin(
             AND am.periode_id = ${periodeId}::uuid
             AND am.matiere_id = m.id
      WHERE i.id = ${inscriptionId}::uuid
-       AND (co.coefficient IS NOT NULL OR mm.coefficient IS NOT NULL OR m.code = 'PC')
+       AND (co.coefficient IS NOT NULL OR mm.coefficient IS NOT NULL OR m.code = 'PC' OR n.code IN ('6EME', '5EME'))
      ORDER BY m.ordre_bulletin NULLS LAST, m.libelle
   `);
+
+  const niveauModele = ctx.classe.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr");
+  const modeleCollege = /^6/.test(niveauModele) || /^5/.test(niveauModele) || niveauModele.includes("sixieme") || niveauModele.includes("cinquieme");
+  const periodeNormalisee = ctx.periode.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const premierTrimestre = /^1er|^1e|^premier/i.test(periodeNormalisee);
+
+  const modeleCollegeParGroupe: Record<string, Array<{ libelle: string; coefficient: number; cles: string[] }>> = {
+    LITTERAIRE: [
+      { libelle: "Rédaction", coefficient: 2, cles: ["redaction", "RED"] },
+      { libelle: "Dictée - Questions", coefficient: 2, cles: ["dicteequestions", "DIC", "DICTEE"] },
+      { libelle: "Arabe", coefficient: 2, cles: ["arabe", "AR"] },
+      { libelle: "Anglais", coefficient: 2, cles: ["anglais", "ANG"] },
+      { libelle: "Histoire", coefficient: 2, cles: ["histoire", "HIST"] },
+      { libelle: "Géographie", coefficient: 2, cles: ["geographie", "GEO"] },
+    ],
+    SCIENTIFIQUE: [
+      { libelle: "Mathématiques", coefficient: 4, cles: ["mathematiques", "MATH"] },
+      { libelle: "Physique - Chimie", coefficient: 2, cles: ["physiquechimie", "PC"] },
+      { libelle: "S.V.T", coefficient: 2, cles: ["svt", "sciencesdelavieetdelaterre", "SVT"] },
+    ],
+    COMPLEMENTAIRE: [
+      ...(premierTrimestre
+        ? [{ libelle: "Education Islamique", coefficient: 1, cles: ["educationislamique", "EDUISLAM", "ISLAM"] }]
+        : []),
+      { libelle: "Education Civique et Morale", coefficient: 2, cles: ["educationciviqueetmorale", "ECM"] },
+      ...(premierTrimestre
+        ? []
+        : [{ libelle: "Education Islamique", coefficient: 1, cles: ["educationislamique", "EDUISLAM", "ISLAM"] }]),
+      { libelle: "Informatique", coefficient: 1, cles: ["informatique", "INFO"] },
+    ],
+  };
+
+  const normaliserCleMatiere = (valeur: string) =>
+    valeur.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr").replace(/[^a-z0-9]/g, "");
 
   const blocs = ORDRE_BLOCS.map((groupe) => {
     const duGroupe = lignes.rows.filter((l) => l.groupe === groupe);
 
-    // L'Excel du lycée a un ordre spécifique pour les matières complémentaires
-    // au 1er trimestre : Éducation islamique avant Éducation civique et morale.
-    // Au 2e et au 3e trimestre, l'ordre est inverse.
-    if (groupe === "COMPLEMENTAIRE" && /^1/i.test(ctx.periode.trim())) {
-      const prioriteComplementaire = (libelle: string) => {
-        if (/^education islamique$/i.test(libelle.trim())) return 0;
-        if (/^education civique et morale$/i.test(libelle.trim())) return 1;
-        return 2;
-      };
-      duGroupe.sort((a, b) => prioriteComplementaire(a.matiere) - prioriteComplementaire(b.matiere));
+    let matieres: LigneMatiere[];
+    if (modeleCollege) {
+      // L'ordre et les coefficients sont ceux des modèles Excel fournis.
+      // Les notes ne sont remplies qu'à partir de vrais enregistrements de matière.
+      matieres = (modeleCollegeParGroupe[groupe] ?? []).map((spec) => {
+        const clefs = spec.cles.map(normaliserCleMatiere);
+        const ligne = lignes.rows.find((l) => {
+          const libelle = normaliserCleMatiere(l.matiere);
+          const code = normaliserCleMatiere(l.code);
+          return clefs.includes(libelle) || clefs.includes(code);
+        });
+        const moyenne = ligne ? nombre(ligne.moyenne) : null;
+        return {
+          libelle: spec.libelle,
+          moyenneDevoirs: ligne ? nombre(ligne.moyenne_devoirs) : null,
+          noteComposition: ligne ? nombre(ligne.note_composition) : null,
+          moyenne,
+          coefficient: spec.coefficient,
+          points: moyenne === null ? null : moyenne * spec.coefficient,
+          appreciation: (ligne?.appreciation_professeur ?? "").trim() || appreciationMoyenne(moyenne),
+        };
+      });
+    } else {
+      matieres = duGroupe.map((l) => {
+        const moyenne = nombre(l.moyenne);
+        return {
+          libelle: l.matiere,
+          moyenneDevoirs: nombre(l.moyenne_devoirs),
+          noteComposition: nombre(l.note_composition),
+          moyenne,
+          coefficient: l.coefficient === null ? null : Number(l.coefficient),
+          points: moyenne === null || l.coefficient === null ? null : moyenne * Number(l.coefficient),
+          appreciation: (l.appreciation_professeur ?? "").trim() || appreciationMoyenne(moyenne),
+        };
+      });
     }
 
-    const matieres: LigneMatiere[] = duGroupe.map((l) => {
-      const moyenne = nombre(l.moyenne);
-      return {
-        libelle: l.matiere,
-        moyenneDevoirs: nombre(l.moyenne_devoirs),
-        noteComposition: nombre(l.note_composition),
-        moyenne,
-        coefficient: l.coefficient === null ? null : Number(l.coefficient),
-        points: moyenne === null || l.coefficient === null ? null : moyenne * Number(l.coefficient),
-        // La phrase du professeur prime sur la mention déduite de la moyenne
-        // (E-41). Cette dernière ne fait que paraphraser le chiffre imprimé
-        // juste à côté : « 14 » suivi de « Bien » n'apprend rien à personne.
-        // Ce que la famille lit vraiment, c'est « des progrès à l'oral, mais
-        // un manque de méthode à l'écrit » — et c'est là-dessus que se règle
-        // le travail du trimestre suivant.
-        //
-        // On retombe sur la mention automatique quand rien n'est saisi : le
-        // bulletin reste imprimable même si un professeur est en retard.
-        appreciation: (l.appreciation_professeur ?? "").trim() || appreciationMoyenne(moyenne),
-      };
-    });
-
-    // Seules les matières NOTÉES entrent dans la moyenne du bloc — au
-    // numérateur comme au dénominateur.
+    // Les coefficients du programme restent visibles même si une saisie manque.
+    // Seules les matières avec une note entrent dans la moyenne du bloc.
     const notees = matieres.filter((m) => m.moyenne !== null && m.coefficient !== null);
-    const coeffs = notees.reduce((t, m) => t + (m.coefficient ?? 0), 0);
+    const coeffs = modeleCollege
+      ? matieres.reduce((t, m) => t + (m.coefficient ?? 0), 0)
+      : notees.reduce((t, m) => t + (m.coefficient ?? 0), 0);
     const points = notees.reduce((t, m) => t + (m.points ?? 0), 0);
+    const coefficientsNotes = notees.reduce((t, m) => t + (m.coefficient ?? 0), 0);
 
     return {
       titre: TITRES[groupe]!,
       matieres,
       totalCoefficients: coeffs,
-      moyenne: coeffs > 0 ? points / coeffs : null,
+      moyenne: coefficientsNotes > 0 ? points / coefficientsNotes : null,
     };
   }).filter((b) => b.matieres.length > 0) as BlocMatieres[];
 
@@ -370,15 +412,26 @@ export async function chargerBulletin(
     });
 
     const notees = complementaires.matieres.filter((m) => m.moyenne !== null && m.coefficient !== null);
-    complementaires.totalCoefficients = notees.reduce((t, m) => t + (m.coefficient ?? 0), 0);
+    const coefficientsNotesBloc = notees.reduce((t, m) => t + (m.coefficient ?? 0), 0);
+    complementaires.totalCoefficients = modeleCollege
+      ? complementaires.matieres.reduce((t, m) => t + (m.coefficient ?? 0), 0)
+      : coefficientsNotesBloc;
     const pointsBloc = notees.reduce((t, m) => t + (m.points ?? 0), 0);
     complementaires.moyenne =
-      complementaires.totalCoefficients > 0 ? pointsBloc / complementaires.totalCoefficients : null;
+      coefficientsNotesBloc > 0 ? pointsBloc / coefficientsNotesBloc : null;
   }
 
   const totalCoefficients = blocs.reduce((t, b) => t + b.totalCoefficients, 0);
+  const totalCoefficientsNotes = blocs.reduce(
+    (total, bloc) => total + bloc.matieres
+      .filter((m) => m.moyenne !== null && m.coefficient !== null)
+      .reduce((s, m) => s + (m.coefficient ?? 0), 0),
+    0,
+  );
   const totalPoints = blocs.reduce(
-    (t, b) => t + b.matieres.filter((m) => m.moyenne !== null).reduce((s, m) => s + (m.points ?? 0), 0),
+    (t, b) => t + b.matieres
+      .filter((m) => m.moyenne !== null && m.coefficient !== null)
+      .reduce((s, m) => s + (m.points ?? 0), 0),
     0,
   );
 
@@ -471,7 +524,7 @@ export async function chargerBulletin(
     blocs,
     totalCoefficients,
     totalPoints,
-    moyenneGenerale: b ? nombre(b.moyenne_generale) : totalCoefficients > 0 ? totalPoints / totalCoefficients : null,
+    moyenneGenerale: b ? nombre(b.moyenne_generale) : totalCoefficientsNotes > 0 ? totalPoints / totalCoefficientsNotes : null,
     rang: b?.rang ?? null,
 
     historique: historique.rows.map((h) => ({
