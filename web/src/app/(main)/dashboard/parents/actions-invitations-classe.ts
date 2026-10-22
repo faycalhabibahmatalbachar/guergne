@@ -47,7 +47,7 @@ async function calculerApercu(classeId: string): Promise<ApercuInvitationsClasse
     JOIN eleve_tuteur et ON et.tuteur_id = t.id AND et.est_principal
     JOIN inscriptions i ON i.eleve_id = et.eleve_id AND i.active
     WHERE i.classe_id = ${classeId}::uuid
-    ORDER BY t.nom, t.prenom, t.id
+    ORDER BY t.nom, t.prenom, t.id::text
   `);
   const parents = resultats.rows;
   const eligibles = parents
