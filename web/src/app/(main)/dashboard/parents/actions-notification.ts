@@ -32,6 +32,7 @@ interface Contact {
   telephone: string | null;
   accepte_sms: boolean | null;
   push_disponible: boolean;
+  telephone_partage: boolean;
   politique: string;
 }
 type CanalReel = "PUSH" | "SMS" | "IN_APP";
@@ -53,6 +54,9 @@ async function lireContact(tuteurId: string, executor: typeof db | Parameters<Pa
   const resultat = await executor.execute<Contact>(sql`
     SELECT t.id, t.utilisateur_id, u.actif AS compte_actif,
            t.telephone, t.accepte_sms,
+           EXISTS (SELECT 1 FROM tuteurs autre WHERE autre.id <> t.id
+                     AND regexp_replace(autre.telephone, '[^0-9]', '', 'g')
+                         = regexp_replace(t.telephone, '[^0-9]', '', 'g')) AS telephone_partage,
            EXISTS (
              SELECT 1 FROM appareils a
              WHERE a.utilisateur_id = t.utilisateur_id
@@ -105,6 +109,8 @@ function devis(t: Contact, canal: CanalIndividuel, titre: string, corps: string)
   const segments = segmentsSms(`${signatureSms()}${titre}\n${corps}`);
   const avertissement = destinations.length === 0
     ? "Ce parent n’est actuellement joignable par aucun canal sélectionné."
+    : parSms > 0 && t.telephone_partage
+      ? "Attention : ce numéro est partagé par plusieurs fiches. Vérifiez le destinataire avant d’envoyer un SMS."
     : dansApplication > 0
       ? "Le message sera disponible dans l’application, mais aucune alerte immédiate n’est garantie."
       : null;
