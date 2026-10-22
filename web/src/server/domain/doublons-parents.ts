@@ -97,7 +97,8 @@ export async function comparerNumerosPartages(tuteurId: string): Promise<Rapproc
            ), '[]'::jsonb) AS enfants
     FROM tuteurs t
     LEFT JOIN utilisateurs u ON u.id = t.utilisateur_id
-    WHERE regexp_replace(t.telephone, '[^0-9]', '', 'g') = (
+    WHERE regexp_replace(t.telephone, '[^0-9]', '', 'g') <> ''
+      AND regexp_replace(t.telephone, '[^0-9]', '', 'g') = (
       SELECT regexp_replace(telephone, '[^0-9]', '', 'g') FROM tuteurs WHERE id = ${tuteurId}::uuid
     )
     ORDER BY t.nom, t.prenom, t.id
