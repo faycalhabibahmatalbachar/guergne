@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 
 import { AlertCircle, BellRing, LoaderCircle, MessageSquare, Send, Smartphone, Users } from "lucide-react";
 import { toast } from "sonner";
+import { ClasseNotificationDialog } from "./classe-notification-dialog";
 
 import { apercuClasseCanal, notifierClasseCanal, type CanalClasse } from "../_actions/notifier-classe-canal";
 
@@ -57,19 +58,28 @@ type Cible =
  * déclencheurs — `fn_canal_tuteur` — pour qu'il ne puisse pas annoncer autre
  * chose que ce qui partira.
  */
-export function BoutonNotifier({
-  cible,
-  variante = "outline",
-  libelle = "Prévenir les parents",
-  contexteEleves = false,
-  contexteClasses = false,
-}: {
+type BoutonNotifierProps = {
   cible: Cible;
   variante?: "default" | "outline" | "ghost";
   libelle?: string;
   contexteEleves?: boolean;
   contexteClasses?: boolean;
-}) {
+};
+
+export function BoutonNotifier(props: BoutonNotifierProps) {
+  if (props.contexteClasses && props.cible.type === "classe") {
+    return <ClasseNotificationDialog cible={props.cible} variante={props.variante} libelle={props.libelle} />;
+  }
+  return <BoutonNotifierHistorique {...props} />;
+}
+
+function BoutonNotifierHistorique({
+  cible,
+  variante = "outline",
+  libelle = "Prévenir les parents",
+  contexteEleves = false,
+  contexteClasses = false,
+}: BoutonNotifierProps) {
   const [ouvert, setOuvert] = useState(false);
   const [canal, setCanal] = useState<CanalClasse>("AUTO");
   const [confirmeCout, setConfirmeCout] = useState(false);
