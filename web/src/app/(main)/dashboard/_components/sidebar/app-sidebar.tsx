@@ -30,6 +30,13 @@ import { NavUser } from "./nav-user";
  * Un groupe dont toutes les entrées sont filtrées disparaît entièrement :
  * afficher un intitulé de section vide donnerait l'impression d'un bug.
  */
+function actionVisible(action: string | readonly string[] | undefined, autorisees: Set<string>): boolean {
+  if (!action) return true;
+  return Array.isArray(action)
+    ? action.some((droit) => autorisees.has(droit))
+    : autorisees.has(action as string);
+}
+
 function filtrerMenu(groupes: NavGroup[], autorisees: Set<string>): NavGroup[] {
   return groupes
     .map((groupe) => ({
@@ -37,10 +44,10 @@ function filtrerMenu(groupes: NavGroup[], autorisees: Set<string>): NavGroup[] {
       items: groupe.items
         .map((item) => {
           if ("subItems" in item && item.subItems) {
-            const sous = item.subItems.filter((s) => !s.action || autorisees.has(s.action));
+            const sous = item.subItems.filter((s) => actionVisible(s.action, autorisees));
             return sous.length ? { ...item, subItems: sous } : null;
           }
-          return !item.action || autorisees.has(item.action) ? item : null;
+          return actionVisible(item.action, autorisees) ? item : null;
         })
         .filter((item): item is NonNullable<typeof item> => item !== null),
     }))

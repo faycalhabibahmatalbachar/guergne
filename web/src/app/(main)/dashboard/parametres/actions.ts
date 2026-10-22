@@ -373,6 +373,41 @@ export async function creerSerie(donnees: unknown): Promise<Resultat> {
   }
 }
 
+/** Modifier une série sans altérer son code déjà référencé par les classes. */
+export async function modifierSerie(serieId: string, donnees: unknown): Promise<Resultat> {
+  try {
+    const acteur = await requirePermission("matiere:gerer");
+    const analyse = schemaSerie.pick({ libelle: true, description: true }).safeParse(donnees);
+    if (!analyse.success) return { ok: false, erreurs: premierMessage(analyse.error) };
+
+    const [avant] = await db
+      .select({ code: series.code, libelle: series.libelle, description: series.description })
+      .from(series)
+      .where(eq(series.id, serieId))
+      .limit(1);
+    if (!avant) return { ok: false, message: "Série introuvable." };
+
+    const apres = {
+      libelle: analyse.data.libelle,
+      description: analyse.data.description || null,
+    };
+    await db.update(series).set(apres).where(eq(series.id, serieId));
+
+    await journaliser(acteur, {
+      action: "serie.modifiee",
+      entite: "series",
+      entiteId: serieId,
+      avant,
+      apres: { code: avant.code, ...apres },
+    });
+
+    revalidatePath("/dashboard/parametres");
+    return SUCCES;
+  } catch (erreur) {
+    return echec(erreur, "La modification de la série a échoué.");
+  }
+}
+
 export async function basculerSerie(serieId: string, active: boolean): Promise<Resultat> {
   try {
     const acteur = await requirePermission("matiere:gerer");

@@ -122,7 +122,7 @@ export function Notes({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm transition-shadow hover:shadow-md>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm transition-shadow hover:shadow-md">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-600 dark:text-slate-300">Suivi de la période</p>
           <p className="mt-1 text-sm font-medium">{periodeLibelle} · {evaluations.length} évaluation{evaluations.length > 1 ? "s" : ""}</p>

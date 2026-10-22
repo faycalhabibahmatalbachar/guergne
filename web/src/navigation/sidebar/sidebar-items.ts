@@ -28,7 +28,7 @@ export interface NavSubItem {
   disabled?: boolean;
   newTab?: boolean;
   /** Action requise pour voir cette entrée. Absente = visible par tous. */
-  action?: Action;
+  action?: Action | readonly Action[];
 }
 
 interface NavItemBase {
@@ -38,7 +38,7 @@ interface NavItemBase {
   badge?: NavBadge;
   disabled?: boolean;
   newTab?: boolean;
-  action?: Action;
+  action?: Action | readonly Action[];
 }
 
 export interface NavMainLinkItem extends NavItemBase {
@@ -190,7 +190,7 @@ export const sidebarItems: NavGroup[] = [
         title: "Paramètres",
         url: "/dashboard/parametres",
         icon: Settings,
-        action: "parametre:modifier",
+        action: ["parametre:modifier", "notification:configurer", "finance:configurer", "audit:lire"],
       },
     ],
   },
