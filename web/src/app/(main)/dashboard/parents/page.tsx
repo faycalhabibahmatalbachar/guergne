@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { listerTuteurs, statistiquesParents } from "@/server/domain/parents";
 import { listerClassesEtMatieres } from "@/server/domain/personnel";
 import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
-import { exigerPage } from "@/server/guard";
+import { exigerPage, peut } from "@/server/guard";
 
 import { Parents } from "./_components/parents";
 import { CreerParent } from "./_components/creer-parent";
@@ -18,7 +18,8 @@ export default async function PageParents({
 }: {
   searchParams: Promise<{ recherche?: string; etat?: string; classe?: string; page?: string; parPage?: string }>;
 }) {
-  await exigerPage("tuteur:gerer");
+  const principal = await exigerPage("tuteur:gerer");
+  const peutInviter = await peut(principal, "tuteur:inviter");
 
   const params = await searchParams;
   const annee = await chargerAnneeCourante();
@@ -67,6 +68,7 @@ export default async function PageParents({
         parPage={resultat.parPage}
         classes={referentiel.classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
         stats={stats}
+        peutInviter={peutInviter}
         filtres={filtres}
       />
     </div>
