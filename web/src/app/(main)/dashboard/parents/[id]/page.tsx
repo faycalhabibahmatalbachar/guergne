@@ -61,6 +61,12 @@ export default async function PageDossierParent({ params }: { params: Promise<{ 
 
   const { tuteur, enfants, notifications, canalJoignable, nbAppareils } = dossier;
   const nomComplet = tuteur.prenom + " " + tuteur.nom;
+  const profil = {
+    nom: tuteur.nom, prenom: tuteur.prenom, sexe: tuteur.sexe,
+    telephoneSecondaire: tuteur.telephoneSecondaire,
+    profession: tuteur.profession, employeur: tuteur.employeur,
+    adresse: tuteur.adresse, quartier: tuteur.quartier,
+  };
   const initiales = (tuteur.prenom[0] ?? "") + (tuteur.nom[0] ?? "");
   const etat = !tuteur.utilisateurId ? { libelle: "Sans compte", classe: "bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300" }
     : tuteur.compteActif === false ? { libelle: "Révoqué", classe: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300" }
@@ -100,7 +106,7 @@ export default async function PageDossierParent({ params }: { params: Promise<{ 
       <div className="shrink-0 print:hidden">
         <ActionsDossierParent parent={{
           id: tuteur.id, nomComplet, telephone: tuteur.telephone, email: tuteur.email,
-          accepteSms: tuteur.accepteSms, utilisateurId: tuteur.utilisateurId, compteActif: tuteur.compteActif,
+          accepteSms: tuteur.accepteSms, utilisateurId: tuteur.utilisateurId, compteActif: tuteur.compteActif, profil,
         }} peutSms={peutSms} peutInviter={peutInviter} />
       </div>
     </header>
@@ -134,7 +140,7 @@ export default async function PageDossierParent({ params }: { params: Promise<{ 
             <span className="flex size-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950"><UserRound className="size-5" aria-hidden /></span>
             <h2 id="parent-coordonnees-titre" className="text-[16px] font-bold">Coordonnées</h2>
           </div>
-          <CoordonneesTuteur tuteurId={tuteur.id} nomComplet={nomComplet} telephone={tuteur.telephone} email={tuteur.email} accepteSms={tuteur.accepteSms} variante="secondaire" />
+          <CoordonneesTuteur tuteurId={tuteur.id} nomComplet={nomComplet} telephone={tuteur.telephone} email={tuteur.email} accepteSms={tuteur.accepteSms} variante="secondaire" profil={profil} />
         </header>
         <div className="grid gap-5 rounded-2xl border border-slate-100 bg-slate-50/35 px-3 py-4 dark:border-border dark:bg-muted/10 sm:grid-cols-2 sm:gap-x-5 sm:px-4">
           <Champ icone={Phone} libelle="Téléphone" valeur={tuteur.telephone} />
