@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import { basculerMatiere, basculerSerie, creerMatiere, creerSerie, modifierMatiere } from "../actions";
+import { basculerMatiere, basculerSerie, creerMatiere, creerSerie, modifierMatiere, modifierSerie } from "../actions";
 import type { LigneMatiere, LigneSerie } from "@/server/domain/parametres";
 
 export function OngletMatieres({
@@ -248,24 +248,34 @@ function BlocMatieres({ matieres }: { matieres: LigneMatiere[] }) {
 function BlocSeries({ series }: { series: LigneSerie[] }) {
   const [enCours, demarrer] = useTransition();
   const [ouvert, setOuvert] = useState(false);
+  const [edite, setEdite] = useState<LigneSerie | null>(null);
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
 
   function soumettre(formulaire: FormData) {
     setErreurs({});
     demarrer(async () => {
-      const r = await creerSerie({
-        code: String(formulaire.get("code") ?? ""),
+      const donnees = {
         libelle: String(formulaire.get("libelle") ?? ""),
         description: String(formulaire.get("description") ?? ""),
-      });
+      };
+      const r = edite
+        ? await modifierSerie(edite.id, donnees)
+        : await creerSerie({ ...donnees, code: String(formulaire.get("code") ?? "") });
       if (r.ok) {
-        toast.success("Série créée.");
+        toast.success(edite ? "Série modifiée." : "Série créée.");
+        setEdite(null);
         setOuvert(false);
       } else {
         setErreurs(r.erreurs ?? {});
         if (r.message) toast.error(r.message);
       }
     });
+  }
+
+  function ouvrir(serie: LigneSerie | null) {
+    setEdite(serie);
+    setErreurs({});
+    setOuvert(true);
   }
 
   return (
@@ -278,9 +288,15 @@ function BlocSeries({ series }: { series: LigneSerie[] }) {
             le cas du collège et d&apos;une 2nde indifférenciée.
           </p>
         </div>
-        <Dialog open={ouvert} onOpenChange={setOuvert}>
+        <Dialog
+          open={ouvert}
+          onOpenChange={(valeur) => {
+            setOuvert(valeur);
+            if (!valeur) setEdite(null);
+          }}
+        >
           <DialogTrigger asChild>
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" onClick={() => ouvrir(null)}>
               <Plus aria-hidden />
               Nouvelle série
             </Button>
@@ -288,7 +304,7 @@ function BlocSeries({ series }: { series: LigneSerie[] }) {
           <DialogContent>
             <form action={soumettre}>
               <DialogHeader>
-                <DialogTitle>Nouvelle série</DialogTitle>
+                <DialogTitle>{edite ? "Modifier la série" : "Nouvelle série"}</DialogTitle>
                 <DialogDescription>
                   Par exemple S (scientifique), L (littéraire), A ou D.
                 </DialogDescription>
@@ -296,7 +312,19 @@ function BlocSeries({ series }: { series: LigneSerie[] }) {
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="serie-code">Code</Label>
-                  <Input id="serie-code" name="code" placeholder="S" required />
+                  <Input
+                    id="serie-code"
+                    name="code"
+                    placeholder="S"
+                    defaultValue={edite?.code}
+                    disabled={Boolean(edite)}
+                    required={!edite}
+                  />
+                  {edite ? (
+                    <p className="text-muted-foreground text-xs">
+                      Le code reste inchangé pour préserver les classes associées.
+                    </p>
+                  ) : null}
                   {erreurs.code ? <p className="text-destructive text-sm">{erreurs.code}</p> : null}
                 </div>
                 <div className="grid gap-2">
@@ -305,6 +333,7 @@ function BlocSeries({ series }: { series: LigneSerie[] }) {
                     id="serie-libelle"
                     name="libelle"
                     placeholder="Série S — Scientifique"
+                    defaultValue={edite?.libelle}
                     required
                   />
                   {erreurs.libelle ? (
@@ -313,12 +342,12 @@ function BlocSeries({ series }: { series: LigneSerie[] }) {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="serie-description">Description</Label>
-                  <Input id="serie-description" name="description" />
+                  <Input id="serie-description" name="description" defaultValue={edite?.description ?? ""} />
                 </div>
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={enCours}>
-                  {enCours ? "Création…" : "Créer"}
+                  {enCours ? "Enregistrement…" : edite ? "Enregistrer" : "Créer"}
                 </Button>
               </DialogFooter>
             </form>
@@ -334,6 +363,7 @@ function BlocSeries({ series }: { series: LigneSerie[] }) {
                 <TableHead>Code</TableHead>
                 <TableHead>Libellé</TableHead>
                 <TableHead>Active</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -357,6 +387,11 @@ function BlocSeries({ series }: { series: LigneSerie[] }) {
                         })
                       }
                     />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm" variant="ghost" onClick={() => ouvrir(s)}>
+                      Modifier
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
