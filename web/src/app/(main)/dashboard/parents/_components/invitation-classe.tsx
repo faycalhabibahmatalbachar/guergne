@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle, ArrowRight, CheckCircle2, Download,
@@ -52,6 +52,7 @@ export function InvitationClasse({
 }) {
   const routeur = useRouter();
   const [classeId, setClasseId] = useState("");
+  const classeCourante = useRef("");
   const [apercu, setApercu] = useState<ApercuInvitationsClasse | null>(null);
   const [confirmation, setConfirmation] = useState(false);
   const [dialogueOuvert, setDialogueOuvert] = useState(false);
@@ -61,6 +62,7 @@ export function InvitationClasse({
 
   function reinitialiser() {
     if (enCours) return;
+    classeCourante.current = "";
     setClasseId("");
     setApercu(null);
     setConfirmation(false);
@@ -72,7 +74,7 @@ export function InvitationClasse({
     const choix = classeId;
     demarrer(async () => {
       const r = await previsualiserInvitationsClasse(choix);
-      if (choix !== classeId) return;
+      if (choix !== classeCourante.current) return;
       if (!r.ok) {
         setApercu(null);
         toast.error(r.message);
@@ -129,7 +131,7 @@ export function InvitationClasse({
             <Label htmlFor="invitation-classe-id" className="text-xs font-semibold text-slate-700 dark:text-foreground">Classe à inviter</Label>
             <NativeSelect id="invitation-classe-id" aria-label="Classe à inviter" className="h-11 w-full rounded-xl border-slate-200 bg-white text-sm dark:border-border dark:bg-card"
               value={classeId} disabled={enCours}
-              onChange={e => { setClasseId(e.target.value); setApercu(null); setConfirmation(false); }}>
+              onChange={e => { classeCourante.current = e.target.value; setClasseId(e.target.value); setApercu(null); setConfirmation(false); }}>
               <option value="">Sélectionnez une classe…</option>
               {classes.map(c => <option key={c.id} value={c.id}>{c.libelle}</option>)}
             </NativeSelect>
