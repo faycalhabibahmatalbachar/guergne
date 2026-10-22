@@ -168,6 +168,17 @@ export default async function PageParametres({
         ) : null}
 
         <GroupeReglages
+          titre="Identité du lycée"
+          description="Une seule fiche institutionnelle, sans gestion de plusieurs établissements."
+          liens={peutConfigurer ? [{
+            titre: "Coordonnées et signataires officiels",
+            description: "Adresse, téléphone, e-mail, tutelle, autorisation, proviseur et censeur.",
+            url: "/dashboard/parametres/etablissement",
+            icone: School,
+          }] : []}
+        />
+
+        <GroupeReglages
           titre="Année scolaire et référentiel"
           description="Les paramètres structurants des inscriptions, des notes et des bulletins."
           liens={peutConfigurer ? [
