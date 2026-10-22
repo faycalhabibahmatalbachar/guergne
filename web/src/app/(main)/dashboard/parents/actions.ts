@@ -11,6 +11,7 @@ import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
 import { codesActivation, tuteurs, utilisateurs } from "@/server/db/schema";
 import { numeroTuteurDejaUtilise, telephoneDisponible } from "@/server/domain/parents";
+import { dureeInvitationJours } from "@/server/domain/parametres";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 import { normaliserNumero } from "@/server/notifications/sms";
 
@@ -36,7 +37,6 @@ function echec(e: unknown, defaut: string): Resultat {
   return { ok: false, message: defaut };
 }
 
-const DUREE_CODE_MINUTES = 60 * 24 * 7; // une semaine : le parent passe au guichet quand il peut
 
 /**
  * Génère un code d'activation à six chiffres.
@@ -94,6 +94,7 @@ export async function inviterTuteur(tuteurId: string): Promise<Resultat> {
       };
     }
 
+    const validiteJours = await dureeInvitationJours();
     const code = genererCode();
 
     await db.transaction(async (tx) => {
@@ -129,7 +130,7 @@ export async function inviterTuteur(tuteurId: string): Promise<Resultat> {
       await tx.insert(codesActivation).values({
         telephone: numero,
         codeHash: empreinte(code),
-        expireLe: new Date(Date.now() + DUREE_CODE_MINUTES * 60_000).toISOString(),
+        expireLe: new Date(Date.now() + validiteJours * 24 * 60 * 60_000).toISOString(),
       });
 
       // Mise en file d'un SMS : le parent n'a pas encore l'application, le
@@ -142,7 +143,7 @@ export async function inviterTuteur(tuteurId: string): Promise<Resultat> {
             'AUTRE'::type_notification,
             'SMS'::canal_notification,
             ${"Accès à l'application"},
-            ${`Votre code d'activation est ${code}. Il est valable 7 jours. Ne le communiquez à personne.`}
+            ${`Votre code d'activation est ${code}. Il est valable ${validiteJours} jour${validiteJours > 1 ? "s" : ""}. Ne le communiquez à personne.`}
           )
         `);
       }
@@ -152,7 +153,7 @@ export async function inviterTuteur(tuteurId: string): Promise<Resultat> {
       action: "tuteur.invite",
       entite: "tuteurs",
       entiteId: tuteurId,
-      apres: { telephone: numero, smsEnvoye: tuteur.accepteSms },
+      apres: { telephone: numero, smsEnvoye: tuteur.accepteSms, validiteJours },
     });
 
     revalidatePath("/dashboard/parents");
