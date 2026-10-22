@@ -297,6 +297,12 @@ export async function chargerDossierTuteur(tuteurId: string): Promise<DossierTut
            t.profession, t.employeur, t.adresse, t.quartier, t.sexe::text AS sexe,
            t.piece_identite, t.accepte_sms, t.app_activee, t.app_activee_le::text,
            t.cree_le::text, t.utilisateur_id,
+           EXISTS (
+             SELECT 1 FROM tuteurs autre
+             WHERE autre.id <> t.id
+             AND regexp_replace(autre.telephone, '[^0-9]', '', 'g')
+                 = regexp_replace(t.telephone, '[^0-9]', '', 'g')
+           ) AS doublon_telephone,
            u.actif AS compte_actif,
            u.derniere_connexion::text,
            fn_canal_tuteur(t.id)::text AS canal_joignable,
@@ -360,6 +366,7 @@ export async function chargerDossierTuteur(tuteurId: string): Promise<DossierTut
       accepteSms: Boolean(t.accepte_sms),
       creeLe: String(t.cree_le),
       nbEnfants: Number(t.nb_enfants),
+      doublonTelephone: Boolean(t.doublon_telephone),
       enfants: "",
     },
     enfants: enfants.rows.map((r) => ({
