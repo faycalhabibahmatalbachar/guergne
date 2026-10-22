@@ -10,7 +10,7 @@ import { z } from "zod";
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
 import { codesActivation, tuteurs, utilisateurs } from "@/server/db/schema";
-import { telephoneDisponible } from "@/server/domain/parents";
+import { numeroTuteurDejaUtilise, telephoneDisponible } from "@/server/domain/parents";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 import { normaliserNumero } from "@/server/notifications/sms";
 
@@ -82,6 +82,9 @@ export async function inviterTuteur(tuteurId: string): Promise<Resultat> {
     if (!tuteur) return { ok: false, message: "Tuteur introuvable." };
 
     const numero = normaliserNumero(tuteur.telephone);
+    if (await numeroTuteurDejaUtilise(numero, tuteurId)) {
+      return { ok: false, message: "Numéro partagé entre plusieurs fiches. Vérifiez les responsables avant de délivrer un code d'accès." };
+    }
 
     if (!(await telephoneDisponible(numero, tuteurId))) {
       return {
@@ -157,7 +160,7 @@ export async function inviterTuteur(tuteurId: string): Promise<Resultat> {
       ok: true,
       code,
       message: tuteur.accepteSms
-        ? `Code envoyé par SMS au ${numero}.`
+        ? `Code d’activation créé ; SMS mis en file pour ${numero}.`
         : `Compte créé. Communiquez le code au tuteur : ${code}`,
     };
   } catch (e) {
@@ -172,50 +175,12 @@ export async function inviterTuteur(tuteurId: string): Promise<Resultat> {
  * limite aux tuteurs PRINCIPAUX : ouvrir un compte aux deux parents double le
  * coût SMS pour un même foyer.
  */
-export async function inviterClasse(classeId: string): Promise<Resultat> {
-  try {
-    const acteur = await requirePermission("tuteur:inviter");
-
-    const cibles = await db.execute<{ id: string }>(sql`
-      SELECT DISTINCT t.id
-        FROM tuteurs t
-        JOIN eleve_tuteur et ON et.tuteur_id = t.id AND et.est_principal
-        JOIN inscriptions i ON i.eleve_id = et.eleve_id AND i.active
-       WHERE i.classe_id = ${classeId}::uuid
-         AND t.utilisateur_id IS NULL
-    `);
-
-    if (cibles.rows.length === 0) {
-      return { ok: false, message: "Tous les tuteurs principaux de cette classe ont déjà un compte." };
-    }
-
-    let invites = 0;
-    let echecs = 0;
-
-    for (const cible of cibles.rows) {
-      const r = await inviterTuteur(cible.id);
-      if (r.ok) invites += 1;
-      else echecs += 1;
-    }
-
-    await journaliser(acteur, {
-      action: "tuteurs.invites_en_masse",
-      entite: "tuteurs",
-      entiteId: classeId,
-      apres: { invites, echecs },
-    });
-
-    revalidatePath("/dashboard/parents");
-    return {
-      ok: invites > 0,
-      message:
-        echecs > 0
-          ? `${invites} tuteur(s) invité(s), ${echecs} en échec (numéro déjà utilisé).`
-          : `${invites} tuteur(s) invité(s). Les codes partent par SMS.`,
-    };
-  } catch (e) {
-    return echec(e, "L'invitation en masse a échoué.");
-  }
+/** Ancienne action en masse désactivée : tous les envois doivent désormais passer
+ * par prévisualiserInvitationsClasse + confirmerInvitationsClasse, avec accord de coût.
+ */
+export async function inviterClasse(_classeId: string): Promise<Resultat> {
+  await requirePermission("tuteur:inviter");
+  return { ok: false, message: "Utilisez le module d'invitation par classe avec prévisualisation, sélection des destinataires et confirmation du coût SMS." };
 }
 
 /** Renvoie un nouveau code — le précédent est invalidé. */
@@ -309,6 +274,11 @@ export async function modifierCoordonnees(tuteurId: string, donnees: unknown): P
       .select({ telephone: tuteurs.telephone, utilisateurId: tuteurs.utilisateurId })
       .from(tuteurs)
       .where(eq(tuteurs.id, tuteurId));
+    if (!avant) return { ok: false, message: "Tuteur introuvable." };
+    if (numero !== avant.telephone && await numeroTuteurDejaUtilise(numero, tuteurId)) {
+      return { ok: false, erreurs: { telephone: "Numéro déjà présent sur une autre fiche parent. Vérification nécessaire." } };
+    }
+
 
     await db.transaction(async (tx) => {
       await tx
@@ -375,9 +345,7 @@ export async function modifierProfilTuteur(tuteurId: string, donnees: unknown): 
     const [avant] = await db.select().from(tuteurs).where(eq(tuteurs.id, tuteurId)).limit(1);
     if (!avant) return { ok: false, message: "Tuteur introuvable." };
     if (numero !== avant.telephone) {
-      const [doublon] = await db.select({ id: tuteurs.id }).from(tuteurs)
-        .where(sql`telephone = ${numero} AND id <> ${tuteurId}::uuid`).limit(1);
-      if (doublon || !(await telephoneDisponible(numero, tuteurId))) {
+      if (await numeroTuteurDejaUtilise(numero, tuteurId) || !(await telephoneDisponible(numero, tuteurId))) {
         return { ok: false, erreurs: { telephone: "Numéro déjà utilisé par un autre tuteur ou compte." } };
       }
     }
