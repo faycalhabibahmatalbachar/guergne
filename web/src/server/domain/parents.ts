@@ -26,12 +26,13 @@ export interface LigneTuteur {
   derniereConnexion: string | null;
   accepteSms: boolean;
   nbEnfants: number;
+  doublonTelephone: boolean;
   enfants: string;
 }
 
 export interface FiltresTuteurs {
   recherche?: string;
-  /** 'sans_compte' | 'invite' | 'actif' */
+  /** 'sans_compte' | 'invite' | 'actif' | 'revoque' | 'doublon' */
   etat?: string;
   classeId?: string;
   page?: number;
@@ -70,8 +71,15 @@ export async function listerTuteurs(filtres: FiltresTuteurs = {}): Promise<Resul
       t.telephone ILIKE ${`%${recherche}%`})
     AND (${etat} = '' OR
       (${etat} = 'sans_compte' AND t.utilisateur_id IS NULL) OR
-      (${etat} = 'invite'      AND t.utilisateur_id IS NOT NULL AND u.derniere_connexion IS NULL) OR
-      (${etat} = 'actif'       AND u.derniere_connexion IS NOT NULL))
+      (${etat} = 'invite'      AND t.utilisateur_id IS NOT NULL AND u.actif IS TRUE AND u.derniere_connexion IS NULL) OR
+      (${etat} = 'actif'       AND t.utilisateur_id IS NOT NULL AND u.actif IS TRUE AND u.derniere_connexion IS NOT NULL) OR
+      (${etat} = 'revoque'     AND t.utilisateur_id IS NOT NULL AND u.actif IS DISTINCT FROM TRUE) OR
+      (${etat} = 'doublon'     AND EXISTS (
+        SELECT 1 FROM tuteurs meme_numero
+        WHERE meme_numero.id <> t.id
+          AND regexp_replace(meme_numero.telephone, '[^0-9]', '', 'g')
+              = regexp_replace(t.telephone, '[^0-9]', '', 'g')
+      )))
     AND (NULLIF(${classeId}, '')::uuid IS NULL OR EXISTS (
       SELECT 1 FROM eleve_tuteur et2
         JOIN inscriptions i2 ON i2.eleve_id = et2.eleve_id AND i2.active
@@ -88,6 +96,12 @@ export async function listerTuteurs(filtres: FiltresTuteurs = {}): Promise<Resul
              t.app_activee_le AS "appActiveeLe",
              u.derniere_connexion AS "derniereConnexion",
              t.accepte_sms AS "accepteSms",
+             EXISTS (
+               SELECT 1 FROM tuteurs autre
+               WHERE autre.id <> t.id
+                 AND regexp_replace(autre.telephone, '[^0-9]', '', 'g')
+                     = regexp_replace(t.telephone, '[^0-9]', '', 'g')
+             ) AS "doublonTelephone",
              (SELECT count(*) FROM eleve_tuteur et WHERE et.tuteur_id = t.id) AS "nbEnfants",
              COALESCE((
                SELECT string_agg(e.prenom || ' ' || e.nom || ' (' || c.libelle || ')', ', ')
@@ -100,7 +114,7 @@ export async function listerTuteurs(filtres: FiltresTuteurs = {}): Promise<Resul
         FROM tuteurs t
         LEFT JOIN utilisateurs u ON u.id = t.utilisateur_id
        WHERE ${conditions}
-       ORDER BY t.nom, t.prenom
+       ORDER BY t.nom, t.prenom, t.id
        LIMIT ${parPage} OFFSET ${decalage}
     `),
     db.execute<{ n: number }>(sql`
@@ -125,6 +139,8 @@ export interface StatistiquesParents {
   invites: number;
   actifs: number;
   avecAppareil: number;
+  revoques: number;
+  doublons: number;
 }
 
 export async function statistiquesParents(): Promise<StatistiquesParents> {
@@ -132,10 +148,17 @@ export async function statistiquesParents(): Promise<StatistiquesParents> {
     SELECT
       count(*)::int AS total,
       count(*) FILTER (WHERE t.utilisateur_id IS NULL)::int AS sans_compte,
-      count(*) FILTER (WHERE t.utilisateur_id IS NOT NULL AND u.derniere_connexion IS NULL)::int AS invites,
-      count(*) FILTER (WHERE u.derniere_connexion IS NOT NULL)::int AS actifs,
+      count(*) FILTER (WHERE t.utilisateur_id IS NOT NULL AND u.actif IS TRUE AND u.derniere_connexion IS NULL)::int AS invites,
+      count(*) FILTER (WHERE t.utilisateur_id IS NOT NULL AND u.actif IS TRUE AND u.derniere_connexion IS NOT NULL)::int AS actifs,
+      count(*) FILTER (WHERE t.utilisateur_id IS NOT NULL AND u.actif IS DISTINCT FROM TRUE)::int AS revoques,
+      count(*) FILTER (WHERE t.utilisateur_id IS NOT NULL AND u.actif IS TRUE AND EXISTS (
+        SELECT 1 FROM appareils a WHERE a.utilisateur_id = t.utilisateur_id AND a.actif))::int AS avec_appareil,
       count(*) FILTER (WHERE EXISTS (
-        SELECT 1 FROM appareils a WHERE a.utilisateur_id = t.utilisateur_id AND a.actif))::int AS avec_appareil
+        SELECT 1 FROM tuteurs autre
+        WHERE autre.id <> t.id
+          AND regexp_replace(autre.telephone, '[^0-9]', '', 'g')
+              = regexp_replace(t.telephone, '[^0-9]', '', 'g')
+      ))::int AS doublons
       FROM tuteurs t
       LEFT JOIN utilisateurs u ON u.id = t.utilisateur_id
   `);
@@ -147,6 +170,8 @@ export async function statistiquesParents(): Promise<StatistiquesParents> {
     invites: Number(l.invites ?? 0),
     actifs: Number(l.actifs ?? 0),
     avecAppareil: Number(l.avec_appareil ?? 0),
+    revoques: Number(l.revoques ?? 0),
+    doublons: Number(l.doublons ?? 0),
   };
 }
 
