@@ -24,3 +24,5 @@ jobs:
       - run: npx tsc --noEmit
 
 # Vérification finale après nettoyage du composant d'invitation.
+
+# Validation finale des contrôles de permission UI.
