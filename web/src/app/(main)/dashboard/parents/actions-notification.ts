@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { segmentsSms } from "@/lib/segments-sms";
@@ -35,6 +35,7 @@ interface Contact {
   politique: string;
 }
 type CanalReel = "PUSH" | "SMS" | "IN_APP";
+type ResultatDepot = { ok: true; posees: number; deja: boolean } | { ok: false; message: string };
 
 export interface ApercuNotificationParent {
   total: number;
@@ -136,7 +137,7 @@ export async function envoyerNotificationParent(tuteurId: string, donnees: unkno
     if (!validation.success) return { ok: false, message: "Complétez le message et actualisez le devis." };
     const { titre, corps, canal, coutConfirmeFcfa, nombreConfirme, cleEnvoi } = validation.data;
 
-    const depot = await db.transaction(async (tx) => {
+    const depot = await db.transaction(async (tx): Promise<ResultatDepot> => {
       // Deux clics simultanés pour le même message sont sérialisés.
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${tuteurId}), hashtext(${cleEnvoi}))`);
       const deja = await tx.execute<{ n: number }>(sql`
