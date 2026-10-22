@@ -22,3 +22,5 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npx tsc --noEmit
+
+# Revalidation après correction du JSX des actions parents.
