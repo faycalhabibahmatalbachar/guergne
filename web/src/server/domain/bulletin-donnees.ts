@@ -560,6 +560,6 @@ export async function chargerBulletin(
       : null,
 
     ville: e.ville ?? "N'Djamena",
-    dateEdition: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "2-digit" }),
+    dateEdition: new Date().toISOString().slice(0, 10),
   };
 }
