@@ -18,7 +18,9 @@ const CANAUX = [
   { id: "APP_ET_SMS", nom: "Application + SMS", aide: "Deux canaux disponibles", icon: Send },
 ] as const;
 
-export function NotificationParent({ parent, onFermer }: { parent: LigneTuteur | null; onFermer: () => void }) {
+export type DestinataireParent = Pick<LigneTuteur, "id" | "nom" | "prenom" | "telephone">;
+
+export function NotificationParent({ parent, onFermer }: { parent: DestinataireParent | null; onFermer: () => void }) {
   const [titre, setTitre] = useState("");
   const [corps, setCorps] = useState("");
   const [canal, setCanal] = useState<CanalIndividuel>("AUTO");
