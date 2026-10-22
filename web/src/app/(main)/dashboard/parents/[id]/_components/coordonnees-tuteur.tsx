@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
@@ -37,13 +38,16 @@ export function CoordonneesTuteur({
   telephone,
   email,
   accepteSms,
+  variante = "secondaire",
 }: {
   tuteurId: string;
   nomComplet: string;
   telephone: string;
   email: string | null;
   accepteSms: boolean;
+  variante?: "primaire" | "secondaire";
 }) {
+  const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
   const [sms, setSms] = useState(accepteSms);
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
@@ -64,6 +68,7 @@ export function CoordonneesTuteur({
       if (r.ok) {
         toast.success(r.message ?? "Coordonnées mises à jour.");
         setOuvert(false);
+        router.refresh();
       } else {
         setErreurs(r.erreurs ?? {});
         toast.error(r.message ?? Object.values(r.erreurs ?? {})[0] ?? "La modification a échoué.");
@@ -74,9 +79,12 @@ export function CoordonneesTuteur({
   return (
     <Dialog open={ouvert} onOpenChange={setOuvert}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Pencil aria-hidden />
-          Corriger les coordonnées
+        <Button variant={variante === "primaire" ? "default" : "outline"} size="sm"
+          className={variante === "primaire"
+            ? "h-10 gap-2 rounded-xl bg-blue-600 px-4 font-semibold text-white shadow-sm hover:bg-blue-700"
+            : "h-9 gap-2 rounded-xl border-slate-200 bg-white px-3.5 text-xs font-semibold shadow-none dark:border-border dark:bg-card"}>
+          <Pencil className="size-4" aria-hidden />
+          {variante === "primaire" ? "Corriger les coordonnées" : "Modifier"}
         </Button>
       </DialogTrigger>
 
