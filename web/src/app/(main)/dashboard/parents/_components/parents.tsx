@@ -15,6 +15,7 @@ import type { LigneTuteur, StatistiquesParents } from "@/server/domain/parents";
 import { InvitationClasse } from "./invitation-classe";
 import statistiquesStyles from "./statistiques-parents.module.css";
 import { ActionsParent } from "./actions-parent";
+import { NotificationParent } from "./notification-parent";
 import { etatCompteParent } from "@/lib/etat-compte-parent";
 
 interface Option { id: string; libelle: string }
@@ -50,7 +51,7 @@ function EtatCompte({ t }: { t: LigneTuteur }) {
 }
 
 export function Parents({
-  tuteurs, total, page, parPage, classes, stats, filtres, peutInviter,
+  tuteurs, total, page, parPage, classes, stats, filtres, peutInviter, peutNotifier,
 }: {
   tuteurs: LigneTuteur[];
   total: number;
@@ -59,10 +60,12 @@ export function Parents({
   classes: Option[];
   stats: StatistiquesParents;
   peutInviter: boolean;
+  peutNotifier: boolean;
   filtres: { recherche: string; etat: string; classeId: string };
 }) {
   const routeur = useRouter();
   const [recherche, setRecherche] = useState(filtres.recherche);
+  const [destinataire, setDestinataire] = useState<LigneTuteur | null>(null);
 
   const naviguer = (params: Record<string, string>) => {
     const url = new URLSearchParams({
@@ -93,6 +96,7 @@ export function Parents({
   };
 
   return <div className="space-y-4">
+    {peutNotifier && <NotificationParent parent={destinataire} onFermer={() => setDestinataire(null)} />}
     <section aria-label="Indicateurs des comptes parents" className={statistiquesStyles.region}>
       <div className={statistiquesStyles.grid}>
         {cartes.map(c => <CarteStatistique key={c.titre} {...c} />)}
@@ -178,7 +182,7 @@ export function Parents({
                 </td>
                 <td className="px-4 py-3"><EtatCompte t={t} /></td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600 tabular-nums dark:text-muted-foreground">{dateFr(t.derniereConnexion)}</td>
-                <td className="px-4 py-3"><ActionsParent t={t} peutInviter={peutInviter} /></td>
+                <td className="px-4 py-3"><ActionsParent t={t} peutInviter={peutInviter} peutNotifier={peutNotifier} onNotifier={setDestinataire} /></td>
               </tr>;
             })}
           </tbody>
