@@ -94,15 +94,15 @@ export default async function PageNotes({
               <p className="max-w-2xl text-sm leading-6 text-muted-foreground">Saisissez les résultats, suivez l’avancement des évaluations et préparez les moyennes de vos élèves.</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm" className="justify-between">
-              <Link href="/dashboard/notes/calendrier"><CalendarDays aria-hidden />Calendrier</Link>
+          <div className="flex flex-wrap gap-2 xl:justify-end">
+            <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-50 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
+              <Link href="/dashboard/notes/calendrier"><CalendarDays className="size-4 shrink-0" aria-hidden /><span>Calendrier</span></Link>
             </Button>
-            <Button asChild variant="outline" size="sm" className="justify-between">
-              <Link href="/dashboard/notes/appreciations"><MessageSquareText aria-hidden />Appréciations par matière</Link>
+            <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-50 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
+              <Link href="/dashboard/notes/appreciations"><MessageSquareText className="size-4 shrink-0" aria-hidden /><span>Appréciations par matière</span></Link>
             </Button>
-            <Button asChild size="sm" className="bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500">
-              <Link href="/dashboard/bulletins">Consulter les bulletins <ArrowUpRight className="size-4" aria-hidden /></Link>
+            <Button asChild size="sm" className="h-10 gap-2 whitespace-nowrap bg-cyan-700 px-4 text-white shadow-sm hover:bg-cyan-800 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:bg-cyan-600 dark:hover:bg-cyan-500">
+              <Link href="/dashboard/bulletins"><span>Consulter les bulletins</span><ArrowUpRight className="size-4 shrink-0" aria-hidden /></Link>
             </Button>
           </div>
         </div>

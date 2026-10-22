@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, CalendarDays, SlidersHorizontal } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -43,9 +43,10 @@ const TYPES: Array<[string, string]> = [
 ];
 
 const COULEUR_TYPE: Record<string, string> = {
-  COMPOSITION: "border-primary/50 bg-primary/10",
-  EXAMEN_BLANC: "border-primary/50 bg-primary/10",
-  DEVOIR: "border-border bg-muted/60",
+  COMPOSITION: "border-cyan-700/30 bg-cyan-50 text-cyan-950 dark:border-cyan-400/30 dark:bg-cyan-950/50 dark:text-cyan-100",
+  EXAMEN_BLANC: "border-indigo-700/30 bg-indigo-50 text-indigo-950 dark:border-indigo-400/30 dark:bg-indigo-950/50 dark:text-indigo-100",
+  DEVOIR: "border-slate-300 bg-slate-100 text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100",
+  INTERROGATION: "border-emerald-700/25 bg-emerald-50 text-emerald-950 dark:border-emerald-400/30 dark:bg-emerald-950/50 dark:text-emerald-100"
 };
 
 const jourLong = (iso: string) =>
@@ -95,13 +96,16 @@ export function VueCalendrier({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardContent className="flex flex-wrap items-end gap-3 py-4">
+      <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
+        <CardHeader className="border-b bg-muted/20 pb-4">
+          <div className="flex items-start gap-3"><div className="rounded-xl bg-cyan-700/10 p-2.5 text-cyan-800 dark:text-cyan-300"><SlidersHorizontal className="size-5" aria-hidden /></div><div><CardTitle className="text-base">Filtres du calendrier</CardTitle><CardDescription className="mt-1">Affinez l’affichage par période, classe et type d’évaluation.</CardDescription></div></div>
+        </CardHeader>
+        <CardContent className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="grid gap-2">
             <Label htmlFor="c-periode">Période</Label>
             <NativeSelect
               id="c-periode"
-              className="w-44"
+              className="w-full"
               value={periodeId}
               onChange={(e) => naviguer("periode", e.target.value)}
             >
@@ -117,7 +121,7 @@ export function VueCalendrier({
             <Label htmlFor="c-classe">Classe</Label>
             <NativeSelect
               id="c-classe"
-              className="w-44"
+              className="w-full"
               value={classeId}
               onChange={(e) => naviguer("classe", e.target.value)}
             >
@@ -134,7 +138,7 @@ export function VueCalendrier({
             <Label htmlFor="c-type">Type</Label>
             <NativeSelect
               id="c-type"
-              className="w-44"
+              className="w-full"
               value={type}
               onChange={(e) => naviguer("type", e.target.value)}
             >
@@ -149,7 +153,7 @@ export function VueCalendrier({
       </Card>
 
       {surcharges.length > 0 ? (
-        <Card className="border-amber-500/40 bg-amber-500/5">
+        <Card className="overflow-hidden rounded-2xl border-amber-500/40 bg-amber-500/5 shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <AlertTriangle aria-hidden className="size-5 text-amber-600 dark:text-amber-400" />
@@ -175,14 +179,14 @@ export function VueCalendrier({
       ) : null}
 
       {parJour.size === 0 ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-10 text-center text-sm">
+        <Card className="rounded-2xl border-border/70 shadow-sm">
+          <CardContent className="text-muted-foreground py-12 text-center text-sm">
             Aucune évaluation programmée avec ces critères.
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardHeader className="pb-3">
+        <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
+          <CardHeader className="border-b bg-muted/20 pb-4">
             <CardTitle className="text-base">
               {jours.length} évaluation(s) sur {parJour.size} journée(s)
             </CardTitle>
@@ -195,7 +199,7 @@ export function VueCalendrier({
             {[...parJour.entries()].map(([date, liste]) => (
               <div
                 key={date}
-                className={`grid gap-2 px-4 py-3 sm:grid-cols-[13rem_1fr] ${
+                className={`grid gap-3 px-4 py-4 transition-colors hover:bg-muted/20 sm:grid-cols-[13rem_1fr] ${
                   date < aujourdhui ? "opacity-60" : ""
                 }`}
               >
@@ -214,14 +218,14 @@ export function VueCalendrier({
                       <span
                         key={e.evaluationId}
                         title={e.titre}
-                        className={`rounded-md border px-2 py-1 text-xs ${
+                        className={`rounded-lg border px-2.5 py-2 text-xs leading-5 shadow-xs ${
                           chargee
-                            ? "border-amber-500/50 bg-amber-500/10"
-                            : (COULEUR_TYPE[e.type] ?? "border-border bg-muted/40")
+                            ? "border-amber-600/40 bg-amber-50 text-amber-950 dark:border-amber-400/30 dark:bg-amber-950/50 dark:text-amber-100"
+                            : (COULEUR_TYPE[e.type] ?? "border-border bg-muted text-foreground")
                         }`}
                       >
                         <span className="font-medium">{e.classe}</span>
-                        <span className="text-muted-foreground"> · {e.matiere}</span>
+                        <span className="opacity-90"> · {e.matiere}</span>
                       </span>
                     );
                   })}

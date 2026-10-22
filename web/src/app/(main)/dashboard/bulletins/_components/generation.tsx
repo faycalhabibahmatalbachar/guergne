@@ -138,7 +138,8 @@ export function GenerationBulletins({
           <div className="flex items-start gap-3">
             <div className="rounded-xl bg-cyan-700/10 p-2.5 text-cyan-800 dark:text-cyan-300"><Search className="size-5" aria-hidden /></div>
             <div><CardTitle className="text-base">Rechercher et filtrer les bulletins</CardTitle>
-            <CardDescription className="mt-1">Recherchez un élève par son nom, son prénom ou son matricule, puis choisissez une classe et une période.</CardDescription></div>
+              <CardDescription className="mt-1">Recherchez un élève par son nom, son prénom ou son matricule, puis choisissez une classe et une période.</CardDescription>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -236,7 +237,7 @@ export function GenerationBulletins({
                   </a>
                 </Button>
               ) : null}
-              <Button onClick={generer} disabled={!classeChoisie || !periodeChoisie || enCours} className="bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500">
+              <Button onClick={generer} disabled={!classeChoisie || !periodeChoisie || enCours} className="bg-cyan-700 text-white shadow-sm hover:bg-cyan-800 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:bg-cyan-600 dark:hover:bg-cyan-500">
                 <Play aria-hidden /> {enCours ? "Calcul…" : "Produire"}
               </Button>
             </div>
@@ -277,7 +278,7 @@ export function GenerationBulletins({
             <div className="overflow-x-auto">
               <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-muted/40">
+                <TableHeader className="bg-muted/40 text-foreground">
                   <TableRow>
                     <TableHead>Élève</TableHead><TableHead>Matricule</TableHead><TableHead>Classe</TableHead>
                     <TableHead className="text-right">Moyenne générale</TableHead><TableHead className="text-right">Rang</TableHead>

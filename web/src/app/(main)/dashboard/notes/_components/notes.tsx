@@ -158,7 +158,7 @@ export function Notes({
           ) : (
             <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-muted/40">
+              <TableHeader className="bg-muted/40 text-foreground">
                 <TableRow>
                   <TableHead>Évaluation</TableHead>
                   <TableHead>Classe</TableHead>
@@ -511,7 +511,7 @@ function GrilleSaisie({
 
         <div className="overflow-x-auto">
         <Table>
-          <TableHeader className="sticky top-0 z-10 bg-background">
+          <TableHeader className="sticky top-0 z-10 bg-background text-foreground">
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="w-12">#</TableHead>
               <TableHead>Élève</TableHead>
