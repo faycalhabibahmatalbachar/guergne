@@ -1,0 +1,62 @@
+/* Fenêtre de notification des classes, sans défilement vertical interne.
+   Les deux panneaux se répartissent horizontalement dès que la largeur le permet. */
+.classes-notification-dialog {
+  max-height: calc(100dvh - 16px);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overscroll-behavior: contain;
+}
+.classes-notification-dialog .classes-notification-body {
+  min-height: 0;
+}
+.classes-notification-dialog .classes-notification-choice {
+  min-height: 67px;
+}
+.classes-notification-dialog .classes-notification-preview {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 599px) {
+  .classes-notification-dialog .classes-notification-header { padding: 13px 42px 11px 15px; }
+  .classes-notification-dialog .classes-notification-header [data-slot="dialog-title"] { font-size: 15px; }
+  .classes-notification-dialog .classes-notification-header [data-slot="dialog-title"] > span { width: 31px; height: 31px; }
+  .classes-notification-dialog .classes-notification-body { padding: 12px 14px; gap: 12px; }
+  .classes-notification-dialog .classes-notification-channel > div:first-child { margin-bottom: 8px; }
+  .classes-notification-dialog .classes-notification-choices { gap: 6px; }
+  .classes-notification-dialog .classes-notification-choice { min-height: 58px; padding: 7px 8px; }
+  .classes-notification-dialog .classes-notification-channel-note { margin-top: 7px; font-size: 11px; line-height: 1.25; }
+  .classes-notification-dialog .classes-notification-message { row-gap: 8px; }
+  .classes-notification-dialog .classes-notification-footer { padding: 10px 12px; }
+}
+@media (max-height: 700px) {
+  .classes-notification-dialog .classes-notification-header { padding-top: 10px; padding-bottom: 9px; }
+  .classes-notification-dialog .classes-notification-body { padding-top: 10px; padding-bottom: 10px; gap: 12px; }
+  .classes-notification-dialog .classes-notification-channel > div:first-child { margin-bottom: 7px; }
+  .classes-notification-dialog .classes-notification-intro { margin-top: 2px; }
+  .classes-notification-dialog .classes-notification-channel-note { display: none; }
+  .classes-notification-dialog .classes-notification-choice { min-height: 48px; padding-top: 6px; padding-bottom: 6px; }
+  .classes-notification-dialog .classes-notification-option-description { font-size: 10px; }
+  .classes-notification-dialog .classes-notification-message { row-gap: 6px; }
+  .classes-notification-dialog .classes-notification-textarea { height: 62px; }
+  .classes-notification-dialog .classes-notification-preview > div { padding-top: 7px; padding-bottom: 7px; }
+  .classes-notification-dialog .classes-notification-footer { padding-top: 8px; padding-bottom: 8px; }
+}
+@media (max-height: 560px) {
+  .classes-notification-dialog .classes-notification-header { padding-top: 7px; padding-bottom: 7px; }
+  .classes-notification-dialog .classes-notification-description { font-size: 11px; }
+  .classes-notification-dialog .classes-notification-body { padding-top: 7px; padding-bottom: 7px; gap: 8px; }
+  .classes-notification-dialog .classes-notification-intro { display: none; }
+  .classes-notification-dialog .classes-notification-channel > div:first-child { margin-bottom: 5px; }
+  .classes-notification-dialog .classes-notification-choice { min-height: 38px; padding: 4px 7px; }
+  .classes-notification-dialog .classes-notification-option-description { display: none; }
+  .classes-notification-dialog .classes-notification-input { height: 32px; }
+  .classes-notification-dialog .classes-notification-textarea { height: 52px; }
+  .classes-notification-dialog .classes-notification-message { row-gap: 5px; }
+  .classes-notification-dialog .classes-notification-footer { padding-top: 6px; padding-bottom: 6px; }
+  .classes-notification-dialog .classes-notification-footer-button { height: 32px; }
+}
+@media (max-height: 450px) {
+  .classes-notification-dialog .classes-notification-description { display: none; }
+  .classes-notification-dialog .classes-notification-body { gap: 6px; }
+  .classes-notification-dialog .classes-notification-header [data-slot="dialog-title"] > span { width: 28px; height: 28px; }
+  .classes-notification-dialog .classes-notification-choice { min-height: 34px; }
+  .classes-notification-dialog .classes-notification-textarea { height: 43px; }
+}
