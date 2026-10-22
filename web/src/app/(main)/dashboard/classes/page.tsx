@@ -58,6 +58,7 @@ export default async function PageClasses({
       peutCreer={actions.includes("classe:creer")}
       peutModifier={actions.includes("classe:modifier")}
       peutVoirPersonnel={peutVoirPersonnel}
+      peutNotifier={actions.includes("message:envoyer")}
     />
   );
 }

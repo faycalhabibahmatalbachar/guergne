@@ -39,6 +39,7 @@ type Props = {
   peutCreer: boolean;
   peutModifier: boolean;
   peutVoirPersonnel: boolean;
+  peutNotifier: boolean;
 };
 
 const PALETTE = [
@@ -80,11 +81,12 @@ function Statistique({ icon: Icon, valeur, libelle, note, couleur }: {
   );
 }
 
-function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, ouvrir }: {
+function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotifier, ouvrir }: {
   classe: LigneClasseParametre;
   index: number;
   peutModifier: boolean;
   peutVoirPersonnel: boolean;
+  peutNotifier: boolean;
   ouvrir: (c: LigneClasseParametre | null) => void;
 }) {
   const palette = PALETTE[index % PALETTE.length];
@@ -143,33 +145,31 @@ function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, ouvrir }:
           )}
         </div>
         {plein && <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Capacité atteinte : inscriptions complètes.</p>}
-        <div className="mt-auto flex items-center gap-2">
-          <Link href={"/dashboard/eleves?classe=" + encodeURIComponent(classe.id)} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
-            <Users className="size-3.5 shrink-0" /> Voir les élèves
-          </Link>
-          {peutModifier && (
-            <button type="button" onClick={() => ouvrir(classe)} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
-              <Pencil className="size-3.5 shrink-0" /> Modifier
-            </button>
+        <div className="mt-auto space-y-2.5 border-t border-slate-100 pt-3 dark:border-slate-800">
+          <div className="grid grid-cols-2 gap-2">
+            <Link href={"/dashboard/eleves?classe=" + encodeURIComponent(classe.id)} className={"inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-800 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800 " + (!peutModifier ? "col-span-2" : "")}>
+              <Users className="size-4 shrink-0" /> Voir les élèves
+            </Link>
+            {peutModifier && (
+              <button type="button" onClick={() => ouvrir(classe)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-800 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800">
+                <Pencil className="size-4 shrink-0" /> Modifier la classe
+              </button>
+            )}
+          </div>
+          {peutNotifier && classe.active && total > 0 ? (
+            <BoutonNotifier cible={{ type: "classe", id: classe.id, nom: classe.libelle }} variante="outline" contexteClasses />
+          ) : (
+            <p className="flex h-9 items-center justify-center rounded-lg bg-slate-50 px-2 text-center text-xs text-slate-400 dark:bg-slate-800">
+              {total === 0 ? "Aucun parent à prévenir pour le moment" : "Notifications indisponibles"}
+            </p>
           )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" aria-label={"Autres actions pour " + classe.libelle} className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"><Ellipsis className="size-4" /></button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild><Link href={"/dashboard/eleves?classe=" + encodeURIComponent(classe.id)}><Users className="size-4" /> Voir les élèves</Link></DropdownMenuItem>
-              {peutModifier && <DropdownMenuItem onClick={() => ouvrir(classe)}><Pencil className="size-4" /> Modifier la classe</DropdownMenuItem>}
-              {classe.active && total > 0 && <DropdownMenuSeparator />}
-              {classe.active && total > 0 && <div className="px-1 py-1"><BoutonNotifier cible={{ type: "classe", id: classe.id, nom: classe.libelle }} variante="ghost" /></div>}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
     </article>
   );
 }
 
-export function ClassesDashboard({ annee, annees, classes, niveaux, series, enseignants, peutCreer, peutModifier, peutVoirPersonnel }: Props) {
+export function ClassesDashboard({ annee, annees, classes, niveaux, series, enseignants, peutCreer, peutModifier, peutVoirPersonnel, peutNotifier }: Props) {
   const router = useRouter();
   const [recherche, setRecherche] = useState("");
   const [niveau, setNiveau] = useState("tous");
@@ -287,7 +287,7 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
 
       {visible.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center dark:border-slate-700 dark:bg-slate-900"><BookOpen className="mx-auto mb-3 size-9 text-slate-400" /><h2 className="text-lg font-semibold">Aucune classe trouvée</h2><p className="mt-1 text-sm text-slate-500">Ajustez les filtres ou la recherche pour afficher les classes.</p><Button variant="outline" className="mt-4" onClick={() => {setNiveau("tous");setStatut("tous");setRecherche("");}}>Effacer les filtres</Button></div> : vue === "grille" ? (
         <div className="grid items-stretch gap-4 md:grid-cols-2 2xl:grid-cols-3">
-          {visible.map((c, i) => <ClasseCarte key={c.id} classe={c} index={classes.findIndex((v) => v.id === c.id)} peutModifier={peutModifier && peutEditerCetteAnnee} peutVoirPersonnel={peutVoirPersonnel} ouvrir={ouvrir} />)}
+          {visible.map((c, i) => <ClasseCarte key={c.id} classe={c} index={classes.findIndex((v) => v.id === c.id)} peutModifier={peutModifier && peutEditerCetteAnnee} peutVoirPersonnel={peutVoirPersonnel} peutNotifier={peutNotifier} ouvrir={ouvrir} />)}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -300,15 +300,46 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
       <p className="text-right text-xs text-slate-500 dark:text-slate-400">{etiquette(visible.length, "classe affichée", "classes affichées")} sur {classes.length}</p>
 
       <Dialog open={form !== null} onOpenChange={(open) => { if (!open && !enCours) setForm(null); }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader><DialogTitle>{form?.id ? "Modifier la classe" : "Ajouter une classe"}</DialogTitle><DialogDescription>Renseignez les informations de la classe pour l’année {annee.libelle}.</DialogDescription></DialogHeader>
-          {form && <form onSubmit={enregistrer} className="space-y-4 pt-3">
-            <div className="grid gap-2"><Label htmlFor="classe-niveau">Niveau *</Label><NativeSelect id="classe-niveau" value={form.niveauId} onChange={(e) => setForm({ ...form, niveauId: e.target.value, serieId: "" })} required><option value="">Sélectionner un niveau</option>{niveaux.map((n) => <option key={n.id} value={n.id}>{n.libelle}</option>)}</NativeSelect>{erreurs.niveauId && <p className="text-xs text-red-600">{erreurs.niveauId}</p>}</div>
-            {niveauChoisi?.seriesApplicables && <div className="grid gap-2"><Label htmlFor="classe-serie">Série</Label><NativeSelect id="classe-serie" value={form.serieId} onChange={(e) => setForm({ ...form, serieId: e.target.value })}><option value="">Sans série</option>{series.filter((s) => s.active).map((s) => <option key={s.id} value={s.id}>{s.code} — {s.libelle}</option>)}</NativeSelect>{erreurs.serieId && <p className="text-xs text-red-600">{erreurs.serieId}</p>}</div>}
-            <div className="grid grid-cols-2 gap-3"><div className="grid gap-2"><Label htmlFor="classe-libelle">Nom de la classe *</Label><Input id="classe-libelle" required value={form.libelle} onChange={(e) => setForm({ ...form, libelle: e.target.value })} placeholder="6ème A" />{erreurs.libelle && <p className="text-xs text-red-600">{erreurs.libelle}</p>}</div><div className="grid gap-2"><Label htmlFor="classe-code">Code *</Label><Input id="classe-code" required maxLength={10} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="6A" />{erreurs.code && <p className="text-xs text-red-600">{erreurs.code}</p>}</div></div>
-            <div className="grid gap-2"><Label htmlFor="classe-capacite">Capacité maximale *</Label><Input id="classe-capacite" type="number" min={1} max={200} required value={form.capaciteMax} onChange={(e) => setForm({ ...form, capaciteMax: e.target.value })} />{erreurs.capaciteMax && <p className="text-xs text-red-600">{erreurs.capaciteMax}</p>}<p className="text-xs text-slate-500">La capacité ne peut pas être inférieure au nombre d’élèves inscrits.</p></div>
-            {form.id && peutModifier && classes.find((c) => c.id === form.id)?.effectif === 0 && <button type="button" onClick={() => {const c = classes.find((v) => v.id === form.id);if (c) supprimer(c);}} disabled={enCours} className="inline-flex items-center gap-2 text-sm text-red-600 hover:underline"><Trash2 className="size-4" /> Supprimer la classe vide</button>}
-            <DialogFooter className="pt-3"><Button type="button" variant="outline" disabled={enCours} onClick={() => setForm(null)}>Annuler</Button><Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700" disabled={enCours}>{enCours ? "Enregistrement…" : form.id ? "Enregistrer les modifications" : "Créer la classe"}</Button></DialogFooter>
+        <DialogContent className="max-h-[min(90dvh,780px)] w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl sm:max-w-[620px] dark:border-slate-700 dark:bg-slate-900">
+          <DialogHeader className="border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-white px-6 py-6 pr-14 dark:border-slate-800 dark:from-blue-950/40 dark:via-slate-900 dark:to-slate-900">
+            <div className="mb-3 flex items-center gap-3">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">{form?.id ? <Pencil className="size-5" /> : <Plus className="size-5" />}</span>
+              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">Gestion des classes · {annee.libelle}</span>
+            </div>
+            <DialogTitle className="text-left text-xl font-bold tracking-tight text-slate-950 dark:text-white">{form?.id ? "Modifier la classe" : "Ajouter une classe"}</DialogTitle>
+            <DialogDescription className="pt-1 text-left text-sm text-slate-500 dark:text-slate-400">
+              {form?.id ? "Mettez à jour les informations sans affecter les élèves inscrits." : "Créez une nouvelle classe dans le registre scolaire de l’établissement."}
+            </DialogDescription>
+          </DialogHeader>
+          {form && <form onSubmit={enregistrer} className="flex flex-col">
+            <div className="space-y-6 px-6 py-5">
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2 dark:border-slate-800"><GraduationCap className="size-4 text-blue-600" /><h3 className="text-sm font-semibold text-slate-900 dark:text-white">Structure pédagogique</h3></div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2"><Label htmlFor="classe-niveau" className="font-semibold text-slate-800 dark:text-slate-100">Niveau <span className="text-blue-600">*</span></Label><NativeSelect id="classe-niveau" className="h-11 w-full rounded-xl border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800" value={form.niveauId} onChange={(e) => setForm({ ...form, niveauId: e.target.value, serieId: "" })} required><option value="">Sélectionner un niveau</option>{niveaux.map((n) => <option key={n.id} value={n.id}>{n.libelle}</option>)}</NativeSelect>{erreurs.niveauId && <p className="text-xs text-red-600">{erreurs.niveauId}</p>}</div>
+                  <div className="grid gap-2"><Label htmlFor="classe-serie" className="font-semibold text-slate-800 dark:text-slate-100">Série <span className="font-normal text-slate-400">(si applicable)</span></Label><NativeSelect id="classe-serie" className="h-11 w-full rounded-xl border-slate-200 bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800" value={niveauChoisi?.seriesApplicables ? form.serieId : ""} onChange={(e) => setForm({ ...form, serieId: e.target.value })} disabled={!niveauChoisi?.seriesApplicables}><option value="">{niveauChoisi?.seriesApplicables ? "Sans série" : "Non applicable"}</option>{series.filter((s) => s.active).map((s) => <option key={s.id} value={s.id}>{s.code} — {s.libelle}</option>)}</NativeSelect>{erreurs.serieId && <p className="text-xs text-red-600">{erreurs.serieId}</p>}</div>
+                </div>
+              </section>
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2 dark:border-slate-800"><BookOpen className="size-4 text-blue-600" /><h3 className="text-sm font-semibold text-slate-900 dark:text-white">Identification de la classe</h3></div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2"><Label htmlFor="classe-libelle" className="font-semibold text-slate-800 dark:text-slate-100">Nom de la classe <span className="text-blue-600">*</span></Label><Input id="classe-libelle" className="h-11 rounded-xl border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800" required value={form.libelle} onChange={(e) => setForm({ ...form, libelle: e.target.value })} placeholder="Ex. : 6ème A" />{erreurs.libelle && <p className="text-xs text-red-600">{erreurs.libelle}</p>}</div>
+                  <div className="grid gap-2"><Label htmlFor="classe-code" className="font-semibold text-slate-800 dark:text-slate-100">Code <span className="text-blue-600">*</span></Label><Input id="classe-code" className="h-11 rounded-xl border-slate-200 bg-slate-50 font-mono uppercase dark:border-slate-700 dark:bg-slate-800" required maxLength={10} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })} placeholder="Ex. : 6A" />{erreurs.code && <p className="text-xs text-red-600">{erreurs.code}</p>}</div>
+                </div>
+              </section>
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2 dark:border-slate-800"><Users className="size-4 text-blue-600" /><h3 className="text-sm font-semibold text-slate-900 dark:text-white">Capacité d’accueil</h3></div>
+                <div className="grid gap-2"><Label htmlFor="classe-capacite" className="font-semibold text-slate-800 dark:text-slate-100">Nombre maximal d’élèves <span className="text-blue-600">*</span></Label><Input id="classe-capacite" className="h-11 rounded-xl border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800" type="number" min={1} max={200} required value={form.capaciteMax} onChange={(e) => setForm({ ...form, capaciteMax: e.target.value })} />{erreurs.capaciteMax && <p className="text-xs text-red-600">{erreurs.capaciteMax}</p>}</div>
+                <div className="flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3.5 py-3 text-xs leading-relaxed text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-200">
+                  <School className="mt-0.5 size-4 shrink-0" /><span>Une classe ne peut pas accueillir plus d’élèves que sa capacité. La capacité ne peut pas être réduite sous l’effectif déjà inscrit.</span>
+                </div>
+              </section>
+              {form.id && peutModifier && classes.find((c) => c.id === form.id)?.effectif === 0 && <button type="button" onClick={() => {const c = classes.find((v) => v.id === form.id);if (c) supprimer(c);}} disabled={enCours} className="inline-flex items-center gap-2 text-xs font-semibold text-red-600 hover:underline"><Trash2 className="size-4" /> Supprimer cette classe vide</button>}
+            </div>
+            <DialogFooter className="flex gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">
+              <Button type="button" variant="outline" className="h-11 rounded-xl border-slate-200 px-5 dark:border-slate-700" disabled={enCours} onClick={() => setForm(null)}>Annuler</Button>
+              <Button type="submit" className="h-11 rounded-xl bg-blue-600 px-5 font-semibold text-white hover:bg-blue-700" disabled={enCours}>{enCours ? "Enregistrement…" : <>{form.id ? <Check className="size-4" /> : <Plus className="size-4" />} {form.id ? "Enregistrer les modifications" : "Créer la classe"}</>}</Button>
+            </DialogFooter>
           </form>}
         </DialogContent>
       </Dialog>
