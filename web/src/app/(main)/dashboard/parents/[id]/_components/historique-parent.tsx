@@ -24,7 +24,7 @@ export function HistoriqueParent({ notifications }: { notifications: Notificatio
   const [canal, setCanal] = useState("TOUS");
   const liste = canal === "TOUS" ? notifications : notifications.filter(n => n.canal === canal);
   return (
-    <section aria-label="Historique des messages au parent" className="min-w-0 overflow-hidden rounded-[20px] border border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
+    <section id="historique-notifications" aria-label="Historique des messages au parent" className="min-w-0 overflow-hidden rounded-[20px] border border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-border sm:px-6">
         <div className="flex items-center gap-3">
           <span className="flex size-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950"><Send className="size-5" aria-hidden /></span>
