@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, KeyRound,
-  Search, Send, Smartphone, Users, UserRoundCheck, AlertTriangle, ShieldOff,
+  Search, Send, Smartphone, Users, UserRoundCheck, AlertTriangle, ShieldOff, MessageSquare, CircleOff, BellRing, X, CheckCheck,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,8 @@ import type { LigneTuteur, StatistiquesParents } from "@/server/domain/parents";
 import { InvitationClasse } from "./invitation-classe";
 import statistiquesStyles from "./statistiques-parents.module.css";
 import { ActionsParent } from "./actions-parent";
+import { NotificationParent } from "./notification-parent";
+import { NotificationsGroupe } from "./notifications-groupe";
 import { etatCompteParent } from "@/lib/etat-compte-parent";
 
 interface Option { id: string; libelle: string }
@@ -39,6 +42,23 @@ function CarteStatistique({
   </article>;
 }
 
+function CanalParent({ t }: { t: LigneTuteur }) {
+  const push = t.canalJoignable === "PUSH" && t.compteActif === true;
+  const sms = t.canalJoignable === "SMS" && !!t.telephone && t.accepteSms;
+  const interne = t.canalJoignable === "IN_APP" && !!t.utilisateurId && t.compteActif === true;
+  const styles = push
+    ? "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
+    : sms ? "bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300"
+    : interne ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+    : "bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300";
+  const texte = push ? "Push" : sms ? "SMS" : interne ? "Interne" : "Indisponible";
+  const Icon = push || interne ? Smartphone : sms ? MessageSquare : CircleOff;
+  return <span className={"inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold " + styles}
+    title={push ? "Appareil enregistré" : sms ? "SMS autorisé" : interne ? "Le message reste dans l’application jusqu’à consultation" : "Aucun moyen de contact confirmé"}>
+    <Icon className="size-3.5" aria-hidden />{texte}
+  </span>;
+}
+
 function EtatCompte({ t }: { t: LigneTuteur }) {
   const classe = "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium";
   switch (etatCompteParent(t)) {
@@ -50,7 +70,7 @@ function EtatCompte({ t }: { t: LigneTuteur }) {
 }
 
 export function Parents({
-  tuteurs, total, page, parPage, classes, stats, filtres, peutInviter,
+  tuteurs, total, page, parPage, classes, stats, filtres, peutInviter, peutNotifier,
 }: {
   tuteurs: LigneTuteur[];
   total: number;
@@ -59,10 +79,30 @@ export function Parents({
   classes: Option[];
   stats: StatistiquesParents;
   peutInviter: boolean;
+  peutNotifier: boolean;
   filtres: { recherche: string; etat: string; classeId: string };
 }) {
   const routeur = useRouter();
   const [recherche, setRecherche] = useState(filtres.recherche);
+  const [destinataire, setDestinataire] = useState<LigneTuteur | null>(null);
+  const [selection, setSelection] = useState<string[]>([]);
+  const [groupeOuvert, setGroupeOuvert] = useState(false);
+  const idsVisibles = tuteurs.map(t => t.id);
+  const selectionPage = selection.filter(id => idsVisibles.includes(id));
+  const tousPage = idsVisibles.length > 0 && idsVisibles.length <= 30 && idsVisibles.every(id => selection.includes(id));
+
+  const basculerParent = (id: string, cocher: boolean) => {
+    setSelection(actuels => {
+      const prochains = cocher ? [...new Set([...actuels, id])] : actuels.filter(x => x !== id);
+      if (prochains.length > 30) { toast.error("Maximum 30 parents par notification."); return actuels; }
+      return prochains;
+    });
+  };
+  const basculerPage = () => {
+    if (tousPage) {setSelection([]);return;}
+    if (idsVisibles.length > 30) { toast.error("Choisissez au maximum 30 parents."); return; }
+    setSelection(idsVisibles);
+  };
 
   const naviguer = (params: Record<string, string>) => {
     const url = new URLSearchParams({
@@ -70,6 +110,7 @@ export function Parents({
       classe: filtres.classeId, parPage: String(parPage), ...params,
     });
     for (const [cle, valeur] of [...url.entries()]) if (!valeur) url.delete(cle);
+    setSelection([]);
     routeur.push(`/dashboard/parents?${url}`);
   };
 
@@ -93,6 +134,8 @@ export function Parents({
   };
 
   return <div className="space-y-4">
+    {peutNotifier && <NotificationParent parent={destinataire} onFermer={() => setDestinataire(null)} />}
+    {peutNotifier && <NotificationsGroupe ids={selectionPage} ouvert={groupeOuvert} onFermer={() => setGroupeOuvert(false)} onSucces={() => {setSelection([]);setGroupeOuvert(false);routeur.refresh();}} />}
     <section aria-label="Indicateurs des comptes parents" className={statistiquesStyles.region}>
       <div className={statistiquesStyles.grid}>
         {cartes.map(c => <CarteStatistique key={c.titre} {...c} />)}
@@ -136,26 +179,41 @@ export function Parents({
 
     </section>
 
+    {peutNotifier && <section aria-label="Actions groupées sur les parents" className={"flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 shadow-sm " + (selectionPage.length > 0 ? "border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/20" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900")}>
+      <div className="flex items-center gap-3">
+        <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"><CheckCheck className="size-4" /></span>
+        <div><p className="text-sm font-semibold text-slate-900 dark:text-white">Sélection des parents</p><p className="text-xs text-slate-500 dark:text-slate-400">{selectionPage.length} parent(s) sélectionné(s) sur cette page · 30 maximum</p></div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={basculerPage}>{tousPage ? "Tout désélectionner" : "Sélectionner la page"}</Button>
+        {selectionPage.length > 0 && <Button type="button" variant="outline" size="sm" onClick={() => setSelection([])}><X className="size-3.5" /> Effacer</Button>}
+        <Button type="button" size="sm" disabled={!selectionPage.length} onClick={() => setGroupeOuvert(true)} className="gap-2 bg-emerald-700 font-semibold text-white hover:bg-emerald-800"><BellRing className="size-4" /> Notifier la sélection ({selectionPage.length})</Button>
+      </div>
+    </section>}
+
     <section aria-label="Liste des comptes parents" className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
       {tuteurs.length === 0 ? <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
         <Users className="size-9 text-slate-400" aria-hidden />
         <p className="text-sm font-semibold">Aucun tuteur ne correspond à cette recherche.</p>
         <Button size="sm" variant="outline" onClick={() => { setRecherche(""); naviguer({ recherche: "", etat: "", classe: "", page: "" }); }}>Réinitialiser les filtres</Button>
       </div> : <div className="overflow-x-auto">
-        <table className="w-full min-w-[1030px] border-collapse text-left text-[13px]">
+        <table className="w-full min-w-[1240px] border-collapse text-left text-[13px]">
           <thead className="bg-slate-50/90 text-xs text-slate-500 dark:bg-muted/30 dark:text-muted-foreground">
             <tr className="border-b border-slate-200 dark:border-border">
+              {peutNotifier && <th scope="col" className="w-10 px-3 py-3"><input type="checkbox" aria-label="Sélectionner les parents de cette page" checked={tousPage} onChange={basculerPage} className="size-4 accent-emerald-700" /></th>}
               <th scope="col" className="px-4 py-3 font-medium">Parent / Tuteur</th>
               <th scope="col" className="px-4 py-3 font-medium">Téléphone</th>
               <th scope="col" className="px-4 py-3 font-medium">Enfants</th>
               <th scope="col" className="px-4 py-3 font-medium">Accès</th>
+              <th scope="col" className="px-4 py-3 font-medium">Canal disponible</th>
               <th scope="col" className="px-4 py-3 font-medium">Dernière connexion</th>
               <th scope="col" className="px-4 py-3 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {tuteurs.map(t => {
-              return <tr key={t.id} className="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-emerald-50/40 dark:border-border dark:hover:bg-muted/30">
+              return <tr key={t.id} className={"border-b border-slate-100 transition-colors last:border-b-0 hover:bg-emerald-50/40 dark:border-border dark:hover:bg-muted/30 " + (selection.includes(t.id) ? "bg-emerald-50/40 dark:bg-emerald-950/10" : "")}>
+                {peutNotifier && <td className="px-3 py-3"><input type="checkbox" checked={selection.includes(t.id)} onChange={e => basculerParent(t.id,e.target.checked)} aria-label={"Sélectionner " + t.prenom + " " + t.nom} className="size-4 accent-emerald-700" /></td>}
                 <td className="px-4 py-3">
                   <div className="flex min-w-0 items-center gap-2.5">
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sky-50 text-xs font-bold text-sky-700 dark:bg-sky-950">
@@ -177,8 +235,9 @@ export function Parents({
                   <span className="block max-w-[270px] truncate text-[11px] text-slate-500" title={t.enfants}>{t.enfants || "Aucun enfant rattaché"}</span>
                 </td>
                 <td className="px-4 py-3"><EtatCompte t={t} /></td>
+                <td className="px-4 py-3"><CanalParent t={t} /></td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600 tabular-nums dark:text-muted-foreground">{dateFr(t.derniereConnexion)}</td>
-                <td className="px-4 py-3"><ActionsParent t={t} peutInviter={peutInviter} /></td>
+                <td className="px-4 py-3"><ActionsParent t={t} peutInviter={peutInviter} peutNotifier={peutNotifier} onNotifier={setDestinataire} /></td>
               </tr>;
             })}
           </tbody>

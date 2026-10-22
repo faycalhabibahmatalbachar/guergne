@@ -25,6 +25,7 @@ export interface LigneTuteur {
   appActiveeLe: string | null;
   derniereConnexion: string | null;
   accepteSms: boolean;
+  canalJoignable?: string;
   nbEnfants: number;
   doublonTelephone: boolean;
   enfants: string;
@@ -96,6 +97,7 @@ export async function listerTuteurs(filtres: FiltresTuteurs = {}): Promise<Resul
              t.app_activee_le AS "appActiveeLe",
              u.derniere_connexion AS "derniereConnexion",
              t.accepte_sms AS "accepteSms",
+             fn_canal_tuteur(t.id)::text AS "canalJoignable",
              EXISTS (
                SELECT 1 FROM tuteurs autre
                WHERE autre.id <> t.id
