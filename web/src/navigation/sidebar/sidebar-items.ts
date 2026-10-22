@@ -190,7 +190,7 @@ export const sidebarItems: NavGroup[] = [
         title: "Paramètres",
         url: "/dashboard/parametres",
         icon: Settings,
-        action: ["parametre:modifier", "notification:configurer", "finance:configurer", "audit:lire"],
+        action: ["parametre:modifier", "annee:cloturer", "periode:verrouiller", "periode:deverrouiller", "matiere:gerer", "coefficient:gerer", "classe:creer", "classe:modifier", "notification:configurer", "finance:configurer", "audit:lire"],
       },
     ],
   },
