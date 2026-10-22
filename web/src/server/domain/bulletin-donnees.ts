@@ -382,9 +382,9 @@ export async function chargerBulletin(
   `);
 
   const c = conduite.rows[0];
-  if (c) {
-    const note = c.note === null ? null : Number(c.note);
-    const coefficient = Number(c.coefficient) || 2;
+  if (c || modeleCollege) {
+    const note = c?.note === null || c?.note === undefined ? null : Number(c.note);
+    const coefficient = c ? Number(c.coefficient) || 2 : 2;
 
     // Elle rejoint les matières complémentaires — le bloc du document papier —
     // ou fonde ce bloc s'il n'existe pas encore.
@@ -408,7 +408,7 @@ export async function chargerBulletin(
       points: note === null ? null : note * coefficient,
       // L'appréciation de conduite est écrite par le conseil, pas déduite d'un
       // seuil : « Le conseil » figure sur le document papier quand elle manque.
-      appreciation: c.appreciation ?? "Le conseil",
+      appreciation: c?.appreciation ?? "Le conseil",
     });
 
     const notees = complementaires.matieres.filter((m) => m.moyenne !== null && m.coefficient !== null);
