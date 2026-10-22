@@ -28,7 +28,7 @@
 | PAR-004 | Rejeter e-mail erroné, URL HTTP, URL avec identifiants, téléphone malformé et valeurs excessives | P0 |
 | PAR-005 | Rejeter un champ inconnu tentant de changer nom légal, sigle ou devise par API | P0 |
 | PAR-006 | Refuser lecture/écriture à un rôle sans `parametre:modifier` ; aucune fuite de données via réponse d'erreur | P0 |
-| PAR-007 | Laisser intacts les bulletins déjà produits ; tester le nouveau nom des signataires sur un PDF régénéré | P0 |
+| PAR-007 | Préserver des versions vérifiables des bulletins déjà remis ; vérifier qu'une réexportation PDF n'altère pas silencieusement la version historique | P0 |
 | PAR-008 | Comparer avant/après dans le journal d'audit ; éviter les données techniques en cas d'échec | P0 |
 | PAR-009 | Télécharger/imprimer un aperçu A4 du papier à en-tête utilisant les vraies données | P1 |
 | PAR-010 | Déposer/remplacer logo et cachet par flux privé, valider taille/MIME, prévisualiser et révoquer | P1 |
