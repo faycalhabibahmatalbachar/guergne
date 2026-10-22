@@ -25,7 +25,7 @@ export interface LigneTuteur {
   appActiveeLe: string | null;
   derniereConnexion: string | null;
   accepteSms: boolean;
-  canalJoignable: string;
+  canalJoignable?: string;
   nbEnfants: number;
   doublonTelephone: boolean;
   enfants: string;
