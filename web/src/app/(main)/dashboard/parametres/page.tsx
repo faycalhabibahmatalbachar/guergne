@@ -424,6 +424,8 @@ export default async function PageParametres({
             classes={classes}
             niveaux={niveaux}
             series={series}
+            peutCreer={peutCreerClasses}
+            peutModifier={peutModifierClasses}
           />
         </TabsContent>
       </Tabs>
