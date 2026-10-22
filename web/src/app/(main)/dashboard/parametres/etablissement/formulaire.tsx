@@ -77,16 +77,19 @@ function Groupe({
     );
   }
 
-export function FormulaireIdentite({ initial }: { initial: Champs }) {
+export function FormulaireIdentite({ initial }: { initial: Champs & { version: string } }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
 
   function enregistrer(donnees: FormData) {
-    const saisie = Object.fromEntries([...CHAMPS, ...ADMIN].map((c) => [
-      c.nom,
-      String(donnees.get(c.nom) ?? ""),
-    ]));
+    const saisie = {
+      ...Object.fromEntries([...CHAMPS, ...ADMIN].map((c) => [
+        c.nom,
+        String(donnees.get(c.nom) ?? ""),
+      ])),
+      version: initial.version,
+    };
     setErreurs({});
     demarrer(async () => {
       const resultat = await enregistrerIdentiteLycee(saisie);
