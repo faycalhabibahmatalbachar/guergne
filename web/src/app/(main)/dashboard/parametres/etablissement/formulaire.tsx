@@ -41,30 +41,17 @@ const ADMIN = [
   { nom: "nomCenseur", etiquette: "Censeur", aide: "Responsable pédagogique", taille: 140 },
 ] as const;
 
-export function FormulaireIdentite({ initial }: { initial: Champs }) {
-  const router = useRouter();
-  const [enCours, demarrer] = useTransition();
-  const [erreurs, setErreurs] = useState<Record<string, string>>({});
-
-  function enregistrer(donnees: FormData) {
-    const saisie = Object.fromEntries([...CHAMPS, ...ADMIN].map((c) => [
-      c.nom,
-      String(donnees.get(c.nom) ?? ""),
-    ]));
-    setErreurs({});
-    demarrer(async () => {
-      const resultat = await enregistrerIdentiteLycee(saisie);
-      if (!resultat.ok) {
-        setErreurs(resultat.erreurs ?? {});
-        toast.error(resultat.message);
-        return;
-      }
-      toast.success(resultat.message);
-      router.refresh();
-    });
-  }
-
-  function Groupe({ liste }: { liste: typeof CHAMPS | typeof ADMIN }) {
+function Groupe({
+  liste,
+  initial,
+  enCours,
+  erreurs,
+}: {
+  liste: readonly ((typeof CHAMPS)[number] | (typeof ADMIN)[number])[];
+  initial: Champs;
+  enCours: boolean;
+  erreurs: Record<string, string>;
+}) {
     return (
       <div className="grid gap-4 sm:grid-cols-2">
         {liste.map((champ) => (
@@ -90,6 +77,31 @@ export function FormulaireIdentite({ initial }: { initial: Champs }) {
     );
   }
 
+export function FormulaireIdentite({ initial }: { initial: Champs }) {
+  const router = useRouter();
+  const [enCours, demarrer] = useTransition();
+  const [erreurs, setErreurs] = useState<Record<string, string>>({});
+
+  function enregistrer(donnees: FormData) {
+    const saisie = Object.fromEntries([...CHAMPS, ...ADMIN].map((c) => [
+      c.nom,
+      String(donnees.get(c.nom) ?? ""),
+    ]));
+    setErreurs({});
+    demarrer(async () => {
+      const resultat = await enregistrerIdentiteLycee(saisie);
+      if (!resultat.ok) {
+        setErreurs(resultat.erreurs ?? {});
+        toast.error(resultat.message);
+        return;
+      }
+      toast.success(resultat.message);
+      router.refresh();
+    });
+  }
+
+
+
   return (
     <form action={enregistrer} className="space-y-5">
       <Card>
@@ -101,7 +113,7 @@ export function FormulaireIdentite({ initial }: { initial: Champs }) {
             Informations utilisées pour joindre le lycée et compléter ses documents.
           </CardDescription>
         </CardHeader>
-        <CardContent><Groupe liste={CHAMPS} /></CardContent>
+        <CardContent><Groupe liste={CHAMPS} initial={initial} enCours={enCours} erreurs={erreurs} /></CardContent>
       </Card>
 
       <Card>
@@ -114,7 +126,7 @@ export function FormulaireIdentite({ initial }: { initial: Champs }) {
             pas les bulletins déjà délivrés.
           </CardDescription>
         </CardHeader>
-        <CardContent><Groupe liste={ADMIN} /></CardContent>
+        <CardContent><Groupe liste={ADMIN} initial={initial} enCours={enCours} erreurs={erreurs} /></CardContent>
       </Card>
 
       <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 shadow-md backdrop-blur supports-backdrop-filter:bg-background/85">
