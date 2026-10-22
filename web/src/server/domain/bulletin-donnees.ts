@@ -273,6 +273,18 @@ export async function chargerBulletin(
   const blocs = ORDRE_BLOCS.map((groupe) => {
     const duGroupe = lignes.rows.filter((l) => l.groupe === groupe);
 
+    // L'Excel du lycée a un ordre spécifique pour les matières complémentaires
+    // au 1er trimestre : Éducation islamique avant Éducation civique et morale.
+    // Au 2e et au 3e trimestre, l'ordre est inverse.
+    if (groupe === "COMPLEMENTAIRE" && /^1/i.test(ctx.periode.trim())) {
+      const prioriteComplementaire = (libelle: string) => {
+        if (/^education islamique$/i.test(libelle.trim())) return 0;
+        if (/^education civique et morale$/i.test(libelle.trim())) return 1;
+        return 2;
+      };
+      duGroupe.sort((a, b) => prioriteComplementaire(a.matiere) - prioriteComplementaire(b.matiere));
+    }
+
     const matieres: LigneMatiere[] = duGroupe.map((l) => {
       const moyenne = nombre(l.moyenne);
       return {
