@@ -2,19 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { sql } from "drizzle-orm";
-import { z } from "zod";
+import { paireCanonique, schemaExamenDoublon } from "@/lib/examen-doublon";
 
 import { db } from "@/server/db";
 import { journalAudit } from "@/server/db/schema";
 import { requirePermission } from "@/server/guard";
 
-const schema = z.object({
-  tuteurId: z.string().uuid(),
-  autreTuteurId: z.string().uuid(),
-  decision: z.enum(["DISTINCTS", "MEME_PERSONNE_A_VERIFIER"]),
-  motif: z.string().trim().min(15).max(400),
-  justificatifsVerifies: z.literal(true),
-});
 export type ResultatExamen = { ok: boolean; message: string };
 
 /** Validation manuelle d'une suspicion : il s'agit seulement d'un verdict
@@ -25,11 +18,11 @@ export async function enregistrerExamenDoublon(input: unknown): Promise<Resultat
   try {
     const acteur = await requirePermission("tuteur:gerer");
     await requirePermission("audit:lire");
-    const validation = schema.safeParse(input);
+    const validation = schemaExamenDoublon.safeParse(input);
     if (!validation.success) return { ok: false, message: "Deux dossiers distincts, motif détaillé et confirmation de vérification requis." };
     const d = validation.data;
     if (d.tuteurId === d.autreTuteurId) return { ok: false, message: "Comparez deux dossiers distincts." };
-    const [premier, second] = [d.tuteurId, d.autreTuteurId].sort();
+    const [premier, second] = paireCanonique(d.tuteurId, d.autreTuteurId);
     const r = await db.execute<{ id: string }>(sql`
       SELECT t.id::text AS id FROM tuteurs t
       WHERE t.id IN (${premier}::uuid, ${second}::uuid)
