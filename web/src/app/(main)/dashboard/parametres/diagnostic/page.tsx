@@ -37,13 +37,11 @@ export default async function PageDiagnosticParametres() {
   ]);
 
   const annee = annees.find((a) => a.estCourante) ?? null;
-  const [periodes, classes, nbCoefficients] = annee
-    ? await Promise.all([
-      listerPeriodes(annee.id),
-      listerClassesAnnee(annee.id),
-      compterCoefficients(annee.id),
-    ])
-    : [[], [], 0];
+  const [periodes, classes, nbCoefficients] = await Promise.all([
+    annee ? listerPeriodes(annee.id) : Promise.resolve([]),
+    annee ? listerClassesAnnee(annee.id) : Promise.resolve([]),
+    annee ? compterCoefficients(annee.id) : Promise.resolve(0),
+  ]);
 
   const periodesValides = Boolean(annee) &&
     periodes.length === (annee?.typePeriode === "TRIMESTRE" ? 3 : 2) &&
