@@ -160,10 +160,18 @@ export default async function PageParametres({
                 Établissement unique · Enseignement secondaire, de la 6ème à la Terminale
               </p>
               <p className="mt-1 text-muted-foreground text-xs">
-                Nom officiel, sigle {APP_CONFIG.sigle} et devise {APP_CONFIG.devise} sont pour l'instant définis dans la configuration de l'application.
+                Nom officiel, sigle {APP_CONFIG.sigle} et devise {APP_CONFIG.devise} restent stables.
+                Coordonnées et signataires sont modifiables depuis la fiche unique du lycée.
               </p>
             </div>
-            <Badge variant="outline" className="self-start sm:self-center">Identité actuelle</Badge>
+            <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-center">
+              <Badge variant="outline">Établissement unique</Badge>
+              <Button asChild size="sm" variant="outline">
+                <Link prefetch={false} href="/dashboard/parametres/etablissement">
+                  Modifier les coordonnées
+                </Link>
+              </Button>
+            </div>
           </section>
         ) : null}
 
