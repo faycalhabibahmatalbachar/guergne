@@ -109,6 +109,7 @@ export default async function PageParametres({
     peutNotifier,
     peutAuditer,
     peutFinances,
+    peutConfigurerFinances,
     peutPersonnel,
     peutParents,
     peutCommunication,
@@ -117,12 +118,13 @@ export default async function PageParametres({
     peut(principal, "notification:configurer"),
     peut(principal, "audit:lire"),
     peut(principal, "finance:lire"),
+    peut(principal, "finance:configurer"),
     peut(principal, "utilisateur:creer"),
     peut(principal, "tuteur:gerer"),
     peut(principal, "annonce:lire"),
   ]);
 
-  if (!peutConfigurer && !peutNotifier && !peutAuditer) {
+  if (!peutConfigurer && !peutNotifier && !peutAuditer && !peutConfigurerFinances) {
     redirect("/unauthorized");
   }
 
@@ -200,6 +202,12 @@ export default async function PageParametres({
               url: "/dashboard/parametres?onglet=classes",
               icone: Users,
             }] : []),
+            ...(peutConfigurer ? [{
+              titre: "Validité des invitations parents",
+              description: "Durée des nouveaux codes d'activation et conditions de renouvellement.",
+              url: "/dashboard/parametres/parents",
+              icone: ShieldCheck,
+            }] : []),
             ...(peutParents ? [{
               titre: "Comptes parents et familles",
               description: "Accéder au suivi opérationnel des responsables et invitations.",
@@ -231,15 +239,23 @@ export default async function PageParametres({
         />
 
         <GroupeReglages
-          titre="Finances"
-          description="Les opérations financières restent dans leur module métier."
-          liens={peutFinances ? [{
-            titre: "Finances et encaissements",
-            description: "Accéder aux frais, aux paiements et au suivi financier.",
-            url: "/dashboard/finances",
-            icone: Wallet,
-            note: "Ouvre le module Finances",
-          }] : []}
+          titre="Finances et bulletins"
+          description="Décisions financières du lycée et accès aux opérations."
+          liens={[
+            ...(peutConfigurerFinances ? [{
+              titre: "Règles financières des bulletins",
+              description: "Retenue des bulletins pour impayé et seuil de tolérance en FCFA.",
+              url: "/dashboard/parametres/finances",
+              icone: Wallet,
+            }] : []),
+            ...(peutFinances ? [{
+              titre: "Finances et encaissements",
+              description: "Accéder aux frais, aux paiements et au suivi financier.",
+              url: "/dashboard/finances",
+              icone: Wallet,
+              note: "Ouvre le module Finances",
+            }] : []),
+          ]}
         />
 
         <GroupeReglages
