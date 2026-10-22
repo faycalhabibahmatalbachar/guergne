@@ -105,3 +105,86 @@ export async function rattacherEnfantParent(input: unknown): Promise<Resultat> {
     return { ok: false, message: "Le rattachement n'a pas pu être effectué." };
   }
 }
+
+
+const rolesFamiliauxSchema = z.object({
+  tuteurId: z.string().uuid(),
+  eleveId: z.string().uuid(),
+  lien: z.enum(["PERE", "MERE", "TUTEUR", "ONCLE", "TANTE", "GRAND_PARENT", "FRERE_SOEUR", "AUTRE"]),
+  estResponsableFinancier: z.boolean(),
+  estTuteurLegal: z.boolean(),
+  estContactUrgence: z.boolean(),
+  autoriseRetrait: z.boolean(),
+  motif: z.string().trim().min(10, "Motif obligatoire (10 caractères minimum)").max(300),
+  piecesVerifiees: z.literal(true),
+});
+
+/** Les habilitations familiales sont modifiées UN LIEN À LA FOIS,
+ * sans modifier le tuteur principal, ni un autre enfant, ni un compte.
+ * Seul le personnel autorisé peut valider la vérification documentaire.
+ */
+export async function mettreAJourRolesFamiliaux(input: unknown): Promise<Resultat> {
+  try {
+    const acteur = await requirePermission("tuteur:gerer");
+    await requirePermission("eleve:modifier");
+    const p = rolesFamiliauxSchema.safeParse(input);
+    if (!p.success) return { ok: false, message: "Vérifiez les rôles, le motif et la confirmation des pièces justificatives." };
+    const d = p.data;
+    const precedent = await db.transaction(async tx => {
+      const r = await tx.execute<{
+        id: string; lien: string; est_responsable_financier: boolean;
+        est_tuteur_legal: boolean; est_contact_urgence: boolean;
+        autorise_retrait: boolean; est_principal: boolean;
+      }>(sql`
+        SELECT id::text, lien::text, est_principal,
+               est_responsable_financier, est_tuteur_legal,
+               est_contact_urgence, autorise_retrait
+          FROM eleve_tuteur
+         WHERE eleve_id = ${d.eleveId}::uuid AND tuteur_id = ${d.tuteurId}::uuid
+         FOR UPDATE
+      `);
+      const avant = r.rows[0];
+      if (!avant) return null;
+      await tx.execute(sql`
+        UPDATE eleve_tuteur
+           SET lien = ${d.lien}::lien_parente,
+               est_responsable_financier = ${d.estResponsableFinancier},
+               est_tuteur_legal = ${d.estTuteurLegal},
+               est_contact_urgence = ${d.estContactUrgence},
+               autorise_retrait = ${d.autoriseRetrait}
+         WHERE id = ${avant.id}::uuid
+      `);
+      return avant;
+    });
+    if (!precedent) return { ok: false, message: "Ce responsable n'est plus rattaché à cet élève. Actualisez la fiche." };
+    await journaliser(acteur, {
+      action: "tuteur.responsabilites_verifiees",
+      entite: "eleve_tuteur",
+      entiteId: precedent.id,
+      eleveId: d.eleveId,
+      avant: {
+        lien: precedent.lien,
+        estResponsableFinancier: precedent.est_responsable_financier,
+        estTuteurLegal: precedent.est_tuteur_legal,
+        estContactUrgence: precedent.est_contact_urgence,
+        autoriseRetrait: precedent.autorise_retrait,
+        estPrincipal: precedent.est_principal,
+      },
+      apres: {
+        tuteurId: d.tuteurId, lien: d.lien,
+        estResponsableFinancier: d.estResponsableFinancier,
+        estTuteurLegal: d.estTuteurLegal,
+        estContactUrgence: d.estContactUrgence,
+        autoriseRetrait: d.autoriseRetrait,
+        motif: d.motif, piecesVerifiees: true,
+      },
+    });
+    revalidatePath("/dashboard/parents/" + d.tuteurId);
+    revalidatePath("/dashboard/parents/familles");
+    revalidatePath("/dashboard/eleves/" + d.eleveId);
+    return { ok: true, message: "Responsabilités actualisées et journalisées. Le responsable principal n'a pas été modifié." };
+  } catch (e) {
+    if (!(e instanceof ErreurAutorisation)) console.error("[parent:roles]", e);
+    return { ok: false, message: "Les responsabilités n'ont pas pu être modifiées." };
+  }
+}
