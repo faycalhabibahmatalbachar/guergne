@@ -144,7 +144,7 @@ export function ActionsParent({ t, peutInviter }: { t: LigneTuteur; peutInviter:
             <DropdownMenuItem className="text-red-700 focus:text-red-700" onSelect={() => { setMotif(""); setFenetre("revoquer"); }}>
               <ShieldOff className="size-4" aria-hidden />Révoquer l’accès
             </DropdownMenuItem>
-          )}
+          ) : null}
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled={!peutSupprimer} className="text-red-700 focus:text-red-700" onSelect={() => { setMotif(""); setConfirmation(""); setFenetre("supprimer"); }}>
             <Trash2 className="size-4" aria-hidden />Supprimer la fiche orpheline
