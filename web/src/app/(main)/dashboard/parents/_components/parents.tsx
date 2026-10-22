@@ -47,7 +47,7 @@ function EtatCompte({ t }: { t: LigneTuteur }) {
 }
 
 export function Parents({
-  tuteurs, total, page, parPage, classes, stats, filtres,
+  tuteurs, total, page, parPage, classes, stats, filtres, peutInviter,
 }: {
   tuteurs: LigneTuteur[];
   total: number;
@@ -55,6 +55,7 @@ export function Parents({
   parPage: number;
   classes: Option[];
   stats: StatistiquesParents;
+  peutInviter: boolean;
   filtres: { recherche: string; etat: string; classeId: string };
 }) {
   const routeur = useRouter();
@@ -95,7 +96,7 @@ export function Parents({
       </div>
     </section>
 
-    {stats.sansCompte > 0 ? <InvitationClasse classes={classes} sansCompte={stats.sansCompte} /> : null}
+    {peutInviter && stats.sansCompte > 0 ? <InvitationClasse classes={classes} sansCompte={stats.sansCompte} /> : null}
 
     <section aria-label="Filtres des tuteurs" className="flex flex-wrap items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-border dark:bg-card">
       <form className="relative min-w-[220px] flex-1" onSubmit={e => {
