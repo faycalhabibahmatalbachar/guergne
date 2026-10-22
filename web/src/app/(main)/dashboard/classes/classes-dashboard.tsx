@@ -28,6 +28,7 @@ import type {
 } from "@/server/domain/parametres";
 import { creerClasse, modifierClasse, supprimerClasse } from "../parametres/actions";
 import { BoutonNotifier } from "../_components/bouton-notifier";
+import { ListeClasses } from "./liste-classes";
 
 type Props = {
   annee: LigneAnnee;
@@ -290,12 +291,12 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
           {visible.map((c, i) => <ClasseCarte key={c.id} classe={c} index={classes.findIndex((v) => v.id === c.id)} peutModifier={peutModifier && peutEditerCetteAnnee} peutVoirPersonnel={peutVoirPersonnel} peutNotifier={peutNotifier} ouvrir={ouvrir} />)}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs text-slate-500 dark:bg-slate-800"><tr><th className="p-4">Classe</th><th className="p-4">Niveau</th><th className="p-4">Effectif</th><th className="p-4">Capacité</th><th className="p-4">Remplissage</th><th className="p-4">Statut</th><th className="p-4 text-right">Actions</th></tr></thead>
-            <tbody>{visible.map((c) => <tr key={c.id} className="border-t border-slate-100 dark:border-slate-800"><td className="p-4 font-semibold">{c.libelle}</td><td className="p-4">{c.niveauLibelle}</td><td className="p-4">{c.effectif}</td><td className="p-4">{c.capaciteMax}</td><td className="p-4">{c.capaciteMax ? Math.round(Number(c.effectif) / c.capaciteMax * 100) + "%" : "—"}</td><td className="p-4">{c.active ? "Active" : "Inactive"}</td><td className="p-4"><div className="flex justify-end gap-2"><Button variant="outline" size="sm" asChild><Link href={"/dashboard/eleves?classe=" + encodeURIComponent(c.id)}>Élèves</Link></Button>{peutModifier && peutEditerCetteAnnee && <Button variant="outline" size="sm" onClick={() => ouvrir(c)}>Modifier</Button>}</div></td></tr>)}</tbody>
-          </table>
-        </div>
+        <ListeClasses
+          classes={visible}
+          peutModifier={peutModifier && peutEditerCetteAnnee}
+          peutNotifier={peutNotifier}
+          ouvrir={ouvrir}
+        />
       )}
       <p className="text-right text-xs text-slate-500 dark:text-slate-400">{etiquette(visible.length, "classe affichée", "classes affichées")} sur {classes.length}</p>
 
