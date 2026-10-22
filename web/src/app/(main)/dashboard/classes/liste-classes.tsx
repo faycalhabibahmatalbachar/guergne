@@ -7,7 +7,7 @@ import { BoutonNotifier } from "../_components/bouton-notifier";
 
 type Props = {
   classes: LigneClasseParametre[];
-  toutesClasses: LigneClasseParametre[];
+  toutesClasses?: LigneClasseParametre[];
   peutModifier: boolean;
   peutNotifier: boolean;
   ouvrir: (classe: LigneClasseParametre) => void;
@@ -95,7 +95,7 @@ function Actions({ classe, peutModifier, peutNotifier, ouvrir, compact = false }
 }
 
 /** Vue liste cohérente avec la vue cartes, sans tableau débordant sur mobile. */
-export function ListeClasses({ classes, toutesClasses, peutModifier, peutNotifier, ouvrir }: Props) {
+export function ListeClasses({ classes, toutesClasses = classes, peutModifier, peutNotifier, ouvrir }: Props) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900" aria-label="Liste des classes">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3.5 dark:border-slate-800 sm:px-5">
