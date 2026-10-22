@@ -25,7 +25,7 @@ const schemaEnvoi = z.object({
   cleEnvoi: z.string().uuid(),
 });
 
-interface Contact {
+interface Contact extends Record<string, unknown> {
   id: string;
   utilisateur_id: string | null;
   compte_actif: boolean | null;
