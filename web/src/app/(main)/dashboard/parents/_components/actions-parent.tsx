@@ -23,7 +23,7 @@ import type { LigneTuteur } from "@/server/domain/parents";
 import { inviterTuteur, modifierProfilTuteur, revoquerAcces, supprimerTuteurOrphelin } from "../actions";
 import { CodeActivationParent } from "./code-activation-parent";
 
-export function ActionsParent({ t }: { t: LigneTuteur }) {
+export function ActionsParent({ t, peutInviter }: { t: LigneTuteur; peutInviter: boolean }) {
   const routeur = useRouter();
   const [enCours, demarrer] = useTransition();
   const [fenetre, setFenetre] = useState<"modifier" | "revoquer" | "supprimer" | null>(null);
@@ -34,7 +34,7 @@ export function ActionsParent({ t }: { t: LigneTuteur }) {
   const [codeActivation, setCodeActivation] = useState<string | null>(null);
 
   const nomComplet = t.prenom + " " + t.nom;
-  const statutInvite = !t.utilisateurId || !t.derniereConnexion || t.compteActif === false;
+  const statutInvite = !t.utilisateurId || !t.derniereConnexion || t.compteActif !== true;
   const peutSupprimer = t.nbEnfants === 0 && !t.utilisateurId;
 
   function fermer() {
@@ -135,12 +135,12 @@ export function ActionsParent({ t }: { t: LigneTuteur }) {
           <DropdownMenuItem asChild><Link href={"/dashboard/parents/" + t.id}><Eye className="size-4" aria-hidden />Consulter le dossier</Link></DropdownMenuItem>
           <DropdownMenuItem onSelect={() => { setErreurs({}); setFenetre("modifier"); }}><Pencil className="size-4" aria-hidden />Modifier les informations</DropdownMenuItem>
           <DropdownMenuSeparator />
-          {statutInvite ? (
+          {peutInviter && statutInvite ? (
             <DropdownMenuItem disabled={enCours} onSelect={() => inviter()}>
               {t.compteActif === false ? <KeyRound className="size-4" aria-hidden /> : <Send className="size-4" aria-hidden />}
               {t.compteActif === false ? "Réactiver et inviter" : !t.utilisateurId ? "Inviter le parent" : "Renvoyer le code"}
             </DropdownMenuItem>
-          ) : (
+          ) : !statutInvite ? (
             <DropdownMenuItem className="text-red-700 focus:text-red-700" onSelect={() => { setMotif(""); setFenetre("revoquer"); }}>
               <ShieldOff className="size-4" aria-hidden />Révoquer l’accès
             </DropdownMenuItem>
