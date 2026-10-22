@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
-  ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, KeyRound,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, KeyRound,
   Search, Send, Smartphone, Users, UserRoundCheck,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { LigneTuteur, StatistiquesParents } from "@/server/domain/parents";
-import { inviterClasse } from "../actions";
+import { InvitationClasse } from "./invitation-classe";
 import statistiquesStyles from "./statistiques-parents.module.css";
 import { ActionsParent } from "./actions-parent";
 
@@ -97,44 +97,7 @@ export function Parents({
       </div>
     </section>
 
-    {stats.sansCompte > 0 ? (
-      <details className="group rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold text-[#17264c] marker:hidden dark:text-foreground [&::-webkit-details-marker]:hidden">
-          <span className="flex items-center gap-2"><Send className="size-4 text-emerald-700" aria-hidden />Invitation des responsables par classe
-            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">{stats.sansCompte} sans compte</span>
-          </span>
-          <ChevronDown className="size-4 text-slate-500 transition-transform group-open:rotate-180" aria-hidden />
-        </summary>
-        <div className="border-t border-slate-100 px-4 pb-4 pt-3 dark:border-border">
-          <p className="mb-3 text-xs leading-relaxed text-slate-500 dark:text-muted-foreground">
-            L'invitation par classe concerne les tuteurs principaux. Le second responsable peut être invité individuellement. Les envois SMS peuvent entraîner des frais.
-          </p>
-          <NativeSelect
-            id="classe-masse" defaultValue=""
-            className="h-10 w-full max-w-72 rounded-lg border-slate-200 bg-white"
-            aria-label="Sélectionner la classe à inviter" disabled={enCours}
-            onChange={e => {
-              const classeId = e.target.value;
-              if (!classeId) return;
-              const libelle = classes.find(c => c.id === classeId)?.libelle ?? "";
-              const approuve = window.confirm(
-                `Ouvrir l'accès aux tuteurs principaux de ${libelle} ?\n\nUn SMS contenant un code d'activation peut partir vers chaque famille.`,
-              );
-              e.target.value = "";
-              if (!approuve) return;
-              demarrer(async () => {
-                const r = await inviterClasse(classeId);
-                toast[r.ok ? "success" : "error"](r.message ?? "Échec.");
-                routeur.refresh();
-              });
-            }}
-          >
-            <option value="">Inviter toute une classe…</option>
-            {classes.map(c => <option key={c.id} value={c.id}>{c.libelle}</option>)}
-          </NativeSelect>
-        </div>
-      </details>
-    ) : null}
+    {stats.sansCompte > 0 ? <InvitationClasse classes={classes} sansCompte={stats.sansCompte} /> : null}
 
     <section aria-label="Filtres des tuteurs" className="flex flex-wrap items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-border dark:bg-card">
       <form className="relative min-w-[220px] flex-1" onSubmit={e => {
