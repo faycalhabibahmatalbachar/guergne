@@ -157,7 +157,7 @@ export function InvitationClasse({
               {[
                 ["Tuteurs principaux", apercu.totalPrincipaux.toLocaleString("fr-FR")],
                 ["Invitations éligibles", apercu.eligibles.length.toLocaleString("fr-FR")],
-                ["Exclus", (apercu.dejaAvecCompte + apercu.sansConsentementSms).toLocaleString("fr-FR")],
+                ["Exclus", (apercu.dejaAvecCompte + apercu.sansConsentementSms + apercu.numerosPartages).toLocaleString("fr-FR")],
                 ["Coût SMS indicatif max.", apercu.coutMaxFcfa.toLocaleString("fr-FR") + " FCFA"],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-3 dark:border-border dark:bg-muted/25">
@@ -182,8 +182,8 @@ export function InvitationClasse({
               </div>
               {apercu.eligibles.length > 30 ? <p className="mt-1.5 text-[11px] text-slate-500">30 premiers affichés sur {apercu.eligibles.length} · l’export contient la liste complète.</p> : null}
               <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                {apercu.dejaAvecCompte} avec compte existant ; {apercu.sansConsentementSms} sans consentement SMS.
-                Ces derniers ne recevront rien de cette opération.
+                {apercu.dejaAvecCompte} avec compte existant ; {apercu.sansConsentementSms} sans consentement SMS ; {apercu.numerosPartages} avec numéro partagé.
+                Ces personnes sont exclues de l’envoi et du coût estimé ; les numéros partagés exigent une vérification humaine.
               </p>
             </div>
           </div>

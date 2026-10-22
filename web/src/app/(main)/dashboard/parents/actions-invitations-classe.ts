@@ -22,6 +22,7 @@ export interface ApercuInvitationsClasse {
   totalPrincipaux: number;
   dejaAvecCompte: number;
   sansConsentementSms: number;
+  numerosPartages: number;
   eligibles: CandidatInvitation[];
   coutMaxFcfa: number;
   empreinte: string;
@@ -39,10 +40,16 @@ const schemaClasse = z.string().uuid();
 async function calculerApercu(classeId: string): Promise<ApercuInvitationsClasse> {
   const resultats = await db.execute<{
     id: string; nom: string; prenom: string; telephone: string;
-    compte: string | null; accepte_sms: boolean;
+    compte: string | null; accepte_sms: boolean; numero_partage: boolean;
   }>(sql`
     SELECT DISTINCT t.id::text, t.nom, t.prenom, t.telephone,
-           t.utilisateur_id::text AS compte, t.accepte_sms
+           t.utilisateur_id::text AS compte, t.accepte_sms,
+           EXISTS (
+             SELECT 1 FROM tuteurs autre
+             WHERE autre.id <> t.id AND
+                   regexp_replace(autre.telephone, '[^0-9]', '', 'g') =
+                   regexp_replace(t.telephone, '[^0-9]', '', 'g')
+           ) AS numero_partage
     FROM tuteurs t
     JOIN eleve_tuteur et ON et.tuteur_id = t.id AND et.est_principal
     JOIN inscriptions i ON i.eleve_id = et.eleve_id AND i.active
@@ -51,7 +58,7 @@ async function calculerApercu(classeId: string): Promise<ApercuInvitationsClasse
   `);
   const parents = resultats.rows;
   const eligibles = parents
-    .filter(t => !t.compte && t.accepte_sms)
+    .filter(t => !t.compte && t.accepte_sms && !t.numero_partage)
     .map(t => ({ id: t.id, nom: t.nom, prenom: t.prenom, telephone: t.telephone }));
   // Empreinte d'une photographie des destinataires (et numéros) pour détecter
   // tout changement après la prévisualisation, avant une action facturable.
@@ -60,6 +67,7 @@ async function calculerApercu(classeId: string): Promise<ApercuInvitationsClasse
     classeId, totalPrincipaux: parents.length,
     dejaAvecCompte: parents.filter(t => Boolean(t.compte)).length,
     sansConsentementSms: parents.filter(t => !t.compte && !t.accepte_sms).length,
+    numerosPartages: parents.filter(t => !t.compte && t.accepte_sms && t.numero_partage).length,
     eligibles, coutMaxFcfa: eligibles.length * COUT_SMS_FCFA,
     empreinte,
   };

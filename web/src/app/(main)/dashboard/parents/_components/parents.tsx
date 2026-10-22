@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, KeyRound,
-  Search, Send, Smartphone, Users, UserRoundCheck,
+  Search, Send, Smartphone, Users, UserRoundCheck, AlertTriangle, ShieldOff,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import type { LigneTuteur, StatistiquesParents } from "@/server/domain/parents";
 import { InvitationClasse } from "./invitation-classe";
 import statistiquesStyles from "./statistiques-parents.module.css";
 import { ActionsParent } from "./actions-parent";
+import { etatCompteParent } from "@/lib/etat-compte-parent";
 
 interface Option { id: string; libelle: string }
 
@@ -39,11 +40,13 @@ function CarteStatistique({
 }
 
 function EtatCompte({ t }: { t: LigneTuteur }) {
-  const classBase = "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium";
-  if (t.compteActif === false) return <span className={classBase + " bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"}><span className="size-2 rounded-full bg-red-500" />Révoqué</span>;
-  if (!t.utilisateurId) return <span className={classBase + " bg-slate-100 text-slate-600 dark:bg-muted dark:text-muted-foreground"}><span className="size-2 rounded-full bg-slate-400" />Sans compte</span>;
-  if (!t.derniereConnexion) return <span className={classBase + " bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"}><span className="size-2 rounded-full bg-blue-500" />Invité</span>;
-  return <span className={classBase + " bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"}><span className="size-2 rounded-full bg-emerald-500" />Actif</span>;
+  const classe = "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium";
+  switch (etatCompteParent(t)) {
+    case "sans_compte": return <span className={classe + " bg-slate-100 text-slate-600 dark:bg-muted dark:text-muted-foreground"}><span className="size-2 rounded-full bg-slate-400" />Sans compte</span>;
+    case "revoque": return <span className={classe + " bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"}><span className="size-2 rounded-full bg-red-500" />Révoqué</span>;
+    case "invite": return <span className={classe + " bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"}><span className="size-2 rounded-full bg-blue-500" />Invité</span>;
+    case "actif": return <span className={classe + " bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"}><span className="size-2 rounded-full bg-emerald-500" />Actif</span>;
+  }
 }
 
 export function Parents({
@@ -79,7 +82,7 @@ export function Parents({
     { titre: "Comptes actifs", valeur: stats.actifs, icone: UserRoundCheck, couleur: "text-blue-600", fond: "bg-blue-50", detail: "Au moins une connexion" },
     { titre: "Sans compte", valeur: stats.sansCompte, icone: KeyRound, couleur: "text-amber-600", fond: "bg-amber-50", detail: "Accès non créé" },
     { titre: "Invitations en attente", valeur: stats.invites, icone: Send, couleur: "text-violet-600", fond: "bg-violet-50", detail: "Jamais connectés" },
-    { titre: "Application installée", valeur: stats.avecAppareil, icone: Smartphone, couleur: "text-teal-600", fond: "bg-teal-50", detail: "Avec appareil actif" },
+    { titre: "Appareil actif", valeur: stats.avecAppareil, icone: Smartphone, couleur: "text-teal-600", fond: "bg-teal-50", detail: "Compte actif avec appareil" },
   ];
 
   const pages = [...new Set([1, Math.max(1, page - 1), page, Math.min(nbPages, page + 1), nbPages])]
@@ -96,6 +99,20 @@ export function Parents({
       </div>
     </section>
 
+    {(stats.doublons > 0 || stats.revoques > 0) ? <section aria-label="Contrôles de qualité des comptes parents" className="flex flex-wrap items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50/65 px-4 py-3 text-sm dark:border-amber-900 dark:bg-amber-950/20">
+      <AlertTriangle className="size-4 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
+      <span className="mr-1 text-xs font-semibold text-amber-950 dark:text-amber-100">Comptes à contrôler :</span>
+      {stats.doublons > 0 ? <Button type="button" size="sm" variant="outline" className="h-8 rounded-lg border-amber-200 bg-white text-amber-900 dark:border-amber-800 dark:bg-card dark:text-amber-200"
+        onClick={() => naviguer({ etat: "doublon", page: "" })}>
+        {stats.doublons.toLocaleString("fr-FR")} fiche(s) partageant un numéro
+      </Button> : null}
+      {stats.revoques > 0 ? <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg border-red-200 bg-white text-red-700 dark:border-red-900 dark:bg-card dark:text-red-300"
+        onClick={() => naviguer({ etat: "revoque", page: "" })}>
+        <ShieldOff className="size-3.5" aria-hidden />{stats.revoques.toLocaleString("fr-FR")} compte(s) révoqué(s)
+      </Button> : null}
+      <span className="text-[11px] text-amber-800 dark:text-amber-200">Ces fiches ne sont pas fusionnées automatiquement.</span>
+    </section> : null}
+
     {peutInviter && stats.sansCompte > 0 ? <InvitationClasse classes={classes} sansCompte={stats.sansCompte} /> : null}
 
     <section aria-label="Filtres des tuteurs" className="flex flex-wrap items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-border dark:bg-card">
@@ -109,7 +126,7 @@ export function Parents({
       <NativeSelect value={filtres.etat} onChange={e => naviguer({ etat: e.target.value, page: "" })}
         className="h-10 w-full rounded-lg border-slate-200 bg-white sm:w-48" aria-label="Filtrer par état du compte">
         <option value="">Tous les états</option>
-        <option value="sans_compte">Sans compte</option><option value="invite">Invité, jamais connecté</option><option value="actif">Compte actif</option>
+        <option value="sans_compte">Sans compte</option><option value="invite">Invité, jamais connecté</option><option value="actif">Compte actif</option><option value="revoque">Compte révoqué</option><option value="doublon">Numéro partagé / à vérifier</option>
       </NativeSelect>
       <NativeSelect value={filtres.classeId} onChange={e => naviguer({ classe: e.target.value, page: "" })}
         className="h-10 w-full rounded-lg border-slate-200 bg-white sm:w-48" aria-label="Filtrer par classe">
@@ -138,9 +155,6 @@ export function Parents({
           </thead>
           <tbody>
             {tuteurs.map(t => {
-              const sansCompte = !t.utilisateurId;
-              const jamaisConnecte = !sansCompte && !t.derniereConnexion;
-              const desactive = t.compteActif === false;
               return <tr key={t.id} className="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-emerald-50/40 dark:border-border dark:hover:bg-muted/30">
                 <td className="px-4 py-3">
                   <div className="flex min-w-0 items-center gap-2.5">
@@ -150,6 +164,7 @@ export function Parents({
                     <div className="min-w-0">
                       <Link href={`/dashboard/parents/${t.id}`} className="block max-w-[225px] truncate font-semibold text-slate-950 hover:text-emerald-700 hover:underline dark:text-foreground" title={t.prenom + " " + t.nom}>{t.prenom} {t.nom}</Link>
                       <span className="block text-[11px] text-slate-500">{t.profession || "Profession non renseignée"}</span>
+                      {t.doublonTelephone ? <span title="Au moins une autre fiche porte le même numéro. Vérification humaine requise." className="mt-1 inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-200"><AlertTriangle className="size-3" aria-hidden />Numéro partagé</span> : null}
                     </div>
                   </div>
                 </td>
@@ -163,7 +178,7 @@ export function Parents({
                 </td>
                 <td className="px-4 py-3"><EtatCompte t={t} /></td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600 tabular-nums dark:text-muted-foreground">{dateFr(t.derniereConnexion)}</td>
-                <td className="px-4 py-3"><ActionsParent t={t} /></td>
+                <td className="px-4 py-3"><ActionsParent t={t} peutInviter={peutInviter} /></td>
               </tr>;
             })}
           </tbody>
