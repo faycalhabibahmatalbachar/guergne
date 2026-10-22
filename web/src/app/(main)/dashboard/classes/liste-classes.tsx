@@ -41,7 +41,7 @@ function TauxOccupation({ classe, index }: { classe: LigneClasseParametre; index
         aria-valuemax={100}
         aria-valuenow={largeur}
       >
-        <div className={"h-full rounded-full " + couleur.bar} style={{ width: largeur + "%" }} />
+        <div className={"h-full rounded-full " + couleur.barre} style={{ width: largeur + "%" }} />
       </div>
     </div>
   );
