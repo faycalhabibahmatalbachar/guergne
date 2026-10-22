@@ -3,113 +3,140 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Building2, FileBadge2, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import type { SaisieIdentiteLycee } from "@/lib/parametres-identite";
-import type { chargerIdentiteLycee } from "@/server/domain/identite-lycee";
 
-import { sauvegarderIdentiteLycee } from "./actions";
+import { enregistrerIdentiteLycee } from "./actions";
 
-type Identite = NonNullable<Awaited<ReturnType<typeof chargerIdentiteLycee>>>;
+type Champs = {
+  adresse: string | null;
+  ville: string | null;
+  pays: string | null;
+  telephone: string | null;
+  email: string | null;
+  siteWeb: string | null;
+  ministereTutelle: string | null;
+  autorisationNumero: string | null;
+  nomProviseur: string | null;
+  nomCenseur: string | null;
+};
 
-type Cle = Exclude<keyof SaisieIdentiteLycee, "version">;
-const champs: Array<{ nom: Cle; titre: string; type?: string; placeholder?: string }> = [
-  { nom: "ville", titre: "Ville", placeholder: "N'Djamena" },
-  { nom: "pays", titre: "Pays", placeholder: "Tchad" },
-  { nom: "telephone", titre: "Téléphone officiel", type: "tel", placeholder: "+235 …" },
-  { nom: "email", titre: "E-mail officiel", type: "email", placeholder: "contact@exemple.td" },
-  { nom: "siteWeb", titre: "Site officiel (HTTPS)", type: "url", placeholder: "https://exemple.td" },
-  { nom: "ministereTutelle", titre: "Ministère de tutelle" },
-  { nom: "autorisationNumero", titre: "Numéro d'autorisation" },
-  { nom: "nomProviseur", titre: "Nom du proviseur" },
-  { nom: "nomCenseur", titre: "Nom du censeur" },
-];
+const CHAMPS = [
+  { nom: "adresse", etiquette: "Adresse du lycée", aide: "Quartier, rue ou référence de localisation", taille: 220 },
+  { nom: "ville", etiquette: "Ville", aide: "Ville officielle", taille: 100 },
+  { nom: "pays", etiquette: "Pays", aide: "Pays de l'établissement", taille: 100 },
+  { nom: "telephone", etiquette: "Téléphone de contact", aide: "Numéro communiqué aux familles", taille: 30 },
+  { nom: "email", etiquette: "E-mail institutionnel", aide: "Adresse publique de l'établissement", taille: 160 },
+  { nom: "siteWeb", etiquette: "Site web", aide: "Adresse complète commençant par https://", taille: 240 },
+] as const;
 
-export function FormulaireIdentiteLycee({ identite }: { identite: Identite }) {
-  const router = useRouter();
-  const [enCours, demarrer] = useTransition();
-  const [erreurs, setErreurs] = useState<Record<string, string>>({});
-  const [valeurs, setValeurs] = useState<SaisieIdentiteLycee>({
-    version: identite.version,
-    adresse: identite.adresse ?? "",
-    ville: identite.ville ?? "",
-    pays: identite.pays ?? "",
-    telephone: identite.telephone ?? "",
-    email: identite.email ?? "",
-    siteWeb: identite.siteWeb ?? "",
-    ministereTutelle: identite.ministereTutelle ?? "",
-    autorisationNumero: identite.autorisationNumero ?? "",
-    nomProviseur: identite.nomProviseur ?? "",
-    nomCenseur: identite.nomCenseur ?? "",
-  });
+const ADMIN = [
+  { nom: "ministereTutelle", etiquette: "Ministère de tutelle", aide: "Entête des documents officiels", taille: 180 },
+  { nom: "autorisationNumero", etiquette: "Référence de l'autorisation", aide: "Numéro officiel si disponible", taille: 100 },
+  { nom: "nomProviseur", etiquette: "Proviseur / Directeur", aide: "Signataire utilisé sur les documents", taille: 140 },
+  { nom: "nomCenseur", etiquette: "Censeur", aide: "Responsable pédagogique", taille: 140 },
+] as const;
 
-  function modifier(nom: Cle, valeur: string) {
-    setValeurs((actuel) => ({ ...actuel, [nom]: valeur }));
-    setErreurs((actuel) => ({ ...actuel, [nom]: "" }));
-  }
-
-  function enregistrer() {
-    demarrer(async () => {
-      const resultat = await sauvegarderIdentiteLycee(valeurs);
-      setErreurs(resultat.erreurs ?? {});
-      toast[resultat.ok ? "success" : "error"](resultat.message ?? "Enregistrement impossible.");
-      if (resultat.ok) router.refresh();
-    });
-  }
-
-  return (
-    <form
-      className="space-y-5"
-      onSubmit={(evenement) => {
-        evenement.preventDefault();
-        enregistrer();
-      }}
-    >
-      <div className="space-y-2">
-        <Label htmlFor="adresse-lycee">Adresse postale et repères</Label>
-        <Textarea
-          id="adresse-lycee"
-          value={valeurs.adresse}
-          onChange={(e) => modifier("adresse", e.target.value)}
-          maxLength={240}
-          rows={2}
-          disabled={enCours}
-          aria-invalid={Boolean(erreurs.adresse)}
-        />
-        {erreurs.adresse && <p className="text-destructive text-xs">{erreurs.adresse}</p>}
-      </div>
-
+function Groupe({
+  liste,
+  initial,
+  enCours,
+  erreurs,
+}: {
+  liste: readonly ((typeof CHAMPS)[number] | (typeof ADMIN)[number])[];
+  initial: Champs;
+  enCours: boolean;
+  erreurs: Record<string, string>;
+}) {
+    return (
       <div className="grid gap-4 sm:grid-cols-2">
-        {champs.map((champ) => (
-          <div key={champ.nom} className="space-y-2">
-            <Label htmlFor={champ.nom}>{champ.titre}</Label>
+        {liste.map((champ) => (
+          <div key={champ.nom} className="grid min-w-0 gap-1.5">
+            <Label htmlFor={champ.nom}>{champ.etiquette}</Label>
             <Input
               id={champ.nom}
-              type={champ.type ?? "text"}
-              placeholder={champ.placeholder}
-              value={valeurs[champ.nom]}
-              onChange={(e) => modifier(champ.nom, e.target.value)}
+              name={champ.nom}
+              type={champ.nom === "email" ? "email" : champ.nom === "siteWeb" ? "url" : "text"}
+              defaultValue={initial[champ.nom] ?? ""}
+              placeholder={champ.nom === "siteWeb" ? "https://exemple.td" : undefined}
+              maxLength={champ.taille}
               aria-invalid={Boolean(erreurs[champ.nom])}
-              maxLength={champ.nom === "email" ? 254 : champ.nom === "telephone" ? 32 : champ.nom === "siteWeb" ? 250 : 180}
-              required={champ.nom === "ville" || champ.nom === "pays"}
+              aria-describedby={champ.nom + "-info"}
               disabled={enCours}
             />
-            {erreurs[champ.nom] && (
-              <p className="text-destructive text-xs">{erreurs[champ.nom]}</p>
-            )}
+            <p id={champ.nom + "-info"} className={erreurs[champ.nom] ? "text-destructive text-xs" : "text-muted-foreground text-xs"}>
+              {erreurs[champ.nom] ?? champ.aide}
+            </p>
           </div>
         ))}
       </div>
+    );
+  }
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-        <p className="text-muted-foreground text-xs">
-          Seuls les utilisateurs autorisés peuvent modifier ces informations. Chaque opération est journalisée.
+export function FormulaireIdentite({ initial }: { initial: Champs }) {
+  const router = useRouter();
+  const [enCours, demarrer] = useTransition();
+  const [erreurs, setErreurs] = useState<Record<string, string>>({});
+
+  function enregistrer(donnees: FormData) {
+    const saisie = Object.fromEntries([...CHAMPS, ...ADMIN].map((c) => [
+      c.nom,
+      String(donnees.get(c.nom) ?? ""),
+    ]));
+    setErreurs({});
+    demarrer(async () => {
+      const resultat = await enregistrerIdentiteLycee(saisie);
+      if (!resultat.ok) {
+        setErreurs(resultat.erreurs ?? {});
+        toast.error(resultat.message);
+        return;
+      }
+      toast.success(resultat.message);
+      router.refresh();
+    });
+  }
+
+
+
+  return (
+    <form action={enregistrer} className="space-y-5">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Building2 className="size-5" aria-hidden /> Coordonnées de contact
+          </CardTitle>
+          <CardDescription>
+            Informations utilisées pour joindre le lycée et compléter ses documents.
+          </CardDescription>
+        </CardHeader>
+        <CardContent><Groupe liste={CHAMPS} initial={initial} enCours={enCours} erreurs={erreurs} /></CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileBadge2 className="size-5" aria-hidden /> Administration et signataires
+          </CardTitle>
+          <CardDescription>
+            Vérifiez les noms avant toute émission : les PDF générés ou réexportés ensuite
+            pourront afficher les nouvelles informations. L'historisation des versions PDF
+            fera l'objet d'un contrôle dédié.
+          </CardDescription>
+        </CardHeader>
+        <CardContent><Groupe liste={ADMIN} initial={initial} enCours={enCours} erreurs={erreurs} /></CardContent>
+      </Card>
+
+      <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 shadow-md backdrop-blur supports-backdrop-filter:bg-background/85">
+        <p className="max-w-xl text-muted-foreground text-xs">
+          Les changements sont enregistrés et tracés. Les champs vides sont effacés.
         </p>
         <Button type="submit" disabled={enCours}>
-          {enCours ? "Enregistrement…" : "Enregistrer les coordonnées"}
+          <Save className="size-4" aria-hidden />
+          {enCours ? "Enregistrement…" : "Enregistrer les informations"}
         </Button>
       </div>
     </form>

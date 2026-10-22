@@ -7,6 +7,7 @@ import {
   Bell,
   BookOpenText,
   CalendarDays,
+  ClipboardCheck,
   ChevronRight,
   GraduationCap,
   Megaphone,
@@ -106,13 +107,6 @@ export default async function PageParametres({
   const params = await searchParams;
   const [
     peutConfigurer,
-    peutGererAnnees,
-    peutGererPeriodes,
-    peutDeverrouillerPeriodes,
-    peutGererMatieres,
-    peutGererCoefficients,
-    peutCreerClasses,
-    peutModifierClasses,
     peutNotifier,
     peutAuditer,
     peutFinances,
@@ -122,13 +116,6 @@ export default async function PageParametres({
     peutCommunication,
   ] = await Promise.all([
     peut(principal, "parametre:modifier"),
-    peut(principal, "annee:cloturer"),
-    peut(principal, "periode:verrouiller"),
-    peut(principal, "periode:deverrouiller"),
-    peut(principal, "matiere:gerer"),
-    peut(principal, "coefficient:gerer"),
-    peut(principal, "classe:creer"),
-    peut(principal, "classe:modifier"),
     peut(principal, "notification:configurer"),
     peut(principal, "audit:lire"),
     peut(principal, "finance:lire"),
@@ -138,19 +125,7 @@ export default async function PageParametres({
     peut(principal, "annonce:lire"),
   ]);
 
-  const accesAnnees = peutGererAnnees || peutGererPeriodes || peutDeverrouillerPeriodes;
-  const accesMatieres = peutGererMatieres;
-  const accesCoefficients = peutGererCoefficients;
-  const accesClasses = peutCreerClasses || peutModifierClasses;
-  const accesOnglet: Record<Onglet, boolean> = {
-    annees: accesAnnees,
-    matieres: accesMatieres,
-    coefficients: accesCoefficients,
-    classes: accesClasses,
-  };
-
-  if (!peutConfigurer && !peutNotifier && !peutAuditer && !peutConfigurerFinances &&
-      !Object.values(accesOnglet).some(Boolean)) {
+  if (!peutConfigurer && !peutNotifier && !peutAuditer && !peutConfigurerFinances) {
     redirect("/unauthorized");
   }
 
@@ -160,7 +135,7 @@ export default async function PageParametres({
 
   // Le droit de consulter les politiques SMS ou l'audit ne donne pas accès aux
   // années, classes ni coefficients, même en modifiant manuellement l'URL.
-  if (onglet && !accesOnglet[onglet]) {
+  if (onglet && !peutConfigurer) {
     redirect("/unauthorized");
   }
 
@@ -186,54 +161,57 @@ export default async function PageParametres({
                 Établissement unique · Enseignement secondaire, de la 6ème à la Terminale
               </p>
               <p className="mt-1 text-muted-foreground text-xs">
-                Nom officiel, sigle {APP_CONFIG.sigle} et devise {APP_CONFIG.devise} sont pour l'instant définis dans la configuration de l'application.
+                Nom officiel, sigle {APP_CONFIG.sigle} et devise {APP_CONFIG.devise} restent stables.
+                Coordonnées et signataires sont modifiables depuis la fiche unique du lycée.
               </p>
             </div>
-            <Badge variant="outline" className="self-start sm:self-center">Identité actuelle</Badge>
+            <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-center">
+              <Badge variant="outline">Établissement unique</Badge>
+              <Button asChild size="sm" variant="outline">
+                <Link prefetch={false} href="/dashboard/parametres/etablissement">
+                  Modifier les coordonnées
+                </Link>
+              </Button>
+            </div>
           </section>
         ) : null}
 
         <GroupeReglages
-          titre="Identité du lycée"
-          description="Une seule fiche institutionnelle, sans gestion de plusieurs établissements."
-          liens={peutConfigurer ? [{
-            titre: "Coordonnées et signataires officiels",
-            description: "Adresse, téléphone, e-mail, tutelle, autorisation, proviseur et censeur.",
-            url: "/dashboard/parametres/etablissement",
-            icone: School,
-          }] : []}
-        />
-
-        <GroupeReglages
           titre="Année scolaire et référentiel"
           description="Les paramètres structurants des inscriptions, des notes et des bulletins."
-          liens={[
-            ...(accesAnnees ? [{
+          liens={peutConfigurer ? [
+            {
+              titre: "Diagnostic de configuration",
+              description: "Vérifier l'identité, les périodes, les classes, les inscriptions et coefficients.",
+              url: "/dashboard/parametres/diagnostic",
+              icone: ClipboardCheck,
+            },
+            {
               titre: "Années scolaires et périodes",
               description: "Année courante, trimestres ou semestres, dates et clôture contrôlée.",
               url: "/dashboard/parametres?onglet=annees",
               icone: CalendarDays,
-            }] : []),
-            ...(accesMatieres ? [{
+            },
+            {
               titre: "Matières et séries",
               description: "Catalogue des matières, séries et états d'activation.",
               url: "/dashboard/parametres?onglet=matieres",
               icone: BookOpenText,
-            }] : []),
-            ...(accesCoefficients ? [{
+            },
+            {
               titre: "Coefficients",
               description: "Pondération des matières et évaluations, par niveau et série.",
               url: "/dashboard/parametres?onglet=coefficients",
               icone: GraduationCap,
-            }] : []),
-          ]}
+            },
+          ] : []}
         />
 
         <GroupeReglages
           titre="Scolarité"
           description="Structure des classes et accès aux responsables des élèves."
           liens={[
-            ...(accesClasses ? [{
+            ...(peutConfigurer ? [{
               titre: "Structure des classes",
               description: "Créer, modifier et vérifier les capacités des classes de l'année.",
               url: "/dashboard/parametres?onglet=classes",
@@ -369,36 +347,23 @@ export default async function PageParametres({
       <Tabs value={onglet}>
         <div className="max-w-full overflow-x-auto pb-1">
           <TabsList>
-            {accesAnnees ? (
-              <TabsTrigger value="annees" asChild>
-                <Link href="/dashboard/parametres?onglet=annees">Années scolaires</Link>
-              </TabsTrigger>
-            ) : null}
-            {accesMatieres ? (
-              <TabsTrigger value="matieres" asChild>
-                <Link href="/dashboard/parametres?onglet=matieres">Matières &amp; séries</Link>
-              </TabsTrigger>
-            ) : null}
-            {accesCoefficients ? (
-              <TabsTrigger value="coefficients" asChild>
-                <Link href="/dashboard/parametres?onglet=coefficients">Coefficients</Link>
-              </TabsTrigger>
-            ) : null}
-            {accesClasses ? (
-              <TabsTrigger value="classes" asChild>
-                <Link href="/dashboard/parametres?onglet=classes">Classes</Link>
-              </TabsTrigger>
-            ) : null}
+            <TabsTrigger value="annees" asChild>
+              <Link href="/dashboard/parametres?onglet=annees">Années scolaires</Link>
+            </TabsTrigger>
+            <TabsTrigger value="matieres" asChild>
+              <Link href="/dashboard/parametres?onglet=matieres">Matières &amp; séries</Link>
+            </TabsTrigger>
+            <TabsTrigger value="coefficients" asChild>
+              <Link href="/dashboard/parametres?onglet=coefficients">Coefficients</Link>
+            </TabsTrigger>
+            <TabsTrigger value="classes" asChild>
+              <Link href="/dashboard/parametres?onglet=classes">Classes</Link>
+            </TabsTrigger>
+          </TabsList>
         </div>
 
         <TabsContent value="annees" className="mt-6">
-          <OngletAnnees
-            annees={annees}
-            periodesParAnnee={periodesParAnnee}
-            peutGererAnnees={peutGererAnnees}
-            peutGererPeriodes={peutGererPeriodes}
-            peutDeverrouillerPeriodes={peutDeverrouillerPeriodes}
-          />
+          <OngletAnnees annees={annees} periodesParAnnee={periodesParAnnee} />
         </TabsContent>
 
         <TabsContent value="matieres" className="mt-6">
@@ -424,8 +389,6 @@ export default async function PageParametres({
             classes={classes}
             niveaux={niveaux}
             series={series}
-            peutCreer={peutCreerClasses}
-            peutModifier={peutModifierClasses}
           />
         </TabsContent>
       </Tabs>
