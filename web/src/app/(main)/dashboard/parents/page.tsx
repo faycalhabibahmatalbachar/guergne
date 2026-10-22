@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Download } from "lucide-react";
+import { Download, House } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { listerTuteurs, statistiquesParents } from "@/server/domain/parents";
@@ -54,6 +54,9 @@ export default async function PageParents({
           <p className="mt-1.5 text-sm text-slate-500 dark:text-muted-foreground">Consultez les responsables, leurs enfants et l’accès à l’application parent.</p>
         </div>
         <div role="group" aria-label="Actions sur les comptes parents" className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <Button asChild variant="outline" className="h-10 gap-2 border-slate-200 bg-white px-3.5 font-semibold shadow-none dark:border-border dark:bg-card">
+            <a href="/dashboard/parents/familles"><House className="size-4" aria-hidden />Familles & fratries</a>
+          </Button>
           <Button asChild variant="outline" className="h-10 gap-2 border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 dark:bg-card dark:text-foreground">
             <a href="/api/export/parents" title="Export Excel de tous les responsables"><Download className="size-4" aria-hidden />Exporter Excel</a>
           </Button>
