@@ -7,6 +7,7 @@ import { BoutonNotifier } from "../_components/bouton-notifier";
 
 type Props = {
   classes: LigneClasseParametre[];
+  toutesClasses: LigneClasseParametre[];
   peutModifier: boolean;
   peutNotifier: boolean;
   ouvrir: (classe: LigneClasseParametre) => void;
@@ -94,7 +95,7 @@ function Actions({ classe, peutModifier, peutNotifier, ouvrir, compact = false }
 }
 
 /** Vue liste cohérente avec la vue cartes, sans tableau débordant sur mobile. */
-export function ListeClasses({ classes, peutModifier, peutNotifier, ouvrir }: Props) {
+export function ListeClasses({ classes, toutesClasses, peutModifier, peutNotifier, ouvrir }: Props) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900" aria-label="Liste des classes">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3.5 dark:border-slate-800 sm:px-5">
@@ -135,8 +136,9 @@ export function ListeClasses({ classes, peutModifier, peutNotifier, ouvrir }: Pr
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {classes.map((classe, index) => {
-              const couleur = COULEURS[index % COULEURS.length];
+            {classes.map((classe) => {
+              const paletteIndex = Math.max(0, toutesClasses.findIndex((c) => c.id === classe.id));
+              const couleur = COULEURS[paletteIndex % COULEURS.length];
               return (
                 <tr key={classe.id} className="group transition-colors hover:bg-blue-50/40 dark:hover:bg-slate-800/55">
                   <th scope="row" className="py-3.5 pl-5 pr-3 text-left">
@@ -153,7 +155,7 @@ export function ListeClasses({ classes, peutModifier, peutNotifier, ouvrir }: Pr
                   <td className="px-3 py-3.5 text-sm text-slate-600 dark:text-slate-300">{classe.niveauLibelle}</td>
                   <td className="px-3 py-3.5 text-center text-sm font-bold tabular-nums text-slate-900 dark:text-white">{classe.effectif}</td>
                   <td className="px-3 py-3.5 text-center text-sm tabular-nums text-slate-600 dark:text-slate-300">{classe.capaciteMax}</td>
-                  <td className="px-3 py-3.5"><TauxOccupation classe={classe} index={index} /></td>
+                  <td className="px-3 py-3.5"><TauxOccupation classe={classe} index={paletteIndex} /></td>
                   <td className="px-3 py-3.5"><Statut actif={classe.active} /></td>
                   <td className="px-5 py-3.5"><Actions classe={classe} peutModifier={peutModifier} peutNotifier={peutNotifier} ouvrir={ouvrir} /></td>
                 </tr>
@@ -165,7 +167,8 @@ export function ListeClasses({ classes, peutModifier, peutNotifier, ouvrir }: Pr
 
       <div className="divide-y divide-slate-100 dark:divide-slate-800 2xl:hidden">
         {classes.map((classe, index) => {
-          const couleur = COULEURS[index % COULEURS.length];
+          const paletteIndex = Math.max(0, toutesClasses.findIndex((c) => c.id === classe.id));
+          const couleur = COULEURS[paletteIndex % COULEURS.length];
           return (
             <article key={classe.id} className="space-y-3 px-4 py-4 transition-colors hover:bg-blue-50/30 dark:hover:bg-slate-800/40 sm:px-5">
               <div className="flex items-start justify-between gap-3">
@@ -185,7 +188,7 @@ export function ListeClasses({ classes, peutModifier, peutNotifier, ouvrir }: Pr
                   <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Élèves / capacité</p>
                   <p className="mt-1 text-sm font-bold tabular-nums text-slate-900 dark:text-white">{classe.effectif} <span className="font-medium text-slate-400">/ {classe.capaciteMax}</span></p>
                 </div>
-                <TauxOccupation classe={classe} index={index} />
+                <TauxOccupation classe={classe} index={paletteIndex} />
               </div>
               <Actions compact classe={classe} peutModifier={peutModifier} peutNotifier={peutNotifier} ouvrir={ouvrir} />
             </article>
