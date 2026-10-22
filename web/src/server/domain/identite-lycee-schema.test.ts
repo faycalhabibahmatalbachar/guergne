@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { schemaIdentiteLycee } from "./identite-lycee-schema.ts";
 
 const valeurs = () => ({
+  version: "2026-10-22 21:00:00+00",
   adresse: "Quartier Centre",
   ville: "N'Djamena",
   pays: "Tchad",
@@ -26,10 +27,15 @@ describe("configuration de l'identité du lycée", () => {
 
   it("autorise les champs facultatifs vides sous forme de null", () => {
     const v = Object.fromEntries(Object.keys(valeurs()).map(k => [k, ""]));
+    v.version = valeurs().version;
     const r = schemaIdentiteLycee.parse(v);
     assert.equal(r.email, null);
     assert.equal(r.telephone, null);
     assert.equal(r.nomProviseur, null);
+  });
+
+  it("rejette une version absente ou vide", () => {
+    assert.equal(schemaIdentiteLycee.safeParse({ ...valeurs(), version: "" }).success, false);
   });
 
   it("rejette un e-mail malformé", () => {
