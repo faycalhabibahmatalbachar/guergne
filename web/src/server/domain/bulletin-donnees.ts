@@ -83,6 +83,15 @@ function libelleDecisionConseil(decision: string | null): string | null {
   return libelles[decision] ?? decision.replace(/_/g, " ");
 }
 
+function libelleOrientation(moyenneAnnuelle: number | null, conduite: number | null): string | null {
+  if (moyenneAnnuelle === null) return null;
+  const noteConduite = conduite ?? 0;
+  if (moyenneAnnuelle >= 9.99 && noteConduite >= 8) return "Admis (e) en Classe Supérieure";
+  if (moyenneAnnuelle >= 9.5 && noteConduite >= 8) return "Admis (e) en Classe Supérieure mais efforts à fournir";
+  if (moyenneAnnuelle >= 6 && noteConduite >= 8) return "Admis (e)  à Redoubler";
+  return "Exclu (e)";
+}
+
 function libelleMention(mention: string | null): string | null {
   if (!mention || mention === "AUCUNE") return null;
   const libelles: Record<string, string> = {
@@ -475,7 +484,13 @@ export async function chargerBulletin(
     decisionConseil: libelleMention(b?.mention ?? null) ?? libelleDecisionTravail(
       ctx.est_derniere_periode ? moyenneAnnuelle : (b ? nombre(b.moyenne_generale) : totalCoefficients > 0 ? totalPoints / totalCoefficients : null),
     ),
-    orientation: ctx.est_derniere_periode ? libelleDecisionConseil(b?.decision ?? null) : null,
+    orientation: ctx.est_derniere_periode
+      ? libelleDecisionConseil(b?.decision ?? null) ?? libelleOrientation(
+          moyenneAnnuelle,
+          c?.note !== null && c?.note !== undefined ? Number(c.note) :
+            b?.note_conduite !== null && b?.note_conduite !== undefined ? Number(b.note_conduite) : null,
+        )
+      : null,
 
     ville: e.ville ?? "N'Djamena",
     dateEdition: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "2-digit" }),
