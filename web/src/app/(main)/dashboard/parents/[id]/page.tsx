@@ -12,6 +12,7 @@ import { peut, exigerPage } from "@/server/guard";
 import { chargerDossierTuteur } from "@/server/domain/parents";
 import { CoordonneesTuteur } from "./_components/coordonnees-tuteur";
 import { ActionsDossierParent, AjouterEnfantParent } from "./_components/actions-dossier-parent";
+import { RolesFamiliaux } from "./_components/roles-familiaux";
 import { HistoriqueParent } from "./_components/historique-parent";
 
 export const dynamic = "force-dynamic";
@@ -184,6 +185,16 @@ export default async function PageDossierParent({ params }: { params: Promise<{ 
               {e.estContactUrgence ? <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">Contact d'urgence</span> : null}
               {e.autoriseRetrait ? <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">Autorisé au retrait</span> : null}
             </div>
+            {peutLierEnfant ? <div className="mt-3 border-t border-slate-100 pt-3 dark:border-border">
+              <RolesFamiliaux roles={{
+                tuteurId: tuteur.id, eleveId: e.eleveId, enfant: e.prenom + " " + e.nom,
+                lien: e.lien, estPrincipal: e.estPrincipal,
+                estTuteurLegal: e.estTuteurLegal,
+                estResponsableFinancier: e.estResponsableFinancier,
+                estContactUrgence: e.estContactUrgence,
+                autoriseRetrait: e.autoriseRetrait,
+              }} />
+            </div> : null}
           </article>)}
         </div> : <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500 dark:border-border">Aucun enfant rattaché à ce responsable.</div>}
       </section>
