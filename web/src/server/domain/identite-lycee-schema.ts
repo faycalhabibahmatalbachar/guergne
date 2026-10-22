@@ -31,6 +31,7 @@ const siteWeb = z.string().trim().max(240)
   .transform((v) => v || null);
 
 export const schemaIdentiteLycee = z.object({
+  version: z.string().trim().min(1, "Version de la fiche absente. Rechargez la page.").max(100),
   adresse: champTexte(220),
   ville: champTexte(100),
   pays: champTexte(100),

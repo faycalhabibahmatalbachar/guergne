@@ -54,9 +54,15 @@ const dateFr = (iso: string) =>
 export function OngletAnnees({
   annees,
   periodesParAnnee,
+  peutGererAnnees,
+  peutGererPeriodes,
+  peutDeverrouillerPeriodes,
 }: {
   annees: LigneAnnee[];
   periodesParAnnee: Record<string, LignePeriode[]>;
+  peutGererAnnees: boolean;
+  peutGererPeriodes: boolean;
+  peutDeverrouillerPeriodes: boolean;
 }) {
   const [enCours, demarrer] = useTransition();
   const [clotureCible, setClotureCible] = useState<LigneAnnee | null>(null);
@@ -126,12 +132,14 @@ export function OngletAnnees({
         </div>
 
         <Dialog open={ouvert} onOpenChange={setOuvert}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus aria-hidden />
-              Nouvelle année
-            </Button>
-          </DialogTrigger>
+          {peutGererAnnees ? (
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus aria-hidden />
+                Nouvelle année
+              </Button>
+            </DialogTrigger>
+          ) : null}
           <DialogContent>
             <form action={soumettre}>
               <DialogHeader>
@@ -249,7 +257,7 @@ export function OngletAnnees({
                     </div>
 
                     <div className="flex gap-2">
-                      {!annee.estCourante && !annee.estCloturee ? (
+                      {peutGererAnnees && !annee.estCourante && !annee.estCloturee ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -260,7 +268,7 @@ export function OngletAnnees({
                           Définir en cours
                         </Button>
                       ) : null}
-                      {!annee.estCloturee && !annee.estCourante ? (
+                      {peutGererAnnees && !annee.estCloturee && !annee.estCourante ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -295,6 +303,8 @@ export function OngletAnnees({
                             key={p.id}
                             periode={p}
                             anneeCloturee={annee.estCloturee}
+                            peutGererPeriodes={peutGererPeriodes}
+                            peutDeverrouillerPeriodes={peutDeverrouillerPeriodes}
                             enCours={enCours}
                             onBasculer={(verrouiller) =>
                               demarrer(async () => {
@@ -308,14 +318,13 @@ export function OngletAnnees({
                                 );
                               })
                             }
-                            onEnregistrer={(valeurs) =>
-                              demarrer(async () => {
-                                const r = await modifierPeriode({ id: p.id, ...valeurs });
-                                toast[r.ok ? "success" : "error"](
-                                  r.ok ? "Période mise à jour." : (r.message ?? "Échec."),
-                                );
-                              })
-                            }
+                            onEnregistrer={async (valeurs) => {
+                              const r = await modifierPeriode({ id: p.id, ...valeurs });
+                              toast[r.ok ? "success" : "error"](
+                                r.ok ? "Période mise à jour." : (r.message ?? "Échec."),
+                              );
+                              return r.ok;
+                            }}
                           />
                         ))}
                       </TableBody>
@@ -377,17 +386,22 @@ export function OngletAnnees({
 function LignePeriodeEditable({
   periode,
   anneeCloturee,
+  peutGererPeriodes,
+  peutDeverrouillerPeriodes,
   enCours,
   onBasculer,
   onEnregistrer,
 }: {
   periode: LignePeriode;
   anneeCloturee: boolean;
+  peutGererPeriodes: boolean;
+  peutDeverrouillerPeriodes: boolean;
   enCours: boolean;
   onBasculer: (verrouiller: boolean) => void;
-  onEnregistrer: (valeurs: { libelle: string; dateDebut: string; dateFin: string }) => void;
+  onEnregistrer: (valeurs: { libelle: string; dateDebut: string; dateFin: string }) => Promise<boolean>;
 }) {
   const [edition, setEdition] = useState(false);
+  const [enregistrementEnCours, lancerEnregistrement] = useTransition();
   const [libelle, setLibelle] = useState(periode.libelle);
   const [debut, setDebut] = useState(periode.dateDebut);
   const [fin, setFin] = useState(periode.dateFin);
@@ -408,10 +422,12 @@ function LignePeriodeEditable({
         <TableCell className="space-x-2 text-right">
           <Button
             size="sm"
-            disabled={enCours}
+            disabled={enCours || enregistrementEnCours}
             onClick={() => {
-              onEnregistrer({ libelle, dateDebut: debut, dateFin: fin });
-              setEdition(false);
+              lancerEnregistrement(async () => {
+                const ok = await onEnregistrer({ libelle, dateDebut: debut, dateFin: fin });
+                if (ok) setEdition(false);
+              });
             }}
           >
             Enregistrer
@@ -443,22 +459,25 @@ function LignePeriodeEditable({
         )}
       </TableCell>
       <TableCell className="space-x-2 text-right">
-        {!anneeCloturee ? (
+        {!anneeCloturee && (peutGererPeriodes || peutDeverrouillerPeriodes) ? (
           <>
-            <Button size="sm" variant="ghost" onClick={() => setEdition(true)} disabled={enCours}>
-              Modifier
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={enCours}
-              onClick={() => onBasculer(!periode.estVerrouillee)}
-            >
-              {periode.estVerrouillee ? "Déverrouiller" : "Verrouiller"}
-            </Button>
+            {peutGererPeriodes && !periode.estVerrouillee ? (
+              <Button size="sm" variant="ghost" onClick={() => setEdition(true)} disabled={enCours}>
+                Modifier
+              </Button>
+            ) : null}
+            {((periode.estVerrouillee && peutDeverrouillerPeriodes)
+              || (!periode.estVerrouillee && peutGererPeriodes)) ? (
+              <Button size="sm" variant="outline" disabled={enCours}
+                onClick={() => onBasculer(!periode.estVerrouillee)}>
+                {periode.estVerrouillee ? "Déverrouiller" : "Verrouiller"}
+              </Button>
+            ) : null}
           </>
         ) : (
-          <span className="text-muted-foreground text-xs">Année clôturée</span>
+          <span className="text-muted-foreground text-xs">
+            {anneeCloturee ? "Année clôturée" : "Lecture seule"}
+          </span>
         )}
       </TableCell>
     </TableRow>

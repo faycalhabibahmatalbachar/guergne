@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
@@ -32,10 +32,18 @@ export async function enregistrerIdentiteLycee(saisie: unknown): Promise<Resulta
       return { ok: false, message: "La fiche unique du lycée est introuvable. Vérifiez l'installation de la base." };
     }
 
-    const modifications = analyse.data;
-    await db.update(etablissement)
-      .set({ ...modifications, modifieLe: new Date().toISOString() })
-      .where(eq(etablissement.id, true));
+    const { version, ...modifications } = analyse.data;
+    const maj = await db.update(etablissement)
+      .set({ ...modifications, modifieLe: sql`now()` })
+      .where(and(
+        eq(etablissement.id, true),
+        sql`${etablissement.modifieLe}::text = ${version}`,
+      ))
+      .returning({ id: etablissement.id });
+
+    if (maj.length !== 1) {
+      return { ok: false, message: "Cette fiche a été modifiée par quelqu'un d'autre. Rechargez la page et vérifiez les nouvelles valeurs avant de réessayer." };
+    }
 
     await journaliser(acteur, {
       action: "etablissement.coordonnees_modifiees",

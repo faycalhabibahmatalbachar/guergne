@@ -34,11 +34,15 @@ export function OngletClasses({
   classes,
   niveaux,
   series,
+  peutCreer,
+  peutModifier,
 }: {
   anneeCourante: LigneAnnee | null;
   classes: LigneClasseParametre[];
   niveaux: LigneNiveau[];
   series: LigneSerie[];
+  peutCreer: boolean;
+  peutModifier: boolean;
 }) {
   const [enCours, demarrer] = useTransition();
   const [ouvert, setOuvert] = useState(false);
@@ -100,10 +104,12 @@ export function OngletClasses({
             Année {anneeCourante.libelle} — {classes.length} classe{classes.length > 1 ? "s" : ""}
           </p>
         </div>
-        <Button size="sm" onClick={() => ouvrir(null)}>
-          <Plus aria-hidden />
-          Nouvelle classe
-        </Button>
+        {peutCreer ? (
+          <Button size="sm" onClick={() => ouvrir(null)}>
+            <Plus aria-hidden />
+            Nouvelle classe
+          </Button>
+        ) : null}
       </div>
 
       <Card>
@@ -147,13 +153,15 @@ export function OngletClasses({
                       {c.effectif} / {c.capaciteMax}
                     </TableCell>
                     <TableCell className="space-x-1 text-right">
-                      <Button size="sm" variant="ghost" onClick={() => ouvrir(c)}>
-                        Modifier
-                      </Button>
+                      {peutModifier ? (
+                        <Button size="sm" variant="ghost" onClick={() => ouvrir(c)}>
+                          Modifier
+                        </Button>
+                      ) : null}
                       <Button
                         size="sm"
                         variant="ghost"
-                        disabled={enCours || c.effectif > 0}
+                        disabled={!peutModifier || enCours || c.effectif > 0}
                         title={
                           c.effectif > 0
                             ? "Cette classe compte des élèves inscrits"
