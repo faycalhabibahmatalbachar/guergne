@@ -25,6 +25,7 @@ import { CoordonneesTuteur } from "./coordonnees-tuteur";
 type Parent = {
   id: string; nomComplet: string; telephone: string; email: string | null;
   accepteSms: boolean; utilisateurId: string | null; compteActif: boolean | null;
+  profil: { nom: string; prenom: string; sexe: string | null; telephoneSecondaire: string | null; profession: string | null; employeur: string | null; adresse: string | null; quartier: string | null };
 };
 export function ActionsDossierParent({ parent, peutSms, peutInviter }: {
   parent: Parent; peutSms: boolean; peutInviter: boolean;
@@ -76,6 +77,7 @@ export function ActionsDossierParent({ parent, peutSms, peutInviter }: {
         telephone={parent.telephone}
         email={parent.email}
         accepteSms={parent.accepteSms}
+        profil={parent.profil}
         variante="primaire"
       />
       {peutSms ? <Button variant="outline" size="sm"
