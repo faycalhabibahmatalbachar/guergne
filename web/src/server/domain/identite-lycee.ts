@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import { etablissement } from "@/server/db/schema";
@@ -28,6 +28,7 @@ export async function chargerIdentiteLycee() {
       nomProviseur: etablissement.nomProviseur,
       nomCenseur: etablissement.nomCenseur,
       modifieLe: etablissement.modifieLe,
+      version: sql<string>`${etablissement.modifieLe}::text`,
     })
     .from(etablissement)
     .where(eq(etablissement.id, true))
