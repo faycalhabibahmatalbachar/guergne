@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Eye, KeyRound, MoreHorizontal, Pencil, Send, ShieldOff, Trash2, UserRoundX } from "lucide-react";
+import { BellRing, Eye, History, KeyRound, MoreHorizontal, Pencil, Phone, Send, ShieldOff, Trash2, UserRoundX } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ import type { LigneTuteur } from "@/server/domain/parents";
 import { inviterTuteur, modifierProfilTuteur, revoquerAcces, supprimerTuteurOrphelin } from "../actions";
 import { CodeActivationParent } from "./code-activation-parent";
 
-export function ActionsParent({ t, peutInviter }: { t: LigneTuteur; peutInviter: boolean }) {
+export function ActionsParent({ t, peutInviter, peutNotifier, onNotifier }: { t: LigneTuteur; peutInviter: boolean; peutNotifier: boolean; onNotifier: (parent: LigneTuteur) => void }) {
   const routeur = useRouter();
   const [enCours, demarrer] = useTransition();
   const [fenetre, setFenetre] = useState<"modifier" | "revoquer" | "supprimer" | null>(null);
@@ -120,6 +120,11 @@ export function ActionsParent({ t, peutInviter }: { t: LigneTuteur; peutInviter:
       <Button asChild variant="outline" size="icon" className="size-9 rounded-lg border-slate-200 bg-white shadow-none dark:border-border dark:bg-card" title="Ouvrir la fiche parent">
         <Link href={"/dashboard/parents/" + t.id} aria-label={"Ouvrir la fiche de " + nomComplet}><Eye className="size-4" aria-hidden /></Link>
       </Button>
+      {peutNotifier && <Button type="button" variant="outline" size="icon"
+        className="size-9 rounded-lg border-emerald-200 bg-emerald-50 text-emerald-700 shadow-none hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300"
+        title={"Envoyer une notification uniquement à " + nomComplet}
+        aria-label={"Notifier individuellement " + nomComplet}
+        onClick={() => onNotifier(t)}><BellRing className="size-4" aria-hidden /></Button>}
       <Button variant="outline" size="icon" className="size-9 rounded-lg border-slate-200 bg-white shadow-none dark:border-border dark:bg-card"
         title="Modifier le profil" aria-label={"Modifier le profil de " + nomComplet} onClick={() => { setErreurs({}); setSms(t.accepteSms); setFenetre("modifier"); }}>
         <Pencil className="size-4" aria-hidden />
@@ -133,6 +138,9 @@ export function ActionsParent({ t, peutInviter }: { t: LigneTuteur; peutInviter:
         <DropdownMenuContent align="end" className="w-60">
           <DropdownMenuLabel className="text-xs text-muted-foreground">Compte de {nomComplet}</DropdownMenuLabel>
           <DropdownMenuItem asChild><Link href={"/dashboard/parents/" + t.id}><Eye className="size-4" aria-hidden />Consulter le dossier</Link></DropdownMenuItem>
+          <DropdownMenuItem asChild><Link href={"/dashboard/parents/" + t.id + "#historique-notifications"}><History className="size-4" aria-hidden />Historique des notifications</Link></DropdownMenuItem>
+          {t.telephone && <DropdownMenuItem asChild><a href={"tel:" + t.telephone.replace(/[^+0-9]/g, "")}><Phone className="size-4" aria-hidden />Appeler ce parent</a></DropdownMenuItem>}
+          {peutNotifier && <DropdownMenuItem onSelect={() => onNotifier(t)}><BellRing className="size-4" aria-hidden />Notifier ce parent</DropdownMenuItem>}
           <DropdownMenuItem onSelect={() => { setErreurs({}); setFenetre("modifier"); }}><Pencil className="size-4" aria-hidden />Modifier les informations</DropdownMenuItem>
           <DropdownMenuSeparator />
           {peutInviter && statutInvite ? (
