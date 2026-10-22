@@ -38,7 +38,7 @@ interface NavItemBase {
   badge?: NavBadge;
   disabled?: boolean;
   newTab?: boolean;
-  action?: Action;
+  action?: Action | readonly Action[];
 }
 
 export interface NavMainLinkItem extends NavItemBase {
