@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Download, EyeOff, FileText, Play, Search, Send,
-  Clock3, CheckCircle2, Users,
+  Clock3, CheckCircle2, TrendingUp, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -201,7 +201,7 @@ export function GenerationBulletins({
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-700 dark:text-cyan-300"><Users className="size-5" aria-hidden /></div>
@@ -217,13 +217,19 @@ export function GenerationBulletins({
         <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-amber-500/10 p-3 text-amber-600"><Clock3 className="size-5" aria-hidden /></div>
-            <div><p className="text-muted-foreground text-sm">En attente</p><p className="text-2xl font-semibold tabular-nums">{enAttente}</p><p className="text-muted-foreground text-xs">{tauxAttente.toFixed(1).replace(".", ",")}% des bulletins</p></div>
+            <div><p className="text-muted-foreground text-sm">À publier</p><p className="text-2xl font-semibold tabular-nums">{enAttente}</p><p className="text-muted-foreground text-xs">{tauxAttente.toFixed(1).replace(".", ",")}% des bulletins produits</p></div>
           </CardContent>
         </Card>
         <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-600"><CheckCircle2 className="size-5" aria-hidden /></div>
             <div><p className="text-muted-foreground text-sm">Publiés</p><p className="text-2xl font-semibold tabular-nums">{publies}</p><p className="text-muted-foreground text-xs">{tauxPublies.toFixed(1).replace(".", ",")}% des bulletins</p></div>
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl border-border/70 shadow-sm">
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="rounded-xl bg-violet-500/10 p-3 text-violet-700 dark:text-violet-300"><TrendingUp className="size-5" aria-hidden /></div>
+            <div><p className="text-muted-foreground text-sm">Moyenne affichée</p><p className="text-2xl font-semibold tabular-nums">{moyenne}</p><p className="text-muted-foreground text-xs">Bulletins correspondant aux filtres</p></div>
           </CardContent>
         </Card>
       </div>

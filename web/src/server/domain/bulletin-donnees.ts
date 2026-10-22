@@ -56,30 +56,79 @@ const ORDRE_BLOCS = ["LITTERAIRE", "SCIENTIFIQUE", "COMPLEMENTAIRE"];
  */
 export function appreciationMoyenne(moyenne: number | null): string {
   if (moyenne === null) return "";
+  if (moyenne >= 18) return "Excellent";
   if (moyenne >= 16) return "Très Bien";
   if (moyenne >= 14) return "Bien";
   if (moyenne >= 12) return "Assez Bien";
+  if (moyenne >= 11) return "Passable";
   if (moyenne >= 10) return "Moyen";
-  if (moyenne >= 8) return "Passable";
-  if (moyenne >= 6) return "Insuffisant";
-  return "Très Faible";
+  if (moyenne >= 8) return "Insuffisant";
+  if (moyenne >= 7) return "Faible";
+  if (moyenne >= 5) return "Très Faible";
+  if (moyenne >= 2) return "Médiocre";
+  return "Travail Nul";
 }
-
 const nombre = (v: string | null): number | null => (v === null ? null : Number(v));
 
 function libelleDecisionConseil(decision: string | null): string | null {
   if (!decision) return null;
   const libelles: Record<string, string> = {
-    ADMIS: "Admis(e) en classe supérieure",
-    ADMIS_CONDITION: "Admis(e) en classe supérieure mais efforts à fournir",
-    REDOUBLE: "Admis(e) à redoubler",
-    EXCLU: "Exclu(e)",
-    REORIENTE: "Réorienté(e)",
+    ADMIS: "Admis (e) en Classe Supérieure",
+    ADMIS_CONDITION: "Admis (e) en Classe Supérieure mais efforts à fournir",
+    REDOUBLE: "Admis (e)  à Redoubler",
+    EXCLU: "Exclu (e)",
+    REORIENTE: "Réorienté (e)",
     EN_ATTENTE: "En attente d'une décision",
   };
   return libelles[decision] ?? decision.replace(/_/g, " ");
 }
 
+function libelleMention(mention: string | null): string | null {
+  if (!mention || mention === "AUCUNE") return null;
+  const libelles: Record<string, string> = {
+    FELICITATIONS: "Félicitations",
+    ENCOURAGEMENTS: "Encouragement",
+    TABLEAU_HONNEUR: "Tableau d'honneur",
+    AVERTISSEMENT_TRAVAIL: "Avertissement",
+    AVERTISSEMENT_CONDUITE: "Avertissement",
+    BLAME: "Blâme",
+  };
+  return libelles[mention] ?? mention.replace(/_/g, " ");
+}
+
+function libelleTravail(moyenne: number | null): string | null {
+  if (moyenne === null) return null;
+  if (moyenne >= 14) return "Tableau d'honneur";
+  if (moyenne >= 12) return "Félicitations";
+  if (moyenne >= 10) return "Encouragement";
+  if (moyenne >= 8) return "Efforts à fournir";
+  if (moyenne >= 6) return "Avertissement";
+  return "Blâme";
+}
+
+function libelleDiscipline(note: number | null): string | null {
+  if (note === null) return null;
+  if (note >= 16) return "Élève exemplaire";
+  if (note >= 13) return "Assez bon élève";
+  if (note >= 10) return "Manque du serieux";
+  if (note >= 7) return "Avertissement";
+  return "Blâme";
+}
+
+function libelleDecisionTravail(moyenne: number | null): string | null {
+  if (moyenne === null) return null;
+  if (moyenne >= 18) return "Excellent Travail";
+  if (moyenne >= 16) return "Très Bon Travail";
+  if (moyenne >= 14) return "Bon Travail";
+  if (moyenne >= 12) return "Assez Bon Travail";
+  if (moyenne >= 11) return "Travail Passable";
+  if (moyenne >= 10) return "Travail Moyen";
+  if (moyenne >= 8) return "Travail Insuffisant";
+  if (moyenne >= 7) return "Travail Faible";
+  if (moyenne >= 5) return "Travail Très Faible";
+  if (moyenne >= 2) return "Travail Médiocre";
+  return "Travail Nul";
+}
 /**
  * Moyenne d'une famille d'évaluations, ramenée sur 20.
  *
@@ -143,6 +192,7 @@ export async function chargerBulletin(
     heures_manquees: number;
     jours_manques: number;
     statut_inscription: string;
+    est_redoublant: boolean;
   }>(sql`
     SELECT e.nom, e.prenom, e.matricule,
            c.libelle AS classe,
@@ -156,7 +206,8 @@ export async function chargerBulletin(
            COALESCE((SELECT count(*) FROM absences ab
                       WHERE ab.inscription_id = i.id AND ab.periode_id = ${periodeId}::uuid
                         AND ab.type = 'JOURNEE'), 0) AS jours_manques,
-           i.type::text AS statut_inscription
+           i.type::text AS statut_inscription,
+           i.est_redoublant AS est_redoublant
       FROM inscriptions i
       JOIN eleves e            ON e.id = i.eleve_id
       JOIN classes c           ON c.id = i.classe_id
@@ -385,8 +436,8 @@ export async function chargerBulletin(
 
     eleve: {
       nomComplet: `${ctx.prenom} ${ctx.nom}`,
-      matricule: ctx.matricule,
-      statut: ctx.statut_inscription === "INSCRIPTION" ? "Nouveau" : "Ancien",
+      matricule: /^\d+$/.test(ctx.matricule) ? ctx.matricule.padStart(3, "0") : ctx.matricule,
+      statut: ctx.est_redoublant ? "Redoublant" : ctx.statut_inscription === "INSCRIPTION" ? "Nouveau" : "Ancien",
       classe: ctx.classe,
       effectifClasse: Number(ctx.effectif),
       retards: Number(ctx.retards),
@@ -412,12 +463,21 @@ export async function chargerBulletin(
     // à partir des moyennes annuelles de la classe, avec ex æquo au même rang.
     rangAnnuel: ctx.est_derniere_periode ? rangAnnuelCalcule : null,
 
-    appreciationTravail: b?.appreciation_generale ?? null,
-    appreciationDiscipline: c?.appreciation ?? (b?.note_conduite ? `Conduite : ${b.note_conduite}/20` : null),
-    decisionConseil: b?.mention ? String(b.mention).replace(/_/g, " ") : null,
+    // Les valeurs écrites par l'administration restent prioritaires ; les
+    // cellules non saisies suivent les formules du classeur Excel.
+    appreciationTravail: b?.appreciation_generale ?? libelleTravail(
+      ctx.est_derniere_periode ? moyenneAnnuelle : (b ? nombre(b.moyenne_generale) : totalCoefficients > 0 ? totalPoints / totalCoefficients : null),
+    ),
+    appreciationDiscipline: c?.appreciation ?? libelleDiscipline(
+      c?.note !== null && c?.note !== undefined ? Number(c.note) :
+      b?.note_conduite !== null && b?.note_conduite !== undefined ? Number(b.note_conduite) : null,
+    ),
+    decisionConseil: libelleMention(b?.mention ?? null) ?? libelleDecisionTravail(
+      ctx.est_derniere_periode ? moyenneAnnuelle : (b ? nombre(b.moyenne_generale) : totalCoefficients > 0 ? totalPoints / totalCoefficients : null),
+    ),
     orientation: ctx.est_derniere_periode ? libelleDecisionConseil(b?.decision ?? null) : null,
 
     ville: e.ville ?? "N'Djamena",
-    dateEdition: new Date().toLocaleDateString("fr-FR"),
+    dateEdition: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "2-digit" }),
   };
 }

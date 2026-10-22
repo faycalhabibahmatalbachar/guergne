@@ -1,5 +1,8 @@
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { join } from "node:path";
 import type { Etablissement } from "./gabarit";
+
+const LOGO_ETABLISSEMENT = join(process.cwd(), "public", "icone-192.png");
 
 type Style = ReturnType<typeof StyleSheet.create>[string];
 
@@ -22,41 +25,56 @@ export interface DonneesConseilOrientation {
 }
 
 const s = StyleSheet.create({
-  page: { paddingTop: 22, paddingBottom: 30, paddingHorizontal: 24, fontSize: 8, fontFamily: "Times-Roman", color: "#111827" },
-  etablissement: { marginTop: 5, fontSize: 12, fontFamily: "Times-Bold", textAlign: "center" },
-  annee: { marginTop: 3, fontSize: 9, textAlign: "center" },
-  titre: { marginTop: 6, fontSize: 12, fontFamily: "Times-Bold", textAlign: "center" },
-  sousTitre: { marginTop: 4, marginBottom: 12, fontSize: 10, fontFamily: "Times-Bold", textAlign: "center" },
-  tableau: { borderWidth: 0.7, borderColor: "#111827" },
-  entete: { flexDirection: "row", backgroundColor: "#d9d9d9", borderBottomWidth: 0.8, borderBottomColor: "#111827" },
-  ligne: { flexDirection: "row", borderBottomWidth: 0.45, borderBottomColor: "#6b7280" },
-  cellule: { paddingVertical: 5, paddingHorizontal: 3, borderRightWidth: 0.45, borderRightColor: "#6b7280", justifyContent: "center" },
+  page: { paddingTop: 22, paddingBottom: 30, paddingHorizontal: 24, fontSize: 10.5, fontFamily: "Times-Roman", color: "#111111" },
+  entete: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  logo: { width: 44, height: 44, objectFit: "contain" },
+  enteteCentre: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
+  enteteReserve: { width: 44 },
+  etablissement: { marginTop: 1, fontSize: 12, fontFamily: "Times-Bold", textAlign: "center" },
+  annee: { marginTop: 3, fontSize: 10, fontFamily: "Times-Bold", textAlign: "center" },
+  titre: { marginTop: 4, fontSize: 11.5, fontFamily: "Times-Bold", textAlign: "center" },
+  sousTitre: { marginTop: 4, marginBottom: 0, fontSize: 10.5, fontFamily: "Times-Bold", textAlign: "center" },
+  tableau: { borderWidth: 0.7, borderColor: "#111111" },
+  enteteTableau: { flexDirection: "row", backgroundColor: "#ffffff", borderBottomWidth: 0.8, borderBottomColor: "#111111" },
+  ligne: { flexDirection: "row", borderBottomWidth: 0.45, borderBottomColor: "#111111" },
+  cellule: { paddingVertical: 4, paddingHorizontal: 3, borderRightWidth: 0.45, borderRightColor: "#111111", justifyContent: "center" },
   fin: { borderRightWidth: 0 },
   centre: { textAlign: "center" },
   gras: { fontFamily: "Times-Bold" },
-  n: { width: "4%" }, matricule: { width: "7%" }, nom: { width: "25%" }, trimestre: { width: "8%" },
-  annuelle: { width: "9%" }, conduite: { width: "8%" }, observation: { width: "23%" },
-  pied: { position: "absolute", bottom: 12, left: 24, right: 24, textAlign: "right", fontSize: 7, color: "#6b7280" },
+  n: { width: "3%" },
+  matricule: { width: "4%" },
+  nom: { width: "24%" },
+  trimestre: { width: "9%" },
+  annuelle: { width: "7%" },
+  conduite: { width: "11%" },
+  observation: { width: "23%" },
 });
-const moyenne = (v: number | null) => v === null || !Number.isFinite(v) ? "" : v.toFixed(2).replace(".", ",");
+const moyenne = (v: number | null) => v === null || !Number.isFinite(v) ? "" : v.toFixed(2);
 
 function Cellule({ children, largeur, centre = false, gras = false, fin = false }: {
   children: React.ReactNode; largeur: Style; centre?: boolean; gras?: boolean; fin?: boolean;
 }) {
-  return <View style={[s.cellule, largeur, ...(centre ? [s.centre] : []), ...(fin ? [s.fin] : [])]}>
-    <Text style={gras ? s.gras : undefined}>{children}</Text>
-  </View>;
+  return (
+    <View style={[s.cellule, largeur, ...(fin ? [s.fin] : [])]}>
+      <Text style={[...(centre ? [s.centre] : []), ...(gras ? [s.gras] : [])]}>{children}</Text>
+    </View>
+  );
 }
-
 export function ConseilOrientationPDF({ d }: { d: DonneesConseilOrientation }) {
   return <Document title={`Conseil d’orientation — ${d.classe} — ${d.anneeScolaire}`} author={d.etablissement.nom}>
     <Page size="A4" orientation="landscape" style={s.page} wrap>
-      <Text style={s.etablissement}>{d.etablissement.nom.toLocaleUpperCase("fr")}</Text>
-      <Text style={s.annee}>Année scolaire : {d.anneeScolaire.replace(/(\d{4})\s*-\s*(\d{4})/, "$1 – $2")}</Text>
-      <Text style={s.titre}>CONSEIL D'ORIENTATION</Text>
-      <Text style={s.sousTitre}>CLASSE DE {d.classe}</Text>
+      <View style={s.entete}>
+        <Image src={LOGO_ETABLISSEMENT} style={s.logo} />
+        <View style={s.enteteCentre}>
+          <Text style={s.etablissement}>{d.etablissement.nom.toLocaleUpperCase("fr").replace(/\s+LA RENAISSANCE$/i, " : LA RENAISSANCE")}</Text>
+          <Text style={s.annee}>Année scolaire : {d.anneeScolaire.replace(/(\d{4})\s*-\s*(\d{4})/, "$1 – $2")}</Text>
+          <Text style={s.titre}>CONSEIL D'ORIENTATION</Text>
+          <Text style={s.sousTitre}>CLASSE DE {d.classe}</Text>
+        </View>
+        <View style={s.enteteReserve} />
+      </View>
       <View style={s.tableau}>
-        <View style={s.entete} fixed>
+        <View style={s.enteteTableau} fixed>
           <Cellule largeur={s.n} centre gras>N°</Cellule>
           <Cellule largeur={s.matricule} centre gras>Mat.</Cellule>
           <Cellule largeur={s.nom} gras>Noms & Prénoms</Cellule>
@@ -79,7 +97,6 @@ export function ConseilOrientationPDF({ d }: { d: DonneesConseilOrientation }) {
           <Cellule largeur={s.observation} fin>{l.observation}</Cellule>
         </View>)}
       </View>
-      <Text style={s.pied} fixed render={({ pageNumber, totalPages }) => `Lycée Guergné La Renaissance · Page ${pageNumber}/${totalPages}`} />
     </Page>
   </Document>;
 }

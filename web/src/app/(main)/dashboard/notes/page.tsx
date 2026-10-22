@@ -80,32 +80,26 @@ export default async function PageNotes({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-semibold text-2xl tracking-tight">Saisie des notes</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
-            Année {stats.annee.libelle} — {stats.periode.libelle}
-          </p>
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950 p-5 text-white shadow-sm sm:p-7">
+        <div className="pointer-events-none absolute -right-8 -top-12 size-48 rounded-full border border-white/10" />
+        <div className="pointer-events-none absolute -right-1 -top-5 size-32 rounded-full border border-cyan-300/15" />
+        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Pédagogie · Évaluations</p>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Saisie des notes</h1>
+            <p className="text-sm text-slate-300">Année scolaire {stats.annee.libelle} · {stats.periode.libelle}</p>
+            <p className="max-w-xl text-sm text-slate-300">Saisissez les résultats, suivez les évaluations et préparez les moyennes de vos élèves.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10 hover:text-white"><Link href="/dashboard/notes/calendrier"><CalendarDays aria-hidden />Calendrier</Link></Button>
+            <Button asChild variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10 hover:text-white"><Link href="/dashboard/notes/appreciations"><MessageSquareText aria-hidden />Appréciations par matière</Link></Button>
+          </div>
         </div>
-        {/*
-          Les appréciations se rédigent au même moment que les dernières notes,
-          juste avant le conseil. Le lien est ici parce que c'est là que le
-          professeur se trouve déjà.
-        */}
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/notes/calendrier">
-              <CalendarDays aria-hidden />
-              Calendrier
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/notes/appreciations">
-              <MessageSquareText aria-hidden />
-              Appréciations par matière
-            </Link>
-          </Button>
-        </div>
+      </section>
+      <div className="flex flex-wrap gap-2">
+        <span className="rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground">{classes.length} classes</span>
+        <span className="rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground">{matieres.length} matières</span>
+        <span className="rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground">{evaluations.length} évaluations pour la période</span>
       </div>
 
       <Notes

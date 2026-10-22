@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Eye, Lock, LockOpen, Plus, Save } from "lucide-react";
+import { CheckCircle2, ClipboardList, Eye, FilePenLine, Lock, LockKeyhole, LockOpen, Plus, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +87,12 @@ export function Notes({
   const erreur = (c: string) =>
     erreurs[c] ? <p className="text-destructive text-sm">{erreurs[c]}</p> : null;
 
+  const evaluationsTerminees = evaluations.filter((e) => e.effectif > 0 && e.nbSaisies >= e.effectif).length;
+  const saisiesTotales = evaluations.reduce((total, e) => total + e.nbSaisies, 0);
+  const attenduesTotales = evaluations.reduce((total, e) => total + e.effectif, 0);
+  const tauxSaisie = attenduesTotales > 0 ? Math.round((saisiesTotales / attenduesTotales) * 100) : 0;
+  const evaluationsVerrouillees = evaluations.filter((e) => e.estVerrouillee).length;
+
   function soumettreEvaluation(f: FormData) {
     setErreurs({});
     demarrer(async () => {
@@ -116,22 +122,25 @@ export function Notes({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground text-sm">
-          {periodeLibelle} — {evaluations.length} évaluation{evaluations.length > 1 ? "s" : ""}
-        </p>
-        <Button size="sm" onClick={() => setOuvert(true)}>
-          <Plus aria-hidden />
-          Nouvelle évaluation
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Suivi de la période</p>
+          <p className="mt-1 text-sm font-medium">{periodeLibelle} · {evaluations.length} évaluation{evaluations.length > 1 ? "s" : ""}</p>
+        </div>
+        <Button size="sm" onClick={() => setOuvert(true)}><Plus aria-hidden />Nouvelle évaluation</Button>
       </div>
-
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Card className="rounded-2xl border-border/70 shadow-sm"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-700 dark:text-cyan-300"><ClipboardList className="size-5" aria-hidden /></div><div><p className="text-muted-foreground text-xs">Évaluations</p><p className="text-2xl font-semibold tabular-nums">{evaluations.length}</p><p className="text-muted-foreground text-xs">Sur la période active</p></div></CardContent></Card>
+        <Card className="rounded-2xl border-border/70 shadow-sm"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="size-5" aria-hidden /></div><div><p className="text-muted-foreground text-xs">Saisie effectuée</p><p className="text-2xl font-semibold tabular-nums">{saisiesTotales} / {attenduesTotales}</p><p className="text-muted-foreground text-xs">{tauxSaisie}% des saisies attendues</p></div></CardContent></Card>
+        <Card className="rounded-2xl border-border/70 shadow-sm"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl bg-indigo-500/10 p-3 text-indigo-700 dark:text-indigo-300"><FilePenLine className="size-5" aria-hidden /></div><div><p className="text-muted-foreground text-xs">Complètes</p><p className="text-2xl font-semibold tabular-nums">{evaluationsTerminees}</p><p className="text-muted-foreground text-xs">Évaluations entièrement saisies</p></div></CardContent></Card>
+        <Card className="rounded-2xl border-border/70 shadow-sm"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl bg-amber-500/10 p-3 text-amber-700 dark:text-amber-300"><LockKeyhole className="size-5" aria-hidden /></div><div><p className="text-muted-foreground text-xs">Verrouillées</p><p className="text-2xl font-semibold tabular-nums">{evaluationsVerrouillees}</p><p className="text-muted-foreground text-xs">Évaluations protégées</p></div></CardContent></Card>
+      </div>
       {/* Grille de saisie */}
       {grille ? <GrilleSaisie grille={grille} /> : null}
 
       {/* Liste des évaluations */}
-      <Card>
-        <CardHeader>
+      <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
+        <CardHeader className="border-b bg-muted/20 pb-4">
           <CardTitle className="text-base">Évaluations de la période</CardTitle>
           <CardDescription>
             L&apos;avancement montre qui n&apos;a pas encore saisi — c&apos;est la question posée
@@ -145,7 +154,7 @@ export function Notes({
             </p>
           ) : (
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/40">
                 <TableRow>
                   <TableHead>Évaluation</TableHead>
                   <TableHead>Classe</TableHead>
@@ -164,7 +173,7 @@ export function Notes({
                   return (
                     <TableRow
                       key={e.id}
-                      className={e.id === evaluationId ? "bg-muted/50" : undefined}
+                      className={e.id === evaluationId ? "bg-cyan-500/10 ring-1 ring-inset ring-cyan-600/20" : "transition-colors hover:bg-muted/40"}
                     >
                       <TableCell>
                         <span className="font-medium">{e.titre}</span>

@@ -12,23 +12,37 @@ export const maxDuration = 30;
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
-function observation(decision: string | null, appreciation: string | null): string {
+function observation(
+  decision: string | null,
+  appreciation: string | null,
+  moyenneAnnuelle: number | null,
+  conduite: number | null,
+): string {
   const messages: Record<string, string> = {
-    ADMIS: "Admis(e) en classe supérieure",
-    ADMIS_CONDITION: "Admis(e) en classe supérieure, mais efforts à fournir",
-    REDOUBLE: "Admis(e) à redoubler",
-    EXCLU: "Exclu(e)",
-    REORIENTE: "Réorienté(e)",
+    ADMIS: "Admis (e) en Classe Supérieure",
+    ADMIS_CONDITION: "Admis (e) en Classe Supérieure mais efforts à fournir",
+    REDOUBLE: "Admis (e)  à Redoubler",
+    EXCLU: "Exclu (e)",
+    REORIENTE: "Réorienté (e)",
     EN_ATTENTE: "En attente d'une décision",
   };
-  const base = decision ? (messages[decision] ?? decision.replace(/_/g, " ")) : "";
+  const base = decision
+    ? (messages[decision] ?? decision.replace(/_/g, " "))
+    : moyenneAnnuelle !== null && conduite !== null
+      ? moyenneAnnuelle >= 9.99 && conduite >= 8
+        ? messages.ADMIS
+        : moyenneAnnuelle >= 9.5 && conduite >= 8
+          ? messages.ADMIS_CONDITION
+          : moyenneAnnuelle >= 6 && conduite >= 8
+            ? messages.REDOUBLE
+            : messages.EXCLU
+      : "";
   const detail = appreciation?.trim();
   if (!base) return detail ?? "";
   return detail && !base.toLocaleLowerCase("fr").includes(detail.toLocaleLowerCase("fr"))
-    ? `${base} — ${detail}`
+    ? base + " — " + detail
     : base;
 }
-
 export async function GET(
   requete: Request,
   { params }: { params: Promise<{ classeId: string }> },
@@ -122,14 +136,14 @@ export async function GET(
 
   const lignes: LigneConseilOrientation[] = resultat.rows.map((r, index) => ({
     numero: index + 1,
-    matricule: r.matricule,
+    matricule: /^\d+$/.test(r.matricule) ? r.matricule.padStart(3, "0") : r.matricule,
     nomComplet: `${r.prenom} ${r.nom}`,
     moyenneT1: r.moyenne_t1 === null ? null : Number(r.moyenne_t1),
     moyenneT2: r.moyenne_t2 === null ? null : Number(r.moyenne_t2),
     moyenneT3: r.moyenne_t3 === null ? null : Number(r.moyenne_t3),
     moyenneAnnuelle: r.moyenne_annuelle === null ? null : Number(r.moyenne_annuelle),
     conduite: r.conduite === null ? null : Number(r.conduite),
-    observation: observation(r.decision, r.appreciation),
+    observation: observation(r.decision, r.appreciation, r.moyenne_annuelle === null ? null : Number(r.moyenne_annuelle), r.conduite === null ? null : Number(r.conduite)),
   }));
 
   const document = {

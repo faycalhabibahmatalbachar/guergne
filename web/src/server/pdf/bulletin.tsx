@@ -1,4 +1,5 @@
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { join } from "node:path";
 
 /**
  * `@react-pdf/renderer` n'exporte pas son type `Style`. On le retrouve depuis
@@ -6,6 +7,8 @@ import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
  * main, où la moindre divergence passerait inaperçue.
  */
 type Style = ReturnType<typeof StyleSheet.create>[string];
+
+const LOGO_ETABLISSEMENT = join(process.cwd(), "public", "icone-192.png");
 
 import type { Etablissement } from "./gabarit";
 
@@ -43,85 +46,32 @@ import type { Etablissement } from "./gabarit";
  */
 
 const s = StyleSheet.create({
-  page: {
-    paddingTop: 24,
-    paddingBottom: 30,
-    paddingHorizontal: 28,
-    fontSize: 8,
-    fontFamily: "Times-Roman",
-    color: "#0f172a",
-  },
-
-  titre: {
-    fontSize: 12,
-    fontFamily: "Times-BoldItalic",
-    textAlign: "center",
-    letterSpacing: 0.4,
-    marginTop: 6,
-    marginBottom: 16,
-  },
-
-  // --- Bandeau d'identité ---------------------------------------------------
-  identite: {
-    borderWidth: 0.7,
-    borderColor: "#0f172a",
-    marginBottom: 10,
-  },
-  identiteRangee: {
-    flexDirection: "row",
-    borderBottomWidth: 0.7,
-    borderBottomColor: "#0f172a",
-  },
-  identiteCase: {
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    borderRightWidth: 0.7,
-    borderRightColor: "#0f172a",
-    justifyContent: "center",
-    alignItems: "stretch",
-  },
+  page: { paddingTop: 16, paddingBottom: 22, paddingHorizontal: 28, fontSize: 10.2, fontFamily: "Times-Roman", color: "#111111" },
+  entete: { flexDirection: "row", alignItems: "center", marginBottom: 5, paddingBottom: 4, borderBottomWidth: 0.7, borderBottomColor: "#111111" },
+  logo: { width: 42, height: 42, objectFit: "contain" },
+  enteteCentre: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
+  enteteEtablissement: { fontSize: 10.5, fontFamily: "Times-Bold", textAlign: "center" },
+  enteteSecondaire: { marginTop: 2, fontSize: 7.5, textAlign: "center" },
+  enteteReserve: { width: 42 },
+  titre: { fontSize: 12, fontFamily: "Times-BoldItalic", textAlign: "center", marginTop: 4, marginBottom: 12 },
+  identite: { borderWidth: 0.7, borderColor: "#111111", marginBottom: 8 },
+  identiteRangee: { flexDirection: "row", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
+  identiteCase: { paddingVertical: 3, paddingHorizontal: 4, borderRightWidth: 0.7, borderRightColor: "#111111", justifyContent: "center", alignItems: "stretch" },
   identiteCentre: { textAlign: "center" },
   identiteCaseFin: { borderRightWidth: 0 },
-  identiteLibelle: { fontSize: 8, color: "#0f172a" },
-  identiteValeur: { fontSize: 9, fontFamily: "Times-Bold" },
-
-  // --- Tableau des notes ----------------------------------------------------
-  table: { borderWidth: 0.7, borderColor: "#0f172a" },
-  ligne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#94a3b8" },
-  ligneEntete: {
-    flexDirection: "row",
-    backgroundColor: "#d9d9d9",
-    borderBottomWidth: 0.7,
-    borderBottomColor: "#0f172a",
-  },
-  ligneGroupe: {
-    flexDirection: "row",
-    backgroundColor: "#d9d9d9",
-    borderTopWidth: 0.7,
-    borderTopColor: "#0f172a",
-    borderBottomWidth: 0.7,
-    borderBottomColor: "#0f172a",
-  },
-  ligneTotal: {
-    flexDirection: "row",
-    backgroundColor: "#ffffff",
-    borderTopWidth: 0.9,
-    borderTopColor: "#0f172a",
-  },
-
-  cel: {
-    paddingVertical: 3.5,
-    paddingHorizontal: 4,
-    borderRightWidth: 0.4,
-    borderRightColor: "#94a3b8",
-  },
+  identiteLibelle: { fontSize: 9.4, color: "#111111" },
+  identiteValeur: { fontSize: 10.2, fontFamily: "Times-Bold" },
+  identiteNom: { fontSize: 11.7, fontFamily: "Times-BoldItalic", textAlign: "center" },
+  table: { borderWidth: 0.7, borderColor: "#111111" },
+  ligne: { flexDirection: "row", borderBottomWidth: 0.45, borderBottomColor: "#111111" },
+  ligneEntete: { flexDirection: "row", backgroundColor: "#d9d9d9", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
+  ligneGroupe: { flexDirection: "row", backgroundColor: "#d9d9d9", borderTopWidth: 0.7, borderTopColor: "#111111", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
+  ligneTotal: { flexDirection: "row", backgroundColor: "#ffffff", borderTopWidth: 0.9, borderTopColor: "#111111" },
+  cel: { paddingVertical: 3, paddingHorizontal: 3, borderRightWidth: 0.4, borderRightColor: "#111111" },
   celFin: { borderRightWidth: 0 },
   gras: { fontFamily: "Times-Bold" },
   centre: { textAlign: "center" },
   droite: { textAlign: "right" },
-
-  // Largeurs calquées sur les colonnes A:G du modèle Excel.
-  // La ligne des blocs fusionne Disciplines à Moyenne générale (63 %).
   cTitreBloc: { width: "63%" },
   cDiscipline: { width: "24%" },
   cDevoirs: { width: "12%" },
@@ -130,53 +80,15 @@ const s = StyleSheet.create({
   cCoeff: { width: "8%" },
   cPoints: { width: "13%" },
   cAppreciation: { width: "16%" },
-
-  // --- Bas de page ----------------------------------------------------------
-  bas: { flexDirection: "row", marginTop: 10, gap: 10 },
-  conseil: { flex: 1, borderWidth: 0.7, borderColor: "#0f172a" },
-  conseilTitre: {
-    backgroundColor: "#e2efda",
-    paddingVertical: 3,
-    paddingHorizontal: 5,
-    fontFamily: "Times-Bold",
-    borderBottomWidth: 0.7,
-    borderBottomColor: "#0f172a",
-  },
-  conseilLigne: {
-    flexDirection: "row",
-    borderBottomWidth: 0.4,
-    borderBottomColor: "#94a3b8",
-    paddingVertical: 3.5,
-    paddingHorizontal: 5,
-  },
-  conseilLibelle: { width: "42%", color: "#475569" },
-  conseilValeur: { width: "58%", fontFamily: "Times-Bold" },
-
-  historique: { width: "49%", borderWidth: 0.7, borderColor: "#0f172a" },
-
-  decision: {
-    marginTop: 8,
-    paddingVertical: 5,
-    paddingHorizontal: 6,
-    borderWidth: 0.7,
-    borderColor: "#0f172a",
-    backgroundColor: "#f8fafc",
-  },
-
-  signature: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginTop: 14,
-    paddingHorizontal: 8,
-  },
-  mentionLegale: {
-    marginTop: 14,
-    fontSize: 6.5,
-    fontStyle: "italic",
-    color: "#475569",
-    textAlign: "center",
-  },
+  bas: { flexDirection: "row", marginTop: 9, gap: 0 },
+  conseil: { width: "51%", borderWidth: 0.7, borderColor: "#111111" },
+  conseilTitreFusion: { width: "51%", height: 18, justifyContent: "center", borderWidth: 0.7, borderColor: "#111111", backgroundColor: "#e2efda", paddingHorizontal: 5 },
+  conseilLigne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111", paddingVertical: 3, paddingHorizontal: 0 },
+  conseilValeur: { fontFamily: "Times-Bold", textAlign: "center" },
+  historique: { width: "49%", borderWidth: 0.7, borderColor: "#111111" },
+  historiqueCell: { paddingHorizontal: 4, borderRightWidth: 0.4, borderRightColor: "#111111", justifyContent: "center" },
+  orientation: { marginTop: 1, fontSize: 10.2, fontFamily: "Times-Bold", color: "#111111" },
+  signature: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 8, paddingHorizontal: 0 },
 });
 
 export interface LigneMatiere {
@@ -241,7 +153,7 @@ export interface DonneesBulletin {
 /** Deux décimales, virgule française — comme sur le document papier. */
 function n2(valeur: number | null | undefined): string {
   if (valeur === null || valeur === undefined) return "";
-  return valeur.toFixed(2).replace(".", ",");
+  return valeur.toFixed(2);
 }
 
 function Cellule({
@@ -256,12 +168,11 @@ function Cellule({
   fin?: boolean;
 }) {
   return (
-    <View style={[s.cel, largeur, ...(fin ? [s.celFin] : []), ...(style ? [style] : [])]}>
-      <Text>{children}</Text>
+    <View style={[s.cel, largeur, ...(fin ? [s.celFin] : [])]}>
+      <Text style={style}>{children}</Text>
     </View>
   );
 }
-
 export function Bulletin({ d }: { d: DonneesBulletin }) {
   const identite = {
     nomComplet: d.eleve.nomComplet,
@@ -270,7 +181,7 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
     statut: d.eleve.statut,
     effectif: String(d.eleve.effectifClasse),
     retards: String(d.eleve.retards).padStart(2, "0"),
-    heuresManquees: `${d.eleve.heuresManquees}h`,
+    heuresManquees: String(d.eleve.heuresManquees).padStart(2, "0"),
     joursManques: String(d.eleve.joursManques).padStart(2, "0"),
   };
 
@@ -280,6 +191,14 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
       author={d.etablissement.nom}
     >
       <Page size="A4" style={s.page}>
+                <View style={s.entete}>
+          <Image src={LOGO_ETABLISSEMENT} style={s.logo} />
+          <View style={s.enteteCentre}>
+            <Text style={s.enteteEtablissement}>{d.etablissement.nom.toLocaleUpperCase("fr").replace(/\s+LA RENAISSANCE$/i, " : LA RENAISSANCE")}</Text>
+            <Text style={s.enteteSecondaire}>RÉPUBLIQUE DU {(d.etablissement.pays ?? "TCHAD").toLocaleUpperCase("fr")} · MINISTÈRE DE L'ÉDUCATION NATIONALE</Text>
+          </View>
+          <View style={s.enteteReserve} />
+        </View>
         <Text style={s.titre}>BULLETIN DE NOTES DU {d.periodeLibelle.replace(/\s+trimestre$/i, " TRIMESTRE")}</Text>
 
         {/* Grille d'identification alignée sur les fusions de cellules Excel. */}
@@ -289,7 +208,7 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
               <Text style={[s.identiteLibelle, s.identiteCentre]}>Nom & Prénom :</Text>
             </View>
             <View style={[s.identiteCase, { width: "44%" }]}>
-              <Text style={[s.identiteValeur, s.identiteCentre]}>{identite.nomComplet}</Text>
+              <Text style={s.identiteNom}>{identite.nomComplet}</Text>
             </View>
             <View style={[s.identiteCase, s.identiteCaseFin, { width: "32%" }]}>
               <Text style={s.identiteCentre}><Text style={s.identiteLibelle}>Classe : </Text><Text style={s.identiteValeur}>{identite.classe}</Text></Text>
@@ -372,47 +291,50 @@ export function Bulletin({ d }: { d: DonneesBulletin }) {
           </View>
         </View>
 
-        {/* --- Conseil de classe et historique --------------------------- */}
+        {/* Tableau inférieur et fusions alignés sur le classeur Excel. */}
         <View style={s.bas}>
-          <View style={s.conseil}>
-            <Text style={s.conseilTitre}>Appréciation du conseil de classe</Text>
+          <View style={{ width: "51%" }}>
+            <View style={s.conseilTitreFusion}>
+              <Text style={s.gras}>Appréciation du Conseil de classe</Text>
+            </View>
             {[
               { libelle: "Travail", valeur: d.appreciationTravail },
               { libelle: "Discipline", valeur: d.appreciationDiscipline },
-              { libelle: "Décision du Conseil", valeur: d.orientation ?? d.decisionConseil },
+              { libelle: "Décision du Conseil", valeur: d.decisionConseil },
             ].map((l) => (
               <View key={l.libelle} style={s.conseilLigne}>
-                <Text style={s.conseilLibelle}>{l.libelle}</Text>
-                <Text style={s.conseilValeur}>{l.valeur ?? ""}</Text>
+                <View style={{ width: "47%", paddingHorizontal: 5, justifyContent: "center" }}>
+                  <Text>{l.libelle}</Text>
+                </View>
+                <View style={{ width: "53%", paddingHorizontal: 3, justifyContent: "center", alignItems: "center", borderLeftWidth: 0.4, borderLeftColor: "#111111" }}>
+                  <Text style={s.conseilValeur}>{l.valeur ?? ""}</Text>
+                </View>
               </View>
             ))}
           </View>
-
           <View style={s.historique}>
-            <View style={[s.conseilLigne, { backgroundColor: "#e2efda", paddingVertical: 5 }]}>
-              <Text style={[s.conseilLibelle, { width: "50%", color: "#0f172a" }]}>Période</Text>
-              <Text style={[{ width: "28%" }, s.centre, s.gras]}>Moyenne</Text>
-              <Text style={[{ width: "22%" }, s.centre, s.gras]}>Rang</Text>
+            <View style={[s.conseilLigne, { backgroundColor: "#e2efda", paddingVertical: 4 }]}>
+              <View style={[s.historiqueCell, { width: "40%" }]}><Text style={s.gras}>Période</Text></View>
+              <View style={[s.historiqueCell, { width: "27%" }]}><Text style={[s.centre, s.gras]}>Moyenne</Text></View>
+              <View style={[s.historiqueCell, { width: "33%", borderRightWidth: 0 }]}><Text style={[s.centre, s.gras]}>Rang</Text></View>
             </View>
             {d.historique.map((p) => (
               <View key={p.libelle} style={s.conseilLigne}>
-                <Text style={[s.conseilLibelle, { width: "50%" }]}>{p.libelle}</Text>
-                <Text style={[{ width: "28%" }, s.centre]}>{n2(p.moyenne)}</Text>
-                <Text style={[{ width: "22%" }, s.centre]}>{p.rang ?? ""}</Text>
+                <View style={[s.historiqueCell, { width: "40%" }]}><Text>{p.libelle}</Text></View>
+                <View style={[s.historiqueCell, { width: "27%" }]}><Text style={s.centre}>{n2(p.moyenne)}</Text></View>
+                <View style={[s.historiqueCell, { width: "33%", borderRightWidth: 0 }]}><Text style={s.centre}>{p.rang ?? ""}</Text></View>
               </View>
             ))}
             <View style={[s.conseilLigne, { backgroundColor: "#ffffff", borderBottomWidth: 0 }]}>
-              <Text style={[s.conseilLibelle, { width: "50%" }, s.gras]}>Annuelle</Text>
-              <Text style={[{ width: "28%" }, s.centre, s.gras]}>{n2(d.moyenneAnnuelle)}</Text>
-              <Text style={[{ width: "22%" }, s.centre, s.gras]}>{d.rangAnnuel ?? ""}</Text>
+              <View style={[s.historiqueCell, { width: "40%" }]}><Text style={s.gras}>Annuelle</Text></View>
+              <View style={[s.historiqueCell, { width: "27%" }]}><Text style={[s.centre, s.gras]}>{n2(d.moyenneAnnuelle)}</Text></View>
+              <View style={[s.historiqueCell, { width: "33%", borderRightWidth: 0 }]}><Text style={[s.centre, s.gras]}>{d.rangAnnuel ?? ""}</Text></View>
             </View>
           </View>
         </View>
-
+        {d.orientation ? <Text style={s.orientation}>{d.orientation}</Text> : null}
         <View style={s.signature}>
-          <Text style={{ color: "#0f172a" }}>
-            {d.ville}, le {d.dateEdition}
-          </Text>
+          <Text style={{ color: "#111111" }}>{d.ville.replace(/'/g, "’")}, le {d.dateEdition}</Text>
           <Text style={[s.gras, { minWidth: 130, textAlign: "center" }]}>Le Proviseur</Text>
         </View>
       </Page>

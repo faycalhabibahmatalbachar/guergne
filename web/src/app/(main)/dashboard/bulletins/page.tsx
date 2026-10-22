@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { BookOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 import { sql } from "drizzle-orm";
 
@@ -150,28 +153,15 @@ export default async function PageBulletins({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700 dark:text-cyan-300">
-            Pédagogie · Résultats
-          </p>
-          <h1 className="mt-1 font-semibold text-2xl tracking-tight sm:text-3xl">
-            Gestion des bulletins scolaires
-          </h1>
-          <p className="mt-1 text-muted-foreground text-sm">
-            Consultez, générez et gérez les bulletins de notes de vos élèves.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <div className="rounded-xl border bg-card px-3 py-2 text-sm">
-            <span className="text-muted-foreground">Année scolaire </span>
-            <span className="font-semibold">{stats.annee?.libelle ?? "Non configurée"}</span>
-          </div>
-          <div className="rounded-xl border bg-card px-3 py-2 text-sm">
-            <span className="font-semibold">{classes.rows.length}</span>
-            <span className="text-muted-foreground"> classe(s)</span>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-700 dark:text-cyan-300"><BookOpen className="size-5" aria-hidden /></div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Suivi de la scolarité</p>
+            <p className="mt-1 font-semibold">{stats.annee?.libelle ?? "Année non configurée"} · {classes.rows.length} classes · {stats.effectifTotal} élèves</p>
           </div>
         </div>
+        <Button asChild variant="outline" size="sm"><Link href="/dashboard/notes">Accéder à la saisie des notes</Link></Button>
       </div>
 
       {classeChoisie && periodeChoisie ? (
