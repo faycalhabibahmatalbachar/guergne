@@ -57,7 +57,7 @@ export default async function PageIdentiteLycee() {
             </div>
           </section>
 
-          <FormulaireIdentite initial={identite} />
+          <FormulaireIdentite key={identite.version} initial={identite} />
           <p className="flex items-start gap-2 text-muted-foreground text-xs">
             <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
             Ces informations proviennent de la fiche unique en base et sont
