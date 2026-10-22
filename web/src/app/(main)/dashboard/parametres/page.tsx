@@ -106,6 +106,13 @@ export default async function PageParametres({
   const params = await searchParams;
   const [
     peutConfigurer,
+    peutGererAnnees,
+    peutGererPeriodes,
+    peutDeverrouillerPeriodes,
+    peutGererMatieres,
+    peutGererCoefficients,
+    peutCreerClasses,
+    peutModifierClasses,
     peutNotifier,
     peutAuditer,
     peutFinances,
@@ -115,6 +122,13 @@ export default async function PageParametres({
     peutCommunication,
   ] = await Promise.all([
     peut(principal, "parametre:modifier"),
+    peut(principal, "annee:cloturer"),
+    peut(principal, "periode:verrouiller"),
+    peut(principal, "periode:deverrouiller"),
+    peut(principal, "matiere:gerer"),
+    peut(principal, "coefficient:gerer"),
+    peut(principal, "classe:creer"),
+    peut(principal, "classe:modifier"),
     peut(principal, "notification:configurer"),
     peut(principal, "audit:lire"),
     peut(principal, "finance:lire"),
@@ -124,7 +138,19 @@ export default async function PageParametres({
     peut(principal, "annonce:lire"),
   ]);
 
-  if (!peutConfigurer && !peutNotifier && !peutAuditer && !peutConfigurerFinances) {
+  const accesAnnees = peutGererAnnees || peutGererPeriodes || peutDeverrouillerPeriodes;
+  const accesMatieres = peutGererMatieres;
+  const accesCoefficients = peutGererCoefficients;
+  const accesClasses = peutCreerClasses || peutModifierClasses;
+  const accesOnglet: Record<Onglet, boolean> = {
+    annees: accesAnnees,
+    matieres: accesMatieres,
+    coefficients: accesCoefficients,
+    classes: accesClasses,
+  };
+
+  if (!peutConfigurer && !peutNotifier && !peutAuditer && !peutConfigurerFinances &&
+      !Object.values(accesOnglet).some(Boolean)) {
     redirect("/unauthorized");
   }
 
@@ -134,7 +160,7 @@ export default async function PageParametres({
 
   // Le droit de consulter les politiques SMS ou l'audit ne donne pas accès aux
   // années, classes ni coefficients, même en modifiant manuellement l'URL.
-  if (onglet && !peutConfigurer) {
+  if (onglet && !accesOnglet[onglet]) {
     redirect("/unauthorized");
   }
 
@@ -181,33 +207,33 @@ export default async function PageParametres({
         <GroupeReglages
           titre="Année scolaire et référentiel"
           description="Les paramètres structurants des inscriptions, des notes et des bulletins."
-          liens={peutConfigurer ? [
-            {
+          liens={[
+            ...(accesAnnees ? [{
               titre: "Années scolaires et périodes",
               description: "Année courante, trimestres ou semestres, dates et clôture contrôlée.",
               url: "/dashboard/parametres?onglet=annees",
               icone: CalendarDays,
-            },
-            {
+            }] : []),
+            ...(accesMatieres ? [{
               titre: "Matières et séries",
               description: "Catalogue des matières, séries et états d'activation.",
               url: "/dashboard/parametres?onglet=matieres",
               icone: BookOpenText,
-            },
-            {
+            }] : []),
+            ...(accesCoefficients ? [{
               titre: "Coefficients",
               description: "Pondération des matières et évaluations, par niveau et série.",
               url: "/dashboard/parametres?onglet=coefficients",
               icone: GraduationCap,
-            },
-          ] : []}
+            }] : []),
+          ]}
         />
 
         <GroupeReglages
           titre="Scolarité"
           description="Structure des classes et accès aux responsables des élèves."
           liens={[
-            ...(peutConfigurer ? [{
+            ...(accesClasses ? [{
               titre: "Structure des classes",
               description: "Créer, modifier et vérifier les capacités des classes de l'année.",
               url: "/dashboard/parametres?onglet=classes",
@@ -343,19 +369,26 @@ export default async function PageParametres({
       <Tabs value={onglet}>
         <div className="max-w-full overflow-x-auto pb-1">
           <TabsList>
-            <TabsTrigger value="annees" asChild>
-              <Link href="/dashboard/parametres?onglet=annees">Années scolaires</Link>
-            </TabsTrigger>
-            <TabsTrigger value="matieres" asChild>
-              <Link href="/dashboard/parametres?onglet=matieres">Matières &amp; séries</Link>
-            </TabsTrigger>
-            <TabsTrigger value="coefficients" asChild>
-              <Link href="/dashboard/parametres?onglet=coefficients">Coefficients</Link>
-            </TabsTrigger>
-            <TabsTrigger value="classes" asChild>
-              <Link href="/dashboard/parametres?onglet=classes">Classes</Link>
-            </TabsTrigger>
-          </TabsList>
+            {accesAnnees ? (
+              <TabsTrigger value="annees" asChild>
+                <Link href="/dashboard/parametres?onglet=annees">Années scolaires</Link>
+              </TabsTrigger>
+            ) : null}
+            {accesMatieres ? (
+              <TabsTrigger value="matieres" asChild>
+                <Link href="/dashboard/parametres?onglet=matieres">Matières &amp; séries</Link>
+              </TabsTrigger>
+            ) : null}
+            {accesCoefficients ? (
+              <TabsTrigger value="coefficients" asChild>
+                <Link href="/dashboard/parametres?onglet=coefficients">Coefficients</Link>
+              </TabsTrigger>
+            ) : null}
+            {accesClasses ? (
+              <TabsTrigger value="classes" asChild>
+                <Link href="/dashboard/parametres?onglet=classes">Classes</Link>
+              </TabsTrigger>
+            ) : null}
         </div>
 
         <TabsContent value="annees" className="mt-6">
