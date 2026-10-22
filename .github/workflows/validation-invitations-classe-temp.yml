@@ -22,3 +22,5 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npx tsc --noEmit
+
+# Vérification finale après nettoyage du composant d'invitation.
