@@ -147,7 +147,7 @@ export async function envoyerNotificationsGroupe(input: unknown): Promise<{ ok: 
     const date = dateDemandee(v.programmation);
     if (!date.ok) return { ok: false, message: date.erreur ?? "Date invalide." };
 
-    const resultat = await db.transaction(async tx): Promise<DepotResultat> => {
+    const resultat = await db.transaction(async (tx): Promise<DepotResultat> => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${v.cleEnvoi}))`);
       const existant = await tx.execute<{ n: number }>(sql`
         SELECT count(*)::int AS n FROM notifications
