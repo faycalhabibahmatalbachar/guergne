@@ -21,6 +21,7 @@ import { COUT_SMS_FCFA } from "@/lib/tarifs";
 import { inviterTuteur, revoquerAcces } from "../../actions";
 import { programmerSmsParent, rattacherEnfantParent } from "../actions";
 import { CoordonneesTuteur } from "./coordonnees-tuteur";
+import { CodeActivationParent } from "../../_components/code-activation-parent";
 
 type Parent = {
   id: string; nomComplet: string; telephone: string; email: string | null;
@@ -37,16 +38,15 @@ export function ActionsDossierParent({ parent, peutSms, peutInviter }: {
   const [message, setMessage] = useState("");
   const [motif, setMotif] = useState("");
   const [confirme, setConfirme] = useState(false);
+  const [codeActivation, setCodeActivation] = useState<string | null>(null);
   const peutRevoquer = parent.utilisateurId && parent.compteActif !== false;
 
   function inviter() {
     lancer(async () => {
       const r = await inviterTuteur(parent.id);
       if (r.ok) {
-        toast.success(r.message ?? "Invitation programmée.", {
-          duration: 12000,
-          description: r.code ? "Code d'activation : " + r.code + " — à transmettre au parent de manière sûre." : undefined,
-        });
+        toast.success(r.message ?? "Invitation programmée.");
+        if (r.code) setCodeActivation(r.code);
       } else toast.error(r.message ?? "Impossible de créer le code.");
       router.refresh();
     });
@@ -70,6 +70,7 @@ export function ActionsDossierParent({ parent, peutSms, peutInviter }: {
     });
   }
   return <>
+    <CodeActivationParent code={codeActivation} nom={parent.nomComplet} onFermer={() => setCodeActivation(null)} />
     <div className="flex flex-wrap items-center gap-2">
       <CoordonneesTuteur
         tuteurId={parent.id}
