@@ -196,7 +196,7 @@ export function SaisieAppreciations({
                   onClick={() => naviguer("matiere", a.matiereId)}
                   className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 ${
                     a.matiereId === matiereId
-                      ? "border-cyan-700 bg-cyan-50 text-slate-950 ring-2 ring-cyan-700/20 dark:border-cyan-400 dark:bg-cyan-950/50 dark:text-white dark:ring-cyan-300/20"
+                      ? "border-cyan-800 bg-cyan-100 text-slate-950 ring-2 ring-cyan-800/30 dark:border-cyan-300 dark:bg-cyan-900 dark:text-white dark:ring-cyan-300/30"
                       : "border-border bg-card text-foreground hover:border-cyan-700/50 hover:bg-muted/40"
                   }`}
                 >
@@ -226,13 +226,13 @@ export function SaisieAppreciations({
 
       {!pret ? (
         <Card className="rounded-2xl border-border/70 shadow-sm">
-          <CardContent className="text-muted-foreground py-12 text-center text-sm">
+          <CardContent className="text-slate-600 dark:text-slate-300 py-12 text-center text-sm">
             Choisissez une classe et une matière pour commencer la saisie.
           </CardContent>
         </Card>
       ) : lignes.length === 0 ? (
         <Card className="rounded-2xl border-border/70 shadow-sm">
-          <CardContent className="text-muted-foreground py-12 text-center text-sm">
+          <CardContent className="text-slate-600 dark:text-slate-300 py-12 text-center text-sm">
             Aucun élève inscrit dans cette classe.
           </CardContent>
         </Card>
@@ -259,7 +259,7 @@ export function SaisieAppreciations({
               <div key={l.inscriptionId} className="grid gap-3 px-4 py-4 odd:bg-muted/10 sm:grid-cols-[16rem_1fr] lg:gap-5">
                 <div className="text-sm">
                   <p className="font-medium">{l.eleve}</p>
-                  <p className="text-muted-foreground text-xs tabular-nums">
+                  <p className="text-slate-600 dark:text-slate-300 text-xs tabular-nums">
                     {l.moyenne === null ? (
                       <span className="text-amber-600 dark:text-amber-400">
                         pas encore de moyenne
@@ -292,7 +292,7 @@ export function SaisieAppreciations({
                           key={a}
                           type="button"
                           onClick={() => setValeurs((p) => ({ ...p, [l.inscriptionId]: a }))}
-                          className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-full border px-2.5 py-0.5 text-xs transition-colors"
+                          className="text-slate-600 dark:text-slate-300 hover:bg-muted hover:text-foreground rounded-full border px-2.5 py-0.5 text-xs transition-colors"
                         >
                           {a}
                         </button>

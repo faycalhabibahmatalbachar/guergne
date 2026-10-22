@@ -170,7 +170,7 @@ export function VueCalendrier({
             {surcharges.map((s) => (
               <div key={`${s.date}-${s.classeId}`} className="flex flex-wrap gap-x-2">
                 <span className="font-medium">{jourLong(s.date)}</span>
-                <span className="text-muted-foreground">— {s.classe} :</span>
+                <span className="text-slate-600 dark:text-slate-300">— {s.classe} :</span>
                 <span>{s.matieres.join(", ")}</span>
               </div>
             ))}
@@ -180,7 +180,7 @@ export function VueCalendrier({
 
       {parJour.size === 0 ? (
         <Card className="rounded-2xl border-border/70 shadow-sm">
-          <CardContent className="text-muted-foreground py-12 text-center text-sm">
+          <CardContent className="text-slate-600 dark:text-slate-300 py-12 text-center text-sm">
             Aucune évaluation programmée avec ces critères.
           </CardContent>
         </Card>
@@ -200,12 +200,12 @@ export function VueCalendrier({
               <div
                 key={date}
                 className={`grid gap-3 px-4 py-4 transition-colors hover:bg-muted/20 sm:grid-cols-[13rem_1fr] ${
-                  date < aujourdhui ? "opacity-60" : ""
+                  date < aujourdhui ? "bg-muted/20" : ""
                 }`}
               >
                 <div className="text-sm">
                   <p className="font-medium capitalize">{jourLong(date)}</p>
-                  <p className="text-muted-foreground text-xs">
+                  <p className="text-slate-600 dark:text-slate-300 text-xs">
                     {liste.length} évaluation(s)
                     {date === aujourdhui ? " · aujourd'hui" : ""}
                   </p>

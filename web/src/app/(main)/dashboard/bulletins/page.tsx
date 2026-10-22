@@ -165,23 +165,23 @@ export default async function PageBulletins({
             </div>
             <div className="space-y-1.5">
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Gestion des bulletins scolaires</h1>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">Produisez, vérifiez et publiez les résultats scolaires depuis un espace unique.</p>
+              <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">Produisez, vérifiez et publiez les résultats scolaires depuis un espace unique.</p>
             </div>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="inline-flex items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm font-medium">{stats.annee?.libelle ?? "Année non configurée"}</span>
-              <span className="inline-flex items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">{classes.rows.length} classes</span>
-              <span className="inline-flex items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">{stats.effectifTotal} élèves</span>
+              <span className="inline-flex items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm text-slate-600 dark:text-slate-300">{classes.rows.length} classes</span>
+              <span className="inline-flex items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm text-slate-600 dark:text-slate-300">{stats.effectifTotal} élèves</span>
             </div>
           </div>
           <div className="rounded-xl border border-border/80 bg-muted/20 p-4 sm:p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Contexte de production</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 dark:text-slate-300">Contexte de production</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               <div className="rounded-lg border bg-card px-3 py-3">
-                <p className="text-xs text-muted-foreground">Classe</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300">Classe</p>
                 <p className="mt-1 truncate text-sm font-semibold">{classeLibelle}</p>
               </div>
               <div className="rounded-lg border bg-card px-3 py-3">
-                <p className="text-xs text-muted-foreground">Période</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300">Période</p>
                 <p className="mt-1 truncate text-sm font-semibold">{periodeLibelle}</p>
               </div>
             </div>

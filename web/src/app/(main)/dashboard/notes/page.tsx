@@ -51,7 +51,7 @@ export default async function PageNotes({
       <div className="space-y-6">
         <div>
           <h1 className="font-semibold text-2xl tracking-tight">Saisie des notes</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
+          <p className="mt-1 text-slate-600 dark:text-slate-300 text-sm">
             {stats.annee
               ? `Année ${stats.annee.libelle}${stats.periode ? ` — ${stats.periode.libelle}` : ""}`
               : "Aucune année scolaire configurée"}
@@ -90,19 +90,19 @@ export default async function PageNotes({
             </div>
             <div className="space-y-1.5">
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Saisie des notes</h1>
-              <p className="text-sm text-muted-foreground">Année scolaire <span className="font-medium text-foreground">{stats.annee.libelle}</span> <span className="px-1 text-muted-foreground">/</span> Période <span className="font-medium text-foreground">{stats.periode.libelle}</span></p>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">Saisissez les résultats, suivez l’avancement des évaluations et préparez les moyennes de vos élèves.</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Année scolaire <span className="font-medium text-foreground">{stats.annee.libelle}</span> <span className="px-1 text-slate-600 dark:text-slate-300">/</span> Période <span className="font-medium text-foreground">{stats.periode.libelle}</span></p>
+              <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">Saisissez les résultats, suivez l’avancement des évaluations et préparez les moyennes de vos élèves.</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 xl:justify-end">
-            <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-50 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
-              <Link href="/dashboard/notes/calendrier"><CalendarDays className="size-4 shrink-0" aria-hidden /><span>Calendrier</span></Link>
+            <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
+              <Link href="/dashboard/notes/calendrier" style={{ color: "#0f172a", backgroundColor: "#ffffff", borderColor: "#cbd5e1" }}><CalendarDays className="size-4 shrink-0" aria-hidden /><span style={{ color: "#0f172a" }}>Calendrier</span></Link>
             </Button>
-            <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-50 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
-              <Link href="/dashboard/notes/appreciations"><MessageSquareText className="size-4 shrink-0" aria-hidden /><span>Appréciations par matière</span></Link>
+            <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
+              <Link href="/dashboard/notes/appreciations" style={{ color: "#0f172a", backgroundColor: "#ffffff", borderColor: "#cbd5e1" }}><MessageSquareText className="size-4 shrink-0" aria-hidden /><span style={{ color: "#0f172a" }}>Appréciations par matière</span></Link>
             </Button>
             <Button asChild size="sm" className="h-10 gap-2 whitespace-nowrap bg-cyan-700 px-4 text-white shadow-sm hover:bg-cyan-800 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:bg-cyan-600 dark:hover:bg-cyan-500">
-              <Link href="/dashboard/bulletins"><span>Consulter les bulletins</span><ArrowUpRight className="size-4 shrink-0" aria-hidden /></Link>
+              <Link href="/dashboard/bulletins" style={{ color: "#ffffff", backgroundColor: "#0e7490", borderColor: "#0e7490" }}><span style={{ color: "#ffffff" }}>Consulter les bulletins</span><ArrowUpRight className="size-4 shrink-0" aria-hidden /></Link>
             </Button>
           </div>
         </div>
@@ -110,15 +110,15 @@ export default async function PageNotes({
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card px-4 py-3 shadow-sm">
           <div className="rounded-lg bg-cyan-700/10 p-2.5 text-cyan-800 dark:text-cyan-300"><BookOpenText className="size-4" aria-hidden /></div>
-          <div><p className="text-xs text-muted-foreground">Classes</p><p className="font-semibold tabular-nums">{classes.length}</p></div>
+          <div><p className="text-xs text-slate-600 dark:text-slate-300">Classes</p><p className="font-semibold tabular-nums">{classes.length}</p></div>
         </div>
         <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card px-4 py-3 shadow-sm">
           <div className="rounded-lg bg-indigo-500/10 p-2.5 text-indigo-700 dark:text-indigo-300"><MessageSquareText className="size-4" aria-hidden /></div>
-          <div><p className="text-xs text-muted-foreground">Matières</p><p className="font-semibold tabular-nums">{matieres.length}</p></div>
+          <div><p className="text-xs text-slate-600 dark:text-slate-300">Matières</p><p className="font-semibold tabular-nums">{matieres.length}</p></div>
         </div>
         <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card px-4 py-3 shadow-sm">
           <div className="rounded-lg bg-emerald-500/10 p-2.5 text-emerald-700 dark:text-emerald-300"><CalendarDays className="size-4" aria-hidden /></div>
-          <div><p className="text-xs text-muted-foreground">Évaluations planifiées</p><p className="font-semibold tabular-nums">{evaluations.length}</p></div>
+          <div><p className="text-xs text-slate-600 dark:text-slate-300">Évaluations planifiées</p><p className="font-semibold tabular-nums">{evaluations.length}</p></div>
         </div>
       </div>
 

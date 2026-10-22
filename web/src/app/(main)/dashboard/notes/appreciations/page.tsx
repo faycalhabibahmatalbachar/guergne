@@ -39,7 +39,7 @@ export default async function PageAppreciations({
     return (
       <div className="space-y-6">
         <h1 className="font-semibold text-2xl tracking-tight">Appréciations</h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-slate-600 dark:text-slate-300 text-sm">
           Aucune période d&apos;évaluation n&apos;est ouverte.
         </p>
       </div>
@@ -80,10 +80,10 @@ export default async function PageAppreciations({
               <MessageSquareText className="size-4" aria-hidden /> SUIVI PÉDAGOGIQUE
             </div>
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Appréciations par matière</h1>
-            <p className="max-w-2xl text-sm leading-6 text-muted-foreground">Année scolaire <span className="font-medium text-foreground">{stats.annee.libelle}</span>. Rédigez et suivez les appréciations de chaque classe avant le conseil.</p>
+            <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">Année scolaire <span className="font-medium text-foreground">{stats.annee.libelle}</span>. Rédigez et suivez les appréciations de chaque classe avant le conseil.</p>
           </div>
-          <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-50 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
-            <Link href="/dashboard/notes"><ArrowLeft className="size-4 shrink-0" aria-hidden /><span>Retour à la saisie des notes</span></Link>
+          <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
+            <Link href="/dashboard/notes" style={{ color: "#0f172a", backgroundColor: "#ffffff", borderColor: "#cbd5e1" }}><ArrowLeft className="size-4 shrink-0" aria-hidden /><span style={{ color: "#0f172a" }}>Retour à la saisie des notes</span></Link>
           </Button>
         </div>
       </section>

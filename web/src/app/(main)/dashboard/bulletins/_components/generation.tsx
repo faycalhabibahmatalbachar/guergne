@@ -147,9 +147,9 @@ export function GenerationBulletins({
             <div className="space-y-1.5">
               <Label htmlFor="recherche-bulletins">Recherche</Label>
               <div className="relative">
-                <Search className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" aria-hidden />
+                <Search className="text-slate-600 dark:text-slate-300 absolute left-3 top-1/2 size-4 -translate-y-1/2" aria-hidden />
                 <input id="recherche-bulletins" value={recherche} onChange={(e) => { setRecherche(e.target.value); setPage(1); }}
-                  placeholder="Nom, prénom ou matricule…" className="border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-10 w-full rounded-md border py-2 pl-9 pr-3 text-sm shadow-xs outline-none focus-visible:ring-[3px]" />
+                  placeholder="Nom, prénom ou matricule…" className="border-input bg-background placeholder:text-slate-600 dark:text-slate-300 focus-visible:border-ring focus-visible:ring-ring/50 h-10 w-full rounded-md border py-2 pl-9 pr-3 text-sm shadow-xs outline-none focus-visible:ring-[3px]" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -173,7 +173,7 @@ export function GenerationBulletins({
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
-            <p className="text-muted-foreground text-sm">{filtres.length} bulletin(s) trouvé(s)</p>
+            <p className="text-slate-600 dark:text-slate-300 text-sm">{filtres.length} bulletin(s) trouvé(s)</p>
             <Button variant="outline" onClick={exporter} disabled={filtres.length === 0}>
               <Download aria-hidden /> Exporter en CSV
             </Button>
@@ -185,31 +185,31 @@ export function GenerationBulletins({
         <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-700 dark:text-cyan-300"><Users className="size-5" aria-hidden /></div>
-            <div><p className="text-muted-foreground text-sm">Total des élèves</p><p className="text-2xl font-semibold tabular-nums">{effectifTotal}</p><p className="text-muted-foreground text-xs">Inscrits dans l’année courante</p></div>
+            <div><p className="text-slate-600 dark:text-slate-300 text-sm">Total des élèves</p><p className="text-2xl font-semibold tabular-nums">{effectifTotal}</p><p className="text-slate-600 dark:text-slate-300 text-xs">Inscrits dans l’année courante</p></div>
           </CardContent>
         </Card>
         <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-indigo-500/10 p-3 text-indigo-600"><FileText className="size-5" aria-hidden /></div>
-            <div><p className="text-muted-foreground text-sm">Bulletins générés</p><p className="text-2xl font-semibold tabular-nums">{bulletins.length}</p><p className="text-muted-foreground text-xs">Pour l’année scolaire courante</p></div>
+            <div><p className="text-slate-600 dark:text-slate-300 text-sm">Bulletins générés</p><p className="text-2xl font-semibold tabular-nums">{bulletins.length}</p><p className="text-slate-600 dark:text-slate-300 text-xs">Pour l’année scolaire courante</p></div>
           </CardContent>
         </Card>
         <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-amber-500/10 p-3 text-amber-600"><Clock3 className="size-5" aria-hidden /></div>
-            <div><p className="text-muted-foreground text-sm">À publier</p><p className="text-2xl font-semibold tabular-nums">{enAttente}</p><p className="text-muted-foreground text-xs">{tauxAttente.toFixed(1).replace(".", ",")}% des bulletins produits</p></div>
+            <div><p className="text-slate-600 dark:text-slate-300 text-sm">À publier</p><p className="text-2xl font-semibold tabular-nums">{enAttente}</p><p className="text-slate-600 dark:text-slate-300 text-xs">{tauxAttente.toFixed(1).replace(".", ",")}% des bulletins produits</p></div>
           </CardContent>
         </Card>
         <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-600"><CheckCircle2 className="size-5" aria-hidden /></div>
-            <div><p className="text-muted-foreground text-sm">Publiés</p><p className="text-2xl font-semibold tabular-nums">{publies}</p><p className="text-muted-foreground text-xs">{tauxPublies.toFixed(1).replace(".", ",")}% des bulletins</p></div>
+            <div><p className="text-slate-600 dark:text-slate-300 text-sm">Publiés</p><p className="text-2xl font-semibold tabular-nums">{publies}</p><p className="text-slate-600 dark:text-slate-300 text-xs">{tauxPublies.toFixed(1).replace(".", ",")}% des bulletins</p></div>
           </CardContent>
         </Card>
         <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="rounded-xl bg-violet-500/10 p-3 text-violet-700 dark:text-violet-300"><TrendingUp className="size-5" aria-hidden /></div>
-            <div><p className="text-muted-foreground text-sm">Moyenne affichée</p><p className="text-2xl font-semibold tabular-nums">{moyenne}</p><p className="text-muted-foreground text-xs">Bulletins correspondant aux filtres</p></div>
+            <div><p className="text-slate-600 dark:text-slate-300 text-sm">Moyenne affichée</p><p className="text-2xl font-semibold tabular-nums">{moyenne}</p><p className="text-slate-600 dark:text-slate-300 text-xs">Bulletins correspondant aux filtres</p></div>
           </CardContent>
         </Card>
       </div>
@@ -249,7 +249,7 @@ export function GenerationBulletins({
         </div> : null}
         {classeChoisie && periodeChoisie && (publiesSelectionnes > 0 || attenteSelectionnes > 0) ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/10 px-4 py-3">
-            <p className="text-muted-foreground text-sm">{publiesSelectionnes} publié(s) · {attenteSelectionnes} en attente. La publication rend les bulletins visibles aux familles.</p>
+            <p className="text-slate-600 dark:text-slate-300 text-sm">{publiesSelectionnes} publié(s) · {attenteSelectionnes} en attente. La publication rend les bulletins visibles aux familles.</p>
             <div className="flex gap-2">
               {attenteSelectionnes > 0 ? <Button size="sm" disabled={enCours} onClick={() => demarrer(async () => {
                 const r = await publierClasse(classeChoisie, periodeChoisie);
@@ -270,9 +270,9 @@ export function GenerationBulletins({
         <CardContent className="p-0">
           {visibles.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-4 py-14 text-center">
-              <FileText className="text-muted-foreground size-8" aria-hidden />
+              <FileText className="text-slate-600 dark:text-slate-300 size-8" aria-hidden />
               <p className="font-medium">Aucun bulletin trouvé</p>
-              <p className="text-muted-foreground text-sm">Modifiez la recherche ou les filtres, ou produisez les bulletins d’une classe.</p>
+              <p className="text-slate-600 dark:text-slate-300 text-sm">Modifiez la recherche ou les filtres, ou produisez les bulletins d’une classe.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -290,7 +290,7 @@ export function GenerationBulletins({
                     <TableRow key={b.inscriptionId + b.periodeId} className="transition-colors hover:bg-cyan-500/[0.04]">
                       <TableCell className="min-w-44">
                         <div className="font-medium">{b.eleve}</div>
-                        <div className="text-muted-foreground text-xs">{b.periode}</div>
+                        <div className="text-slate-600 dark:text-slate-300 text-xs">{b.periode}</div>
                       </TableCell>
                       <TableCell className="font-mono text-xs">{b.matricule}</TableCell>
                       <TableCell>{b.classe}</TableCell>
@@ -315,10 +315,10 @@ export function GenerationBulletins({
             </div>
           )}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
-            <p className="text-muted-foreground text-sm">Affichage de {filtres.length ? (pageCourante - 1) * parPage + 1 : 0} à {Math.min(pageCourante * parPage, filtres.length)} sur {filtres.length}</p>
+            <p className="text-slate-600 dark:text-slate-300 text-sm">Affichage de {filtres.length ? (pageCourante - 1) * parPage + 1 : 0} à {Math.min(pageCourante * parPage, filtres.length)} sur {filtres.length}</p>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" disabled={pageCourante <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Précédent</Button>
-              <span className="text-muted-foreground text-sm">{pageCourante} / {pages}</span>
+              <span className="text-slate-600 dark:text-slate-300 text-sm">{pageCourante} / {pages}</span>
               <Button variant="outline" size="sm" disabled={pageCourante >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))}>Suivant</Button>
             </div>
           </div>
