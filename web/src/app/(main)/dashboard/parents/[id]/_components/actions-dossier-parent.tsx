@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Mail, MoreHorizontal, Send, KeyRound, ShieldOff, UserPlus } from "lucide-react";
+import { BellRing, Mail, MoreHorizontal, Send, KeyRound, ShieldOff, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,7 @@ import { inviterTuteur, revoquerAcces } from "../../actions";
 import { programmerSmsParent, rattacherEnfantParent } from "../actions";
 import { CoordonneesTuteur } from "./coordonnees-tuteur";
 import { CodeActivationParent } from "../../_components/code-activation-parent";
+import { NotificationParent } from "../../_components/notification-parent";
 
 type Parent = {
   id: string; nomComplet: string; telephone: string; email: string | null;
@@ -33,6 +34,7 @@ export function ActionsDossierParent({ parent, peutSms, peutInviter }: {
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState<"sms" | "revoquer" | null>(null);
+  const [notificationOuverte, setNotificationOuverte] = useState(false);
   const [enCours, lancer] = useTransition();
   const [titre, setTitre] = useState("");
   const [message, setMessage] = useState("");
@@ -70,6 +72,7 @@ export function ActionsDossierParent({ parent, peutSms, peutInviter }: {
     });
   }
   return <>
+    <NotificationParent parent={notificationOuverte ? { id: parent.id, nom: parent.profil.nom, prenom: parent.profil.prenom, telephone: parent.telephone } : null} onFermer={() => { setNotificationOuverte(false); router.refresh(); }} />
     <CodeActivationParent code={codeActivation} nom={parent.nomComplet} onFermer={() => setCodeActivation(null)} />
     <div className="flex flex-wrap items-center gap-2">
       <CoordonneesTuteur
@@ -81,6 +84,8 @@ export function ActionsDossierParent({ parent, peutSms, peutInviter }: {
         profil={parent.profil}
         variante="primaire"
       />
+      {peutSms && <Button variant="outline" size="sm" className="h-10 gap-2 rounded-xl border-emerald-200 bg-emerald-50 px-3.5 font-semibold text-emerald-800 shadow-none hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300"
+        onClick={() => setNotificationOuverte(true)}><BellRing className="size-4" aria-hidden />Notifier le parent</Button>}
       {peutSms ? <Button variant="outline" size="sm"
         className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3.5 font-semibold shadow-none dark:border-border dark:bg-card"
         disabled={!parent.accepteSms} title={!parent.accepteSms ? "Le parent a refusé les SMS" : undefined}
