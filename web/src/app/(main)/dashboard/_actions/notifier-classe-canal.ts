@@ -194,13 +194,21 @@ export async function notifierClasseCanal(classeId: string, donnees: unknown): P
 
     if (!resultat.ok) return resultat;
 
-    await journaliser(acteur, {
-      action: "notification.envoyee_depuis_classe",
-      entite: "classes",
-      entiteId: classeId,
-      apres: { titre, canal, destinataires: resultat.posees },
-    });
-    reveillerFile();
+    // La notification est déjà en file après la transaction : un échec
+    // d'audit ne doit pas faire croire que rien n'est parti (risque de doublon).
+    try {
+      await journaliser(acteur, {
+        action: "notification.envoyee_depuis_classe",
+        entite: "classes",
+        entiteId: classeId,
+        apres: { titre, canal, destinataires: resultat.posees },
+      });
+    } catch (erreurAudit) {
+      console.error("[notifierClasseCanal:audit]", erreurAudit);
+    }
+    try { reveillerFile(); } catch (erreurReveil) {
+      console.error("[notifierClasseCanal:reveil]", erreurReveil);
+    }
     revalidatePath("/dashboard/classes");
     return resultat;
   } catch (erreur) {
