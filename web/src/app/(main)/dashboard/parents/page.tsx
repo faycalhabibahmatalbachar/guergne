@@ -9,6 +9,8 @@ import { exigerPage, peut } from "@/server/guard";
 
 import { Parents } from "./_components/parents";
 import { CreerParent } from "./_components/creer-parent";
+import { SuiviNotificationsParents } from "./_components/suivi-notifications-parents";
+import { lireSuiviParents } from "@/server/domain/suivi-notifications-parents";
 
 export const metadata: Metadata = { title: "Comptes parents" };
 export const dynamic = "force-dynamic";
@@ -31,7 +33,7 @@ export default async function PageParents({
     classeId: params.classe ?? "",
   };
 
-  const [resultat, stats, referentiel] = await Promise.all([
+  const [resultat, stats, referentiel, suivi] = await Promise.all([
     listerTuteurs({
       recherche: filtres.recherche,
       etat: filtres.etat,
@@ -41,6 +43,7 @@ export default async function PageParents({
     }),
     statistiquesParents(),
     annee ? listerClassesEtMatieres(annee.id) : Promise.resolve({ classes: [], matieres: [] }),
+    peutNotifier ? lireSuiviParents() : Promise.resolve(null),
   ]);
 
   return (
@@ -67,6 +70,7 @@ export default async function PageParents({
         </div>
       </header>
 
+      {suivi && <SuiviNotificationsParents stats={suivi.stats} echecs={suivi.echecs} />}
       <Parents
         tuteurs={resultat.lignes}
         total={resultat.total}
