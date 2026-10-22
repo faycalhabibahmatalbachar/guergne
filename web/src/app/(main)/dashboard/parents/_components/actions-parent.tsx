@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { LigneTuteur } from "@/server/domain/parents";
 import { inviterTuteur, modifierProfilTuteur, revoquerAcces, supprimerTuteurOrphelin } from "../actions";
+import { CodeActivationParent } from "./code-activation-parent";
 
 export function ActionsParent({ t }: { t: LigneTuteur }) {
   const routeur = useRouter();
@@ -30,6 +31,7 @@ export function ActionsParent({ t }: { t: LigneTuteur }) {
   const [motif, setMotif] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
+  const [codeActivation, setCodeActivation] = useState<string | null>(null);
 
   const nomComplet = t.prenom + " " + t.nom;
   const statutInvite = !t.utilisateurId || !t.derniereConnexion || t.compteActif === false;
@@ -76,11 +78,10 @@ export function ActionsParent({ t }: { t: LigneTuteur }) {
   function inviter() {
     demarrer(async () => {
       const r = await inviterTuteur(t.id);
-      if (r.ok) toast.success(r.message ?? "Invitation transmise.", {
-        duration: 12000,
-        description: r.code ? "Code d’activation : " + r.code + " — à transmettre de manière sécurisée au parent." : undefined,
-      });
-      else toast.error(r.message ?? "Invitation impossible.");
+      if (r.ok) {
+        toast.success(r.message ?? "Invitation transmise.");
+        if (r.code) setCodeActivation(r.code);
+      } else toast.error(r.message ?? "Invitation impossible.");
       routeur.refresh();
     });
   }
@@ -114,6 +115,7 @@ export function ActionsParent({ t }: { t: LigneTuteur }) {
     </div>;
 
   return <>
+    <CodeActivationParent code={codeActivation} nom={nomComplet} onFermer={() => setCodeActivation(null)} />
     <div className="flex items-center justify-end gap-1.5">
       <Button asChild variant="outline" size="icon" className="size-9 rounded-lg border-slate-200 bg-white shadow-none dark:border-border dark:bg-card" title="Ouvrir la fiche parent">
         <Link href={"/dashboard/parents/" + t.id} aria-label={"Ouvrir la fiche de " + nomComplet}><Eye className="size-4" aria-hidden /></Link>
