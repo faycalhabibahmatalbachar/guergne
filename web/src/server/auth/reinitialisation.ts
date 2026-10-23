@@ -76,7 +76,15 @@ export function lienReinitialisation(jeton: string): string {
 }
 
 export function emailsDisponibles(): boolean {
-  return Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL && process.env.AUTH_SECRET);
+  const cle = process.env.RESEND_API_KEY?.trim() ?? "";
+  const expediteur = process.env.RESEND_FROM_EMAIL?.trim() ?? "";
+  const secret = process.env.AUTH_SECRET ?? "";
+  return (
+    cle.startsWith("re_") &&
+    expediteur.includes("@") &&
+    !expediteur.includes("votre-domaine-verifie.tld") &&
+    secret.length >= 24
+  );
 }
 
 /** L'envoi échoue explicitement si la passerelle n'est pas configurée. */
@@ -88,15 +96,17 @@ export async function envoyerEmailReinitialisation(destinataire: string, lien: s
       headers: {
         Authorization: "Bearer " + process.env.RESEND_API_KEY,
         "Content-Type": "application/json",
+        "Idempotency-Key": "lgr-reset-" + createHmac("sha256", cleSignature()).update(lien).digest("hex").slice(0,48),
       },
       body: JSON.stringify({
         from: process.env.RESEND_FROM_EMAIL,
         to: [destinataire],
-        subject: "Réinitialisation du mot de passe — Lycée Guergné La Renaissance",
+        subject: "Réinitialisez votre mot de passe — Lycée Guergné La Renaissance",
+        reply_to: process.env.RESEND_REPLY_TO || undefined,
         text: [
           "Bonjour,",
           "",
-          "Une réinitialisation de votre mot de passe a été demandée.",
+          "Vous avez demandé la réinitialisation de votre mot de passe pour l’espace d’administration du lycée.",
           "Pour choisir un nouveau mot de passe, ouvrez ce lien (valable 20 minutes) :",
           lien,
           "",
@@ -107,8 +117,12 @@ export async function envoyerEmailReinitialisation(destinataire: string, lien: s
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),
     });
-    if (!reponse.ok) console.error("[auth/reset] Échec du fournisseur", reponse.status);
-    return reponse.ok;
+    if (!reponse.ok) {
+      console.error("[auth/reset] Le fournisseur a refusé la demande", reponse.status);
+      return false;
+    }
+    const resultat = (await reponse.json()) as { id?: string };
+    return typeof resultat.id === "string" && resultat.id.length > 0;
   } catch (erreur) {
     console.error("[auth/reset] Envoi indisponible", erreur instanceof Error ? erreur.name : "erreur");
     return false;

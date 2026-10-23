@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -30,14 +30,14 @@ export async function demanderReinitialisation(
   const adresse = adresseValide.safeParse(donnees.get("email"));
   if (!adresse.success) return { erreur: "Saisissez une adresse e-mail valide." };
   if (!emailsDisponibles()) {
-    return { erreur: "La réinitialisation par e-mail est momentanément indisponible. Contactez l'administration." };
+    return { erreur: "L’envoi des e-mails doit encore être activé par l’établissement. Veuillez contacter l’administrateur." };
   }
 
   const reponseGenerique = { succes: true };
   const [compte] = await db
     .select({ id: utilisateurs.id, email: utilisateurs.email, hash: utilisateurs.motDePasseHash })
     .from(utilisateurs)
-    .where(and(eq(utilisateurs.email, adresse.data), eq(utilisateurs.actif, true)))
+    .where(and(sql`lower(${utilisateurs.email}) = ${adresse.data}`, eq(utilisateurs.actif, true)))
     .limit(1);
   if (!compte?.email || !compte.hash) return reponseGenerique;
 
@@ -61,7 +61,10 @@ export async function demanderReinitialisation(
   });
   const jeton = creerJetonReinitialisation(compte.id, compte.hash);
   const envoye = await envoyerEmailReinitialisation(compte.email, lienReinitialisation(jeton));
-  if (!envoye) return { erreur: "L'envoi est momentanément indisponible. Réessayez plus tard." };
+  if (!envoye) {
+    // Ne pas exposer l’existence d’un compte via les erreurs de la passerelle.
+    return reponseGenerique;
+  }
   return reponseGenerique;
 }
 
