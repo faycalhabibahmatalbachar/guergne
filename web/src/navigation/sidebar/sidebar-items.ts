@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import type { Action } from "@/server/guard/permissions";
+import { SETTINGS_CATEGORIES } from "./settings-categories";
 
 export type NavBadge = "new" | "soon";
 
@@ -188,9 +189,14 @@ export const sidebarItems: NavGroup[] = [
       {
         id: "parametres",
         title: "Paramètres",
-        url: "/dashboard/parametres",
         icon: Settings,
-        action: ["parametre:modifier", "annee:cloturer", "periode:verrouiller", "periode:deverrouiller", "matiere:gerer", "coefficient:gerer", "classe:creer", "classe:modifier", "notification:configurer", "finance:configurer", "audit:lire"],
+        subItems: SETTINGS_CATEGORIES.map((section) => ({
+          id: "parametres-" + section.id,
+          title: section.title,
+          url: "/dashboard/parametres?section=" + section.id,
+          icon: section.icon,
+          action: section.action,
+        })),
       },
     ],
   },
