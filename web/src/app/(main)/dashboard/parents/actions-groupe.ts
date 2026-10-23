@@ -30,7 +30,9 @@ const selectionSchema = z.discriminatedUnion("mode", [
     exclureIds: z.array(z.string().uuid()).default([]),
   }),
 ]);
-export type SelectionGroupe = z.input<typeof selectionSchema>;
+export type SelectionGroupe =
+  | { mode: "ids"; ids: string[] }
+  | { mode: "filtres"; filtres: { recherche: string; etat: string; classeId: string }; exclureIds: string[] };
 const canalSchema = z.enum(["AUTO", "APP", "SMS", "APP_ET_SMS"]);
 type Canal = z.infer<typeof canalSchema>;
 const contenuSchema = z.object({
