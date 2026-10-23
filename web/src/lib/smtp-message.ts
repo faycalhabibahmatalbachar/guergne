@@ -27,7 +27,9 @@ export function creerContenuReinitialisation(lien: string): { texte: string; htm
     "Lycée Guergné La Renaissance",
   ].join("\n");
 
-  // Styles en ligne compatibles avec les clients mail. Version texte accessible aussi.
+  // Styles en ligne compatibles avec les clients mail. Le nom du lycée reste
+  // visible même lorsque le client bloque le chargement du blason distant.
+  // La version texte contient toujours le lien intégral.
   const html = [
     '<!doctype html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>',
     '<body style="margin:0;padding:0;background:#f4f7f6;font-family:Arial,Helvetica,sans-serif;color:#17202a">',
