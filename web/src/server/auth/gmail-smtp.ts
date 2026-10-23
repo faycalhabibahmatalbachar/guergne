@@ -148,7 +148,7 @@ async function connexionSecurisee(): Promise<TLSSocket> {
   });
 }
 
-export async function envoyerParGmail(destinataire: string, lien: string): Promise<boolean> {
+export async function envoyerParGmail(destinataire: string, lien: string, diagnostic = false): Promise<boolean> {
   const config = obtenirConfiguration();
   if (!config) return false;
 
@@ -158,6 +158,7 @@ export async function envoyerParGmail(destinataire: string, lien: string): Promi
       expediteur: config.utilisateur,
       destinataire,
       lien,
+      diagnostic,
     });
     socket = await connexionSecurisee();
     const lecteur = new LecteurSMTP(socket);
