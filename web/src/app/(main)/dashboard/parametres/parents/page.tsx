@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
+import { KeyRound, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { dureeInvitationJours } from "@/server/domain/parametres";
@@ -19,13 +19,6 @@ export default async function PageParametresParents() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 pb-8">
-      <Button asChild variant="ghost" size="sm">
-        <Link href="/dashboard/parametres">
-          <ArrowLeft className="size-4" aria-hidden />
-          Tous les paramètres
-        </Link>
-      </Button>
-
       <div>
         <div className="flex items-center gap-2">
           <KeyRound className="size-6 text-primary" aria-hidden />
