@@ -45,6 +45,7 @@ const envoiSchema = contenuSchema.extend({
   plafondNotifications: z.number().int().min(0),
   parentsConfirmes: z.number().int().min(0),
   empreinteAudience: z.string().length(64),
+  confirmationDiffusion: z.boolean(),
   cleEnvoi: z.string().uuid(),
 });
 
@@ -200,6 +201,9 @@ export async function envoyerNotificationsGroupe(input: unknown): Promise<{ ok: 
     const parsed = envoiSchema.safeParse(input);
     if (!parsed.success) return { ok: false, message: "Sélection, confirmation ou contenu invalide." };
     const v = parsed.data;
+    if ((v.selection.mode === "filtres" || v.parentsConfirmes > 30) && !v.confirmationDiffusion) {
+      return { ok: false, message: "Confirmez explicitement l’envoi à tous les parents concernés." };
+    }
     const date = dateDemandee(v.programmation);
     if (!date.ok) return { ok: false, message: date.erreur ?? "Date invalide." };
 
