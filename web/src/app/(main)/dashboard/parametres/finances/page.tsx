@@ -1,7 +1,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Wallet } from "lucide-react";
+import { Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,12 +19,6 @@ export default async function PageReglagesFinanciers() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 pb-8">
-      <Button asChild variant="ghost" size="sm">
-        <Link href="/dashboard/parametres">
-          <ArrowLeft className="size-4" aria-hidden />
-          Tous les paramètres
-        </Link>
-      </Button>
       <div>
         <div className="flex items-center gap-2">
           <Wallet className="size-6 text-primary" aria-hidden />
