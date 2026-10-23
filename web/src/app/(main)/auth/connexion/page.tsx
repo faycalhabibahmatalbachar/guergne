@@ -29,10 +29,10 @@ export default async function PageConnexion({
         <div className={styles.brandContent}>
           <div className={styles.logoFrame}>
             <Image
-              src="/logo.svg"
+              src="/logo-officiel.webp"
               alt="Blason officiel du Lycée Guergné La Renaissance"
               width={104}
-              height={104}
+              height={88}
               className={styles.logo}
               priority
               unoptimized
