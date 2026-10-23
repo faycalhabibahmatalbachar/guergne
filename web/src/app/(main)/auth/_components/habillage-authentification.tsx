@@ -19,10 +19,10 @@ export function HabillageAuthentification({
         <div className={styles.brandContent}>
           <div className={styles.logoFrame}>
             <Image
-              src="/logo-officiel.webp"
-              alt="Blason officiel du Lycée Guergné La Renaissance"
-              width={104}
-              height={88}
+              src="/logo.svg"
+              alt="Blason du Lycée Guergné La Renaissance"
+              width={136}
+              height={136}
               className={styles.logo}
               priority
               unoptimized
