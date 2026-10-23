@@ -1,0 +1,272 @@
+.page {
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  background: #fafafa;
+  color: #171717;
+  isolation: isolate;
+}
+.brandPanel {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 100svh;
+  justify-content: center;
+  overflow: hidden;
+  background: linear-gradient(159deg, #bed0e7 0%, #e8eff8 31%, #f8f9fa 60%, #e8e8e5 100%);
+}
+.brandHalo {
+  position: absolute;
+  z-index: 0;
+  top: -35vw;
+  right: -24vw;
+  width: 50vw;
+  height: 50vw;
+  min-width: 600px;
+  min-height: 600px;
+  border: 68px solid rgba(124, 151, 183, 0.13);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.brandContent {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 680px;
+  padding: clamp(76px, 22vh, 238px) 22px 90px;
+  text-align: center;
+}
+.logoFrame {
+  display: grid;
+  width: 110px;
+  height: 110px;
+  margin: 0 auto 22px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.87);
+  box-shadow: 0 16px 38px rgba(34, 55, 76, 0.13);
+  backdrop-filter: blur(12px);
+}
+.logo {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+.schoolName {
+  margin: 0;
+  font-size: clamp(23px, 2.18vw, 34px);
+  font-weight: 740;
+  line-height: 1.22;
+  letter-spacing: -0.045em;
+  color: #121416;
+  text-wrap: balance;
+}
+.brandSubtitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 15px;
+  font-size: clamp(15px, 1.3vw, 20px);
+  font-weight: 400;
+  color: #687482;
+  white-space: nowrap;
+}
+.brandSubtitle span {
+  width: 46px;
+  height: 1px;
+  background: #b9c2cc;
+}
+.goldRule {
+  width: 51px;
+  height: 2px;
+  margin: 37px auto 24px;
+  border-radius: 3px;
+  background: #cfa664;
+}
+.motto {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  color: #78828f;
+  white-space: nowrap;
+}
+.motto span {
+  display: inline-block;
+  padding: 0 13px 0 9px;
+  color: #717b86;
+}
+.campusVisual {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 50%;
+  background-image: url("/auth-campus-illustration.jpg");
+  background-position: center bottom;
+  background-size: cover;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 24%, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 24%, #000 100%);
+  pointer-events: none;
+}
+.loginPanel {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 100svh;
+  overflow: hidden;
+  padding: 40px clamp(24px, 5.7vw, 82px);
+  place-items: center;
+  background: linear-gradient(144deg, #ffffff 2%, #fafbfc 100%);
+}
+.loginHalo {
+  position: absolute;
+  right: -360px;
+  bottom: -470px;
+  width: 860px;
+  height: 860px;
+  border: 85px solid rgba(228, 230, 233, 0.26);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.loginCard {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 545px);
+  padding: clamp(30px, 3.5vw, 48px);
+  border: 1px solid #ececec;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 20px 55px rgba(20, 28, 43, 0.09), 0 2px 7px rgba(20, 28, 43, 0.02);
+}
+.form {
+  width: 100%;
+}
+.formHeading h2 {
+  margin: 0;
+  font-size: clamp(30px, 2.4vw, 36px);
+  font-weight: 740;
+  line-height: 1.18;
+  letter-spacing: -0.055em;
+  color: #141414;
+}
+.formHeading p {
+  margin-top: 12px;
+  font-size: 16px;
+  line-height: 1.45;
+  color: #7b818b;
+}
+.formFields {
+  display: grid;
+  gap: 29px;
+  margin-top: 43px;
+}
+.formField {
+  display: grid;
+  gap: 12px;
+}
+.formLabel {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: #212121;
+}
+.iconInput {
+  position: relative;
+  width: 100%;
+}
+.fieldIcon {
+  position: absolute;
+  z-index: 2;
+  top: 19px;
+  left: 17px;
+  color: #8b939f;
+  pointer-events: none;
+}
+.recoveryRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+.recoveryLink {
+  color: #283347;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.recoveryLink:hover {
+  color: #111827;
+}
+.recoveryLink:focus-visible {
+  border-radius: 2px;
+  outline: 2px solid #64748b;
+  outline-offset: 4px;
+}
+.loginError {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 12px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.changeNotice {
+  margin: 0 0 22px;
+  padding: 12px 14px;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 14px;
+}
+@media (max-width: 1199px) {
+  .loginPanel { padding-inline: 28px; }
+  .loginCard { padding: 36px; }
+  .brandSubtitle { gap: 12px; }
+  .brandSubtitle span { width: 26px; }
+  .motto { letter-spacing: 0.16em; }
+}
+@media (max-width: 900px) {
+  .page { grid-template-columns: minmax(0, 1fr); }
+  .brandPanel { min-height: 0; height: 256px; }
+  .brandContent { padding-top: 20px; }
+  .logoFrame { width: 78px; height: 78px; margin-bottom: 9px; border-radius: 18px; }
+  .logo { width: 72px; height: 72px; }
+  .schoolName { font-size: clamp(20px, 4.7vw, 28px); }
+  .brandSubtitle { margin-top: 7px; font-size: 15px; }
+  .goldRule { margin: 17px auto 12px; }
+  .motto { font-size: 10px; }
+  .campusVisual { height: 47%; opacity: 0.28; }
+  .loginPanel { min-height: calc(100svh - 256px); padding: 28px 20px 44px; }
+  .loginCard { max-width: 530px; }
+}
+@media (max-width: 540px) {
+  .brandPanel { height: 193px; }
+  .brandContent { padding: 15px 13px 18px; }
+  .logoFrame { width: 65px; height: 65px; margin-bottom: 8px; border-radius: 16px; }
+  .logo { width: 62px; height: 62px; }
+  .schoolName { font-size: 20px; letter-spacing: -0.035em; }
+  .brandSubtitle { font-size: 13px; }
+  .brandSubtitle span { width: 15px; }
+  .goldRule, .motto, .campusVisual { display: none; }
+  .loginPanel { min-height: calc(100svh - 193px); padding: 14px 16px 28px; }
+  .loginCard { padding: 29px 23px; border-radius: 19px; }
+  .formHeading h2 { font-size: 29px; }
+  .formHeading p { font-size: 14px; }
+  .formFields { gap: 23px; margin-top: 28px; }
+  .formLabel { font-size: 14px; }
+}
+@media (max-width: 360px) {
+  .loginPanel { padding-inline: 10px; }
+  .loginCard { padding-inline: 17px; }
+  .schoolName { font-size: 18px; }
+}
