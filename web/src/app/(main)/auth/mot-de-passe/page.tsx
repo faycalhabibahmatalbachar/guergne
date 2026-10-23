@@ -1,42 +1,40 @@
 import type { Metadata } from "next";
 
-import { KeyRound } from "lucide-react";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
-import { APP_CONFIG } from "@/config/app-config";
 import { exigerSession } from "@/server/guard";
 
+import { HabillageAuthentification } from "../_components/habillage-authentification";
 import { FormulaireMotDePasse } from "../_components/formulaire-mot-de-passe";
+import styles from "../connexion/connexion.module.css";
 
 export const metadata: Metadata = { title: "Changer le mot de passe" };
 
 export default async function PageMotDePasse() {
   const principal = await exigerSession();
+  if (principal.role === "PARENT" || principal.role === "ELEVE") redirect("/unauthorized");
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="space-y-3 text-center">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <KeyRound className="size-6" aria-hidden />
-          </div>
-          <div>
-            <h1 className="font-semibold text-xl tracking-tight">
-              {principal.doitChangerMdp ? "Choisissez votre mot de passe" : "Changer de mot de passe"}
-            </h1>
-            <p className="mt-1 text-muted-foreground text-sm">
-              {principal.doitChangerMdp
-                ? "Votre mot de passe provisoire doit être remplacé avant d'accéder à l'application."
-                : `Connecté en tant que ${principal.prenom} ${principal.nom}.`}
-            </p>
-          </div>
-        </div>
-
-        <div className="rounded-xl border bg-card p-6 shadow-sm">
-          <FormulaireMotDePasse />
-        </div>
-
-        <p className="text-center text-muted-foreground text-xs">{APP_CONFIG.copyright}</p>
+    <HabillageAuthentification regionLabel="Modifier le mot de passe">
+      <div className={styles.form}>
+        <header className={styles.formHeading}>
+          <h1>{principal.doitChangerMdp ? "Définir votre mot de passe" : "Changer votre mot de passe"}</h1>
+          <p>
+            {principal.doitChangerMdp
+              ? "Pour accéder à l’administration, remplacez votre mot de passe provisoire."
+              : "Renforcez la sécurité de votre compte avec un nouveau mot de passe."}
+          </p>
+        </header>
+        <FormulaireMotDePasse />
+        <nav className={styles.recoveryFooter} aria-label="Navigation d'authentification">
+          <Link href="/dashboard/default" className={styles.backLink}>
+            <ArrowLeft className="size-4" aria-hidden />
+            <span>Retour au tableau de bord</span>
+          </Link>
+        </nav>
       </div>
-    </main>
+    </HabillageAuthentification>
   );
 }
