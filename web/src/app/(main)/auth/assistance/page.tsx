@@ -1,65 +1,38 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import { ArrowLeft, GraduationCap, KeyRound, ShieldCheck } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { APP_CONFIG } from "@/config/app-config";
 
-export const metadata: Metadata = {
-  title: "Assistance à la connexion",
-  description: "Aide à la récupération des accès du personnel.",
-};
+import { DemandeReinitialisation } from "../_components/demande-reinitialisation";
+
+export const metadata: Metadata = { title: "Mot de passe oublié" };
 
 export default function PageAssistanceConnexion() {
   return (
-    <main className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="space-y-3 text-center">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <GraduationCap className="size-6" aria-hidden />
+    <main className="flex min-h-svh items-center justify-center bg-white px-5 py-12 text-neutral-950">
+      <div className="w-full max-w-md space-y-8">
+        <div className="flex items-center gap-4">
+          <Image src="/logo-officiel.webp" alt="Logo officiel du lycée" width={65} height={55} unoptimized />
+          <div>
+            <p className="font-semibold">{APP_CONFIG.nomComplet}</p>
+            <p className="text-sm text-neutral-500">Espace d&apos;administration</p>
           </div>
-          <h1 className="font-semibold text-xl tracking-tight">{APP_CONFIG.nomComplet}</h1>
-          <p className="text-muted-foreground text-sm">Assistance à la connexion</p>
         </div>
-
-        <section aria-labelledby="assistance-titre" className="space-y-5 rounded-2xl border bg-card p-5 shadow-sm sm:p-7">
-          <div className="flex items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-              <KeyRound className="size-5" aria-hidden />
-            </div>
-            <div>
-              <h2 id="assistance-titre" className="font-semibold">Vous ne pouvez plus vous connecter ?</h2>
-              <p className="mt-1 text-muted-foreground text-sm leading-relaxed">
-                La récupération des comptes du personnel est assurée par l&apos;administration.
-              </p>
-            </div>
-          </div>
-
-          <ol className="list-inside list-decimal space-y-3 text-sm leading-relaxed">
-            <li>Contactez le secrétariat ou un administrateur habilité du lycée.</li>
-            <li>Présentez-vous pour permettre la vérification de votre identité.</li>
-            <li>Recevez un nouveau mot de passe provisoire, transmis par un canal sûr.</li>
-            <li>Connectez-vous et remplacez ce mot de passe dès votre premier accès.</li>
-          </ol>
-
-          <div className="flex items-start gap-2.5 rounded-lg border bg-muted/30 p-3">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-            <p className="text-muted-foreground text-xs leading-relaxed">
-              Ne transmettez jamais votre mot de passe ni vos codes de connexion à un tiers.
-              Après plusieurs essais incorrects, le compte peut être temporairement verrouillé.
+        <section className="space-y-7" aria-labelledby="titre-reinitialisation">
+          <div className="space-y-2">
+            <h1 id="titre-reinitialisation" className="text-3xl font-bold tracking-tight">Mot de passe oublié ?</h1>
+            <p className="text-sm leading-relaxed text-neutral-500">
+              Entrez l&apos;adresse e-mail associée à votre compte. Vous recevrez un lien valable 20 minutes pour choisir un nouveau mot de passe.
             </p>
           </div>
-
-          <Link
-            href="/auth/connexion"
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground text-sm font-medium hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <ArrowLeft className="size-4" aria-hidden />
-            Retour à la connexion
-          </Link>
+          <DemandeReinitialisation />
         </section>
-
-        <p className="text-center text-muted-foreground text-xs">{APP_CONFIG.copyright}</p>
+        <Link href="/auth/connexion" className="inline-flex items-center gap-2 text-sm font-medium text-neutral-700 underline-offset-4 hover:underline">
+          <ArrowLeft className="size-4" aria-hidden /> Retour à la connexion
+        </Link>
       </div>
     </main>
   );
