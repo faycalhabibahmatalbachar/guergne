@@ -45,12 +45,12 @@ export function FormulaireMotDePasse() {
 
       <div className="space-y-2">
         <Label htmlFor="actuel">Mot de passe actuel</Label>
-        <ChampMotDePasse id="actuel" name="actuel" type="password" autoComplete="current-password" required autoFocus />
+        <ChampMotDePasse id="actuel" name="actuel" autoComplete="current-password" required autoFocus />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="nouveau">Nouveau mot de passe</Label>
-        <ChampMotDePasse id="nouveau" name="nouveau" type="password" autoComplete="new-password" required minLength={10} />
+        <ChampMotDePasse id="nouveau" name="nouveau" autoComplete="new-password" required minLength={10} />
         <p className="text-muted-foreground text-xs">
           Au moins 10 caractères. Une phrase courte est plus sûre et plus facile à retenir
           qu&apos;un mot compliqué.
@@ -62,7 +62,7 @@ export function FormulaireMotDePasse() {
         <ChampMotDePasse
           id="confirmation"
           name="confirmation"
-          type="password"
+         
           autoComplete="new-password"
           required
           minLength={10}
