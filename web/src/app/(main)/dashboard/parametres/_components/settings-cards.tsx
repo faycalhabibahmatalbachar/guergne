@@ -13,7 +13,6 @@ const STYLE: Record<string, {
   iconBg: string;
   badge: string;
   tag: string;
-  hero?: string;
 }> = {
   identite: {
     icon: School,
@@ -21,7 +20,6 @@ const STYLE: Record<string, {
     iconBg: "bg-blue-100 dark:bg-blue-950/60",
     badge: "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
     tag: "Configuration",
-    hero: "border-blue-100 bg-gradient-to-br from-white via-white to-blue-50/90 dark:border-blue-900/40 dark:from-card dark:via-card dark:to-blue-950/20",
   },
   annees: {
     icon: CalendarDays,
@@ -29,7 +27,6 @@ const STYLE: Record<string, {
     iconBg: "bg-emerald-100 dark:bg-emerald-950/60",
     badge: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
     tag: "Configuration",
-    hero: "border-emerald-100 bg-gradient-to-br from-white via-white to-emerald-50/80 dark:border-emerald-900/40 dark:from-card dark:via-card dark:to-emerald-950/20",
   },
   matieres: {
     icon: BookOpen,
@@ -106,7 +103,7 @@ const GROUPS = [
     description: "Configurez la structure pédagogique de votre établissement.",
     icon: GraduationCap,
     iconStyle: "text-indigo-600",
-    grid: "lg:grid-cols-3",
+    grid: "xl:grid-cols-3",
   },
   {
     id: "COMMUNICATION",
@@ -128,7 +125,7 @@ const GROUPS = [
   },
 ] as const;
 
-function CarteParametre({ item, hero }: { item: SettingsCard; hero: boolean }) {
+function CarteParametre({ item, featured }: { item: SettingsCard; featured: boolean }) {
   const meta = STYLE[item.id];
   if (!meta) return null;
   const Icon = meta.icon;
@@ -139,42 +136,47 @@ function CarteParametre({ item, hero }: { item: SettingsCard; hero: boolean }) {
       prefetch={false}
       aria-label={item.action + " : " + item.label}
       className={
-        "group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border p-4 shadow-sm outline-none transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:p-5 dark:border-border dark:bg-card " +
-        (hero
-          ? "min-h-[174px] " + (meta.hero ?? "")
-          : "min-h-[156px] border-slate-200/80 bg-white")
+        "group flex h-full min-h-[174px] min-w-0 flex-col rounded-xl border p-4 shadow-sm outline-none transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:p-5 dark:border-border dark:bg-card " +
+        (featured
+          ? "border-blue-100 bg-blue-50/20 dark:border-blue-900/40 dark:bg-card"
+          : "border-slate-200/80 bg-white")
       }
     >
-      {hero ? (
-        <Icon
-          className={"pointer-events-none absolute -right-3 top-3 size-28 opacity-[0.07] sm:size-32 " + meta.iconClass}
-          strokeWidth={1.3}
-          aria-hidden
-        />
-      ) : null}
-      <div className="relative flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
-        <span className={"flex size-12 shrink-0 items-center justify-center rounded-xl sm:size-14 " + meta.iconBg}>
-          <Icon className={"size-6 sm:size-7 " + meta.iconClass} strokeWidth={2} aria-hidden />
+      <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
+        {/* Each card has exactly one pictogram, in the same 48px slot. */}
+        <span
+          className={
+            "flex size-12 shrink-0 items-center justify-center rounded-xl " + meta.iconBg
+          }
+        >
+          <Icon className={"size-6 " + meta.iconClass} strokeWidth={2} aria-hidden />
         </span>
+
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-bold leading-snug text-slate-950 sm:text-[15px] dark:text-foreground">
+          <div className="flex flex-wrap items-start gap-x-2 gap-y-1.5">
+            <h3 className="min-w-0 text-sm font-bold leading-5 text-slate-950 sm:text-[15px] dark:text-foreground">
               {item.label}
             </h3>
-            <span className={"rounded-md px-2 py-0.5 text-[10px] font-semibold " + meta.badge}>
+            <span
+              className={
+                "inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-2 py-0.5 text-[10px] font-semibold leading-4 " +
+                meta.badge
+              }
+            >
               {meta.tag}
             </span>
           </div>
-          <p className="mt-2 max-w-md text-[12px] leading-relaxed text-slate-500 sm:text-[13px] dark:text-muted-foreground">
+          <p className="mt-2 text-[12px] leading-relaxed text-slate-500 sm:text-[13px] dark:text-muted-foreground">
             {item.description}
           </p>
         </div>
       </div>
-      <div className="relative mt-4 flex justify-end">
+
+      <div className="mt-auto flex justify-end pt-5">
         <span
           className={
             "inline-flex h-9 min-w-24 items-center justify-center gap-2 rounded-lg border px-3.5 text-xs font-semibold transition-colors " +
-            (hero
+            (featured
               ? "border-blue-600 bg-blue-600 text-white group-hover:bg-blue-700"
               : "border-slate-200 bg-white text-blue-700 group-hover:border-blue-200 group-hover:bg-blue-50 dark:border-border dark:bg-card dark:text-blue-300 dark:group-hover:bg-blue-950/30")
           }
@@ -220,7 +222,7 @@ export function SettingsCards({ items }: { items: SettingsCard[] }) {
             </div>
             <div className={"grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 " + group.grid}>
               {groupCards.map((item) => (
-                <CarteParametre key={item.id} item={item} hero={group.slug === "etablissement"} />
+                <CarteParametre key={item.id} item={item} featured={group.slug === "etablissement"} />
               ))}
             </div>
           </section>
