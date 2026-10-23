@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 import { db } from "@/server/db";
+import { roleAutoriseAdministration } from "@/lib/acces-administration";
 import { affectations, eleveTuteur, enseignants, permissions, tuteurs } from "@/server/db/schema";
 import { type Principal, sessionCourante } from "@/server/auth/session";
 
@@ -134,7 +135,7 @@ export async function peut(
   action: Action,
   perimetre?: Perimetre,
 ): Promise<boolean> {
-  if (!principal) return false;
+  if (!principal || !roleAutoriseAdministration(principal.role)) return false;
 
   const matrice = await chargerMatrice();
   const portee = matrice.get(`${principal.role}:${action}`);
@@ -158,6 +159,9 @@ export async function requirePermission(
   const principal = await sessionCourante();
   if (!principal) {
     throw new ErreurAutorisation("Session absente ou expirée.", "NON_AUTHENTIFIE");
+  }
+  if (!roleAutoriseAdministration(principal.role)) {
+    throw new ErreurAutorisation("Espace réservé au personnel de l’établissement.", "ROLE_INSUFFISANT");
   }
 
   const matrice = await chargerMatrice();

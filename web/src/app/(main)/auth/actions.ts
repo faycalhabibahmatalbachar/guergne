@@ -10,6 +10,7 @@ import { fermerSession, ouvrirSession, revoquerSessions, sessionCourante } from 
 import { db } from "@/server/db";
 import { journalAudit, utilisateurs } from "@/server/db/schema";
 import { formatInternational, partieNationale, telephoneValide } from "@/lib/telephone";
+import { roleAutoriseAdministration } from "@/lib/acces-administration";
 
 /** Nombre d'échecs avant verrouillage temporaire du compte. */
 const MAX_TENTATIVES = 5;
@@ -116,6 +117,13 @@ export async function connexion(
     }
 
     return { erreur: ERREUR_GENERIQUE };
+  }
+
+  // Même avec un mot de passe correct, un parent ou élève ne peut PAS ouvrir
+  // une session administrative. Le mobile parents possède sa propre auth.
+  if (!roleAutoriseAdministration(compte.role)) {
+    await journaliser(compte.id, "connexion.admin.role_refuse");
+    return { erreur: "Cet espace est réservé au personnel de l’établissement." };
   }
 
   // Succès : on remet les compteurs à zéro et on ouvre la session.

@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { envoyerParGmail, smtpDisponible } from "@/server/auth/gmail-smtp";
 
 import { db } from "@/server/db";
+import { roleAutoriseAdministration } from "@/lib/acces-administration";
 import { utilisateurs } from "@/server/db/schema";
 
 const DUREE_MINUTES = 20;
@@ -61,11 +62,11 @@ export async function compteDuJeton(jeton: string) {
   ) return null;
 
   const [utilisateur] = await db
-    .select({ id: utilisateurs.id, hash: utilisateurs.motDePasseHash, actif: utilisateurs.actif })
+    .select({ id: utilisateurs.id, hash: utilisateurs.motDePasseHash, actif: utilisateurs.actif, role: utilisateurs.role })
     .from(utilisateurs)
     .where(eq(utilisateurs.id, payload.id))
     .limit(1);
-  if (!utilisateur?.actif || !utilisateur.hash) return null;
+  if (!utilisateur?.actif || !utilisateur.hash || !roleAutoriseAdministration(utilisateur.role)) return null;
 
   const attendu = Buffer.from(signature(texte, utilisateur.hash), "hex");
   const fourni = Buffer.from(mac, "hex");
