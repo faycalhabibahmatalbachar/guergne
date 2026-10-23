@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { hacherMotDePasse, validerMotDePasse } from "@/server/auth/mot-de-passe";
+import { roleAutoriseAdministration } from "@/lib/acces-administration";
 import {
   compteDuJeton,
   creerJetonReinitialisation,
@@ -35,11 +36,11 @@ export async function demanderReinitialisation(
 
   const reponseGenerique = { succes: true };
   const [compte] = await db
-    .select({ id: utilisateurs.id, email: utilisateurs.email, hash: utilisateurs.motDePasseHash })
+    .select({ id: utilisateurs.id, email: utilisateurs.email, hash: utilisateurs.motDePasseHash, role: utilisateurs.role })
     .from(utilisateurs)
     .where(and(sql`lower(${utilisateurs.email}) = ${adresse.data}`, eq(utilisateurs.actif, true)))
     .limit(1);
-  if (!compte?.email || !compte.hash) return reponseGenerique;
+  if (!compte?.email || !compte.hash || !roleAutoriseAdministration(compte.role)) return reponseGenerique;
 
   // Limite durable de 3 demandes par compte et par heure.
   const tentatives = await db

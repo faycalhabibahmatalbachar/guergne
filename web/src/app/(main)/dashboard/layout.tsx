@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { exigerSession } from "@/server/guard";
+import { roleAutoriseAdministration } from "@/lib/acces-administration";
 import { actionsAutorisees } from "@/server/guard/actions-autorisees";
 import { getPreference } from "@/server/server-actions";
 
@@ -19,6 +20,10 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
   // Garde unique de tout l'espace d'administration : aucune page enfant n'est
   // atteignable sans session valide.
   const principal = await exigerSession();
+
+  // Garde de sécurité à l’entrée de TOUT le back-office, avant les requêtes.
+  // Une ancienne session PARENT/ELEVE ne donne pas accès au tableau de bord.
+  if (!roleAutoriseAdministration(principal.role)) redirect("/unauthorized");
 
   // Un mot de passe provisoire doit être remplacé avant tout accès aux données.
   if (principal.doitChangerMdp) redirect("/auth/mot-de-passe");

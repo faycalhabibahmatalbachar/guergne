@@ -1,27 +1,25 @@
-import Link from "next/link";
+import { LockKeyhole } from "lucide-react";
 
-import { Lock } from "lucide-react";
+import { deconnexion } from "@/app/(main)/auth/actions";
 
-export default function page() {
+export default function PageAccesRefuse() {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-md text-center">
-        <Lock className="mx-auto size-12 text-primary" />
-        <h1 className="mt-4 font-bold text-3xl tracking-tight sm:text-4xl">Unauthorized Access</h1>
-        <p className="mt-4 text-muted-foreground">
-          You do not have permission to view the requested content. Please contact the site administrator if you believe
-          this is an error.
-        </p>
-        <div className="mt-6">
-          <Link
-            href="dashboard"
-            className="inline-flex items-center rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground text-sm shadow-xs transition-colors hover:bg-primary/90 focus:outline-hidden focus:ring-2 focus:ring-primary focus:ring-offset-2"
-            prefetch={false}
-          >
-            Go to Homepage
-          </Link>
+    <main className="grid min-h-svh place-items-center bg-background px-5 py-12">
+      <div className="w-full max-w-md space-y-5 text-center">
+        <div className="mx-auto grid size-14 place-items-center rounded-2xl border bg-muted">
+          <LockKeyhole className="size-6" aria-hidden />
         </div>
+        <h1 className="text-2xl font-bold tracking-tight">Accès à l'administration refusé</h1>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          Votre compte n'est pas autorisé à utiliser cet espace.
+          Les parents et les élèves accèdent à leurs services par l'application dédiée.
+        </p>
+        <form action={deconnexion}>
+          <button type="submit" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground hover:bg-primary/90">
+            Se déconnecter
+          </button>
+        </form>
       </div>
-    </div>
+    </main>
   );
 }
