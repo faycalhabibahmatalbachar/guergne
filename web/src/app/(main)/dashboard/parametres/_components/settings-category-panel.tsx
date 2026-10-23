@@ -11,6 +11,7 @@ import type { SETTINGS_CATEGORIES } from "@/navigation/sidebar/settings-categori
 type Category = (typeof SETTINGS_CATEGORIES)[number];
 
 export interface IndicateurParametre {
+  icone: LucideIcon;
   titre: string;
   valeur: string;
   precision: string;
@@ -79,8 +80,9 @@ export function SettingsCategoryPanel({
 
       {indicateurs.length > 0 ? (
         <section aria-label={"Indicateurs de " + category.title} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {indicateurs.map((indicateur) => (
-            <div
+          {indicateurs.map((indicateur) => {
+            const IconeIndicateur = indicateur.icone;
+            return <div
               key={indicateur.titre}
               className="flex min-h-[94px] min-w-0 items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm dark:border-border dark:bg-card"
             >
@@ -92,10 +94,10 @@ export function SettingsCategoryPanel({
                 <p className="mt-1 text-[11px] text-slate-500 dark:text-muted-foreground">{indicateur.precision}</p>
               </div>
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">
-                <CategoryIcon className="size-4" aria-hidden />
+                <IconeIndicateur className="size-4" aria-hidden />
               </span>
-            </div>
-          ))}
+            </div>;
+          })}
         </section>
       ) : null}
 
