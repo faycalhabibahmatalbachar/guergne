@@ -5,30 +5,31 @@ import { useFormStatus } from "react-dom";
 
 import Link from "next/link";
 
-import { AlertCircle, ArrowRight, HelpCircle, LoaderCircle, LockKeyhole } from "lucide-react";
+import { AlertCircle, ArrowRight, LoaderCircle, LockKeyhole, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { connexion, type EtatConnexion } from "../actions";
+import styles from "../connexion/connexion.module.css";
 import { ChampMotDePasse } from "./champ-mot-de-passe";
 
 function BoutonSoumettre() {
   const { pending } = useFormStatus();
-
   return (
-    <Button type="submit" className="h-11 w-full" size="lg" disabled={pending}>
+    <Button
+      type="submit"
+      disabled={pending}
+      className="mt-7 grid h-14 w-full grid-cols-[1fr_auto_1fr] items-center rounded-xl bg-neutral-950 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-neutral-800 focus-visible:ring-neutral-400 disabled:opacity-60"
+      size="lg"
+    >
+      <span aria-hidden="true" />
+      <span>{pending ? "Connexion en cours…" : "Se connecter"}</span>
       {pending ? (
-        <>
-          <LoaderCircle className="size-4 animate-spin" aria-hidden />
-          Connexion en cours…
-        </>
+        <LoaderCircle className="size-5 animate-spin justify-self-end" aria-hidden="true" />
       ) : (
-        <>
-          Se connecter
-          <ArrowRight className="size-4" aria-hidden />
-        </>
+        <ArrowRight className="size-5 justify-self-end" aria-hidden="true" />
       )}
     </Button>
   );
@@ -36,82 +37,65 @@ function BoutonSoumettre() {
 
 export function FormulaireConnexion() {
   const [etat, action] = useActionState<EtatConnexion, FormData>(connexion, {});
-
   return (
-    <form action={action} className="space-y-5" aria-label="Connexion du personnel">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <LockKeyhole className="size-4 text-muted-foreground" aria-hidden />
-          Accès à votre espace
-        </div>
-        <p className="text-muted-foreground text-xs">
-          Utilisez l&apos;identifiant attribué par l&apos;établissement.
-        </p>
-      </div>
+    <form action={action} className={styles.form} aria-label="Connexion du personnel">
+      <header className={styles.formHeading}>
+        <h2>Connexion</h2>
+        <p>Accédez à votre espace d&apos;administration.</p>
+      </header>
 
       {etat.erreur ? (
-        <div
-          id="erreur-connexion"
-          role="alert"
-          aria-live="assertive"
-          className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-destructive text-sm"
-        >
-          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+        <div id="erreur-connexion" role="alert" aria-live="assertive" className={styles.loginError}>
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>{etat.erreur}</span>
         </div>
       ) : null}
 
-      <div className="space-y-2">
-        <Label htmlFor="identifiant">Adresse e-mail ou téléphone</Label>
-        <Input
-          id="identifiant"
-          name="identifiant"
-          type="text"
-          className="h-11"
-          autoComplete="username"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          maxLength={254}
-          required
-          autoFocus
-          aria-invalid={Boolean(etat.erreur)}
-          aria-describedby={etat.erreur ? "erreur-connexion" : undefined}
-          placeholder="E-mail ou numéro de téléphone"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Label htmlFor="motDePasse">Mot de passe</Label>
-          <Link
-            href="/auth/assistance"
-            className="text-primary text-xs font-medium underline-offset-4 hover:underline focus-visible:underline"
-          >
-            Mot de passe oublié ?
-          </Link>
+      <div className={styles.formFields}>
+        <div className={styles.formField}>
+          <Label htmlFor="identifiant" className={styles.formLabel}>Adresse e-mail ou téléphone</Label>
+          <div className={styles.iconInput}>
+            <UserRound className={styles.fieldIcon} size={19} aria-hidden="true" />
+            <Input
+              id="identifiant"
+              name="identifiant"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              maxLength={254}
+              required
+              autoFocus
+              aria-invalid={Boolean(etat.erreur)}
+              aria-describedby={etat.erreur ? "erreur-connexion" : undefined}
+              placeholder="prenom.nom@lyceerenaissance.td"
+              className="h-14 rounded-xl border-neutral-200 bg-white pl-12 pr-4 text-base text-neutral-950 placeholder:text-neutral-400 focus-visible:border-neutral-400 focus-visible:ring-neutral-200"
+            />
+          </div>
         </div>
-        <ChampMotDePasse
-          id="motDePasse"
-          name="motDePasse"
-          autoComplete="current-password"
-          required
-          maxLength={256}
-          aria-invalid={Boolean(etat.erreur)}
-          aria-describedby={etat.erreur ? "erreur-connexion" : undefined}
-          placeholder="Saisissez votre mot de passe"
-        />
+        <div className={styles.formField}>
+          <Label htmlFor="motDePasse" className={styles.formLabel}>Mot de passe</Label>
+          <div className={styles.iconInput}>
+            <LockKeyhole className={styles.fieldIcon} size={19} aria-hidden="true" />
+            <ChampMotDePasse
+              id="motDePasse"
+              name="motDePasse"
+              autoComplete="current-password"
+              required
+              maxLength={256}
+              aria-invalid={Boolean(etat.erreur)}
+              aria-describedby={etat.erreur ? "erreur-connexion" : undefined}
+              className="h-14 rounded-xl border-neutral-200 bg-white pl-12 pr-12 text-base text-neutral-950 placeholder:text-neutral-400 focus-visible:border-neutral-400 focus-visible:ring-neutral-200"
+            />
+          </div>
+          <div className={styles.recoveryRow}>
+            <Link href="/auth/assistance" className={styles.recoveryLink}>Mot de passe oublié ?</Link>
+          </div>
+        </div>
       </div>
 
       <BoutonSoumettre />
-
-      <div className="flex items-start gap-2.5 rounded-lg border bg-muted/30 px-3 py-3">
-        <HelpCircle className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-        <p className="text-muted-foreground text-xs leading-relaxed">
-          Vous n&apos;avez pas encore de compte ? Les accès sont créés uniquement par
-          l&apos;administration. En cas de difficulté, contactez le secrétariat.
-        </p>
-      </div>
     </form>
   );
 }
