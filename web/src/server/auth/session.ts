@@ -4,6 +4,7 @@ import { and, eq, gt, lt } from "drizzle-orm";
 import { cookies } from "next/headers";
 
 import { db } from "@/server/db";
+import { roleAutoriseAdministration } from "@/lib/acces-administration";
 import { sessions, utilisateurs } from "@/server/db/schema";
 import type { RoleUtilisateur } from "@/server/guard/permissions";
 
@@ -96,7 +97,7 @@ export async function sessionCourante(): Promise<Principal | null> {
 
   const u = lignes[0];
   // Un compte désactivé perd l'accès immédiatement, sans attendre l'expiration.
-  if (!u || !u.actif) return null;
+  if (!u || !u.actif || !roleAutoriseAdministration(u.role)) return null;
 
   return {
     id: u.id,
