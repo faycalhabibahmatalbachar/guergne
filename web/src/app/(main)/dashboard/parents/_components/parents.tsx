@@ -86,23 +86,48 @@ export function Parents({
   const [recherche, setRecherche] = useState(filtres.recherche);
   const [destinataire, setDestinataire] = useState<LigneTuteur | null>(null);
   const [selection, setSelection] = useState<string[]>([]);
+  const [selectionTous, setSelectionTous] = useState(false);
+  const [exclusions, setExclusions] = useState<string[]>([]);
   const [groupeOuvert, setGroupeOuvert] = useState(false);
   const idsVisibles = tuteurs.map(t => t.id);
-  const selectionPage = selection.filter(id => idsVisibles.includes(id));
-  const tousPage = idsVisibles.length > 0 && idsVisibles.length <= 30 && idsVisibles.every(id => selection.includes(id));
+  const nombreSelectionnes = selectionTous ? Math.max(0, total - exclusions.length) : selection.length;
+  const selectionPage = selectionTous
+    ? idsVisibles.filter(id => !exclusions.includes(id))
+    : idsVisibles.filter(id => selection.includes(id));
+  const tousPage = idsVisibles.length > 0 && idsVisibles.every(id =>
+    selectionTous ? !exclusions.includes(id) : selection.includes(id));
 
   const basculerParent = (id: string, cocher: boolean) => {
-    setSelection(actuels => {
-      const prochains = cocher ? [...new Set([...actuels, id])] : actuels.filter(x => x !== id);
-      if (prochains.length > 30) { toast.error("Maximum 30 parents par notification."); return actuels; }
-      return prochains;
-    });
+    if (selectionTous) {
+      setExclusions(actuels => cocher ? actuels.filter(x => x !== id) : [...new Set([...actuels, id])]);
+    } else {
+      setSelection(actuels => cocher ? [...new Set([...actuels, id])] : actuels.filter(x => x !== id));
+    }
   };
   const basculerPage = () => {
-    if (tousPage) {setSelection([]);return;}
-    if (idsVisibles.length > 30) { toast.error("Choisissez au maximum 30 parents."); return; }
-    setSelection(idsVisibles);
+    if (selectionTous) {
+      setExclusions(actuels => tousPage
+        ? [...new Set([...actuels, ...idsVisibles])]
+        : actuels.filter(id => !idsVisibles.includes(id)));
+    } else {
+      setSelection(actuels => tousPage
+        ? actuels.filter(id => !idsVisibles.includes(id))
+        : [...new Set([...actuels, ...idsVisibles])]);
+    }
   };
+  const toutSelectionner = () => {
+    setSelectionTous(true);
+    setSelection([]);
+    setExclusions([]);
+  };
+  const effacerSelection = () => {
+    setSelectionTous(false); setSelection([]); setExclusions([]);
+  };
+  const selectionMessage = selectionTous
+    ? { mode: "filtres" as const, filtres: {
+        recherche: filtres.recherche, etat: filtres.etat, classeId: filtres.classeId,
+      }, exclureIds: exclusions }
+    : { mode: "ids" as const, ids: selection };
 
   const naviguer = (params: Record<string, string>) => {
     const url = new URLSearchParams({
@@ -110,7 +135,12 @@ export function Parents({
       classe: filtres.classeId, parPage: String(parPage), ...params,
     });
     for (const [cle, valeur] of [...url.entries()]) if (!valeur) url.delete(cle);
-    setSelection([]);
+    // Conserver une sélection entre les pages ; effacer quand le périmètre des filtres change.
+    if (["recherche", "etat", "classe"].some(k =>
+      Object.prototype.hasOwnProperty.call(params, k) &&
+      params[k] !== (k === "classe" ? filtres.classeId : filtres[k as "recherche" | "etat"]))) {
+      effacerSelection();
+    }
     routeur.push(`/dashboard/parents?${url}`);
   };
 
@@ -135,7 +165,7 @@ export function Parents({
 
   return <div className="space-y-4">
     {peutNotifier && <NotificationParent parent={destinataire} onFermer={() => setDestinataire(null)} />}
-    {peutNotifier && <NotificationsGroupe ids={selectionPage} ouvert={groupeOuvert} onFermer={() => setGroupeOuvert(false)} onSucces={() => {setSelection([]);setGroupeOuvert(false);routeur.refresh();}} />}
+    {peutNotifier && <NotificationsGroupe selection={selectionMessage} nombreSelectionnes={nombreSelectionnes} ouvert={groupeOuvert} onFermer={() => setGroupeOuvert(false)} onSucces={() => {effacerSelection();setGroupeOuvert(false);routeur.refresh();}} />}
     <section aria-label="Indicateurs des comptes parents" className={statistiquesStyles.region}>
       <div className={statistiquesStyles.grid}>
         {cartes.map(c => <CarteStatistique key={c.titre} {...c} />)}
@@ -179,16 +209,32 @@ export function Parents({
 
     </section>
 
-    {peutNotifier && <section aria-label="Actions groupées sur les parents" className={"flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 shadow-sm " + (selectionPage.length > 0 ? "border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/20" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900")}>
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"><CheckCheck className="size-4" /></span>
-        <div><p className="text-sm font-semibold text-slate-900 dark:text-white">Sélection des parents</p><p className="text-xs text-slate-500 dark:text-slate-400">{selectionPage.length} parent(s) sélectionné(s) sur cette page · 30 maximum</p></div>
+    {peutNotifier && <section aria-label="Actions groupées sur les parents" className={"space-y-3 rounded-xl border px-4 py-3 shadow-sm " + (nombreSelectionnes ? "border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/20" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900")}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"><CheckCheck className="size-4" /></span>
+          <div>
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">Sélection des parents</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{nombreSelectionnes.toLocaleString("fr-FR")} parent(s) sélectionné(s) {selectionTous ? "sur l’ensemble des résultats filtrés" : "individuellement"}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={basculerPage}>{tousPage ? "Désélectionner cette page" : "Sélectionner cette page"}</Button>
+          {total > 0 && <Button type="button" variant={selectionTous ? "default" : "outline"} size="sm" onClick={toutSelectionner}
+            className={selectionTous ? "bg-emerald-700 text-white hover:bg-emerald-800" : ""}>
+            <CheckCheck className="size-3.5" /> Sélectionner les {total.toLocaleString("fr-FR")} résultats
+          </Button>}
+          {nombreSelectionnes > 0 && <Button type="button" variant="outline" size="sm" onClick={effacerSelection}><X className="size-3.5" /> Effacer</Button>}
+          <Button type="button" size="sm" disabled={!nombreSelectionnes} onClick={() => setGroupeOuvert(true)} className="gap-2 bg-emerald-700 font-semibold text-white hover:bg-emerald-800">
+            <BellRing className="size-4" /> Notifier ({nombreSelectionnes.toLocaleString("fr-FR")})
+          </Button>
+        </div>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={basculerPage}>{tousPage ? "Tout désélectionner" : "Sélectionner la page"}</Button>
-        {selectionPage.length > 0 && <Button type="button" variant="outline" size="sm" onClick={() => setSelection([])}><X className="size-3.5" /> Effacer</Button>}
-        <Button type="button" size="sm" disabled={!selectionPage.length} onClick={() => setGroupeOuvert(true)} className="gap-2 bg-emerald-700 font-semibold text-white hover:bg-emerald-800"><BellRing className="size-4" /> Notifier la sélection ({selectionPage.length})</Button>
-      </div>
+      {selectionTous && <p className="rounded-lg border border-emerald-200 bg-white/70 px-3 py-2 text-xs leading-relaxed text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200">
+        Tous les parents correspondant aux filtres actuels sont inclus, même sur les autres pages.
+        {exclusions.length > 0 && ` ${exclusions.length} fiche(s) exclue(s) manuellement.`}
+        L’aperçu vérifie à nouveau les destinataires et le coût avant tout envoi.
+      </p>}
     </section>}
 
     <section aria-label="Liste des comptes parents" className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
@@ -212,8 +258,8 @@ export function Parents({
           </thead>
           <tbody>
             {tuteurs.map(t => {
-              return <tr key={t.id} className={"border-b border-slate-100 transition-colors last:border-b-0 hover:bg-emerald-50/40 dark:border-border dark:hover:bg-muted/30 " + (selection.includes(t.id) ? "bg-emerald-50/40 dark:bg-emerald-950/10" : "")}>
-                {peutNotifier && <td className="px-3 py-3"><input type="checkbox" checked={selection.includes(t.id)} onChange={e => basculerParent(t.id,e.target.checked)} aria-label={"Sélectionner " + t.prenom + " " + t.nom} className="size-4 accent-emerald-700" /></td>}
+              return <tr key={t.id} className={"border-b border-slate-100 transition-colors last:border-b-0 hover:bg-emerald-50/40 dark:border-border dark:hover:bg-muted/30 " + ((selectionTous ? !exclusions.includes(t.id) : selection.includes(t.id)) ? "bg-emerald-50/40 dark:bg-emerald-950/10" : "")}>
+                {peutNotifier && <td className="px-3 py-3"><input type="checkbox" checked={selectionTous ? !exclusions.includes(t.id) : selection.includes(t.id)} onChange={e => basculerParent(t.id,e.target.checked)} aria-label={"Sélectionner " + t.prenom + " " + t.nom} className="size-4 accent-emerald-700" /></td>}
                 <td className="px-4 py-3">
                   <div className="flex min-w-0 items-center gap-2.5">
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sky-50 text-xs font-bold text-sky-700 dark:bg-sky-950">

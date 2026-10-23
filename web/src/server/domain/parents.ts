@@ -56,16 +56,12 @@ export interface ResultatTuteurs {
  *   - invité       : le compte existe mais le parent ne s'est jamais connecté
  *   - actif        : le parent utilise réellement l'application
  */
-export async function listerTuteurs(filtres: FiltresTuteurs = {}): Promise<ResultatTuteurs> {
-  const page = Math.max(1, filtres.page ?? 1);
-  const parPage = Math.min(100, Math.max(8, filtres.parPage ?? 25));
-  const decalage = (page - 1) * parPage;
-
+/** Shared audience predicate for list, bulk preview and bulk sends. */
+export function construireFiltreTuteurs(filtres: Pick<FiltresTuteurs, "recherche" | "etat" | "classeId">) {
   const recherche = filtres.recherche?.trim() ?? "";
   const etat = filtres.etat ?? "";
   const classeId = filtres.classeId ?? "";
-
-  const conditions = sql`
+  return sql`
     (${recherche} = '' OR
       t.nom ILIKE ${`%${recherche}%`} OR
       t.prenom ILIKE ${`%${recherche}%`} OR
@@ -86,6 +82,14 @@ export async function listerTuteurs(filtres: FiltresTuteurs = {}): Promise<Resul
         JOIN inscriptions i2 ON i2.eleve_id = et2.eleve_id AND i2.active
        WHERE et2.tuteur_id = t.id AND i2.classe_id = NULLIF(${classeId}, '')::uuid))
   `;
+}
+
+export async function listerTuteurs(filtres: FiltresTuteurs = {}): Promise<ResultatTuteurs> {
+  const page = Math.max(1, filtres.page ?? 1);
+  const parPage = Math.min(100, Math.max(8, filtres.parPage ?? 25));
+  const decalage = (page - 1) * parPage;
+
+  const conditions = construireFiltreTuteurs(filtres);
 
   const [lignes, total] = await Promise.all([
     db.execute<LigneTuteur & Record<string, unknown>>(sql`

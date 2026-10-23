@@ -157,7 +157,7 @@ export default async function PageDossierParent({ params }: { params: Promise<{ 
         </div>
       </section>
 
-      <section aria-labelledby="parent-enfants-titre" className="min-w-0 rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-sm dark:border-border dark:bg-card sm:p-5">
+      <section id="enfants-rattaches" aria-labelledby="parent-enfants-titre" className="min-w-0 rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-sm dark:border-border dark:bg-card sm:p-5">
         <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <span className="flex size-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950"><Users className="size-5" aria-hidden /></span>
