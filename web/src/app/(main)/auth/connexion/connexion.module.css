@@ -221,22 +221,6 @@
   line-height: 1.5;
 }
 
-.recoveryEyebrow {
-  display: inline-flex;
-  min-height: 34px;
-  align-items: center;
-  gap: 9px;
-  margin-bottom: 22px;
-  padding: 7px 12px;
-  border: 1px solid #e1e9e6;
-  border-radius: 999px;
-  background: #f3f8f6;
-  color: #335f50;
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: .008em;
-}
-
 .recoveryForm { margin-top: 34px; }
 
 .recoverySubmit {
@@ -351,7 +335,6 @@
   .formHeading p { font-size: 14px; line-height: 1.55; }
   .formFields { gap: 23px; margin-top: 29px; }
   .formLabel { font-size: 14px; }
-  .recoveryEyebrow { margin-bottom: 18px; }
   .recoveryForm { margin-top: 27px; }
   .recoverySubmit { min-height: 54px; }
 }

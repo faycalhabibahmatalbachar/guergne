@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import { ArrowLeft, KeyRound } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { DemandeReinitialisation } from "../_components/demande-reinitialisation";
 import { HabillageAuthentification } from "../_components/habillage-authentification";
@@ -14,17 +14,13 @@ export const metadata: Metadata = {
 
 export default function PageAssistanceConnexion() {
   return (
-    <HabillageAuthentification regionLabel="Récupération de compte">
+    <HabillageAuthentification regionLabel="Réinitialisation du mot de passe">
       <div className={styles.form}>
         <header className={styles.formHeading}>
-          <div className={styles.recoveryEyebrow}>
-            <KeyRound className="size-4" strokeWidth={1.9} aria-hidden="true" />
-            <span>Récupération de compte</span>
-          </div>
           <h1>Mot de passe oublié ?</h1>
           <p>
-            Indiquez l&apos;adresse e-mail de votre compte pour recevoir un lien
-            de réinitialisation sécurisé, valable 20 minutes.
+            Saisissez votre adresse e-mail professionnelle. Nous vous enverrons les
+            instructions pour définir un nouveau mot de passe.
           </p>
         </header>
 
