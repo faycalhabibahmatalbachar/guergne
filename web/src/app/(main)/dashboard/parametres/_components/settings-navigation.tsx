@@ -54,6 +54,8 @@ export function SettingsNavigation({ items }: { items: SettingsSection[] }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const [query, setQuery] = useState("");
+  const [homeGroup, setHomeGroup] = useState<string | null>(null);
+  const isOverview = pathname === "/dashboard/parametres" && !params.get("onglet");
 
   const activeHref = pathname === "/dashboard/parametres"
     ? "/dashboard/parametres?onglet=" + (params.get("onglet") ?? "")
@@ -63,6 +65,12 @@ export function SettingsNavigation({ items }: { items: SettingsSection[] }) {
   const group = active?.group;
   const siblings = items.filter((item) => item.group === group);
   const activeGroups = GROUPS.filter((g) => items.some((item) => item.group === g.id));
+  const anchors: Record<string, string> = {
+    "ÉTABLISSEMENT": "etablissement",
+    "SCOLARITÉ ET PÉDAGOGIE": "scolarite",
+    "COMMUNICATION": "communication",
+    "FINANCES ET CONTRÔLE": "controle",
+  };
 
   const results = useMemo(() => {
     const q = normalize(query.trim());
@@ -80,12 +88,15 @@ export function SettingsNavigation({ items }: { items: SettingsSection[] }) {
             {activeGroups.map((g) => {
               const first = items.find((item) => item.group === g.id);
               if (!first) return null;
-              const selected = group === g.id;
+              const selected = isOverview
+                ? (homeGroup ?? group) === g.id
+                : group === g.id;
               return (
                 <Link
                   key={g.id}
-                  href={first.href}
+                  href={"/dashboard/parametres#parametres-" + anchors[g.id]}
                   prefetch={false}
+                  onClick={() => setHomeGroup(g.id)}
                   aria-current={selected ? "location" : undefined}
                   className={
                     "inline-flex h-9 shrink-0 items-center rounded-lg px-3 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 " +
@@ -156,6 +167,7 @@ export function SettingsNavigation({ items }: { items: SettingsSection[] }) {
         </div>
       </div>
 
+      {!isOverview ? (
       <nav aria-label="Rubriques des paramètres" className="min-w-0 overflow-x-auto px-3 sm:px-4">
         <div className="flex w-max min-w-full items-center gap-1 sm:gap-2">
           {siblings.map((item) => {
@@ -181,6 +193,7 @@ export function SettingsNavigation({ items }: { items: SettingsSection[] }) {
           })}
         </div>
       </nav>
+      ) : null}
     </div>
   );
 }

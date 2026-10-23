@@ -13,6 +13,8 @@ import { OngletAnnees } from "./_components/annees";
 import { OngletClasses } from "./_components/classes";
 import { OngletCoefficients } from "./_components/coefficients";
 import { OngletMatieres } from "./_components/matieres";
+import { SettingsCards } from "./_components/settings-cards";
+import { SETTINGS_CARDS, type SettingsPermission } from "./settings-catalog";
 
 export const metadata: Metadata = { title: "Paramètres du lycée" };
 export const dynamic = "force-dynamic";
@@ -82,16 +84,27 @@ export default async function PageParametres({
     : null;
 
   if (!onglet) {
-    // L'ancien accueil à nombreuses cartes est remplacé par un vrai panneau
-    // de réglages. L'entrée Paramètres mène à la première page autorisée.
-    if (peutConfigurer) redirect("/dashboard/parametres/etablissement");
-    for (const id of ONGLETS) {
-      if (accesOnglet[id]) redirect("/dashboard/parametres?onglet=" + id);
-    }
-    if (peutNotifier) redirect("/dashboard/parametres/notifications");
-    if (peutConfigurerFinances) redirect("/dashboard/parametres/finances");
-    if (peutAuditer) redirect("/dashboard/parametres/audit");
-    redirect("/unauthorized");
+    // The landing page is the actual cards overview, not an automatic redirect.
+    // Never expose links to settings unavailable to the current role.
+    const droits = new Set<SettingsPermission>();
+    if (peutConfigurer) droits.add("parametre:modifier");
+    if (peutGererAnnees) droits.add("annee:cloturer");
+    if (peutGererPeriodes) droits.add("periode:verrouiller");
+    if (peutDeverrouillerPeriodes) droits.add("periode:deverrouiller");
+    if (peutGererMatieres) droits.add("matiere:gerer");
+    if (peutGererCoefficients) droits.add("coefficient:gerer");
+    if (peutCreerClasses) droits.add("classe:creer");
+    if (peutModifierClasses) droits.add("classe:modifier");
+    if (peutNotifier) droits.add("notification:configurer");
+    if (peutConfigurerFinances) droits.add("finance:configurer");
+    if (peutAuditer) droits.add("audit:lire");
+
+    const liensAutorises = SETTINGS_CARDS.filter((carte) =>
+      carte.droits.some((droit) => droits.has(droit)),
+    );
+    if (!liensAutorises.length) redirect("/unauthorized");
+
+    return <SettingsCards items={liensAutorises} />;
   }
 
   if (!accesOnglet[onglet]) redirect("/unauthorized");
