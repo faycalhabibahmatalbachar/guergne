@@ -8,22 +8,19 @@ export function preparerMessageSMTP({
   expediteur,
   destinataire,
   lien,
-  diagnostic = false,
 }: {
   expediteur: string;
   destinataire: string;
   lien: string;
-  diagnostic?: boolean;
 }): string {
   const email = /^[^\s@<>\r\n]+@[^\s@<>\r\n]+\.[^\s@<>\r\n]+$/;
   if (!email.test(expediteur) || !email.test(destinataire)) throw new Error("Adresse e-mail incorrecte");
-  if (!diagnostic && !/^https:\/\/lycee-guergne-renaissance\.vercel\.app\/auth\/reinitialiser\?jeton=[A-Za-z0-9_.%-]+$/.test(lien)) {
+  if (!/^https:\/\/lycee-guergne-renaissance\.vercel\.app\/auth\/reinitialiser\?jeton=[A-Za-z0-9_.%-]+$/.test(lien)) {
     throw new Error("Lien de réinitialisation incorrect");
   }
 
   const encoderEntete = (texte: string) => "=?UTF-8?B?" + Buffer.from(texte, "utf8").toString("base64") + "?=";
-  const texte = diagnostic
-    ? "Test technique Gmail SMTP du Lycée Guergné La Renaissance. Aucun mot de passe n’a été réinitialisé." : [
+  const texte = [
     "Bonjour,",
     "",
     "Vous avez demandé la réinitialisation de votre mot de passe pour l'espace d'administration du Lycée Guergné La Renaissance.",
@@ -42,7 +39,7 @@ export function preparerMessageSMTP({
   return [
     "From: " + encoderEntete("Lycée Guergné La Renaissance") + " <" + expediteur + ">",
     "To: <" + destinataire + ">",
-    "Subject: " + encoderEntete(diagnostic ? "Test Gmail SMTP du lycée — envoi vérifié" : "Réinitialisez votre mot de passe — Lycée Guergné La Renaissance"),
+    "Subject: " + encoderEntete("Réinitialisez votre mot de passe — Lycée Guergné La Renaissance"),
     "Date: " + new Date().toUTCString(),
     "Message-ID: <" + id + "@gmail.com>",
     "MIME-Version: 1.0",
