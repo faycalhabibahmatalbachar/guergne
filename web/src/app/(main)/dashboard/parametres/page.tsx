@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { CalendarDays, BookOpenText, Calculator, GraduationCap } from "lucide-react";
+import { CalendarDays, BookOpenText, Calculator, GraduationCap, Users, NotebookPen, FileText, Wallet, Send, Megaphone, ClipboardCheck, UserRoundCog } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,8 +14,11 @@ import { OngletClasses } from "./_components/classes";
 import { OngletCoefficients } from "./_components/coefficients";
 import { OngletMatieres } from "./_components/matieres";
 import { SettingsCards } from "./_components/settings-cards";
-import { SettingsCategoryPanel } from "./_components/settings-category-panel";
-import { findSettingsCategory } from "@/navigation/sidebar/settings-categories";
+import { SettingsCategoryPanel, type IndicateurParametre, type AccesModule } from "./_components/settings-category-panel";
+import { findSettingsCategory, type SettingsCategoryId } from "@/navigation/sidebar/settings-categories";
+import type { Action } from "@/server/guard/permissions";
+import { reglageBlocage } from "@/server/domain/caisse";
+import { dureeInvitationJours } from "@/server/domain/parametres";
 import { SETTINGS_CARDS, type SettingsPermission } from "./settings-catalog";
 
 export const metadata: Metadata = { title: "Paramètres du lycée" };
@@ -46,6 +49,72 @@ const INFOS: Record<Onglet, { titre: string; description: string; icon: typeof C
     icon: GraduationCap,
   },
 };
+
+type LienOperationnel = AccesModule & { permission: Action };
+
+const ACTIONS_PAR_SECTION: Record<SettingsCategoryId, readonly LienOperationnel[]> = {
+  lycee: [
+    { titre: "Gestion des élèves", description: "Inscriptions et dossiers", href: "/dashboard/eleves", icon: Users, permission: "eleve:lire" },
+    { titre: "Gestion des classes", description: "Effectifs et capacités", href: "/dashboard/classes", icon: GraduationCap, permission: "classe:lire" },
+    { titre: "Diagnostic du lycée", description: "Vérifier les prérequis", href: "/dashboard/parametres/diagnostic", icon: ClipboardCheck, permission: "parametre:modifier" },
+  ],
+  scolarite: [
+    { titre: "Notes", description: "Évaluations et saisies", href: "/dashboard/notes", icon: NotebookPen, permission: "note:lire" },
+    { titre: "Bulletins", description: "Documents et publications", href: "/dashboard/bulletins", icon: FileText, permission: "bulletin:lire" },
+    { titre: "Emploi du temps", description: "Organisation des séances", href: "/dashboard/emploi-du-temps", icon: CalendarDays, permission: "emploi_du_temps:lire" },
+  ],
+  finances: [
+    { titre: "Suivi financier", description: "Frais et règlements", href: "/dashboard/finances", icon: Wallet, permission: "finance:lire" },
+    { titre: "Journal de caisse", description: "Encaissements du jour", href: "/dashboard/finances/caisse", icon: FileText, permission: "finance:lire" },
+    { titre: "Bulletins", description: "Publication et retenues", href: "/dashboard/bulletins", icon: FileText, permission: "bulletin:lire" },
+  ],
+  communication: [
+    { titre: "Comptes parents", description: "Responsables et familles", href: "/dashboard/parents", icon: Users, permission: "tuteur:gerer" },
+    { titre: "Suivi des invitations", description: "Historique des invitations", href: "/dashboard/parents/invitations", icon: Send, permission: "tuteur:inviter" },
+    { titre: "Communication", description: "Messages et annonces", href: "/dashboard/communication", icon: Megaphone, permission: "annonce:lire" },
+  ],
+  "controle-securite": [
+    { titre: "Personnel", description: "Comptes et accès", href: "/dashboard/personnel", icon: UserRoundCog, permission: "utilisateur:creer" },
+  ],
+};
+
+async function indicateursDeSection(
+  section: SettingsCategoryId,
+  peutVoirInvitations: boolean,
+): Promise<IndicateurParametre[]> {
+  if (section === "lycee") {
+    const annees = await listerAnnees();
+    const courante = annees.find((a) => a.estCourante);
+    return [
+      { titre: "Année scolaire", valeur: courante?.libelle ?? "Non définie", precision: courante ? "Année courante" : "À configurer" },
+      { titre: "Classes de l'année", valeur: (courante?.nbClasses ?? 0).toLocaleString("fr-FR"), precision: "Classes enregistrées" },
+      { titre: "Inscriptions actives", valeur: (courante?.nbInscriptions ?? 0).toLocaleString("fr-FR"), precision: "Année courante" },
+    ];
+  }
+  if (section === "scolarite") {
+    const [annees, matieres, series] = await Promise.all([listerAnnees(), listerMatieres(), listerSeries()]);
+    const annee = annees.find((a) => a.estCourante);
+    return [
+      { titre: "Matières actives", valeur: matieres.filter((m) => m.active).length.toLocaleString("fr-FR"), precision: "Catalogue du lycée" },
+      { titre: "Séries actives", valeur: series.filter((serie) => serie.active).length.toLocaleString("fr-FR"), precision: "Séries disponibles" },
+      { titre: "Classes configurées", valeur: (annee?.nbClasses ?? 0).toLocaleString("fr-FR"), precision: annee ? "Année " + annee.libelle : "Aucune année courante" },
+    ];
+  }
+  if (section === "finances") {
+    const reglage = await reglageBlocage();
+    return [
+      { titre: "Retenue des bulletins", valeur: reglage.actif ? "Activée" : "Désactivée", precision: "Règle d'impayé" },
+      { titre: "Seuil de tolérance", valeur: reglage.seuilFcfa.toLocaleString("fr-FR") + " FCFA", precision: "Reste à payer autorisé" },
+    ];
+  }
+  if (section === "communication" && peutVoirInvitations) {
+    const jours = await dureeInvitationJours();
+    return [
+      { titre: "Validité des codes parents", valeur: jours + (jours > 1 ? " jours" : " jour"), precision: "Nouvelles invitations" },
+    ];
+  }
+  return [];
+}
 
 export default async function PageParametres({
   searchParams,
@@ -112,7 +181,24 @@ export default async function PageParametres({
         (categorie.cards as readonly string[]).includes(carte.id),
       );
       if (!rubrique.length) redirect("/unauthorized");
-      return <SettingsCategoryPanel category={categorie} items={rubrique} />;
+
+      const raccourcis = ACTIONS_PAR_SECTION[categorie.id];
+      const [permisRaccourcis, indicateurs] = await Promise.all([
+        Promise.all(raccourcis.map((lien) => peut(principal, lien.permission))),
+        indicateursDeSection(categorie.id, peutConfigurer),
+      ]);
+      const accesModules = raccourcis
+        .filter((_, index) => permisRaccourcis[index])
+        .map(({ permission: _permission, ...lien }) => lien);
+
+      return (
+        <SettingsCategoryPanel
+          category={categorie}
+          items={rubrique}
+          indicateurs={indicateurs}
+          accesModules={accesModules}
+        />
+      );
     }
 
     return <SettingsCards items={liensAutorises} />;
