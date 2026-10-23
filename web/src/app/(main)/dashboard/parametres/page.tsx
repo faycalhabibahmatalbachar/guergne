@@ -14,6 +14,8 @@ import { OngletClasses } from "./_components/classes";
 import { OngletCoefficients } from "./_components/coefficients";
 import { OngletMatieres } from "./_components/matieres";
 import { SettingsCards } from "./_components/settings-cards";
+import { SettingsCategoryPanel } from "./_components/settings-category-panel";
+import { findSettingsCategory } from "@/navigation/sidebar/settings-categories";
 import { SETTINGS_CARDS, type SettingsPermission } from "./settings-catalog";
 
 export const metadata: Metadata = { title: "Paramètres du lycée" };
@@ -48,7 +50,7 @@ const INFOS: Record<Onglet, { titre: string; description: string; icon: typeof C
 export default async function PageParametres({
   searchParams,
 }: {
-  searchParams: Promise<{ onglet?: string; niveau?: string; serie?: string }>;
+  searchParams: Promise<{ onglet?: string; section?: string; niveau?: string; serie?: string }>;
 }) {
   const principal = await exigerSession();
   const params = await searchParams;
@@ -103,6 +105,15 @@ export default async function PageParametres({
       carte.droits.some((droit) => droits.has(droit)),
     );
     if (!liensAutorises.length) redirect("/unauthorized");
+
+    const categorie = findSettingsCategory(params.section);
+    if (categorie) {
+      const rubrique = liensAutorises.filter((carte) =>
+        (categorie.cards as readonly string[]).includes(carte.id),
+      );
+      if (!rubrique.length) redirect("/unauthorized");
+      return <SettingsCategoryPanel category={categorie} items={rubrique} />;
+    }
 
     return <SettingsCards items={liensAutorises} />;
   }
