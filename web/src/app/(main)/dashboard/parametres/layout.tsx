@@ -6,7 +6,7 @@ import { ChevronRight, Settings2 } from "lucide-react";
 import { APP_CONFIG } from "@/config/app-config";
 import { exigerSession, peut } from "@/server/guard";
 
-import { SettingsNavigation } from "./_components/settings-navigation";
+import { SettingsSearch } from "./_components/settings-navigation";
 import { SETTINGS_CARDS, SETTINGS_PERMISSIONS } from "./settings-catalog";
 
 export default async function LayoutParametres({ children }: { children: ReactNode }) {
@@ -24,22 +24,23 @@ export default async function LayoutParametres({ children }: { children: ReactNo
         <nav aria-label="Fil d'Ariane" className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 dark:text-muted-foreground">
           <Link href="/dashboard/default" className="hover:text-blue-700 hover:underline">Tableau de bord</Link>
           <ChevronRight className="size-3.5" aria-hidden />
-          <span aria-current="page">Paramètres</span>
+          <Link href="/dashboard/parametres" aria-current="page" className="hover:text-blue-700 hover:underline">Paramètres</Link>
         </nav>
-        <div className="flex items-center gap-3">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
-            <Settings2 className="size-6" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h1 className="text-[29px] font-bold leading-tight tracking-tight sm:text-[34px]">Paramètres</h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-muted-foreground">
-              Configurez les règles de {APP_CONFIG.name} selon vos autorisations.
-            </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
+              <Settings2 className="size-6" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-[29px] font-bold leading-tight tracking-tight sm:text-[34px]">Paramètres</h1>
+              <p className="mt-1 text-sm text-slate-500 dark:text-muted-foreground">
+                Configurez les règles de {APP_CONFIG.name} selon vos autorisations.
+              </p>
+            </div>
           </div>
+          <SettingsSearch items={items} />
         </div>
       </header>
-
-      <SettingsNavigation items={items} />
       <section aria-label="Contenu des paramètres" className="min-w-0">
         {children}
       </section>

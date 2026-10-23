@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { ChevronRight } from "lucide-react";
 
@@ -27,6 +27,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { settingsCategoryForRoute } from "@/navigation/sidebar/settings-categories";
 import type {
   NavBadge,
   NavGroup,
@@ -83,21 +84,31 @@ function hasSubItems(item: NavMainItem): item is NavMainParentItem {
 
 export function NavMain({ items }: NavMainProps) {
   const path = usePathname();
+  const searchParams = useSearchParams();
+  const activeSettingsSection = settingsCategoryForRoute(path, searchParams);
+  const isSettingsPath = path === "/dashboard/parametres"
+    || path.startsWith("/dashboard/parametres/");
+
+  // A parent menu is an accordion, not a URL. For settings, the query
+  // (section=...) identifies the selected child; direct forms resolve to it.
+  const isSubItemActive = (url: string) => {
+    if (url.startsWith("/dashboard/parametres?section=")) {
+      return activeSettingsSection === new URL(url, "https://example.invalid").searchParams.get("section");
+    }
+    return path === url.split("?")[0];
+  };
 
   const isItemActive = (item: NavMainItem) => {
     if (hasSubItems(item)) {
-      return item.subItems.some((sub) => path.startsWith(sub.url));
+      if (item.id === "parametres") return isSettingsPath;
+      return item.subItems.some((sub) => isSubItemActive(sub.url));
     }
-
-    return path === item.url;
-  };
-
-  const isSubItemActive = (url: string) => {
-    return path === url;
+    return path === item.url.split("?")[0];
   };
 
   const isSubmenuOpen = (item: NavMainParentItem) => {
-    return item.subItems.some((sub) => path.startsWith(sub.url));
+    if (item.id === "parametres") return isSettingsPath;
+    return item.subItems.some((sub) => isSubItemActive(sub.url));
   };
 
   return (
