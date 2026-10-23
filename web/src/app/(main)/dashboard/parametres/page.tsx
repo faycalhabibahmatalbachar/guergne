@@ -86,31 +86,31 @@ async function indicateursDeSection(
     const annees = await listerAnnees();
     const courante = annees.find((a) => a.estCourante);
     return [
-      { titre: "Année scolaire", valeur: courante?.libelle ?? "Non définie", precision: courante ? "Année courante" : "À configurer" },
-      { titre: "Classes de l'année", valeur: (courante?.nbClasses ?? 0).toLocaleString("fr-FR"), precision: "Classes enregistrées" },
-      { titre: "Inscriptions actives", valeur: (courante?.nbInscriptions ?? 0).toLocaleString("fr-FR"), precision: "Année courante" },
+      { icone: CalendarDays, titre: "Année scolaire", valeur: courante?.libelle ?? "Non définie", precision: courante ? "Année courante" : "À configurer" },
+      { icone: GraduationCap, titre: "Classes de l'année", valeur: (courante?.nbClasses ?? 0).toLocaleString("fr-FR"), precision: "Classes enregistrées" },
+      { icone: Users, titre: "Inscriptions actives", valeur: (courante?.nbInscriptions ?? 0).toLocaleString("fr-FR"), precision: "Année courante" },
     ];
   }
   if (section === "scolarite") {
     const [annees, matieres, series] = await Promise.all([listerAnnees(), listerMatieres(), listerSeries()]);
     const annee = annees.find((a) => a.estCourante);
     return [
-      { titre: "Matières actives", valeur: matieres.filter((m) => m.active).length.toLocaleString("fr-FR"), precision: "Catalogue du lycée" },
-      { titre: "Séries actives", valeur: series.filter((serie) => serie.active).length.toLocaleString("fr-FR"), precision: "Séries disponibles" },
-      { titre: "Classes configurées", valeur: (annee?.nbClasses ?? 0).toLocaleString("fr-FR"), precision: annee ? "Année " + annee.libelle : "Aucune année courante" },
+      { icone: BookOpenText, titre: "Matières actives", valeur: matieres.filter((m) => m.active).length.toLocaleString("fr-FR"), precision: "Catalogue du lycée" },
+      { icone: GraduationCap, titre: "Séries actives", valeur: series.filter((serie) => serie.active).length.toLocaleString("fr-FR"), precision: "Séries disponibles" },
+      { icone: Users, titre: "Classes configurées", valeur: (annee?.nbClasses ?? 0).toLocaleString("fr-FR"), precision: annee ? "Année " + annee.libelle : "Aucune année courante" },
     ];
   }
   if (section === "finances") {
     const reglage = await reglageBlocage();
     return [
-      { titre: "Retenue des bulletins", valeur: reglage.actif ? "Activée" : "Désactivée", precision: "Règle d'impayé" },
-      { titre: "Seuil de tolérance", valeur: reglage.seuilFcfa.toLocaleString("fr-FR") + " FCFA", precision: "Reste à payer autorisé" },
+      { icone: FileText, titre: "Retenue des bulletins", valeur: reglage.actif ? "Activée" : "Désactivée", precision: "Règle d'impayé" },
+      { icone: Wallet, titre: "Seuil de tolérance", valeur: reglage.seuilFcfa.toLocaleString("fr-FR") + " FCFA", precision: "Reste à payer autorisé" },
     ];
   }
   if (section === "communication" && peutVoirInvitations) {
     const jours = await dureeInvitationJours();
     return [
-      { titre: "Validité des codes parents", valeur: jours + (jours > 1 ? " jours" : " jour"), precision: "Nouvelles invitations" },
+      { icone: Send, titre: "Validité des codes parents", valeur: jours + (jours > 1 ? " jours" : " jour"), precision: "Nouvelles invitations" },
     ];
   }
   return [];
