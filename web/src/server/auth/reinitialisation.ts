@@ -4,6 +4,8 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
+import { envoyerParGmail, smtpDisponible } from "@/server/auth/gmail-smtp";
+
 import { db } from "@/server/db";
 import { utilisateurs } from "@/server/db/schema";
 
@@ -75,56 +77,16 @@ export function lienReinitialisation(jeton: string): string {
   return BASE_URL + "/auth/reinitialiser?jeton=" + encodeURIComponent(jeton);
 }
 
+/** Gmail SMTP est désormais le fournisseur d'envoi réellement configuré en production. */
 export function emailsDisponibles(): boolean {
-  const cle = process.env.RESEND_API_KEY?.trim() ?? "";
-  const expediteur = process.env.RESEND_FROM_EMAIL?.trim() ?? "";
-  const secret = process.env.AUTH_SECRET ?? "";
-  return (
-    cle.startsWith("re_") &&
-    expediteur.includes("@") &&
-    !expediteur.includes("votre-domaine-verifie.tld") &&
-    secret.length >= 24
-  );
+  return smtpDisponible();
 }
 
-/** L'envoi échoue explicitement si la passerelle n'est pas configurée. */
-export async function envoyerEmailReinitialisation(destinataire: string, lien: string): Promise<boolean> {
+/** Attendre l'acceptation SMTP avant de répondre à l'utilisateur. */
+export async function envoyerEmailReinitialisation(
+  destinataire: string,
+  lien: string,
+): Promise<boolean> {
   if (!emailsDisponibles()) return false;
-  try {
-    const reponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + process.env.RESEND_API_KEY,
-        "Content-Type": "application/json",
-        "Idempotency-Key": "lgr-reset-" + createHmac("sha256", cleSignature()).update(lien).digest("hex").slice(0,48),
-      },
-      body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL,
-        to: [destinataire],
-        subject: "Réinitialisez votre mot de passe — Lycée Guergné La Renaissance",
-        reply_to: process.env.RESEND_REPLY_TO || undefined,
-        text: [
-          "Bonjour,",
-          "",
-          "Vous avez demandé la réinitialisation de votre mot de passe pour l’espace d’administration du lycée.",
-          "Pour choisir un nouveau mot de passe, ouvrez ce lien (valable 20 minutes) :",
-          lien,
-          "",
-          "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.",
-          "Le secrétariat ne vous demandera jamais votre mot de passe.",
-        ].join("\n"),
-      }),
-      cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!reponse.ok) {
-      console.error("[auth/reset] Le fournisseur a refusé la demande", reponse.status);
-      return false;
-    }
-    const resultat = (await reponse.json()) as { id?: string };
-    return typeof resultat.id === "string" && resultat.id.length > 0;
-  } catch (erreur) {
-    console.error("[auth/reset] Envoi indisponible", erreur instanceof Error ? erreur.name : "erreur");
-    return false;
-  }
+  return envoyerParGmail(destinataire, lien);
 }
