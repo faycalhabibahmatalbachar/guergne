@@ -1,35 +1,40 @@
-# Réinitialisation du mot de passe par e-mail — Lycée Guergné La Renaissance
+# Réinitialisation par e-mail — Lycée Guergné La Renaissance
 
-## État et prérequis
+## Activation Gmail SMTP (production)
 
-La demande de réinitialisation est intégrée à `/auth/assistance`. Le site utilise Resend comme passerelle transactionnelle. Aucun envoi effectif n'est possible tant que le lycée n'a pas activé un expéditeur vérifié : cette activation requiert l'accès au compte Resend et au DNS du domaine de l'établissement.
+La plateforme utilise directement Gmail SMTP avec SSL/TLS (port 465). L'adresse expéditrice est
+\`guergnerenaissance@gmail.com\`. Le fournisseur Resend n'est plus utilisé pour les liens de réinitialisation.
 
-1. Dans [Resend](https://resend.com/domains), enregistrer un domaine possédé par le lycée et ajouter les entrées DNS de vérification demandées (SPF/DKIM).
-2. Dans [Resend API Keys](https://resend.com/api-keys), créer une clé ayant les droits d'envoi nécessaires.
-3. Dans les variables d'environnement du projet Vercel `lycee-guergne-renaissance`, ajouter **uniquement côté serveur** :
-   - `RESEND_API_KEY` : clé Resend (sensible, jamais dans le dépôt, jamais côté navigateur) ;
-   - `RESEND_FROM_EMAIL` : expéditeur autorisé, par exemple `Lycée Guergné La Renaissance <acces@domaine-verifie-du-lycee.tld>` ;
-   - facultatif : `RESEND_REPLY_TO` : adresse de réponse du secrétariat.
-4. Ajouter ces variables aux environnements `production` (et `preview` seulement avec un dispositif de test séparé), puis redéployer le site. `AUTH_SECRET` doit déjà exister et rester stable.
+Variables privées à configurer pour **production** dans Vercel :
+- \`SMTP_HOST=smtp.gmail.com\`
+- \`SMTP_PORT=465\`
+- \`SMTP_SECURE=true\`
+- \`SMTP_USER=guergnerenaissance@gmail.com\`
+- \`SMTP_APP_PASSWORD\` : mot de passe **d'application Google** (16 caractères), jamais le mot de passe du compte Google
+- \`SMTP_FROM=guergnerenaissance@gmail.com\`
+- \`AUTH_SECRET\` : déjà défini, ne pas le modifier ni le partager.
 
-Ne pas utiliser `lycee-guergne-renaissance.vercel.app` comme domaine expéditeur : le lycée ne contrôle pas le DNS de `vercel.app`. Ne pas utiliser `onboarding@resend.dev` comme expéditeur de production.
+Les secrets sont conservés sur Vercel et n'entrent jamais dans GitHub. Après une modification de variables,
+déclencher un déploiement de production.
 
-## Fonctionnement
+## Sécurité et fonctionnement
 
-- Une adresse inconnue ou inactive reçoit le même accusé de demande qu'un compte valide, pour éviter d'exposer les comptes du personnel.
-- L'adresse des comptes est recherchée sans tenir compte de la casse.
-- Un compte actif a droit à **3 demandes/heure** (journalisation en base).
-- Le lien est signé avec `AUTH_SECRET` et l'empreinte actuelle du mot de passe ; il expire après **20 minutes** et devient invalide après un changement de mot de passe.
-- L'envoi est effectué par l'API Resend HTTPS, avec une clé d'idempotence. Le fournisseur doit confirmer l'acceptation en renvoyant un identifiant d'e-mail.
-- Après le changement de mot de passe, les sessions existantes sont révoquées et l'opération est tracée dans le journal d'audit.
+- Le serveur refuse les hôtes non Gmail, les ports autres que 465 et les configurations sans chiffrement TLS.
+- Certificat TLS vérifié et protocole TLS 1.2 minimum. L'authentification SMTP utilise le mot de passe d'application côté serveur.
+- Message UTF-8 MIME, en-têtes protégés contre les injections.
+- Demandes limitées à 3 par heure **par compte** (audit en base), réponse uniforme pour les comptes inexistants.
+- Jetons de réinitialisation HMAC valides 20 minutes, invalidés lors du changement du mot de passe.
+- Une fois le mot de passe modifié, toutes les sessions sont révoquées.
+- Envoi attendu de manière synchrone dans la fonction Vercel : l'acceptation de Gmail (code SMTP 250) indique que le message est placé dans sa file d'expédition, pas nécessairement reçu dans la boîte de réception.
 
-## Validation avant ouverture aux utilisateurs
+## Validation
 
-1. Dans un environnement de test, créer un compte de personnel avec une adresse e-mail contrôlée et un mot de passe initial.
-2. Demander une réinitialisation, vérifier la réception effective et l'identité de l'expéditeur (SPF/DKIM).
-3. Vérifier le refus d'un lien modifié, expiré, déjà consommé, et après désactivation du compte.
-4. Réinitialiser le mot de passe et confirmer que l'ancien mot de passe et les anciennes sessions ne fonctionnent plus.
-5. Vérifier qu'une adresse inexistante ne révèle pas si un compte existe et que les limites de demandes s'appliquent.
-6. Examiner les journaux d'erreurs du fournisseur, sans y inclure de liens secrets ou de jetons.
+1. Exécuter les tests unitaires et le build Vercel.
+2. Vérifier que les six variables de production existent sans exposer leurs valeurs.
+3. Dans un compte de personnel de test dont la boîte e-mail est contrôlée, demander la réinitialisation.
+4. Vérifier dans la boîte la présence d'un nouvel e-mail et l'ouverture du lien HTTPS.
+5. Changer le mot de passe, vérifier l'impossibilité de réutiliser le lien et la révocation des anciennes sessions.
+6. Consulter les journaux Vercel et, si nécessaire, la boîte « Messages envoyés » de l'expéditeur Gmail.
 
-Tant que les variables `RESEND_API_KEY` et `RESEND_FROM_EMAIL` ne sont pas configurées, le formulaire fournit un message explicite ; il ne prétend pas avoir envoyé un e-mail.
+En cas d'échec d'envoi : vérifier la validité du mot de passe d'application Google, le compte Gmail, les limites Google et l'accès au port 465.
+Ne pas créer de route de test publique qui puisse envoyer des messages à des destinataires arbitraires.
