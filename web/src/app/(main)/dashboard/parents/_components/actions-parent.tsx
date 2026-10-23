@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { BellRing, Eye, History, KeyRound, MoreHorizontal, Pencil, Phone, Send, ShieldOff, Trash2, UserRoundX } from "lucide-react";
+import { BellRing, Copy, Eye, History, KeyRound, Mail, MoreHorizontal, Pencil, Phone, Send, ShieldOff, Trash2, UserRoundX, Users, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -138,10 +138,15 @@ export function ActionsParent({ t, peutInviter, peutNotifier, onNotifier }: { t:
         <DropdownMenuContent align="end" className="w-60">
           <DropdownMenuLabel className="text-xs text-muted-foreground">Compte de {nomComplet}</DropdownMenuLabel>
           <DropdownMenuItem asChild><Link href={"/dashboard/parents/" + t.id}><Eye className="size-4" aria-hidden />Consulter le dossier</Link></DropdownMenuItem>
+          <DropdownMenuItem asChild><Link href={"/dashboard/parents/" + t.id + "#enfants-rattaches"}><Users className="size-4" aria-hidden />Gérer les enfants liés</Link></DropdownMenuItem>
           <DropdownMenuItem asChild><Link href={"/dashboard/parents/" + t.id + "#historique-notifications"}><History className="size-4" aria-hidden />Historique des notifications</Link></DropdownMenuItem>
+          {t.doublonTelephone && <DropdownMenuItem asChild><Link href="/dashboard/parents/familles/doublons"><AlertTriangle className="size-4" aria-hidden />Vérifier les fiches en doublon</Link></DropdownMenuItem>}
+          {t.telephone && <DropdownMenuItem onSelect={() => { void navigator.clipboard.writeText(t.telephone).then(() => toast.success("Téléphone copié.")).catch(() => toast.error("Impossible de copier le numéro.")); }}><Copy className="size-4" aria-hidden />Copier le téléphone</DropdownMenuItem>}
+          {t.email && <DropdownMenuItem asChild><a href={"mailto:" + encodeURIComponent(t.email)}><Mail className="size-4" aria-hidden />Envoyer un e-mail</a></DropdownMenuItem>}
           {t.telephone && <DropdownMenuItem asChild><a href={"tel:" + t.telephone.replace(/[^+0-9]/g, "")}><Phone className="size-4" aria-hidden />Appeler ce parent</a></DropdownMenuItem>}
           {peutNotifier && <DropdownMenuItem onSelect={() => onNotifier(t)}><BellRing className="size-4" aria-hidden />Notifier ce parent</DropdownMenuItem>}
           <DropdownMenuItem onSelect={() => { setErreurs({}); setFenetre("modifier"); }}><Pencil className="size-4" aria-hidden />Modifier les informations</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => { setErreurs({}); setSms(t.accepteSms); setFenetre("modifier"); }}><BellRing className="size-4" aria-hidden />Préférences SMS et coordonnées</DropdownMenuItem>
           <DropdownMenuSeparator />
           {peutInviter && statutInvite ? (
             <DropdownMenuItem disabled={enCours} onSelect={() => inviter()}>
