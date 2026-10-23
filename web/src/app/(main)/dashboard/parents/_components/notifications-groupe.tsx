@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { apercuNotificationsGroupe, envoyerNotificationsGroupe, type DevisGroupe } from "../actions-groupe";
+import { apercuNotificationsGroupe, envoyerNotificationsGroupe, type DevisGroupe, type SelectionGroupe } from "../actions-groupe";
 
 export const MODELES_PARENTS = [
   { id: "reunion", nom: "Réunion parents", titre: "Réunion avec les familles", corps: "Chers parents, nous vous invitons à une réunion d’information au sein de l’établissement. Merci de prendre contact avec le secrétariat pour les modalités." },
@@ -27,9 +27,10 @@ const CANAUX: { id: Canal; libelle: string; detail: string }[] = [
 ];
 
 export function NotificationsGroupe({
-  ids, ouvert, onFermer, onSucces,
+  selection, nombreSelectionnes, ouvert, onFermer, onSucces,
 }: {
-  ids: string[];
+  selection: SelectionGroupe;
+  nombreSelectionnes: number;
   ouvert: boolean;
   onFermer: () => void;
   onSucces: () => void;
@@ -43,13 +44,14 @@ export function NotificationsGroupe({
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState("");
   const [confirmation, setConfirmation] = useState(false);
+  const [confirmationDiffusion, setConfirmationDiffusion] = useState(false);
   const [cle, setCle] = useState<string | null>(null);
   const [enCours, demarrer] = useTransition();
 
   const tempsLocal = planifier && dateLocale ? Date.parse(dateLocale) : NaN;
   const programmeLe = Number.isFinite(tempsLocal) ? new Date(tempsLocal).toISOString() : null;
-  const signature = JSON.stringify([ids, titre, corps, canal, programmeLe]);
-  const valide = titre.trim().length >= 3 && corps.trim().length >= 5 && ids.length > 0 && ids.length <= 30 &&
+  const signature = JSON.stringify([selection, titre, corps, canal, programmeLe]);
+  const valide = titre.trim().length >= 3 && corps.trim().length >= 5 && nombreSelectionnes > 0 &&
     (!planifier || !!programmeLe);
   const apercu = devis?.signature === signature ? devis.valeur : null;
 
@@ -60,7 +62,7 @@ export function NotificationsGroupe({
       if (!actif) return;
       setChargement(true); setErreur("");
       try {
-        const valeur = await apercuNotificationsGroupe({ ids, titre, corps, canal, programmation: programmeLe });
+        const valeur = await apercuNotificationsGroupe({ selection, titre, corps, canal, programmation: programmeLe });
         if (actif) setDevis({ signature, valeur });
       } catch (e) {
         if (actif) setErreur(e instanceof Error ? e.message : "Impossible de vérifier les destinataires.");
@@ -69,27 +71,32 @@ export function NotificationsGroupe({
       }
     }, 450);
     return () => { actif = false; clearTimeout(timeout); };
-  }, [ouvert, valide, signature, ids, titre, corps, canal, programmeLe]);
+  }, [ouvert, valide, signature]);
 
   function invalider() {
-    setDevis(null); setConfirmation(false); setErreur(""); setCle(null);
+    setDevis(null); setConfirmation(false); setConfirmationDiffusion(false); setErreur(""); setCle(null);
   }
   function terminer() {
     if (enCours) return;
     onFermer(); setTitre(""); setCorps(""); setCanal("AUTO");
     setPlanifier(false); setDateLocale(""); setDevis(null);
-    setErreur(""); setConfirmation(false); setCle(null);
+    setErreur(""); setConfirmation(false); setConfirmationDiffusion(false); setCle(null);
   }
   function envoyer() {
-    if (!apercu || !valide || !apercu.total || enCours || chargement || erreur || (apercu.parSms > 0 && !confirmation)) return;
+    if (!apercu || !valide || !apercu.total || enCours || chargement || erreur ||
+      (apercu.parSms > 0 && !confirmation) ||
+      ((selection.mode === "filtres" || apercu.parentsSelectionnes > 30) && !confirmationDiffusion)) return;
     const idempotence = cle ?? crypto.randomUUID();
     setCle(idempotence);
     demarrer(async () => {
       try {
         const r = await envoyerNotificationsGroupe({
-          ids, titre, corps, canal, programmation: programmeLe,
+          selection, titre, corps, canal, programmation: programmeLe,
           plafondCoutFcfa: apercu.coutFcfa,
           plafondNotifications: apercu.total,
+          parentsConfirmes: apercu.parentsSelectionnes,
+          empreinteAudience: apercu.empreinteAudience,
+          confirmationDiffusion,
           cleEnvoi: idempotence,
         });
         if (!r.ok) { setDevis(null); toast.error(r.message); return; }
@@ -103,14 +110,15 @@ export function NotificationsGroupe({
   }
 
   const activer = !!apercu && apercu.total > 0 && !chargement && !enCours && !erreur &&
-    (!apercu.parSms || confirmation);
+    (!apercu.parSms || confirmation) &&
+    (!(selection.mode === "filtres" || apercu.parentsSelectionnes > 30) || confirmationDiffusion);
 
   return (
     <Dialog open={ouvert} onOpenChange={v => { if (!v) terminer(); }}>
       <DialogContent className="max-h-[calc(100dvh-16px)] w-[calc(100%-16px)] gap-0 overflow-y-auto rounded-2xl border border-slate-200 p-0 sm:max-w-[880px] dark:border-slate-800">
         <DialogHeader className="border-b border-slate-200 bg-gradient-to-r from-emerald-50 to-white px-5 py-4 pr-12 text-left dark:border-slate-800 dark:from-emerald-950/30 dark:to-slate-900">
           <DialogTitle className="flex items-center gap-2 text-lg font-bold"><Users className="size-5 text-emerald-700" /> Notification à une sélection de parents</DialogTitle>
-          <DialogDescription>{ids.length} parent{ids.length > 1 ? "s" : ""} sélectionné{ids.length > 1 ? "s" : ""}. Limite de 30 parents par opération. Aucun SMS n’est envoyé sans validation du coût.</DialogDescription>
+          <DialogDescription>{nombreSelectionnes.toLocaleString("fr-FR")} parent(s) ciblé(s) {selection.mode === "filtres" ? "dans tous les résultats filtrés (toutes les pages)" : "dans votre sélection"}. Le nombre exact, les doublons et le coût sont vérifiés avant l’envoi.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-5 px-5 py-4 sm:grid-cols-2">
           <section className="space-y-3">
@@ -158,9 +166,14 @@ export function NotificationsGroupe({
               : erreur ? <span role="alert" className="flex items-start gap-2 text-red-700 dark:text-red-300"><AlertTriangle className="size-4 shrink-0" />{erreur}</span>
               : apercu && <div className="space-y-2">
                   <div className="flex justify-between gap-2"><strong>{apercu.parentsJoignables} parent(s) joignable(s)</strong><strong className="text-emerald-700 dark:text-emerald-300">{apercu.coutFcfa.toLocaleString("fr-FR")} FCFA</strong></div>
-                  <p>{apercu.total} notification(s) : {apercu.parPush} PUSH · {apercu.parSms} SMS · {apercu.dansApplication} interne</p>
+                  <p>{apercu.total.toLocaleString("fr-FR")} notification(s) pour {apercu.parentsSelectionnes.toLocaleString("fr-FR")} fiche(s) : {apercu.parPush} PUSH · {apercu.parSms} SMS · {apercu.dansApplication} interne</p>
                   {apercu.nonJoignables > 0 && <p className="text-amber-700">{apercu.nonJoignables} parent(s) sans canal disponible.</p>}
-                  {apercu.numerosPartages > 0 && <p className="text-amber-700">{apercu.numerosPartages} numéro(s) partagé(s) : vérifiez les destinataires avant d’envoyer.</p>}
+                  {apercu.numerosPartages > 0 && <p className="text-amber-700">{apercu.numerosPartages} parent(s) portent un numéro partagé ; vérifiez la liste avant l’envoi.</p>}
+                  {apercu.smsDedoublonnes > 0 && <p className="text-emerald-700">{apercu.smsDedoublonnes} SMS en double supprimé(s) pour les numéros partagés.</p>}
+                  {(selection.mode === "filtres" || apercu.parentsSelectionnes > 30) && <label className="flex items-start gap-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+                    <input type="checkbox" checked={confirmationDiffusion} onChange={e => setConfirmationDiffusion(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-emerald-700" />
+                    <span>Je confirme cette communication à <strong>{apercu.parentsSelectionnes.toLocaleString("fr-FR")} parents</strong> (toutes les pages sélectionnées).</span>
+                  </label>}
                   {apercu.parSms > 0 && <label className="flex items-start gap-2 border-t border-slate-200 pt-2 dark:border-slate-700">
                     <input type="checkbox" checked={confirmation} onChange={e => setConfirmation(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-emerald-700" />
                     <span>Je confirme un maximum de <strong>{apercu.coutFcfa.toLocaleString("fr-FR")} FCFA</strong> pour {apercu.parSms} SMS.</span>
