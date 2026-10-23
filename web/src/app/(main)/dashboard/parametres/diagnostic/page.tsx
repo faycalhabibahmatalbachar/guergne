@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, CheckCircle2, CircleAlert, ClipboardCheck } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, CircleAlert, ClipboardCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { chargerIdentiteLycee } from "@/server/domain/identite-lycee";
 import {
@@ -132,13 +131,6 @@ export default async function PageDiagnosticParametres() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 pb-8">
-      <Button asChild size="sm" variant="ghost">
-        <Link href="/dashboard/parametres">
-          <ArrowLeft className="size-4" aria-hidden />
-          Tous les paramètres
-        </Link>
-      </Button>
-
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
           <ClipboardCheck className="size-6 text-primary" aria-hidden />

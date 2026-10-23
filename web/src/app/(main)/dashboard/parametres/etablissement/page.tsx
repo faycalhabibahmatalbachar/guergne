@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft, School, ShieldCheck } from "lucide-react";
+import { School, ShieldCheck } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { chargerIdentiteLycee } from "@/server/domain/identite-lycee";
 import { exigerPage } from "@/server/guard";
@@ -18,13 +16,6 @@ export default async function PageIdentiteLycee() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 pb-8">
-      <Button asChild variant="ghost" size="sm">
-        <Link href="/dashboard/parametres">
-          <ArrowLeft className="size-4" aria-hidden />
-          Tous les paramètres
-        </Link>
-      </Button>
-
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Identité du lycée</h1>
         <p className="mt-1 text-muted-foreground text-sm">

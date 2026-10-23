@@ -1,37 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-
-import {
-  ArrowLeft,
-  Bell,
-  BookOpenText,
-  CalendarDays,
-  ClipboardCheck,
-  ChevronRight,
-  GraduationCap,
-  Megaphone,
-  School,
-  ScrollText,
-  ShieldCheck,
-  Users,
-  UserRoundCog,
-  Wallet,
-  type LucideIcon,
-} from "lucide-react";
+import { CalendarDays, BookOpenText, Calculator, GraduationCap } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { APP_CONFIG } from "@/config/app-config";
 import {
-  listerAnnees,
-  listerClassesAnnee,
-  listerCoefficients,
-  listerMatieres,
-  listerNiveaux,
-  listerPeriodes,
-  listerSeries,
+  listerAnnees, listerClassesAnnee, listerCoefficients,
+  listerMatieres, listerNiveaux, listerPeriodes, listerSeries,
 } from "@/server/domain/parametres";
 import { exigerSession, peut } from "@/server/guard";
 
@@ -45,59 +19,30 @@ export const dynamic = "force-dynamic";
 
 const ONGLETS = ["annees", "matieres", "coefficients", "classes"] as const;
 type Onglet = (typeof ONGLETS)[number];
-type Lien = { titre: string; description: string; url: string; icone: LucideIcon; note?: string };
 
-function CarteLien({ lien }: { lien: Lien }) {
-  const Icone = lien.icone;
-  return (
-    <Link
-      prefetch={false}
-      href={lien.url}
-      className="group flex min-h-24 items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-    >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/50 text-foreground">
-        <Icone className="size-5" aria-hidden />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block font-medium text-sm">{lien.titre}</span>
-        <span className="mt-1 block text-muted-foreground text-xs leading-relaxed">{lien.description}</span>
-        {lien.note ? (
-          <span className="mt-2 block text-muted-foreground text-[11px]">{lien.note}</span>
-        ) : null}
-      </span>
-      <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
-    </Link>
-  );
-}
+const INFOS: Record<Onglet, { titre: string; description: string; icon: typeof CalendarDays }> = {
+  annees: {
+    titre: "Années scolaires et périodes",
+    description: "Gérez l'année courante, les dates, les périodes et la clôture.",
+    icon: CalendarDays,
+  },
+  matieres: {
+    titre: "Matières et séries",
+    description: "Organisez les matières et les séries de l'établissement.",
+    icon: BookOpenText,
+  },
+  coefficients: {
+    titre: "Coefficients",
+    description: "Définissez les coefficients et les poids des évaluations par niveau et série.",
+    icon: Calculator,
+  },
+  classes: {
+    titre: "Structure des classes",
+    description: "Configurez les classes, leurs séries et leurs capacités.",
+    icon: GraduationCap,
+  },
+};
 
-function GroupeReglages({
-  titre,
-  description,
-  liens,
-}: {
-  titre: string;
-  description: string;
-  liens: Lien[];
-}) {
-  if (!liens.length) return null;
-  return (
-    <section className="space-y-3" aria-label={titre}>
-      <div>
-        <h2 className="font-semibold text-base">{titre}</h2>
-        <p className="mt-0.5 text-muted-foreground text-sm">{description}</p>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {liens.map((lien) => <CarteLien key={lien.url} lien={lien} />)}
-      </div>
-    </section>
-  );
-}
-
-/**
- * Paramètres d'un seul établissement : pas de configuration multi-écoles.
- * L'accueil ne charge aucune donnée pédagogique protégée. Chaque page et
- * chaque action restent responsables de leurs propres permissions serveur.
- */
 export default async function PageParametres({
   searchParams,
 }: {
@@ -105,22 +50,12 @@ export default async function PageParametres({
 }) {
   const principal = await exigerSession();
   const params = await searchParams;
+
   const [
-    peutConfigurer,
-    peutGererAnnees,
-    peutGererPeriodes,
-    peutDeverrouillerPeriodes,
-    peutGererMatieres,
-    peutGererCoefficients,
-    peutCreerClasses,
-    peutModifierClasses,
-    peutNotifier,
-    peutAuditer,
-    peutFinances,
-    peutConfigurerFinances,
-    peutPersonnel,
-    peutParents,
-    peutCommunication,
+    peutConfigurer, peutGererAnnees, peutGererPeriodes,
+    peutDeverrouillerPeriodes, peutGererMatieres,
+    peutGererCoefficients, peutCreerClasses, peutModifierClasses,
+    peutNotifier, peutAuditer, peutConfigurerFinances,
   ] = await Promise.all([
     peut(principal, "parametre:modifier"),
     peut(principal, "annee:cloturer"),
@@ -132,200 +67,34 @@ export default async function PageParametres({
     peut(principal, "classe:modifier"),
     peut(principal, "notification:configurer"),
     peut(principal, "audit:lire"),
-    peut(principal, "finance:lire"),
     peut(principal, "finance:configurer"),
-    peut(principal, "utilisateur:creer"),
-    peut(principal, "tuteur:gerer"),
-    peut(principal, "annonce:lire"),
   ]);
 
-  const accesAnnees = peutGererAnnees || peutGererPeriodes || peutDeverrouillerPeriodes;
-  const accesMatieres = peutGererMatieres;
-  const accesCoefficients = peutGererCoefficients;
-  const accesClasses = peutCreerClasses || peutModifierClasses;
   const accesOnglet: Record<Onglet, boolean> = {
-    annees: accesAnnees,
-    matieres: accesMatieres,
-    coefficients: accesCoefficients,
-    classes: accesClasses,
+    annees: peutGererAnnees || peutGererPeriodes || peutDeverrouillerPeriodes,
+    matieres: peutGererMatieres,
+    coefficients: peutGererCoefficients,
+    classes: peutCreerClasses || peutModifierClasses,
   };
-
-  if (!peutConfigurer && !peutNotifier && !peutAuditer && !peutConfigurerFinances &&
-      !Object.values(accesOnglet).some(Boolean)) {
-    redirect("/unauthorized");
-  }
 
   const onglet = ONGLETS.includes(params.onglet as Onglet)
     ? (params.onglet as Onglet)
     : null;
 
-  // Le droit de consulter les politiques SMS ou l'audit ne donne pas accès aux
-  // années, classes ni coefficients, même en modifiant manuellement l'URL.
-  if (onglet && !accesOnglet[onglet]) {
+  if (!onglet) {
+    // L'ancien accueil à nombreuses cartes est remplacé par un vrai panneau
+    // de réglages. L'entrée Paramètres mène à la première page autorisée.
+    if (peutConfigurer) redirect("/dashboard/parametres/etablissement");
+    for (const id of ONGLETS) {
+      if (accesOnglet[id]) redirect("/dashboard/parametres?onglet=" + id);
+    }
+    if (peutNotifier) redirect("/dashboard/parametres/notifications");
+    if (peutConfigurerFinances) redirect("/dashboard/parametres/finances");
+    if (peutAuditer) redirect("/dashboard/parametres/audit");
     redirect("/unauthorized");
   }
 
-  if (!onglet) {
-    return (
-      <div className="space-y-7 pb-8">
-        <div>
-          <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest">Administration</p>
-          <h1 className="mt-1 font-semibold text-2xl tracking-tight">Paramètres du lycée</h1>
-          <p className="mt-1 max-w-3xl text-muted-foreground text-sm">
-            Retrouvez les configurations autorisées et les accès aux modules existants de {APP_CONFIG.name}.
-          </p>
-        </div>
-
-        {peutConfigurer ? (
-          <section className="flex flex-col gap-4 rounded-xl border bg-card p-5 sm:flex-row sm:items-center" aria-label="Identité de l'établissement">
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-xl border bg-background">
-              <School className="size-7 text-primary" aria-hidden />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="font-semibold">{APP_CONFIG.nomComplet}</h2>
-              <p className="mt-1 text-muted-foreground text-sm">
-                Établissement unique · Enseignement secondaire, de la 6ème à la Terminale
-              </p>
-              <p className="mt-1 text-muted-foreground text-xs">
-                Nom officiel, sigle {APP_CONFIG.sigle} et devise {APP_CONFIG.devise} restent stables.
-                Coordonnées et signataires sont modifiables depuis la fiche unique du lycée.
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-center">
-              <Badge variant="outline">Établissement unique</Badge>
-              <Button asChild size="sm" variant="outline">
-                <Link prefetch={false} href="/dashboard/parametres/etablissement">
-                  Modifier les coordonnées
-                </Link>
-              </Button>
-            </div>
-          </section>
-        ) : null}
-
-        <GroupeReglages
-          titre="Année scolaire et référentiel"
-          description="Les paramètres structurants des inscriptions, des notes et des bulletins."
-          liens={[
-            ...(peutConfigurer ? [{
-              titre: "Diagnostic de configuration",
-              description: "Vérifier l'identité, les périodes, les classes, les inscriptions et coefficients.",
-              url: "/dashboard/parametres/diagnostic",
-              icone: ClipboardCheck,
-            }] : []),
-            ...(accesAnnees ? [{
-              titre: "Années scolaires et périodes",
-              description: "Année courante, trimestres ou semestres, dates et clôture contrôlée.",
-              url: "/dashboard/parametres?onglet=annees",
-              icone: CalendarDays,
-            }] : []),
-            ...(accesMatieres ? [{
-              titre: "Matières et séries",
-              description: "Catalogue des matières, séries et états d'activation.",
-              url: "/dashboard/parametres?onglet=matieres",
-              icone: BookOpenText,
-            }] : []),
-            ...(accesCoefficients ? [{
-              titre: "Coefficients",
-              description: "Pondération des matières et évaluations, par niveau et série.",
-              url: "/dashboard/parametres?onglet=coefficients",
-              icone: GraduationCap,
-            }] : []),
-          ]}
-        />
-
-        <GroupeReglages
-          titre="Scolarité"
-          description="Structure des classes et accès aux responsables des élèves."
-          liens={[
-            ...(accesClasses ? [{
-              titre: "Structure des classes",
-              description: "Créer, modifier et vérifier les capacités des classes de l'année.",
-              url: "/dashboard/parametres?onglet=classes",
-              icone: Users,
-            }] : []),
-            ...(peutConfigurer ? [{
-              titre: "Validité des invitations parents",
-              description: "Durée des nouveaux codes d'activation et conditions de renouvellement.",
-              url: "/dashboard/parametres/parents",
-              icone: ShieldCheck,
-            }] : []),
-            ...(peutParents ? [{
-              titre: "Comptes parents et familles",
-              description: "Accéder au suivi opérationnel des responsables et invitations.",
-              url: "/dashboard/parents",
-              icone: Users,
-              note: "Ouvre le module Comptes parents",
-            }] : []),
-          ]}
-        />
-
-        <GroupeReglages
-          titre="Communication et notifications"
-          description="Contrôler les canaux de contact et le coût des SMS."
-          liens={[
-            ...(peutNotifier ? [{
-              titre: "Politiques de notification",
-              description: "Application, SMS de secours et seuils de signalement.",
-              url: "/dashboard/parametres/notifications",
-              icone: Bell,
-            }] : []),
-            ...(peutCommunication ? [{
-              titre: "Communication",
-              description: "Consulter les annonces et messages de l'établissement.",
-              url: "/dashboard/communication",
-              icone: Megaphone,
-              note: "Ouvre le module Communication",
-            }] : []),
-          ]}
-        />
-
-        <GroupeReglages
-          titre="Finances et bulletins"
-          description="Décisions financières du lycée et accès aux opérations."
-          liens={[
-            ...(peutConfigurerFinances ? [{
-              titre: "Règles financières des bulletins",
-              description: "Retenue des bulletins pour impayé et seuil de tolérance en FCFA.",
-              url: "/dashboard/parametres/finances",
-              icone: Wallet,
-            }] : []),
-            ...(peutFinances ? [{
-              titre: "Finances et encaissements",
-              description: "Accéder aux frais, aux paiements et au suivi financier.",
-              url: "/dashboard/finances",
-              icone: Wallet,
-              note: "Ouvre le module Finances",
-            }] : []),
-          ]}
-        />
-
-        <GroupeReglages
-          titre="Personnel et contrôle"
-          description="Gestion des accès et traçabilité des opérations sensibles."
-          liens={[
-            ...(peutPersonnel ? [{
-              titre: "Personnel et comptes",
-              description: "Gérer les comptes du personnel depuis leur module dédié.",
-              url: "/dashboard/personnel",
-              icone: UserRoundCog,
-              note: "Ouvre le module Personnel",
-            }] : []),
-            ...(peutAuditer ? [{
-              titre: "Journal d'audit",
-              description: "Rechercher qui a modifié un dossier, quand et pourquoi.",
-              url: "/dashboard/parametres/audit",
-              icone: ScrollText,
-            }] : []),
-          ]}
-        />
-
-        <p className="flex items-center gap-2 text-muted-foreground text-xs">
-          <ShieldCheck className="size-4 shrink-0" aria-hidden />
-          Les accès sont filtrés selon les droits de la session ; les actions restent contrôlées côté serveur.
-        </p>
-      </div>
-    );
-  }
+  if (!accesOnglet[onglet]) redirect("/unauthorized");
 
   const [annees, niveaux, series, matieres] = await Promise.all([
     listerAnnees(),
@@ -352,88 +121,60 @@ export default async function PageParametres({
     ? await listerCoefficients(anneeCourante.id, niveauInitial, serieInitiale)
     : [];
 
+  const info = INFOS[onglet];
+  const Icon = info.icon;
+
   return (
-    <div className="space-y-6 pb-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Button asChild variant="ghost" size="sm" className="-ml-3 mb-2">
-            <Link prefetch={false} href="/dashboard/parametres">
-              <ArrowLeft className="size-4" aria-hidden />
-              Tous les paramètres
-            </Link>
-          </Button>
-          <h1 className="font-semibold text-2xl tracking-tight">Référentiel scolaire</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
-            {APP_CONFIG.name} · Années, matières, coefficients et structure des classes.
-          </p>
+    <div className="min-w-0 space-y-6">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5 dark:border-border">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+            <Icon className="size-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl dark:text-foreground">{info.titre}</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-muted-foreground">{info.description}</p>
+          </div>
         </div>
-        {anneeCourante ? <Badge variant="outline">Année {anneeCourante.libelle}</Badge> : null}
-      </div>
+        {anneeCourante ? (
+          <Badge variant="outline" className="self-start whitespace-nowrap tabular-nums">
+            Année {anneeCourante.libelle}
+          </Badge>
+        ) : null}
+      </header>
 
-      <Tabs value={onglet}>
-        <div className="max-w-full overflow-x-auto pb-1">
-          <TabsList>
-            {accesAnnees ? (
-              <TabsTrigger value="annees" asChild>
-                <Link href="/dashboard/parametres?onglet=annees">Années scolaires</Link>
-              </TabsTrigger>
-            ) : null}
-            {accesMatieres ? (
-              <TabsTrigger value="matieres" asChild>
-                <Link href="/dashboard/parametres?onglet=matieres">Matières &amp; séries</Link>
-              </TabsTrigger>
-            ) : null}
-            {accesCoefficients ? (
-              <TabsTrigger value="coefficients" asChild>
-                <Link href="/dashboard/parametres?onglet=coefficients">Coefficients</Link>
-              </TabsTrigger>
-            ) : null}
-            {accesClasses ? (
-              <TabsTrigger value="classes" asChild>
-                <Link href="/dashboard/parametres?onglet=classes">Classes</Link>
-              </TabsTrigger>
-            ) : null}
-          </TabsList>
-        </div>
-
-        <TabsContent value="annees" className="mt-6">
-          <OngletAnnees
-            annees={annees}
-            periodesParAnnee={periodesParAnnee}
-            peutGererAnnees={peutGererAnnees}
-            peutGererPeriodes={peutGererPeriodes}
-            peutDeverrouillerPeriodes={peutDeverrouillerPeriodes}
-          />
-        </TabsContent>
-
-        <TabsContent value="matieres" className="mt-6">
-          <OngletMatieres matieres={matieres} series={series} />
-        </TabsContent>
-
-        <TabsContent value="coefficients" className="mt-6">
-          <OngletCoefficients
-            annees={annees}
-            anneeCourante={anneeCourante}
-            niveaux={niveaux}
-            series={series}
-            matieres={matieres}
-            coefficientsInitiaux={coefficientsInitiaux}
-            niveauInitial={niveauInitial}
-            serieInitiale={serieInitiale}
-          />
-        </TabsContent>
-
-        <TabsContent value="classes" className="mt-6">
-          <OngletClasses
-            anneeCourante={anneeCourante}
-            classes={classes}
-            niveaux={niveaux}
-            series={series}
-            peutCreer={peutCreerClasses}
-            peutModifier={peutModifierClasses}
-          />
-        </TabsContent>
-      </Tabs>
+      {onglet === "annees" ? (
+        <OngletAnnees
+          annees={annees}
+          periodesParAnnee={periodesParAnnee}
+          peutGererAnnees={peutGererAnnees}
+          peutGererPeriodes={peutGererPeriodes}
+          peutDeverrouillerPeriodes={peutDeverrouillerPeriodes}
+        />
+      ) : null}
+      {onglet === "matieres" ? <OngletMatieres matieres={matieres} series={series} /> : null}
+      {onglet === "coefficients" ? (
+        <OngletCoefficients
+          annees={annees}
+          anneeCourante={anneeCourante}
+          niveaux={niveaux}
+          series={series}
+          matieres={matieres}
+          coefficientsInitiaux={coefficientsInitiaux}
+          niveauInitial={niveauInitial}
+          serieInitiale={serieInitiale}
+        />
+      ) : null}
+      {onglet === "classes" ? (
+        <OngletClasses
+          anneeCourante={anneeCourante}
+          classes={classes}
+          niveaux={niveaux}
+          series={series}
+          peutCreer={peutCreerClasses}
+          peutModifier={peutModifierClasses}
+        />
+      ) : null}
     </div>
   );
 }

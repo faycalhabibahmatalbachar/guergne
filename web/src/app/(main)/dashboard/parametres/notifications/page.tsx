@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { sql } from "drizzle-orm";
-import { ArrowLeft } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { db } from "@/server/db";
 import { exigerPage } from "@/server/guard";
 
@@ -69,13 +66,6 @@ export default async function PageNotifications() {
 
   return (
     <div className="space-y-6">
-      <Button asChild variant="ghost" size="sm">
-        <Link href="/dashboard/parametres">
-          <ArrowLeft aria-hidden />
-          Retour aux paramètres
-        </Link>
-      </Button>
-
       <div>
         <h1 className="font-semibold text-2xl tracking-tight">Notifications</h1>
         <p className="text-muted-foreground mt-1 text-sm">

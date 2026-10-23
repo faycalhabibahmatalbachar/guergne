@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
-import { ArrowLeft } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { famillesAudit, listerAudit } from "@/server/domain/audit";
 import { exigerPage } from "@/server/guard";
 
@@ -64,12 +61,6 @@ export default async function PageAudit({
             Qui a fait quoi, quand, et sur quel dossier. {journal.total} action(s) enregistrée(s).
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/dashboard/parametres">
-            <ArrowLeft aria-hidden />
-            Paramètres
-          </Link>
-        </Button>
       </div>
 
       <VueAudit
