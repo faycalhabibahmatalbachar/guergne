@@ -113,12 +113,10 @@ export default async function LayoutParametres({ children }: { children: ReactNo
         </div>
       </header>
 
-      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[248px_minmax(0,1fr)] xl:gap-5">
-        <SettingsNavigation items={items} />
-        <section aria-label="Contenu des paramètres" className="min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5 xl:p-6 dark:border-border dark:bg-card">
-          {children}
-        </section>
-      </div>
+      <SettingsNavigation items={items} />
+      <section aria-label="Contenu des paramètres" className="min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5 lg:p-6 dark:border-border dark:bg-card">
+        {children}
+      </section>
     </div>
   );
 }
