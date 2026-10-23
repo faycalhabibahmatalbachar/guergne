@@ -6,10 +6,10 @@ import { useFormStatus } from "react-dom";
 import { AlertCircle, LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { changerMotDePasse, type EtatConnexion } from "../actions";
+import { ChampMotDePasse } from "./champ-mot-de-passe";
 
 function BoutonSoumettre() {
   const { pending } = useFormStatus();
@@ -45,12 +45,12 @@ export function FormulaireMotDePasse() {
 
       <div className="space-y-2">
         <Label htmlFor="actuel">Mot de passe actuel</Label>
-        <Input id="actuel" name="actuel" type="password" autoComplete="current-password" required autoFocus />
+        <ChampMotDePasse id="actuel" name="actuel" type="password" autoComplete="current-password" required autoFocus />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="nouveau">Nouveau mot de passe</Label>
-        <Input id="nouveau" name="nouveau" type="password" autoComplete="new-password" required minLength={10} />
+        <ChampMotDePasse id="nouveau" name="nouveau" type="password" autoComplete="new-password" required minLength={10} />
         <p className="text-muted-foreground text-xs">
           Au moins 10 caractères. Une phrase courte est plus sûre et plus facile à retenir
           qu&apos;un mot compliqué.
@@ -59,7 +59,7 @@ export function FormulaireMotDePasse() {
 
       <div className="space-y-2">
         <Label htmlFor="confirmation">Confirmer le nouveau mot de passe</Label>
-        <Input
+        <ChampMotDePasse
           id="confirmation"
           name="confirmation"
           type="password"

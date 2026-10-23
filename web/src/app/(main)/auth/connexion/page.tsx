@@ -19,20 +19,21 @@ export default async function PageConnexion({
   searchParams: Promise<{ change?: string }>;
 }) {
   // Déjà connecté : on ne réaffiche pas le formulaire.
-  if (await sessionCourante()) redirect("/dashboard/default");
+  const principal = await sessionCourante();
+  if (principal) redirect(principal.doitChangerMdp ? "/auth/mot-de-passe" : "/dashboard/default");
 
   const { change } = await searchParams;
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
-      <div className="w-full max-w-sm space-y-6">
+      <div className="w-full max-w-md space-y-6">
         <div className="space-y-3 text-center">
           <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <GraduationCap className="size-6" aria-hidden />
           </div>
           <div>
-            <h1 className="font-semibold text-xl tracking-tight">{APP_CONFIG.nomComplet}</h1>
-            <p className="mt-1 text-muted-foreground text-sm">Espace d&apos;administration</p>
+            <h1 className="font-semibold text-xl tracking-tight sm:text-2xl">{APP_CONFIG.nomComplet}</h1>
+            <p className="mt-1 text-muted-foreground text-sm">Espace sécurisé du personnel</p>
           </div>
         </div>
 
@@ -45,10 +46,11 @@ export default async function PageConnexion({
           </div>
         ) : null}
 
-        <div className="rounded-xl border bg-card p-6 shadow-sm">
+        <div className="rounded-2xl border bg-card p-5 shadow-sm sm:p-7">
           <FormulaireConnexion />
         </div>
 
+        <p className="text-center text-muted-foreground text-xs">Accès strictement réservé aux utilisateurs autorisés.</p>
         <p className="text-center text-muted-foreground text-xs">{APP_CONFIG.copyright}</p>
       </div>
     </main>

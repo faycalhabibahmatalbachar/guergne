@@ -9,14 +9,15 @@ import { hacherMotDePasse, validerMotDePasse, verifierMotDePasse } from "@/serve
 import { fermerSession, ouvrirSession, revoquerSessions, sessionCourante } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { journalAudit, utilisateurs } from "@/server/db/schema";
+import { formatInternational, partieNationale, telephoneValide } from "@/lib/telephone";
 
 /** Nombre d'échecs avant verrouillage temporaire du compte. */
 const MAX_TENTATIVES = 5;
 const DUREE_VERROU_MINUTES = 15;
 
 const schemaConnexion = z.object({
-  identifiant: z.string().trim().min(1, "Renseignez votre identifiant."),
-  motDePasse: z.string().min(1, "Renseignez votre mot de passe."),
+  identifiant: z.string().trim().min(1, "Renseignez votre identifiant.").max(254, "Identifiant trop long."),
+  motDePasse: z.string().min(1, "Renseignez votre mot de passe.").max(256, "Mot de passe trop long."),
 });
 
 export interface EtatConnexion {
@@ -50,10 +51,26 @@ export async function connexion(
   const { identifiant, motDePasse } = analyse.data;
   const ERREUR_GENERIQUE = "Identifiant ou mot de passe incorrect.";
 
+  // Les numéros du personnel peuvent avoir été saisis en format national ou +235.
+  // La normalisation ne modifie pas le mot de passe ni les comptes existants.
+  const numeroValide = telephoneValide(identifiant);
+  const emailNormalise = identifiant.toLowerCase();
+  const identifiants = [
+    eq(utilisateurs.email, identifiant),
+    eq(utilisateurs.email, emailNormalise),
+    eq(utilisateurs.telephone, identifiant),
+    ...(numeroValide
+      ? [
+          eq(utilisateurs.telephone, formatInternational(identifiant)),
+          eq(utilisateurs.telephone, partieNationale(identifiant)),
+        ]
+      : []),
+  ];
+
   const [compte] = await db
     .select()
     .from(utilisateurs)
-    .where(or(eq(utilisateurs.email, identifiant), eq(utilisateurs.telephone, identifiant)))
+    .where(or(...identifiants))
     .limit(1);
 
   if (!compte || !compte.motDePasseHash) {
@@ -61,7 +78,7 @@ export async function connexion(
   }
 
   if (!compte.actif) {
-    return { erreur: "Ce compte est désactivé. Contactez l'administration." };
+    return { erreur: ERREUR_GENERIQUE };
   }
 
   // Les horodatages du schéma introspecté sont exposés en chaîne ISO.
