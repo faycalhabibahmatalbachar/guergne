@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { ArrowRight, LoaderCircle, Mail } from "lucide-react";
+import { CircleAlert, LoaderCircle, Mail, Send } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,19 +13,14 @@ import { demanderReinitialisation, type EtatReinitialisation } from "../reinitia
 
 function BoutonEnvoi() {
   const { pending } = useFormStatus();
-
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="mt-7 grid h-14 w-full grid-cols-[1fr_auto_1fr] items-center rounded-xl bg-neutral-950 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 disabled:opacity-60"
-    >
+    <button type="submit" disabled={pending} className={styles.recoverySubmit}>
       <span aria-hidden="true" />
       <span>{pending ? "Envoi en cours…" : "Envoyer le lien"}</span>
       {pending ? (
         <LoaderCircle className="size-5 animate-spin justify-self-end" aria-hidden="true" />
       ) : (
-        <ArrowRight className="size-5 justify-self-end" aria-hidden="true" />
+        <Send className="size-5 justify-self-end" aria-hidden="true" />
       )}
     </button>
   );
@@ -33,11 +28,13 @@ function BoutonEnvoi() {
 
 export function DemandeReinitialisation() {
   const [etat, action] = useActionState<EtatReinitialisation, FormData>(demanderReinitialisation, {});
-
   return (
     <form action={action} className={styles.recoveryForm}>
       {etat.erreur ? (
-        <p role="alert" className={styles.loginError}>{etat.erreur}</p>
+        <div role="alert" className={styles.loginError}>
+          <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <span>{etat.erreur}</span>
+        </div>
       ) : null}
       {etat.succes ? (
         <p role="status" className={styles.changeNotice}>
