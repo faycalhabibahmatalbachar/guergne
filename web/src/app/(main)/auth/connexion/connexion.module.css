@@ -13,9 +13,12 @@
   min-height: 100svh;
   justify-content: center;
   overflow: hidden;
-  background-image: linear-gradient(to bottom, rgba(234, 244, 255, 0.54) 0%, rgba(246, 251, 255, 0.28) 43%, rgba(255, 255, 255, 0) 80%), url("/auth-campus-reel.jpg");
-  background-size: cover;
-  background-position: 49% center;
+  background-image: linear-gradient(to bottom, rgba(234, 244, 255, 0.54) 0%, rgba(246, 251, 255, 0.28) 43%, rgba(255, 255, 255, 0) 80%), url("/auth-campus-net.webp");
+  /* Clear 700px WebP source: no oversized low-resolution thumbnail. */
+  background-size: cover, 100% auto;
+  background-position: center, center bottom;
+  background-repeat: no-repeat;
+  background-color: #eaf3fa;
 }
 .brandHalo {
   position: absolute;
@@ -239,7 +242,7 @@
 }
 @media (max-width: 900px) {
   .page { grid-template-columns: minmax(0, 1fr); }
-  .brandPanel { min-height: 0; height: 256px; background-position: 43% 39%; }
+  .brandPanel { min-height: 0; height: 256px; background-position: center, center bottom; background-size: cover, 100% auto; }
   .brandContent { padding-top: 20px; }
   .logoFrame { width: 78px; height: 78px; margin-bottom: 9px; border-radius: 18px; }
   .logo { width: 72px; height: auto; }
@@ -252,7 +255,7 @@
   .loginCard { max-width: 530px; }
 }
 @media (max-width: 540px) {
-  .brandPanel { height: 193px; background-position: 41% 27%; }
+  .brandPanel { height: 193px; background-position: center, center bottom; background-size: cover, 100% auto; }
   .brandContent { padding: 15px 13px 18px; }
   .logoFrame { width: 65px; height: 65px; margin-bottom: 8px; border-radius: 16px; }
   .logo { width: 62px; height: auto; }
