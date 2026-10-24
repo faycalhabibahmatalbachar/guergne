@@ -35,7 +35,7 @@ const NOMS: Record<string, string> = {
   nbCreneaux: "Créneaux", salleId: "Référence de salle", matricule: "Matricule",
 };
 
-const SENSIBLE = /password|passe|secret|token|jeton|code|activation|cle|api.key|auth|cookie|session|hash|signature|credential|bearer|otp|pin|access.key|refresh|authorization/i;
+const SENSIBLE = /password|passe|secret|token|jeton|code|activation|cle|api.?key|auth|cookie|session|hash|signature|credential|bearer|otp|pin|access.?key|refresh|authorization/i;
 const PROTEGE = /email|telephone|phone|adresse|contact|naissance|identite|nom|prenom|matricule|photo/i;
 const ID = /(?:Id|_id|^id$|^uuid$)/i;
 
