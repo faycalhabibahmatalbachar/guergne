@@ -78,8 +78,8 @@ function Ensemble({titre,children}:{titre:string;children:ReactNode}){
   </section>;
 }
 
-function PanneauDetails({ligne,onClose}:{
-  ligne:LigneAudit|null;onClose:()=>void;
+function PanneauDetails({ligne,onClose,onCorrelate}:{
+  ligne:LigneAudit|null;onClose:()=>void;onCorrelate:(id:string)=>void;
 }) {
   return (
     <Sheet open={Boolean(ligne)} onOpenChange={ouvert=>{if(!ouvert)onClose();}}>
@@ -194,6 +194,8 @@ function PanneauDetails({ligne,onClose}:{
                       <TitreValeur label="Fuseau d'affichage">Tchad — UTC+1</TitreValeur>
                       <TitreValeur label="Navigateur / appareil">{ligne.appareil}</TitreValeur>
                       <TitreValeur label="Origine réseau">{ligne.ip || "Adresse IP non consignée"}</TitreValeur>
+                      <TitreValeur label="Route métier">{ligne.routeOrigine || "Non consignée (ancienne trace)"}</TitreValeur>
+                      <TitreValeur label="Méthode HTTP">{ligne.methodeHttp || "Non consignée (ancienne trace)"}</TitreValeur>
                     </dl>
                     <p className="mt-4 text-xs leading-relaxed text-slate-500">
                       L'adresse IP identifie une origine réseau observée, pas une adresse physique exacte.
@@ -206,8 +208,17 @@ function PanneauDetails({ligne,onClose}:{
                       <TitreValeur label="Objet enregistré">{ligne.entiteId ? "Référence ···"+ligne.entiteId.slice(-8) : "Non renseigné"}</TitreValeur>
                       <TitreValeur label="Compte à l'origine">{ligne.acteurId ? "Référence ···"+ligne.acteurId.slice(-8) : "Non renseigné"}</TitreValeur>
                       <TitreValeur label="Code d'action (identifiant technique)">{ligne.action}</TitreValeur>
+                      <TitreValeur label="Version des preuves">{ligne.versionPreuve===2 ? "V2 · écriture atomique" : "Historique · couverture partielle"}</TitreValeur>
+                      <TitreValeur label="Corrélation">{ligne.correlationId ? "Opération ···" + ligne.correlationId.slice(-12) : "Non enregistré (ancienne trace)"}</TitreValeur>
+                      <TitreValeur label="Canal">{ligne.typeSource==="server_action" ? "Action serveur" : ligne.typeSource || "Non enregistré"}</TitreValeur>
                     </dl>
                   </Ensemble>
+                  {ligne.correlationId && (
+                    <Button variant="outline" className="w-full" onClick={()=>onCorrelate(ligne.correlationId!)}>
+                      <Fingerprint className="size-4" aria-hidden />
+                      Voir toutes les traces de la même opération
+                    </Button>
+                  )}
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
                     <p className="mb-1 flex items-center gap-2 font-semibold"><ShieldAlert className="size-4" aria-hidden/> Limites des traces</p>
                     Un contexte absent n'est pas une preuve qu'il n'existait pas. Pour une enquête,
@@ -229,7 +240,7 @@ export function VueAudit({
   journal:ResultatAudit;
   familles:Array<{famille:string;label:string;nombre:number}>;
   acteurs:Array<{id:string;nom:string;role:string|null;nombre:number}>;
-  filtres:{action:string;entite:string;acteur:string;recherche:string;depuis:string;jusqua:string};
+  filtres:{action:string;entite:string;acteur:string;recherche:string;depuis:string;jusqua:string;correlation:string};
 }) {
   const routeur=useRouter();
   const params=useSearchParams();
@@ -254,14 +265,15 @@ export function VueAudit({
     routeur.push(base+"?"+p.toString());
   }
   const pourcentage=(n:number)=>journal.total?Math.round(n*100/journal.total):0;
-  const actif=Boolean(filtres.action||filtres.entite||filtres.acteur||filtres.recherche||filtres.depuis||filtres.jusqua);
+  const actif=Boolean(filtres.action||filtres.entite||filtres.acteur||filtres.recherche||filtres.depuis||filtres.jusqua||filtres.correlation);
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat titre="Événements trouvés" valeur={journal.total.toLocaleString("fr-FR")} legende="Pour les filtres sélectionnés" icon={History}/>
         <Stat titre="Origine réseau" valeur={pourcentage(journal.couverture.adresseIp)+" %"} legende="Avec une adresse IP conservée" icon={Globe2}/>
         <Stat titre="Appareil identifié" valeur={pourcentage(journal.couverture.appareil)+" %"} legende="Avec un agent utilisateur" icon={Laptop}/>
         <Stat titre="État avant disponible" valeur={pourcentage(journal.couverture.avant)+" %"} legende="Taux de comparaison possible" icon={Database}/>
+        <Stat titre="Preuves V2 atomiques" valeur={journal.couverture.v2} legende="Actions couvertes par le moteur V2" icon={ShieldCheck}/>
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-border dark:bg-card">
@@ -306,6 +318,7 @@ export function VueAudit({
               onChange={e=>naviguer({jusqua:e.target.value})}/>
           </div>
         </div>
+        {filtres.correlation&&<p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">Opération filtrée : ···{filtres.correlation.slice(-12)}</p>}
         {actif&&<div className="mt-3 flex justify-end">
           <Button type="button" variant="ghost" size="sm" onClick={()=>{setRecherche("");routeur.push(base);}}>
             <RotateCcw className="size-3.5" aria-hidden/> Réinitialiser les filtres
@@ -389,7 +402,7 @@ export function VueAudit({
           Les données sensibles sont masquées et aucune position géographique n'est déduite d'une adresse IP.
         </p>
       </div>
-      <PanneauDetails ligne={selection} onClose={()=>setSelection(null)}/>
+      <PanneauDetails ligne={selection} onClose={()=>setSelection(null)} onCorrelate={id=>naviguer({correlation:id})}/>
     </div>
   );
 }

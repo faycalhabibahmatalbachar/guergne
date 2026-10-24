@@ -6,8 +6,9 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
+import { journaliserAtomiquement, preparerContexteAudit } from "@/server/audit-v2";
 import { db } from "@/server/db";
-import { evaluations, notes } from "@/server/db/schema";
+import { evaluations, notes, inscriptions } from "@/server/db/schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 
 export interface Resultat {
@@ -206,85 +207,73 @@ const schemaSaisie = z.object({
 export async function enregistrerNotes(donnees: unknown): Promise<Resultat> {
   try {
     const a = schemaSaisie.safeParse(donnees);
-    if (!a.success) return { ok: false, erreurs: messages(a.error) };
-
+    if (!a.success) return { ok:false, erreurs:messages(a.error) };
     const v = a.data;
-
-    const [evaluation] = await db
-      .select({
-        classeId: evaluations.classeId,
-        matiereId: evaluations.matiereId,
-        titre: evaluations.titre,
-      })
-      .from(evaluations)
-      .where(eq(evaluations.id, v.evaluationId));
-    if (!evaluation) return { ok: false, message: "Évaluation introuvable." };
-
-    const acteur = await requirePermission("note:saisir", {
-      classeId: evaluation.classeId,
-      matiereId: evaluation.matiereId,
+    const [evaluation] = await db.select({
+      classeId:evaluations.classeId,matiereId:evaluations.matiereId,titre:evaluations.titre,
+    }).from(evaluations).where(eq(evaluations.id,v.evaluationId));
+    if(!evaluation)return {ok:false,message:"Évaluation introuvable."};
+    const acteur=await requirePermission("note:saisir",{
+      classeId:evaluation.classeId,matiereId:evaluation.matiereId,
     });
+    const contexte=await preparerContexteAudit("/dashboard/notes");
+    let ecrites=0,supprimees=0;
+    await db.transaction(async tx=>{
+      for (const ligne of v.lignes){
+        const [existante]=await tx.select({
+          id:notes.id,valeur:notes.valeur,statut:notes.statut,
+        }).from(notes).where(and(
+          eq(notes.evaluationId,v.evaluationId),
+          eq(notes.inscriptionId,ligne.inscriptionId),
+        ));
+        const [insc]=await tx.select({eleveId:inscriptions.eleveId})
+          .from(inscriptions).where(eq(inscriptions.id,ligne.inscriptionId));
+        if (!insc)throw new Error("Inscription absente : saisie annulée.");
 
-    let ecrites = 0;
-
-    await db.transaction(async (tx) => {
-      for (const ligne of v.lignes) {
-        // Une case laissée vide n'est pas une note : on n'écrit rien, et on
-        // retire une éventuelle note précédente devenue caduque.
-        if (ligne.statut === "NOTEE" && (ligne.valeur === null || Number.isNaN(ligne.valeur))) {
-          await tx
-            .delete(notes)
-            .where(
-              and(
-                eq(notes.evaluationId, v.evaluationId),
-                eq(notes.inscriptionId, ligne.inscriptionId),
-              ),
-            );
+        if(ligne.statut==="NOTEE" && (ligne.valeur===null||Number.isNaN(ligne.valeur))){
+          if(existante){
+            await tx.delete(notes).where(eq(notes.id,existante.id));
+            await journaliserAtomiquement(tx,acteur,contexte,{
+              action:"note.supprimee",entite:"notes",entiteId:existante.id,eleveId:insc.eleveId,
+              avant:{valeur:existante.valeur,statut:existante.statut},apres:{statut:"SUPPRIMEE",valeur:null},
+            });
+            supprimees++;
+          }
           continue;
         }
 
-        const valeurs = {
-          valeur: ligne.statut === "NOTEE" ? String(ligne.valeur) : null,
-          statut: ligne.statut,
-          appreciation: ligne.appreciation || null,
-          saisiePar: acteur.id,
+        const valeurs={
+          valeur:ligne.statut==="NOTEE"?String(ligne.valeur):null,
+          statut:ligne.statut,
+          appreciation:ligne.appreciation||null,
+          saisiePar:acteur.id,
         };
-
-        const [existante] = await tx
-          .select({ id: notes.id })
-          .from(notes)
-          .where(
-            and(
-              eq(notes.evaluationId, v.evaluationId),
-              eq(notes.inscriptionId, ligne.inscriptionId),
-            ),
-          );
-
-        if (existante) {
-          await tx.update(notes).set(valeurs).where(eq(notes.id, existante.id));
-        } else {
-          await tx.insert(notes).values({
-            evaluationId: v.evaluationId,
-            inscriptionId: ligne.inscriptionId,
-            ...valeurs,
-          });
+        let noteId:string;
+        if(existante){
+          await tx.update(notes).set(valeurs).where(eq(notes.id,existante.id));
+          noteId=existante.id;
+        }else{
+          const [cree]=await tx.insert(notes).values({
+            evaluationId:v.evaluationId,inscriptionId:ligne.inscriptionId,...valeurs,
+          }).returning({id:notes.id});
+          noteId=cree.id;
         }
-        ecrites += 1;
+        await journaliserAtomiquement(tx,acteur,contexte,{
+          action:existante?"note.modifiee":"note.creee",
+          entite:"notes",entiteId:noteId,eleveId:insc.eleveId,
+          avant:existante?{valeur:existante.valeur,statut:existante.statut}:null,
+          apres:{valeur:valeurs.valeur,statut:valeurs.statut,evaluationId:v.evaluationId},
+        });
+        ecrites++;
       }
+      await journaliserAtomiquement(tx,acteur,contexte,{
+        action:"notes.saisies",entite:"evaluations",entiteId:v.evaluationId,
+        apres:{titre:evaluation.titre,nbNotes:ecrites,nbSupprimees:supprimees},
+      });
     });
-
-    await journaliser(acteur, {
-      action: "notes.saisies",
-      entite: "evaluations",
-      entiteId: v.evaluationId,
-      apres: { titre: evaluation.titre, nbNotes: ecrites },
-    });
-
     revalidatePath("/dashboard/notes");
-    return { ok: true, message: `${ecrites} note(s) enregistrée(s).` };
-  } catch (e) {
-    return echec(e, "L'enregistrement des notes a échoué.");
-  }
+    return {ok:true,message:`${ecrites} note(s) enregistrée(s).`};
+  }catch(e){return echec(e,"L'enregistrement des notes a échoué.");}
 }
 
 /**
