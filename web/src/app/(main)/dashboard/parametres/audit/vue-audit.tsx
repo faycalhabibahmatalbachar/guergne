@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -192,7 +192,7 @@ function PanneauDetails({ligne,onClose}:{
                     <dl className="grid gap-5 sm:grid-cols-2">
                       <TitreValeur label="Horodatage précis">{formatDateAudit(ligne.date)}</TitreValeur>
                       <TitreValeur label="Fuseau d'affichage">Tchad — UTC+1</TitreValeur>
-                      <TitreValeur label="Appareil / méthode">{ligne.appareil}</TitreValeur>
+                      <TitreValeur label="Navigateur / appareil">{ligne.appareil}</TitreValeur>
                       <TitreValeur label="Origine réseau">{ligne.ip || "Adresse IP non consignée"}</TitreValeur>
                     </dl>
                     <p className="mt-4 text-xs leading-relaxed text-slate-500">
@@ -235,6 +235,7 @@ export function VueAudit({
   const params=useSearchParams();
   const [selection,setSelection]=useState<LigneAudit|null>(null);
   const [recherche,setRecherche]=useState(filtres.recherche);
+  useEffect(()=>setRecherche(filtres.recherche),[filtres.recherche]);
   const base="/dashboard/parametres/audit";
 
   function naviguer(changements:Record<string,string>){
