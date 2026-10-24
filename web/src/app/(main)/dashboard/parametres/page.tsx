@@ -14,6 +14,7 @@ import { OngletClasses } from "./_components/classes";
 import { OngletCoefficients } from "./_components/coefficients";
 import { OngletMatieres } from "./_components/matieres";
 import { SettingsCards } from "./_components/settings-cards";
+import { CommunicationSettingsPanel } from "./_components/communication-settings-panel";
 import { SettingsCategoryPanel, type IndicateurParametre, type AccesModule } from "./_components/settings-category-panel";
 import { findSettingsCategory, type SettingsCategoryId } from "@/navigation/sidebar/settings-categories";
 import type { Action } from "@/server/guard/permissions";
@@ -80,7 +81,6 @@ const ACTIONS_PAR_SECTION: Record<SettingsCategoryId, readonly LienOperationnel[
 
 async function indicateursDeSection(
   section: SettingsCategoryId,
-  peutVoirInvitations: boolean,
 ): Promise<IndicateurParametre[]> {
   if (section === "lycee") {
     const annees = await listerAnnees();
@@ -107,12 +107,7 @@ async function indicateursDeSection(
       { icone: Wallet, titre: "Seuil de tolérance", valeur: reglage.seuilFcfa.toLocaleString("fr-FR") + " FCFA", precision: "Reste à payer autorisé" },
     ];
   }
-  if (section === "communication" && peutVoirInvitations) {
-    const jours = await dureeInvitationJours();
-    return [
-      { icone: Send, titre: "Validité des codes parents", valeur: jours + (jours > 1 ? " jours" : " jour"), precision: "Nouvelles invitations" },
-    ];
-  }
+
   return [];
 }
 
@@ -185,11 +180,23 @@ export default async function PageParametres({
       const raccourcis = ACTIONS_PAR_SECTION[categorie.id];
       const [permisRaccourcis, indicateurs] = await Promise.all([
         Promise.all(raccourcis.map((lien) => peut(principal, lien.permission))),
-        indicateursDeSection(categorie.id, peutConfigurer),
+        categorie.id === "communication" ? Promise.resolve([]) : indicateursDeSection(categorie.id),
       ]);
       const accesModules = raccourcis
         .filter((_, index) => permisRaccourcis[index])
         .map(({ permission: _permission, ...lien }) => lien);
+
+      if (categorie.id === "communication") {
+        const joursInvitations = peutConfigurer ? await dureeInvitationJours() : null;
+        return (
+          <CommunicationSettingsPanel
+            items={rubrique}
+            accesModules={accesModules}
+            joursInvitations={joursInvitations}
+            peutAuditer={peutAuditer}
+          />
+        );
+      }
 
       return (
         <SettingsCategoryPanel
