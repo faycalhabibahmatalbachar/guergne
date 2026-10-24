@@ -15,7 +15,7 @@ export default async function PageAudit({
 }: {
   searchParams: Promise<{
     action?:string;entite?:string;eleve?:string;acteur?:string;
-    recherche?:string;depuis?:string;jusqua?:string;page?:string;
+     recherche?:string;depuis?:string;jusqua?:string;correlation?:string;page?:string;
   }>;
 }) {
   // Ne jamais charger les données d'audit avant la vérification serveur.
@@ -24,7 +24,7 @@ export default async function PageAudit({
   const [journal,familles,acteurs]=await Promise.all([
     listerAudit({
       action:p.action,entite:p.entite,eleveId:p.eleve,acteurId:p.acteur,
-      recherche:p.recherche,depuis:p.depuis,jusqua:p.jusqua,page:Number(p.page)||1,
+      recherche:p.recherche,depuis:p.depuis,jusqua:p.jusqua,correlation:p.correlation,page:Number(p.page)||1,
     }),
     famillesAudit(),
     acteursAudit(),
@@ -57,7 +57,7 @@ export default async function PageAudit({
         acteurs={acteurs}
         filtres={{
           action:p.action??"",entite:p.entite??"",acteur:p.acteur??"",
-          recherche:p.recherche??"",depuis:p.depuis??"",jusqua:p.jusqua??"",
+          recherche:p.recherche??"",depuis:p.depuis??"",jusqua:p.jusqua??"",correlation:p.correlation??"",
         }}
       />
     </div>

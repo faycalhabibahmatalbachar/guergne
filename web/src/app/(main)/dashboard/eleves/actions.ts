@@ -6,6 +6,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
+import { journaliserAtomiquement, preparerContexteAudit } from "@/server/audit-v2";
 import { db } from "@/server/db";
 import {
   anneesScolaires,
@@ -361,56 +362,33 @@ export async function changerClasse(
 ): Promise<Resultat> {
   try {
     const acteur = await requirePermission("eleve:affecter");
-
-    if (motif.trim().length < 3) {
-      return { ok: false, erreurs: { motif: "Le motif est obligatoire." } };
-    }
-
-    const [inscription] = await db
-      .select({
-        id: inscriptions.id,
-        eleveId: inscriptions.eleveId,
-        classeId: inscriptions.classeId,
-      })
-      .from(inscriptions)
-      .where(eq(inscriptions.id, inscriptionId));
-
-    if (!inscription) return { ok: false, message: "Inscription introuvable." };
-    if (inscription.classeId === nouvelleClasseId) {
-      return { ok: false, message: "L'élève est déjà dans cette classe." };
-    }
-
-    await db.transaction(async (tx) => {
-      // Le déclencheur de capacité s'applique ici aussi : si la classe cible
-      // est pleine, la transaction échoue et rien ne bouge.
-      await tx
-        .update(inscriptions)
-        .set({ classeId: nouvelleClasseId })
-        .where(eq(inscriptions.id, inscriptionId));
-
-      await tx.execute(sql`
-        INSERT INTO changements_classe
-          (inscription_id, classe_origine_id, classe_destination_id, motif, decide_par)
-        VALUES (${inscriptionId}, ${inscription.classeId}, ${nouvelleClasseId}, ${motif}, ${acteur.id})
+    if (motif.trim().length < 3) return {ok:false,erreurs:{motif:"Le motif est obligatoire."}};
+    const contexte = await preparerContexteAudit("/dashboard/eleves");
+    const eleveId = await db.transaction(async (tx) => {
+      const res = await tx.execute<{eleve_id:string;classe_id:string}>(sql`
+        SELECT eleve_id::text,classe_id::text FROM inscriptions
+        WHERE id=${inscriptionId}::uuid FOR UPDATE
       `);
+      const inscription = res.rows[0];
+      if(!inscription)throw new Error("Inscription introuvable.");
+      if(inscription.classe_id===nouvelleClasseId)throw new Error("L'élève est déjà dans cette classe.");
+      await tx.update(inscriptions).set({classeId:nouvelleClasseId})
+        .where(eq(inscriptions.id,inscriptionId));
+      await tx.execute(sql`
+        INSERT INTO changements_classe(inscription_id,classe_origine_id,classe_destination_id,motif,decide_par)
+        VALUES(${inscriptionId},${inscription.classe_id},${nouvelleClasseId},${motif.trim()},${acteur.id})
+      `);
+      await journaliserAtomiquement(tx,acteur,contexte,{
+        action:"eleve.classe_changee",entite:"inscriptions",entiteId:inscriptionId,
+        eleveId:inscription.eleve_id,
+        avant:{classeId:inscription.classe_id},apres:{classeId:nouvelleClasseId},motif:motif.trim(),
+      });
+      return inscription.eleve_id;
     });
-
-    await journaliser(acteur, {
-      action: "eleve.classe_changee",
-      entite: "inscriptions",
-      entiteId: inscriptionId,
-      eleveId: inscription.eleveId,
-      avant: { classeId: inscription.classeId },
-      apres: { classeId: nouvelleClasseId },
-      motif,
-    });
-
-    revalidatePath(`/dashboard/eleves/${inscription.eleveId}`);
+    revalidatePath(`/dashboard/eleves/${eleveId}`);
     revalidatePath("/dashboard/classes");
     return SUCCES_VIDE;
-  } catch (erreur) {
-    return echec(erreur, "Le changement de classe a échoué.");
-  }
+  }catch(erreur){return echec(erreur,"Le changement de classe a échoué.");}
 }
 
 // ===========================================================================

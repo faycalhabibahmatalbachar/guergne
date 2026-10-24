@@ -8,14 +8,15 @@ export interface LigneAudit {
   action:string; actionLibelle:string; famille:string; familleLibelle:string;
   entite:string; entiteId:string|null; eleveId:string|null; eleve:string|null;
   motif:string|null; ip:string|null; appareil:string; preuve:DetailLisible;
+  correlationId:string|null;routeOrigine:string|null;methodeHttp:string|null;typeSource:string|null;versionPreuve:number;
 }
 export interface FiltresAudit {
   action?:string; entite?:string; eleveId?:string; acteurId?:string;
-  recherche?:string; depuis?:string; jusqua?:string; page?:number;
+  recherche?:string; depuis?:string; jusqua?:string;correlation?:string; page?:number;
 }
 export interface ResultatAudit {
   lignes:LigneAudit[]; total:number; page:number; nbPages:number; parPage:number;
-  couverture:{adresseIp:number;appareil:number;avant:number;apres:number};
+  couverture:{adresseIp:number;appareil:number;avant:number;apres:number;v2:number};
 }
 const PAR_PAGE=25;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -31,6 +32,7 @@ export function nettoyerFiltres(f:FiltresAudit):Required<FiltresAudit> {
     eleveId:f.eleveId&&UUID.test(f.eleveId)?f.eleveId:"",
     acteurId:f.acteurId&&UUID.test(f.acteurId)?f.acteurId:"",
     recherche:(f.recherche??"").trim().slice(0,90),
+    correlation:f.correlation&&UUID.test(f.correlation)?f.correlation:"",
     depuis:dateISO(f.depuis)??"",jusqua:dateISO(f.jusqua)??"",
     page:Math.min(10000,Math.max(1,Number.isFinite(f.page)?Math.floor(f.page!):1)),
   };
@@ -45,7 +47,7 @@ export async function listerAudit(filtres:FiltresAudit={}):Promise<ResultatAudit
   const decalage=(f.page-1)*PAR_PAGE;
   const action=f.action||null, entite=f.entite||null;
   const eleveId=f.eleveId||null, acteurId=f.acteurId||null;
-  const depuis=f.depuis||null,jusqua=f.jusqua||null,recherche=f.recherche||null;
+  const depuis=f.depuis||null,jusqua=f.jusqua||null,recherche=f.recherche||null,correlation=f.correlation||null;
   const conditions=sql`
       (${action}::text IS NULL OR split_part(j.action,'.',1)=${action}::text)
       AND (${entite}::text IS NULL OR j.entite=${entite}::text)
@@ -53,6 +55,7 @@ export async function listerAudit(filtres:FiltresAudit={}):Promise<ResultatAudit
       AND (${acteurId}::uuid IS NULL OR j.utilisateur_id=${acteurId}::uuid)
       AND (${depuis}::date IS NULL OR j.cree_le>=${depuis}::date)
       AND (${jusqua}::date IS NULL OR j.cree_le<${jusqua}::date+INTERVAL '1 day')
+      AND (${correlation}::uuid IS NULL OR j.correlation_id=${correlation}::uuid)
       AND (${recherche}::text IS NULL OR
         j.nom_acteur ILIKE '%'||${recherche}::text||'%' OR
         j.action ILIKE '%'||${recherche}::text||'%' OR
@@ -67,20 +70,23 @@ export async function listerAudit(filtres:FiltresAudit={}):Promise<ResultatAudit
       role:string|null;action:string;entite:string;entite_id:string|null;
       eleve_id:string|null;eleve:string|null;motif:string|null;
       avant:unknown;apres:unknown;ip:string|null;agent:string|null;
+      correlation_id:string|null;route_origine:string|null;methode_http:string|null;type_source:string|null;version_preuve:number;
     }>(sql`
       SELECT j.id::text, j.cree_le::text AS date, j.nom_acteur AS acteur,
         j.utilisateur_id::text AS acteur_id,j.role_acteur::text AS role,
         j.action,j.entite,j.entite_id::text,j.eleve_id::text,
         e.nom||' '||e.prenom AS eleve,j.motif,j.valeurs_avant AS avant,
-        j.valeurs_apres AS apres,j.adresse_ip::text AS ip,j.user_agent AS agent
+        j.valeurs_apres AS apres,j.adresse_ip::text AS ip,j.user_agent AS agent,
+        j.correlation_id::text,j.route_origine,j.methode_http,j.type_source,j.version_preuve
       FROM journal_audit j LEFT JOIN eleves e ON e.id=j.eleve_id
       WHERE ${conditions} ORDER BY j.cree_le DESC,j.id DESC
       LIMIT ${PAR_PAGE} OFFSET ${decalage}
     `),
-    db.execute<{n:number;adresse_ip:number;appareil:number;avant:number;apres:number}>(sql`
+    db.execute<{n:number;adresse_ip:number;appareil:number;avant:number;apres:number;v2:number}>(sql`
       SELECT COUNT(*)::int AS n,COUNT(j.adresse_ip)::int AS adresse_ip,
         COUNT(j.user_agent)::int AS appareil,COUNT(j.valeurs_avant)::int AS avant,
-        COUNT(j.valeurs_apres)::int AS apres
+        COUNT(j.valeurs_apres)::int AS apres,
+        COUNT(*) FILTER (WHERE j.version_preuve=2)::int AS v2
       FROM journal_audit j LEFT JOIN eleves e ON e.id=j.eleve_id
       WHERE ${conditions}
     `),
@@ -97,12 +103,14 @@ export async function listerAudit(filtres:FiltresAudit={}):Promise<ResultatAudit
         entite:x.entite,entiteId:x.entite_id,eleveId:x.eleve_id,eleve:x.eleve,
         motif:motifLisible(x.motif),ip:x.ip,appareil:appareilLisible(x.agent),
         preuve:rendreChangements(x.avant,x.apres),
+        correlationId:x.correlation_id,routeOrigine:x.route_origine,
+        methodeHttp:x.methode_http,typeSource:x.type_source,versionPreuve:x.version_preuve,
       };
     }),
     total,page:f.page,nbPages:Math.max(1,Math.ceil(total/PAR_PAGE)),parPage:PAR_PAGE,
     couverture:{
       adresseIp:Number(compteur?.adresse_ip??0),appareil:Number(compteur?.appareil??0),
-      avant:Number(compteur?.avant??0),apres:Number(compteur?.apres??0),
+      avant:Number(compteur?.avant??0),apres:Number(compteur?.apres??0),v2:Number(compteur?.v2??0),
     },
   };
 }

@@ -6,6 +6,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
+import { journaliserAtomiquement, preparerContexteAudit } from "@/server/audit-v2";
 import { db } from "@/server/db";
 import {
   echeances,
@@ -324,14 +325,15 @@ export async function encaisser(donnees: unknown): Promise<Resultat & { numeroRe
 
     const v = a.data;
     const anneeCivile = new Date().getFullYear();
+    const contexte = await preparerContexteAudit("/dashboard/finances");
 
+    // L'encaissement ET sa preuve sont dans la même transaction : pas de reçu sans audit.
     const resultat = await db.transaction(async (tx) => {
       const res = await tx.execute<{ numero: string }>(
         sql`SELECT prochain_numero('RECU', ${anneeCivile}::smallint) AS numero`,
       );
       const numeroRecu = res.rows[0].numero;
-
-      await tx.insert(paiements).values({
+      const [paiement] = await tx.insert(paiements).values({
         inscriptionId: v.inscriptionId,
         echeanceId: v.echeanceId,
         numeroRecu,
@@ -342,29 +344,23 @@ export async function encaisser(donnees: unknown): Promise<Resultat & { numeroRe
         datePaiement: v.datePaiement,
         observations: v.observations || null,
         encaissePar: acteur.id,
-      });
+      }).returning({id:paiements.id});
+      const [insc] = await tx.select({eleveId:inscriptions.eleveId})
+        .from(inscriptions).where(eq(inscriptions.id,v.inscriptionId));
 
+      await journaliserAtomiquement(tx, acteur, contexte, {
+        action: "paiement.encaisse",
+        entite: "paiements",
+        entiteId: paiement.id,
+        eleveId: insc?.eleveId ?? null,
+        apres: { numeroRecu, montantFcfa:v.montantFcfa, mode:v.mode, datePaiement:v.datePaiement },
+      });
       return numeroRecu;
     });
 
-    const [insc] = await db
-      .select({ eleveId: inscriptions.eleveId })
-      .from(inscriptions)
-      .where(eq(inscriptions.id, v.inscriptionId));
-
-    await journaliser(acteur, {
-      action: "paiement.encaisse",
-      entite: "paiements",
-      eleveId: insc?.eleveId ?? null,
-      apres: { numeroRecu: resultat, montant: v.montantFcfa, mode: v.mode },
-    });
-
-    // La file part MAINTENANT, sans attendre le cron : trois à sept
-    // minutes de délai ne se distinguent pas, pour un parent, d'un
-    // envoi manuel.
     reveillerFile();
     revalidatePath("/dashboard/finances");
-    return { ok: true, numeroRecu: resultat, message: `Reçu ${resultat} enregistré.` };
+    return { ok:true, numeroRecu:resultat, message:`Reçu ${resultat} enregistré.` };
   } catch (e) {
     return echec(e, "L'encaissement a échoué.");
   }
