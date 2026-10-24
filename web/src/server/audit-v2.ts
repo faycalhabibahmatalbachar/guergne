@@ -28,7 +28,7 @@ export async function preparerContexteAudit(route:string):Promise<ContexteAuditV
   return {correlationId:randomUUID(),route,methode:"POST",source:"server_action",adresseIp,userAgent};
 }
 type ExecuteAudit={
-  execute<T extends Record<string,unknown>=Record<string,unknown>>(requete:SQL):Promise<{rows:T[]}>;
+  execute(requete:SQL):Promise<unknown>;
 };
 export async function journaliserAtomiquement(tx:ExecuteAudit,acteur:Principal,contexte:ContexteAuditV2,entree:EntreeAuditV2):Promise<void>{
   if(!/^[a-z0-9_.-]{3,100}$/i.test(entree.action)||!/^[a-z0-9_]{2,80}$/i.test(entree.entite))throw new Error("Action d'audit incorrecte.");
