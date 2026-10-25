@@ -50,7 +50,7 @@ const BLEU = "FF1E429F";
  */
 export async function ajouterLogoOfficielClasseur(classeur: ExcelJS.Workbook): Promise<number> {
   const donnees = await readFile(join(process.cwd(), "public", "logo-officiel.png"));
-  return classeur.addImage({ buffer: donnees, extension: "png" });
+  return classeur.addImage({ base64: `data:image/png;base64,${donnees.toString("base64")}`, extension: "png" });
 }
 
 /**
