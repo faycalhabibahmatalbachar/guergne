@@ -6,6 +6,7 @@
  * Le même plan sert au devis et au dépôt dans la file d'envoi.
  */
 import { revalidatePath } from "next/cache";
+import { parametresUuid } from "@/lib/sql-uuid";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -217,5 +218,114 @@ export async function notifierClasseCanal(classeId: string, donnees: unknown): P
     }
     console.error("[notifierClasseCanal]", erreur);
     return { ok: false, message: "L’envoi n’a pas été confirmé. Réessayez." };
+  }
+}
+
+/**
+ * Canaux manuels unifiés pour un élève ou une sélection (max 200).
+ * Les 4 options ont le même planificateur, les mêmes permissions et plafonds
+ * budgétaires que le module Classes. Les politiques automatiques restent
+ * inchangées.
+ */
+async function trouverTuteursEleves(
+  executer: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  ids: string[],
+): Promise<LigneTuteur[]> {
+  if (!ids.length) return [];
+  const p = parametresUuid(ids);
+  const resultat = await executer.execute<LigneTuteur>(sql`
+    SELECT et.eleve_id,
+           t.id AS tuteur_id,
+           t.utilisateur_id,
+           t.telephone,
+           COALESCE(t.accepte_sms, FALSE) AS accepte_sms,
+           fn_canal_tuteur(t.id)::text AS canal_auto,
+           EXISTS (
+             SELECT 1 FROM appareils a
+             WHERE a.utilisateur_id = t.utilisateur_id
+               AND a.actif AND a.jeton_fcm IS NOT NULL
+           ) AS push_disponible,
+           COALESCE(
+             (SELECT p.politique::text FROM politiques_notification p
+              WHERE p.type = 'ANNONCE'::type_notification),
+             'PUSH_SINON_SMS'
+           ) AS politique
+    FROM eleve_tuteur et
+    JOIN tuteurs t ON t.id = et.tuteur_id
+    WHERE et.eleve_id IN (${p})
+    ORDER BY et.eleve_id, t.id
+  `);
+  return resultat.rows;
+}
+
+function verifierEleves(ids: string[]): string[] {
+  if (!ids.length || ids.length > 200 || ids.some((id) => !uuid.safeParse(id).success))
+    throw new Error("Sélection invalide ou trop large (200 élèves maximum).");
+  const uniques = [...new Set(ids)];
+  if (uniques.length !== ids.length) throw new Error("La sélection comporte des doublons.");
+  return uniques;
+}
+
+export async function apercuElevesCanal(ids: string[], titre: string, corps: string, canal: CanalClasse): Promise<ApercuCanalClasse> {
+  await requirePermission("message:envoyer");
+  const selection = verifierEleves(ids);
+  if (!modeSchema.safeParse(canal).success) throw new Error("Canal invalide");
+  return agreger(await trouverTuteursEleves(db, selection), titre, corps, canal);
+}
+
+export async function notifierElevesCanal(
+  ids: string[],
+  donnees: unknown,
+): Promise<{ok: boolean; message?: string; erreurs?: Record<string,string>; posees?: number}> {
+  try {
+    const acteur = await requirePermission("message:envoyer");
+    const selection = verifierEleves(ids);
+    const validation = envoiSchema.safeParse(donnees);
+    if (!validation.success) return { ok: false, message: "Vérifiez le texte, le canal et l'estimation avant l'envoi." };
+    const { titre, corps, canal, plafondCoutFcfa, plafondNotifications } = validation.data;
+    const origine = selection.length === 1 ? "page_eleve" : "selection";
+    const resultat = await db.transaction(async (tx) => {
+      const lignes = await trouverTuteursEleves(tx, selection);
+      const devis = agreger(lignes, titre, corps, canal);
+      if (devis.total === 0) return { ok: false, message: "Aucun parent joignable par le canal sélectionné." };
+      if (devis.coutFcfa > plafondCoutFcfa || devis.total > plafondNotifications) {
+        return { ok: false, message: "Destinataires ou coûts modifiés : actualisez l'estimation avant de confirmer." };
+      }
+      const depots = planifier(lignes, canal).depots;
+      for (let i = 0; i < depots.length; i += 100) {
+        await tx.insert(notifications).values(depots.slice(i, i + 100).map((d) => ({
+          destinataireId: d.destinataireId,
+          telephone: d.telephone,
+          eleveId: d.eleveId,
+          type: "ANNONCE" as const,
+          canal: d.canal,
+          titre, corps,
+          routeCible: `/eleves/${d.eleveId}`,
+          donnees: { origine, canalChoisi: canal },
+        })));
+      }
+      return { ok: true, posees: depots.length, message: `${depots.length} notification(s) déposée(s) en file.` };
+    });
+    if (!resultat.ok) return resultat;
+
+    try {
+      await journaliser(acteur, {
+        action: "notification.envoyee_depuis_selection",
+        entite: "eleves",
+        entiteId: selection.length === 1 ? selection[0] : undefined,
+        apres: { titre, canal, eleves: selection.length, destinataires: resultat.posees, coutMaxFcfa: plafondCoutFcfa },
+      });
+    } catch (erreurAudit) {
+      console.error("[notifierElevesCanal:audit]", erreurAudit);
+    }
+    try { reveillerFile(); } catch (erreurReveil) {
+      console.error("[notifierElevesCanal:reveil]", erreurReveil);
+    }
+    revalidatePath("/dashboard/eleves");
+    return resultat;
+  } catch (erreur) {
+    if (erreur instanceof ErreurAutorisation) return { ok: false, message: "Vous n'avez pas les droits pour prévenir les parents." };
+    console.error("[notifierElevesCanal]", erreur);
+    return { ok: false, message: "L'envoi n'a pas été confirmé." };
   }
 }
