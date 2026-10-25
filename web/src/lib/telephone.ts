@@ -125,3 +125,24 @@ export function formatLisible(saisie: string): string {
   const national = partieNationale(saisie);
   return national.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
 }
+
+/**
+ * Validation pour l'inscription scolaire : accepte les numéros tchadiens avec
+ * ou sans +235 et les numéros étrangers explicitement internationaux.
+ * Les numéros français/étrangers ne doivent jamais recevoir +235 par défaut.
+ */
+export function messageTelephoneInscription(saisie: string): string | null {
+  const valeur = saisie.trim();
+  if (!valeur) return "Indiquez le numéro du responsable.";
+  if (telephoneValide(valeur)) return null;
+  if (/^(?:\+|00)(?!235)/.test(valeur)) {
+    const chiffres = chiffresSeuls(valeur.replace(/^00/, ""));
+    if (/^[1-9]\d{7,14}$/.test(chiffres)) return null;
+    return "Numéro international invalide : renseignez l’indicatif (+33, +225…) et 8 à 15 chiffres.";
+  }
+  return motifRefus(valeur) ?? "Numéro tchadien invalide.";
+}
+
+export function normaliserTelephoneInscription(saisie: string): string {
+  return formatInternational(saisie.trim());
+}
