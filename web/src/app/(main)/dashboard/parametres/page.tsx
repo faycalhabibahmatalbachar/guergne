@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { sql } from "drizzle-orm";
+import { db } from "@/server/db";
 import { redirect } from "next/navigation";
 import { CalendarDays, BookOpenText, Calculator, GraduationCap, Users, NotebookPen, FileText, Wallet, Send, Megaphone, ClipboardCheck, UserRoundCog } from "lucide-react";
 
@@ -187,13 +189,20 @@ export default async function PageParametres({
         .map(({ permission: _permission, ...lien }) => lien);
 
       if (categorie.id === "communication") {
-        const joursInvitations = peutConfigurer ? await dureeInvitationJours() : null;
+        const [joursInvitations, nombrePolitiques] = await Promise.all([
+          peutConfigurer ? dureeInvitationJours() : Promise.resolve(null),
+          peutNotifier
+            ? db.execute<{ nombre: string }>(
+                sql`SELECT count(*)::text AS nombre FROM v_couverture_notifications`,
+              ).then((resultat) => Number(resultat.rows[0]?.nombre ?? 0))
+            : Promise.resolve(null),
+        ]);
         return (
           <CommunicationSettingsPanel
             items={rubrique}
             accesModules={accesModules}
             joursInvitations={joursInvitations}
-            peutAuditer={peutAuditer}
+            nombrePolitiques={nombrePolitiques}
           />
         );
       }
