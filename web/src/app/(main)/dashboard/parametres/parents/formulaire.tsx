@@ -51,7 +51,7 @@ export function FormulaireValidite({ joursActuels }: { joursActuels: number }) {
           required
         />
         <p id="validite-aide" className="text-muted-foreground text-xs">
-          Entre 1 et 30 jours. La valeur initiale est 7 jours.
+          Entre 1 et 30 jours. Seuls les nouveaux codes seront concernés.
         </p>
       </div>
       <Button type="submit" disabled={!valide || enCours || validite === joursActuels}>
