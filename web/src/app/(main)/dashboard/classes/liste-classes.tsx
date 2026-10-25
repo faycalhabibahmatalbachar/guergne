@@ -193,6 +193,7 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
             <article key={classe.id} className="space-y-3 border-l-4 px-4 py-4 transition-colors hover:bg-blue-50/30 dark:hover:bg-slate-800/40 sm:px-5" style={{borderLeftColor:["#2563eb","#059669","#7c3aed","#e11d48","#d97706"][paletteIndex%5]}}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
+                  <input type="checkbox" checked={selection.includes(classe.id)} onChange={() => basculerSelection(classe.id)} aria-label={"Sélectionner " + classe.libelle} className="size-4 shrink-0 accent-blue-600" />
                   <span className={"flex size-10 shrink-0 items-center justify-center rounded-xl " + couleur.fond + " " + couleur.texte}>
                     <GraduationCap className="size-5" aria-hidden />
                   </span>
