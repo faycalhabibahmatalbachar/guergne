@@ -67,7 +67,7 @@ export function FiltresEleves({ classes, annees, valeurs, statistiques }: {
               type="button"
               onClick={() => appliquer({ rapide: r.id })}
               aria-pressed={valeurs.rapide === r.id}
-              className={`inline-flex h-10 items-center gap-2 rounded-lg px-3 text-[13px] font-medium transition-colors ${valeurs.rapide === r.id ? "bg-emerald-800 text-white shadow-sm hover:bg-emerald-900" : "bg-slate-50 text-slate-800 hover:bg-slate-100 dark:bg-muted dark:text-foreground"}`}
+              className={`inline-flex h-10 items-center gap-2 rounded-lg px-3 text-[13px] font-medium transition-colors ${valeurs.rapide === r.id ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700" : "bg-slate-50 text-slate-800 hover:bg-slate-100 dark:bg-muted dark:text-foreground"}`}
             >
               {r.dot ? <span aria-hidden className={`size-2.5 rounded-full ${r.dot}`} /> : null}
               {r.label} <span className="tabular-nums opacity-80">({r.count})</span>
