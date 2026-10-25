@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight, BarChart3, BookOpen, CalendarDays, Check, ChevronDown,
   Ellipsis, GraduationCap, Grid2X2, List, Mail, MoreHorizontal,
-  Pencil, Plus, School, Search, SlidersHorizontal, Trash2, Users,
+  Pencil, Plus, School, Search, SlidersHorizontal, Trash2, Users, ClipboardList,
   UserRound, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ import type {
 import { creerClasse, modifierClasse, supprimerClasse } from "../parametres/actions";
 import { BoutonNotifier } from "../_components/bouton-notifier";
 import { ListeClasses } from "./liste-classes";
+import { ElevesClassesTiroir } from "./eleves-tiroir";
 
 type Props = {
   annee: LigneAnnee;
@@ -82,13 +83,16 @@ function Statistique({ icon: Icon, valeur, libelle, note, couleur }: {
   );
 }
 
-function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotifier, ouvrir }: {
+function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotifier, ouvrir, selectionne, basculer, ouvrirEleves }: {
   classe: LigneClasseParametre;
   index: number;
   peutModifier: boolean;
   peutVoirPersonnel: boolean;
   peutNotifier: boolean;
   ouvrir: (c: LigneClasseParametre | null) => void;
+  selectionne: boolean;
+  basculer: (id: string) => void;
+  ouvrirEleves: (ids: string[]) => void;
 }) {
   const palette = PALETTE[index % PALETTE.length];
   const total = Number(classe.effectif);
@@ -101,6 +105,7 @@ function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotif
     <article className={"classes-class-card flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-slate-900 " + palette.border}>
       <div className={"flex items-center justify-between gap-3 border-b border-slate-100/70 px-4 py-3.5 dark:border-slate-800 " + palette.surface}>
         <div className="flex min-w-0 items-center gap-3">
+          <input type="checkbox" aria-label={"Sélectionner " + classe.libelle} checked={selectionne} onChange={() => basculer(classe.id)} className="size-4 shrink-0 accent-blue-600" />
           <span className={"flex size-12 shrink-0 items-center justify-center rounded-xl text-white " + palette.icon}>
             <GraduationCap className="size-6" aria-hidden />
           </span>
@@ -148,9 +153,9 @@ function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotif
         {plein && <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Capacité atteinte : inscriptions complètes.</p>}
         <div className="mt-auto space-y-2.5 border-t border-slate-100 pt-3 dark:border-slate-800">
           <div className="grid grid-cols-2 gap-2">
-            <Link href={"/dashboard/eleves?classe=" + encodeURIComponent(classe.id)} className={"inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-800 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800 " + (!peutModifier ? "col-span-2" : "")}>
+            <button type="button" onClick={() => ouvrirEleves([classe.id])} className={"inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-800 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800 " + (!peutModifier ? "col-span-2" : "")}>
               <Users className="size-4 shrink-0" /> Voir les élèves
-            </Link>
+            </button>
             {peutModifier && (
               <button type="button" onClick={() => ouvrir(classe)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-800 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800">
                 <Pencil className="size-4 shrink-0" /> Modifier la classe
@@ -175,13 +180,17 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
   const [recherche, setRecherche] = useState("");
   const [niveau, setNiveau] = useState("tous");
   const [statut, setStatut] = useState("tous");
-  const [vue, setVue] = useState<"grille" | "liste">("grille");
+  const [vue, setVue] = useState<"grille" | "liste">("liste");
+  const [selection, setSelection] = useState<string[]>([]);
+  const [tiroirOuvert, setTiroirOuvert] = useState(false);
+  const [tiroirInitial, setTiroirInitial] = useState<string[]>([]);
   const [form, setForm] = useState<Formulaire | null>(null);
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
   const [enCours, demarrer] = useTransition();
   const actives = classes.filter((c) => c.active);
   const total = actives.reduce((s, c) => s + Number(c.effectif), 0);
   const moyenne = actives.length ? (total / actives.length).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "0";
+  const placesDisponibles = actives.reduce((s, c) => s + Math.max(0, Number(c.capaciteMax) - Number(c.effectif)), 0);
   const niveauxPresents = niveaux.filter((n) => classes.some((c) => c.niveauId === n.id));
   const visible = useMemo(() => classes.filter((c) => {
     if (niveau !== "tous" && c.niveauId !== niveau) return false;
@@ -192,6 +201,17 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
   }), [classes, recherche, niveau, statut]);
 
   const peutEditerCetteAnnee = annee.estCourante && !annee.estCloturee;
+  function basculerSelection(id: string) { setSelection(l => l.includes(id) ? l.filter(v => v !== id) : [...l, id]); }
+  function ouvrirEleves(ids: string[]) { setTiroirInitial(ids); setTiroirOuvert(true); }
+  const visiblesToutesSelectionnees = visible.length > 0 && visible.every(c => selection.includes(c.id));
+  function exporterSelection() {
+    const lignes = classes.filter(c => selection.includes(c.id));
+    if (!lignes.length) return;
+    const csv = ["Classe;Code;Niveau;Effectif;Capacité;Statut", ...lignes.map(c => [c.libelle, c.code, c.niveauLibelle, c.effectif, c.capaciteMax, c.active ? "Active" : "Inactive"].map(v => `"${String(v).replaceAll('"', '""')}"`).join(";"))].join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = "classes-" + annee.libelle + ".csv"; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   function ouvrir(c: LigneClasseParametre | null) {
     setErreurs({});
     setForm(c ? {
@@ -261,8 +281,9 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Statistique icon={Users} valeur={actives.length} libelle="Classes" note={"Année " + annee.libelle} couleur="bg-blue-600" />
         <Statistique icon={GraduationCap} valeur={total} libelle="Élèves" note="Inscriptions actives" couleur="bg-emerald-500" />
-        <Statistique icon={Users} valeur={enseignants === null ? "—" : enseignants} libelle="Enseignants" note={enseignants === null ? "Accès non autorisé" : "Personnel actif"} couleur="bg-violet-500" />
+        <Statistique icon={School} valeur={placesDisponibles} libelle="Places disponibles" note="Capacité libre dans les classes actives" couleur="bg-violet-500" />
         <Statistique icon={BarChart3} valeur={moyenne} libelle="Moyenne d’effectif" note="Par classe active" couleur="bg-orange-500" />
+        {enseignants !== null && <div className="sm:col-span-2 xl:col-span-4"><p className="text-xs text-slate-500">Enseignants actifs accessibles : <strong className="text-slate-900 dark:text-white">{enseignants}</strong> · <Link href="/dashboard/personnel" className="font-semibold text-blue-700 hover:underline">Gestion du personnel</Link></p></div>}
       </div>
 
       <div className="rounded-2xl border border-slate-200/75 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -286,37 +307,49 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs dark:border-slate-800 dark:bg-slate-900">
+        <label className="flex cursor-pointer items-center gap-2 font-semibold text-slate-700 dark:text-white"><input type="checkbox" aria-label="Sélectionner toutes les classes filtrées" className="size-4 accent-blue-600" checked={visiblesToutesSelectionnees} onChange={e => setSelection(l => e.target.checked ? [...new Set([...l, ...visible.map(c => c.id)])] : l.filter(id => !visible.some(c => c.id === id)))} />Sélectionner les {visible.length} classes affichées</label>
+        <div className="flex flex-wrap items-center gap-2">
+          {selection.length > 0 && <><span className="rounded-full bg-blue-50 px-2.5 py-1 font-bold text-blue-700">{selection.length} sélectionnée(s)</span><Button type="button" variant="outline" size="sm" className="h-8" onClick={() => setSelection([])}>Effacer</Button><Button type="button" variant="outline" size="sm" className="h-8" onClick={exporterSelection}>Exporter CSV</Button><Button type="button" size="sm" className="h-8 bg-blue-600 text-white hover:bg-blue-700" onClick={() => ouvrirEleves(selection)}><Users className="size-3.5" />Élèves des classes choisies</Button></>}
+          <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => ouvrirEleves([])}><School className="size-3.5" />Tous les élèves du lycée</Button>
+        </div>
+      </div>
       {visible.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center dark:border-slate-700 dark:bg-slate-900"><BookOpen className="mx-auto mb-3 size-9 text-slate-400" /><h2 className="text-lg font-semibold">Aucune classe trouvée</h2><p className="mt-1 text-sm text-slate-500">Ajustez les filtres ou la recherche pour afficher les classes.</p><Button variant="outline" className="mt-4" onClick={() => {setNiveau("tous");setStatut("tous");setRecherche("");}}>Effacer les filtres</Button></div> : vue === "grille" ? (
         <div className="grid items-stretch gap-4 md:grid-cols-2 2xl:grid-cols-3">
-          {visible.map((c, i) => <ClasseCarte key={c.id} classe={c} index={classes.findIndex((v) => v.id === c.id)} peutModifier={peutModifier && peutEditerCetteAnnee} peutVoirPersonnel={peutVoirPersonnel} peutNotifier={peutNotifier} ouvrir={ouvrir} />)}
+          {visible.map((c) => <ClasseCarte key={c.id} classe={c} index={classes.findIndex((v) => v.id === c.id)} peutModifier={peutModifier && peutEditerCetteAnnee} peutVoirPersonnel={peutVoirPersonnel} peutNotifier={peutNotifier} ouvrir={ouvrir} selectionne={selection.includes(c.id)} basculer={basculerSelection} ouvrirEleves={ouvrirEleves} />)}
         </div>
       ) : (
         <ListeClasses
           classes={visible}
+          toutesClasses={classes}
+          selection={selection}
+          basculerSelection={basculerSelection}
+          ouvrirEleves={ouvrirEleves}
           peutModifier={peutModifier && peutEditerCetteAnnee}
           peutNotifier={peutNotifier}
           ouvrir={ouvrir}
         />
       )}
       <p className="text-right text-xs text-slate-500 dark:text-slate-400">{etiquette(visible.length, "classe affichée", "classes affichées")} sur {classes.length}</p>
+      <ElevesClassesTiroir ouvert={tiroirOuvert} surFermeture={() => setTiroirOuvert(false)} anneeId={annee.id} anneeLibelle={annee.libelle} classes={classes} initiales={tiroirInitial} />
 
       <Dialog open={form !== null} onOpenChange={(open) => { if (!open && !enCours) setForm(null); }}>
-        <DialogContent className="max-h-[min(90dvh,780px)] w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl sm:max-w-[620px] dark:border-slate-700 dark:bg-slate-900">
-          <DialogHeader className="border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-white px-6 py-6 pr-14 dark:border-slate-800 dark:from-blue-950/40 dark:via-slate-900 dark:to-slate-900">
-            <div className="mb-3 flex items-center gap-3">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">{form?.id ? <Pencil className="size-5" /> : <Plus className="size-5" />}</span>
+        <DialogContent className="flex h-[min(92dvh,840px)] w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl sm:max-w-[min(850px,calc(100vw-2.5rem))] dark:border-slate-700 dark:bg-slate-900">
+          <DialogHeader className="shrink-0 border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-white px-5 py-4 pr-14 dark:border-slate-800 dark:from-blue-950/40 dark:via-slate-900 dark:to-slate-900 sm:px-6">
+            <div className="mb-1 flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">{form?.id ? <Pencil className="size-5" /> : <Plus className="size-5" />}</span>
               <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">Gestion des classes · {annee.libelle}</span>
             </div>
-            <DialogTitle className="text-left text-xl font-bold tracking-tight text-slate-950 dark:text-white">{form?.id ? "Modifier la classe" : "Ajouter une classe"}</DialogTitle>
+            <DialogTitle className="text-left text-lg font-bold tracking-tight text-slate-950 dark:text-white sm:text-xl">{form?.id ? "Modifier la classe" : "Ajouter une classe"}</DialogTitle>
             <DialogDescription className="pt-1 text-left text-sm text-slate-500 dark:text-slate-400">
               {form?.id ? "Mettez à jour les informations sans affecter les élèves inscrits." : "Créez une nouvelle classe dans le registre scolaire de l’établissement."}
             </DialogDescription>
           </DialogHeader>
-          {form && <form onSubmit={enregistrer} className="flex flex-col">
-            <div className="space-y-6 px-6 py-5">
+          {form && <form onSubmit={enregistrer} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-5">
               <section className="space-y-3">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-2 dark:border-slate-800"><GraduationCap className="size-4 text-blue-600" /><h3 className="text-sm font-semibold text-slate-900 dark:text-white">Structure pédagogique</h3></div>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 min-[550px]:grid-cols-2">
                   <div className="grid gap-2"><Label htmlFor="classe-niveau" className="font-semibold text-slate-800 dark:text-slate-100">Niveau <span className="text-blue-600">*</span></Label><NativeSelect id="classe-niveau" className="h-11 w-full rounded-xl border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800" value={form.niveauId} onChange={(e) => setForm({ ...form, niveauId: e.target.value, serieId: "" })} required><option value="">Sélectionner un niveau</option>{niveaux.map((n) => <option key={n.id} value={n.id}>{n.libelle}</option>)}</NativeSelect>{erreurs.niveauId && <p className="text-xs text-red-600">{erreurs.niveauId}</p>}</div>
                   <div className="grid gap-2"><Label htmlFor="classe-serie" className="font-semibold text-slate-800 dark:text-slate-100">Série <span className="font-normal text-slate-400">(si applicable)</span></Label><NativeSelect id="classe-serie" className="h-11 w-full rounded-xl border-slate-200 bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800" value={niveauChoisi?.seriesApplicables ? form.serieId : ""} onChange={(e) => setForm({ ...form, serieId: e.target.value })} disabled={!niveauChoisi?.seriesApplicables}><option value="">{niveauChoisi?.seriesApplicables ? "Sans série" : "Non applicable"}</option>{series.filter((s) => s.active).map((s) => <option key={s.id} value={s.id}>{s.code} — {s.libelle}</option>)}</NativeSelect>{erreurs.serieId && <p className="text-xs text-red-600">{erreurs.serieId}</p>}</div>
                 </div>
@@ -337,9 +370,9 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
               </section>
               {form.id && peutModifier && classes.find((c) => c.id === form.id)?.effectif === 0 && <button type="button" onClick={() => {const c = classes.find((v) => v.id === form.id);if (c) supprimer(c);}} disabled={enCours} className="inline-flex items-center gap-2 text-xs font-semibold text-red-600 hover:underline"><Trash2 className="size-4" /> Supprimer cette classe vide</button>}
             </div>
-            <DialogFooter className="flex gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">
-              <Button type="button" variant="outline" className="h-11 rounded-xl border-slate-200 px-5 dark:border-slate-700" disabled={enCours} onClick={() => setForm(null)}>Annuler</Button>
-              <Button type="submit" className="h-11 rounded-xl bg-blue-600 px-5 font-semibold text-white hover:bg-blue-700" disabled={enCours}>{enCours ? "Enregistrement…" : <>{form.id ? <Check className="size-4" /> : <Plus className="size-4" />} {form.id ? "Enregistrer les modifications" : "Créer la classe"}</>}</Button>
+            <DialogFooter className="shrink-0 flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80 sm:px-6">
+              <Button type="button" variant="outline" className="h-10 rounded-lg border-slate-200 px-4 dark:border-slate-700" disabled={enCours} onClick={() => setForm(null)}>Annuler</Button>
+              <Button type="submit" className="h-10 rounded-lg bg-blue-600 px-4 font-semibold text-white hover:bg-blue-700" disabled={enCours}>{enCours ? "Enregistrement…" : <>{form.id ? <Check className="size-4" /> : <Plus className="size-4" />} {form.id ? "Enregistrer les modifications" : "Créer la classe"}</>}</Button>
             </DialogFooter>
           </form>}
         </DialogContent>
