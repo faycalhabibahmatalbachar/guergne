@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Check, Plus, Trash2, UserPlus } from "lucide-react";
+import { Check, ChevronRight, ClipboardCheck, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 import { inscrireEleve } from "../../actions";
+import { definirPhotoEleve } from "../../[id]/photo-actions";
+import { RechercherTuteur } from "./rechercher-tuteur";
+import { PhotoInscription } from "./photo-inscription";
 
 interface ClasseOption {
   id: string;
@@ -40,6 +43,7 @@ const LIENS = [
 
 interface Tuteur {
   cle: number;
+  existantId?: string;
   nom: string;
   prenom: string;
   telephone: string;
@@ -74,7 +78,7 @@ function tuteurVide(cle: number, premier: boolean): Tuteur {
   };
 }
 
-const ETAPES = ["Identité", "Coordonnées", "Scolarité", "Tuteurs"] as const;
+const ETAPES = ["Identité & photo", "Coordonnées & santé", "Scolarité", "Parents & responsables", "Vérification"] as const;
 
 /**
  * Formulaire d'inscription.
@@ -86,11 +90,12 @@ const ETAPES = ["Identité", "Coordonnées", "Scolarité", "Tuteurs"] as const;
  * Les données ne sont envoyées qu'à la dernière étape, en une seule
  * transaction : un dossier à moitié créé serait pire que pas de dossier.
  */
-export function FormulaireInscription({ classes }: { classes: ClasseOption[] }) {
+export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto = true }: { classes: ClasseOption[]; modeFenetre?: boolean; peutPhoto?: boolean }) {
   const routeur = useRouter();
   const [enCours, demarrer] = useTransition();
   const [etape, setEtape] = useState(0);
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
+  const [photo, setPhoto] = useState<Blob | null>(null);
 
   const [eleve, setEleve] = useState({
     nom: "",
@@ -144,8 +149,21 @@ export function FormulaireInscription({ classes }: { classes: ClasseOption[] }) 
       });
 
       if (resultat.ok && resultat.id) {
-        toast.success("Élève inscrit. Le matricule a été attribué.");
+        if (photo && peutPhoto) {
+          const donnees = new FormData();
+          donnees.append("fichier", photo, "identite.webp");
+          donnees.append("largeur", "400");
+          donnees.append("hauteur", "400");
+          try {
+            const ajout = await definirPhotoEleve(resultat.id, donnees);
+            if (ajout.ok) toast.success("Élève et photo enregistrés.");
+            else toast.warning("Élève inscrit, mais la photo a échoué : ajoutez-la depuis son dossier.");
+          } catch {
+            toast.warning("Élève inscrit, mais la photo n'a pas été enregistrée. Le dossier reste accessible.");
+          }
+        } else toast.success("Élève inscrit. Le matricule a été attribué.");
         routeur.push(`/dashboard/eleves/${resultat.id}`);
+        routeur.refresh();
       } else {
         setErreurs(resultat.erreurs ?? {});
         toast.error(resultat.message ?? "Vérifiez les champs signalés.");
@@ -165,9 +183,9 @@ export function FormulaireInscription({ classes }: { classes: ClasseOption[] }) 
     erreurs[champ] ? <p className="text-destructive text-sm">{erreurs[champ]}</p> : null;
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6", modeFenetre && "min-h-full space-y-4")}>
       {/* Fil d'étapes */}
-      <nav aria-label="Étapes de l'inscription">
+      <nav aria-label="Étapes de l'inscription" className={cn(modeFenetre && "sticky top-0 z-10 -mx-3 border-b border-slate-100 bg-white/95 px-3 py-3 backdrop-blur dark:border-border dark:bg-card/95")}>
         <ol className="flex flex-wrap gap-2">
           {ETAPES.map((titre, index) => (
             <li key={titre}>
@@ -175,11 +193,11 @@ export function FormulaireInscription({ classes }: { classes: ClasseOption[] }) 
                 type="button"
                 onClick={() => setEtape(index)}
                 className={cn(
-                  "flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors",
+                  "flex min-h-9 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm",
                   index === etape
-                    ? "border-primary bg-primary text-primary-foreground"
+                    ? "border-blue-600 bg-blue-600 text-white"
                     : index < etape
-                      ? "border-primary/40 text-primary"
+                      ? "border-blue-200 bg-blue-50 text-blue-700"
                       : "text-muted-foreground",
                 )}
               >
@@ -206,6 +224,9 @@ export function FormulaireInscription({ classes }: { classes: ClasseOption[] }) 
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              {peutPhoto ? <PhotoInscription photo={photo} onChange={setPhoto} /> : <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-500">Un agent autorisé pourra ajouter la photo depuis le dossier.</p>}
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="nom">Nom *</Label>
               <Input
