@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
 import { sql } from "drizzle-orm";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 import { db } from "@/server/db";
 import { exigerPage } from "@/server/guard";
@@ -65,14 +68,26 @@ export default async function PageNotifications() {
   const part = total > 0 ? Math.round((avecApp / total) * 100) : 0;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-semibold text-2xl tracking-tight">Notifications</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {avecApp} tuteur(s) sur {total} ont l&apos;application installée, soit {part} %. Les
-          autres ne sont joignables que par SMS — et chaque SMS est facturé.
-        </p>
-      </div>
+    <div className="min-w-0 space-y-4 pb-6 text-slate-950 dark:text-foreground">
+      <header aria-label="En-tête des réglages de notification" className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 sm:flex-row sm:items-end sm:justify-between dark:border-border">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-[29px] font-bold leading-tight tracking-tight sm:text-[34px]">Notifications et SMS</h1>
+            <span className="inline-flex items-center rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-sm font-semibold text-emerald-800 tabular-nums dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+              {lignes.length} {lignes.length > 1 ? "politiques" : "politique"}
+            </span>
+          </div>
+          <p className="mt-1.5 text-sm text-slate-500 dark:text-muted-foreground">
+            {avecApp} tuteur(s) sur {total} disposent d’un appareil Push actif, soit {part} %.
+            Les autres peuvent nécessiter un SMS selon leur numéro, leur consentement et la politique choisie.
+          </p>
+        </div>
+        <Button asChild variant="outline" className="h-10 w-full shrink-0 gap-2 border-slate-200 bg-white px-3.5 text-slate-700 shadow-none sm:w-auto dark:border-border dark:bg-card dark:text-foreground">
+          <Link href="/dashboard/parametres?section=communication">
+            <ArrowLeft className="size-4" aria-hidden /> Retour aux réglages
+          </Link>
+        </Button>
+      </header>
 
       <TablePolitiques lignes={lignes} seuilIncident={seuil.rows[0]?.valeur ?? "MOYENNE"} />
     </div>
