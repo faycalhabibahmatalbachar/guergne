@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  Activity, ArrowRight, BellRing, ChevronRight, KeyRound, MessageSquare,
+  Activity, ArrowRight, BellRing, ChevronRight, KeyRound,
   ShieldCheck, Smartphone, UserCheck, UserRoundX, Users, Wallet,
   type LucideIcon,
 } from "lucide-react";
