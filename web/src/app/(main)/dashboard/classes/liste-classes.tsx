@@ -163,7 +163,6 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
                   <td className="pl-3"><input type="checkbox" aria-label={"Sélectionner " + classe.libelle} checked={selection.includes(classe.id)} onChange={() => basculerSelection(classe.id)} className="size-4 accent-blue-600" /></td>
                   <th scope="row" className="py-3.5 pl-5 pr-3 text-left">
                     <div className="flex min-w-0 items-center gap-2.5">
-                      <input type="checkbox" aria-label={"Sélectionner " + classe.libelle} checked={selection.includes(classe.id)} onChange={() => basculerSelection(classe.id)} className="size-4 shrink-0 accent-blue-600" />
                   <span className={"flex size-10 shrink-0 items-center justify-center rounded-xl " + couleur.fond + " " + couleur.texte}>
                         <GraduationCap className="size-5" aria-hidden />
                       </span>
