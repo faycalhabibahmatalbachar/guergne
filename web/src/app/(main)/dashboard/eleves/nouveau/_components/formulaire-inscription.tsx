@@ -553,12 +553,29 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                <RechercherTuteur
+                  champId={`recherche-tuteur-${t.cle}`}
+                  nomSelectionne={t.existantId ? t.prenom + " " + t.nom : null}
+                  onSelection={(p) => setTuteurs((liste) => liste.map((x) => x.cle === t.cle ? ({
+                    ...x, existantId: p.id, nom: p.nom, prenom: p.prenom,
+                    telephone: p.telephone, telephoneSecondaire: p.telephoneSecondaire ?? "",
+                    email: p.email ?? "", profession: p.profession ?? "", adresse: p.adresse ?? "",
+                  }) : x))}
+                  onEffacer={() => setTuteurs((liste) => liste.map((x) => x.cle === t.cle ? ({
+                    ...tuteurVide(x.cle, x.estPrincipal),
+                    lien: x.lien, estPrincipal: x.estPrincipal,
+                    estTuteurLegal: x.estTuteurLegal, estResponsableFinancier: x.estResponsableFinancier,
+                    estContactUrgence: x.estContactUrgence, autoriseRetrait: x.autoriseRetrait,
+                  }) : x))}
+                />
+                {t.existantId && <p className="text-xs text-blue-700">Parent existant sélectionné. Ses coordonnées sont conservées : pour les modifier, ouvrez sa fiche dans Comptes parents.</p>}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor={`t-nom-${t.cle}`}>Nom *</Label>
                     <Input
                       id={`t-nom-${t.cle}`}
                       value={t.nom}
+                      disabled={Boolean(t.existantId)}
                       onChange={(e) => majTuteur(t.cle, "nom", e.target.value)}
                     />
                     {erreur(`tuteurs.${index}.nom`)}
@@ -568,6 +585,7 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                     <Input
                       id={`t-prenom-${t.cle}`}
                       value={t.prenom}
+                      disabled={Boolean(t.existantId)}
                       onChange={(e) => majTuteur(t.cle, "prenom", e.target.value)}
                     />
                     {erreur(`tuteurs.${index}.prenom`)}
@@ -591,6 +609,7 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                     <Input
                       id={`t-tel-${t.cle}`}
                       value={t.telephone}
+                      disabled={Boolean(t.existantId)}
                       onChange={(e) => majTuteur(t.cle, "telephone", e.target.value)}
                       placeholder="+235 66 00 00 00"
                     />
@@ -604,6 +623,7 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                     <Input
                       id={`t-tel2-${t.cle}`}
                       value={t.telephoneSecondaire}
+                      disabled={Boolean(t.existantId)}
                       onChange={(e) => majTuteur(t.cle, "telephoneSecondaire", e.target.value)}
                     />
                   </div>
@@ -613,6 +633,7 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                       id={`t-email-${t.cle}`}
                       type="email"
                       value={t.email}
+                      disabled={Boolean(t.existantId)}
                       onChange={(e) => majTuteur(t.cle, "email", e.target.value)}
                     />
                     {erreur(`tuteurs.${index}.email`)}
@@ -622,6 +643,7 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                     <Input
                       id={`t-prof-${t.cle}`}
                       value={t.profession}
+                      disabled={Boolean(t.existantId)}
                       onChange={(e) => majTuteur(t.cle, "profession", e.target.value)}
                     />
                   </div>
@@ -630,6 +652,7 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                     <Input
                       id={`t-adr-${t.cle}`}
                       value={t.adresse}
+                      disabled={Boolean(t.existantId)}
                       onChange={(e) => majTuteur(t.cle, "adresse", e.target.value)}
                     />
                   </div>
