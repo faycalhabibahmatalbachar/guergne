@@ -15,6 +15,7 @@ import { CommunicationPolicies, type ApercuPolitique } from "./communication-pol
 import { CommunicationValidityEditor } from "./communication-validity-editor";
 import { CommunicationIncidentEditor, libelleGravite } from "./communication-incident-editor";
 import type { CouvertureFamilles } from "./communication-settings-panel";
+import { InvitationsOperations, CanauxOperations, SuiviOperations, type InvitationOverview, type NotificationOverview } from "./communication-operations";
 
 type Rubrique = "synthese" | "invitations" | "canaux" | "suivi";
 type Acces = { titre: string; description: string; href: string };
@@ -28,6 +29,8 @@ type Props = {
   file: EtatFile | null;
   echecs30Jours: number | null;
   politiques: ApercuPolitique[] | null;
+  invitations: InvitationOverview | null;
+  suiviNotifications: NotificationOverview | null;
   accesModules: Acces[];
 };
 
@@ -269,7 +272,7 @@ function Cover({ couverture }: { couverture: CouvertureFamilles }) {
 
 export function CommunicationWorkspace({
   autoriseInvitations, autoriseNotifications, joursInvitations, graviteIncident,
-  parents, couverture, file, echecs30Jours, politiques, accesModules,
+  parents, couverture, file, echecs30Jours, politiques, invitations, suiviNotifications, accesModules,
 }: Props) {
   const [rubrique, setRubrique] = useState<Rubrique>("synthese");
   const hrefParents = accesModules.find((l) => l.href === "/dashboard/parents")?.href ?? null;
@@ -318,48 +321,21 @@ export function CommunicationWorkspace({
           </div>
         )}
         {rubrique === "invitations" && (
-          <div className="space-y-4">
-            <section className={SURFACE + " p-4"}>
-              <Title icon={KeyRound} title="Invitations et activation"
-                description="Validité des codes, création d’accès et suivi des invitations."
-                action={hrefInvitations ? <ActionLink href={hrefInvitations}>Historique des invitations</ActionLink> : undefined} />
-              <div className="mt-4">{autoriseInvitations && joursInvitations !== null
-                ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-4 dark:border-border">
-                    <div><p className="text-sm font-semibold">Codes d'activation</p><p className="mt-1 text-xs text-slate-500">Durée actuelle : {joursInvitations} jours · uniquement les nouveaux codes</p></div>
-                    <CommunicationValidityEditor joursActuels={joursInvitations} />
-                  </div>
-                : <p className="text-sm text-slate-500">Modification de la validité indisponible pour ce rôle.</p>}
-              </div>
-              {parents && <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {[
-                  ["Parents recensés", parents.total], ["Actifs", parents.actifs],
-                  ["Invités non connectés", parents.invites], ["Sans compte", parents.sansCompte],
-                ].map(([label, n]) => <div key={label} className="rounded-lg bg-slate-50 p-3 dark:bg-muted/30"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-xl font-bold tabular-nums">{Number(n).toLocaleString("fr-FR")}</p></div>)}
-              </div>}
-              <div className="mt-4 flex flex-wrap gap-2">{hrefParents && <ActionLink href={hrefParents}>Gestion des parents</ActionLink>}{hrefInvitations && <ActionLink href={hrefInvitations}>Suivi des invitations</ActionLink>}</div>
-            </section>
-          </div>
+          <InvitationsOperations
+            parents={parents} joursInvitations={joursInvitations}
+            autoriseInvitations={autoriseInvitations} invitations={invitations}
+            hrefParents={hrefParents} hrefHistorique={hrefInvitations}
+          />
         )}
         {rubrique === "canaux" && (
-          <div className="space-y-4">
-            {couverture && <Cover couverture={couverture} />}
-            {politiques && <section className={SURFACE + " p-3 sm:p-4"}><CommunicationPolicies lignes={politiques} /></section>}
-            {autoriseNotifications && graviteIncident && <section className={SURFACE + " p-4"}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div><h2 className="text-sm font-bold">Gravité minimale des incidents</h2><p className="mt-1 text-xs text-slate-500">Valeur enregistrée : {libelleGravite(graviteIncident)}</p></div>
-                <CommunicationIncidentEditor actuel={graviteIncident} />
-              </div>
-            </section>}
-          </div>
+          <CanauxOperations
+            couverture={couverture} politiques={politiques}
+            seuilIncident={autoriseNotifications ? graviteIncident : null}
+          />
         )}
-        {rubrique === "suivi" && (
-          <div className="space-y-4">
-            {file && <Queue file={file} echecs30Jours={echecs30Jours} href={hrefMessages} />}
-            {hrefMessages && <section className={SURFACE + " flex flex-wrap items-center justify-between gap-3 p-4"}>
-              <div><h2 className="text-sm font-semibold">Messages et annonces</h2><p className="mt-1 text-xs text-slate-500">Consultez les expéditions, leur statut et les éventuels échecs.</p></div>
-              <ActionLink href={hrefMessages}>Ouvrir les messages</ActionLink>
-            </section>}
-          </div>
+        {rubrique === "suivi" && file && (
+          <SuiviOperations file={file} echouees30={echecs30Jours}
+            details={suiviNotifications} messagesHref={hrefMessages} />
         )}
       </div>
       <p className="flex items-start gap-2 border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500 dark:border-border dark:text-muted-foreground">
