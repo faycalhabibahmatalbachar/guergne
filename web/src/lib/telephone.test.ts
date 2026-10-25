@@ -7,6 +7,8 @@ import {
   motifRefus,
   partieNationale,
   telephoneValide,
+  messageTelephoneInscription,
+  normaliserTelephoneInscription,
 } from "./telephone.ts";
 
 /**
@@ -109,5 +111,24 @@ describe("Numéros étrangers", () => {
 
   it("ne considère pas un numéro étranger comme valide ici", () => {
     assert.equal(telephoneValide("+33612345678"), false);
+  });
+});
+
+describe("Saisie scolaire des responsables", () => {
+  it("accepte un numéro tchadien national, espacé ou international", () => {
+    for (const valeur of ["66000000", "66 00 00 00", "+235 66 00 00 00", "0023566000000"]) {
+      assert.equal(messageTelephoneInscription(valeur), null);
+      assert.equal(normaliserTelephoneInscription(valeur), "+23566000000");
+    }
+  });
+  it("accepte les préfixes internationaux étrangers explicites", () => {
+    assert.equal(messageTelephoneInscription("+33612345678"), null);
+    assert.equal(normaliserTelephoneInscription("+33612345678"), "+33612345678");
+    assert.equal(messageTelephoneInscription("+225 07 12 34 56 78"), null);
+  });
+  it("donne une erreur exploitable pour les numéros incomplets ou invalides", () => {
+    assert.match(messageTelephoneInscription("6600000") ?? "", /manque/i);
+    assert.match(messageTelephoneInscription("51234567") ?? "", /commence par/i);
+    assert.match(messageTelephoneInscription("+3361") ?? "", /international invalide/i);
   });
 });
