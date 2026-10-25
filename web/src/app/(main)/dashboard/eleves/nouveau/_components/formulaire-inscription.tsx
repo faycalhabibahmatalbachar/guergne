@@ -232,6 +232,8 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
               <button
                 type="button"
                 onClick={() => setEtape(index)}
+                disabled={index > etape || enCours}
+                aria-current={index === etape ? "step" : undefined}
                 className={cn(
                   "flex min-h-9 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm",
                   index === etape
