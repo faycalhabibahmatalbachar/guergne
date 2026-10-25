@@ -1,111 +1,123 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  Bell,
-  ChevronRight,
-  KeyRound,
-  ShieldCheck,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight, Bell, ChevronRight, KeyRound, ShieldCheck } from "lucide-react";
 
 import type { AccesModule } from "./settings-category-panel";
 import type { SettingsCard } from "../settings-catalog";
 
 /**
- * Page Communication: dense, predictable cards that follow the visual system
- * of Élèves and Parents. Existing server values and permission-filtered
- * links only; no new operations, indicators or communication policies.
+ * Les mêmes conventions visuelles que les listes Élèves et Parents :
+ * cartes métriques compactes, actions alignées et accès rapides dans une seule
+ * surface. La configuration reste séparée des opérations d'envoi.
  */
 export function CommunicationSettingsPanel({
   items,
   accesModules,
   joursInvitations,
+  nombrePolitiques,
 }: {
   items: SettingsCard[];
   accesModules: AccesModule[];
   joursInvitations: number | null;
-  peutAuditer: boolean;
+  nombrePolitiques: number | null;
 }) {
+  const invitations = items.find((item) => item.id === "parents");
+  const notifications = items.find((item) => item.id === "notifications");
+
   return (
-    <div className="min-w-0 space-y-5 pb-6">
+    <div className="min-w-0 space-y-4 pb-6 text-slate-950 dark:text-foreground">
       <section aria-labelledby="communication-reglages-titre" className="min-w-0 space-y-3">
-        <div>
-          <h2 id="communication-reglages-titre" className="text-base font-bold tracking-tight text-slate-950 dark:text-foreground">
-            Réglages de communication
-          </h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-muted-foreground">
-            Paramétrez les invitations des parents et les canaux de notification.
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 id="communication-reglages-titre" className="text-base font-bold tracking-tight">
+              Réglages de communication
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-muted-foreground">
+              Règles applicables aux invitations et aux notifications des familles.
+            </p>
+          </div>
+          <span className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 tabular-nums dark:border-border dark:bg-card dark:text-muted-foreground">
+            {items.length} {items.length > 1 ? "réglages accessibles" : "réglage accessible"}
+          </span>
         </div>
 
-        <div className="grid min-w-0 items-stretch gap-3 lg:grid-cols-2">
-          {items.map((item) => {
-            const invitation = item.id === "parents";
-            const Icon: LucideIcon = invitation ? KeyRound : Bell;
-            const valeur = invitation
-              ? joursInvitations === null
-                ? "Non disponible"
-                : String(joursInvitations) + (joursInvitations === 1 ? " jour" : " jours")
-              : "Selon l'événement";
-
-            return (
-              <article
-                key={item.id}
-                className="flex min-w-0 flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5 dark:border-border dark:bg-card"
-              >
-                <div className="flex min-w-0 items-start gap-3">
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
-                    <Icon className="size-5" strokeWidth={1.8} aria-hidden />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-[15px] font-semibold leading-5 text-slate-950 dark:text-foreground">
-                      {invitation ? "Invitations et accès parents" : "Notifications et SMS"}
-                    </h3>
-                    <p className="mt-1 text-[13px] leading-5 text-slate-600 dark:text-muted-foreground">
-                      {invitation
-                        ? "Durée de validité des codes d'activation des nouveaux comptes parents."
-                        : "Canaux par événement, coûts SMS et seuil des incidents."}
-                    </p>
-                  </div>
+        <div className="grid min-w-0 items-stretch gap-3 sm:grid-cols-2">
+          {invitations ? (
+            <article className="flex min-w-0 flex-col rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-border dark:bg-card">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  <KeyRound className="size-6" strokeWidth={1.8} aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[13px] font-semibold text-slate-600 dark:text-muted-foreground">Invitations parents</h3>
+                  <p className="mt-1 text-[27px] font-bold leading-none tracking-tight tabular-nums">
+                    {joursInvitations === null ? "—" : `${joursInvitations} ${joursInvitations === 1 ? "jour" : "jours"}`}
+                  </p>
+                  <p className="mt-2 text-xs text-slate-500 dark:text-muted-foreground">
+                    Validité des nouveaux codes d’activation
+                  </p>
                 </div>
+              </div>
+              <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-border">
+                <p className="max-w-[290px] text-xs leading-5 text-slate-500 dark:text-muted-foreground">
+                  Les codes déjà émis conservent leur échéance.
+                </p>
+                <Link
+                  href={invitations.href}
+                  prefetch={false}
+                  aria-label="Configurer les invitations parents"
+                  className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 sm:w-auto dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted"
+                >
+                  Configurer <ArrowRight className="size-4" aria-hidden />
+                </Link>
+              </div>
+            </article>
+          ) : null}
 
-                <div className="mt-4 flex min-w-0 flex-wrap items-end justify-between gap-3 border-t border-slate-100 pt-3 dark:border-border">
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-slate-600 dark:text-muted-foreground">
-                      {invitation ? "Validité des nouveaux codes" : "Politique de notification"}
-                    </p>
-                    <p className="mt-0.5 text-base font-bold leading-6 text-slate-950 tabular-nums dark:text-foreground">
-                      {valeur}
-                    </p>
-                  </div>
-                  <Link
-                    href={item.href}
-                    prefetch={false}
-                    aria-label={"Configurer : " + item.label}
-                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-semibold text-blue-700 transition-colors hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-border dark:bg-card dark:text-blue-300 dark:hover:bg-muted"
-                  >
-                    Configurer
-                    <ArrowRight className="size-4" aria-hidden />
-                  </Link>
+          {notifications ? (
+            <article className="flex min-w-0 flex-col rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-border dark:bg-card">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+                  <Bell className="size-6" strokeWidth={1.8} aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[13px] font-semibold text-slate-600 dark:text-muted-foreground">Notifications et SMS</h3>
+                  <p className="mt-1 text-[27px] font-bold leading-none tracking-tight tabular-nums">
+                    {nombrePolitiques === null ? "Règles d’envoi" : `${nombrePolitiques} ${nombrePolitiques === 1 ? "politique" : "politiques"}`}
+                  </p>
+                  <p className="mt-2 text-xs text-slate-500 dark:text-muted-foreground">
+                    Paramétrage par type d’événement
+                  </p>
                 </div>
-              </article>
-            );
-          })}
+              </div>
+              <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-border">
+                <p className="max-w-[290px] text-xs leading-5 text-slate-500 dark:text-muted-foreground">
+                  Canaux Push, SMS et suivi des coûts.
+                </p>
+                <Link
+                  href={notifications.href}
+                  prefetch={false}
+                  aria-label="Configurer les notifications et SMS"
+                  className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 sm:w-auto dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted"
+                >
+                  Configurer <ArrowRight className="size-4" aria-hidden />
+                </Link>
+              </div>
+            </article>
+          ) : null}
         </div>
       </section>
 
       {accesModules.length > 0 ? (
         <section aria-labelledby="communication-acces-titre" className="min-w-0 space-y-3">
           <div>
-            <h2 id="communication-acces-titre" className="text-base font-bold tracking-tight text-slate-950 dark:text-foreground">
-              Accès aux modules opérationnels
+            <h2 id="communication-acces-titre" className="text-base font-bold tracking-tight">
+              Accès rapides
             </h2>
-            <p className="mt-1 text-sm text-slate-600 dark:text-muted-foreground">
-              Consultez les comptes parents, les invitations et les messages du lycée.
+            <p className="mt-1 text-sm text-slate-500 dark:text-muted-foreground">
+              Retrouvez les modules de gestion sans quitter votre espace de travail.
             </p>
           </div>
-
-          <div className="grid min-w-0 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="min-w-0 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm dark:divide-border dark:border-border dark:bg-card">
             {accesModules.map((module) => {
               const Icon = module.icon;
               return (
@@ -113,21 +125,17 @@ export function CommunicationSettingsPanel({
                   key={module.href}
                   href={module.href}
                   prefetch={false}
-                  aria-label={"Ouvrir : " + module.titre}
-                  className="group flex min-h-[96px] min-w-0 items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-border dark:bg-card dark:hover:bg-muted/40"
+                  aria-label={`Ouvrir : ${module.titre}`}
+                  className="group flex min-h-[72px] min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-700 sm:px-5 dark:hover:bg-muted/50"
                 >
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-blue-700 dark:bg-muted dark:text-blue-300">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 transition-colors group-hover:border-emerald-200 group-hover:bg-emerald-50 group-hover:text-emerald-700 dark:border-border dark:bg-muted dark:text-muted-foreground">
                     <Icon className="size-5" strokeWidth={1.8} aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-semibold leading-5 text-slate-950 dark:text-foreground">
-                      {module.titre}
-                    </span>
-                    <span className="mt-1 block text-[13px] leading-5 text-slate-600 dark:text-muted-foreground">
-                      {module.description}
-                    </span>
+                    <span className="block text-sm font-semibold text-slate-950 dark:text-foreground">{module.titre}</span>
+                    <span className="mt-0.5 block text-xs text-slate-500 dark:text-muted-foreground">{module.description}</span>
                   </span>
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors group-hover:bg-blue-50 group-hover:text-blue-700 dark:group-hover:bg-muted">
+                  <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors group-hover:border-emerald-200 group-hover:text-emerald-700 dark:border-border dark:bg-card dark:text-muted-foreground">
                     <ChevronRight className="size-4" aria-hidden />
                   </span>
                 </Link>
@@ -137,9 +145,9 @@ export function CommunicationSettingsPanel({
         </section>
       ) : null}
 
-      <div className="flex min-w-0 items-start gap-2 border-t border-slate-200/80 pt-3 text-xs text-slate-500 dark:border-border dark:text-muted-foreground">
+      <div className="flex items-start gap-2 text-xs text-slate-500 dark:text-muted-foreground">
         <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-        <p>Les modifications de paramètres sont contrôlées côté serveur et consignées dans le journal d'audit.</p>
+        <p>Accès et modifications contrôlés selon les permissions de chaque compte ; changements consignés dans le journal d’audit.</p>
       </div>
     </div>
   );
