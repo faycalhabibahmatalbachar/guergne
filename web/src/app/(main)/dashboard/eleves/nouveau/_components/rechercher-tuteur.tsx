@@ -9,9 +9,10 @@ import { rechercherParentsInscription } from "../../actions";
 type Parent = Awaited<ReturnType<typeof rechercherParentsInscription>>[number];
 
 export function RechercherTuteur({
-  nomSelectionne, onSelection, onEffacer,
+  nomSelectionne, onSelection, onEffacer, champId,
 }: {
   nomSelectionne: string | null;
+  champId: string;
   onSelection: (parent: Parent) => void;
   onEffacer: () => void;
 }) {
@@ -48,10 +49,10 @@ export function RechercherTuteur({
   </div>;
 
   return <div className="space-y-2">
-    <label htmlFor="recherche-parent-inscription" className="text-xs font-semibold text-slate-700 dark:text-foreground">Associer un compte parent existant (facultatif)</label>
+    <label htmlFor={champId} className="text-xs font-semibold text-slate-700 dark:text-foreground">Associer un compte parent existant (facultatif)</label>
     <div className="relative">
       {loading ? <LoaderCircle className="absolute left-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-slate-500" aria-hidden /> : <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" aria-hidden />}
-      <Input id="recherche-parent-inscription" value={terme} onChange={e => { setTerme(e.target.value); setLignes([]); }}
+      <Input id={champId} value={terme} onChange={e => { setTerme(e.target.value); setLignes([]); }}
         placeholder="Nom, prénom ou numéro de téléphone (3 caractères minimum)" className="h-10 pl-9" autoComplete="off" />
     </div>
     {terme.trim().length >= 3 && !loading && <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 dark:border-border">
