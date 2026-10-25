@@ -59,6 +59,7 @@ export default async function PageClasses({
       peutModifier={actions.includes("classe:modifier")}
       peutVoirPersonnel={peutVoirPersonnel}
       peutNotifier={actions.includes("message:envoyer")}
+      peutImprimer={actions.includes("eleve:lire")}
     />
   );
 }

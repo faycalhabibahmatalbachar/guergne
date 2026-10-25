@@ -2,24 +2,26 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, ChevronLeft, ChevronRight, ExternalLink, GraduationCap, LoaderCircle, School, Search, Users } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, ExternalLink, GraduationCap, LoaderCircle, Printer, School, Search, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { LigneClasseParametre } from "@/server/domain/parametres";
 import { rechercherElevesClasses, type ResultatElevesClasses } from "./eleves-actions";
+import { urlImpressionClasses } from "./impression-url";
 
 type Props = {
   ouvert: boolean;
   surFermeture: () => void;
   anneeId: string;
   anneeLibelle: string;
+  peutImprimer: boolean;
   classes: LigneClasseParametre[];
   initiales: string[];
 };
 
-export function ElevesClassesTiroir({ ouvert, surFermeture, anneeId, anneeLibelle, classes, initiales }: Props) {
+export function ElevesClassesTiroir({ ouvert, surFermeture, anneeId, anneeLibelle, classes, initiales, peutImprimer }: Props) {
   const [mode, setMode] = useState<"choix" | "tous">("choix");
   const [ids, setIds] = useState<string[]>(initiales);
   const [recherche, setRecherche] = useState("");
@@ -128,8 +130,14 @@ export function ElevesClassesTiroir({ ouvert, surFermeture, anneeId, anneeLibell
           Les salles physiques sont attribuées par créneau dans l'emploi du temps. Elles ne constituent pas une affectation permanente des élèves. Ici, la liste est organisée par groupe pédagogique.
         </p>
       </div>
-      <div className="shrink-0 border-t border-slate-200 p-4 dark:border-border">
-        <Button type="button" variant="outline" className="w-full" onClick={surFermeture}>Fermer le répertoire</Button>
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200 p-4 dark:border-border">
+        {peutImprimer && mode === "choix" && ids.length > 0 && <a
+          href={urlImpressionClasses(anneeId, ids)} target="_blank" rel="noopener noreferrer"
+          className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700"
+          title="Imprime tous les inscrits des classes sélectionnées, sans limiter à la page affichée">
+          <Printer className="size-4" aria-hidden /> Imprimer {ids.length === 1 ? "la classe" : "les classes"}
+        </a>}
+        <Button type="button" variant="outline" onClick={surFermeture}>Fermer le répertoire</Button>
       </div>
     </SheetContent>
   </Sheet>;
