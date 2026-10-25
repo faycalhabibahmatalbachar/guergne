@@ -11,6 +11,9 @@ type Props = {
   peutModifier: boolean;
   peutNotifier: boolean;
   ouvrir: (classe: LigneClasseParametre) => void;
+  selection: string[];
+  basculerSelection: (id: string) => void;
+  ouvrirEleves: (ids: string[]) => void;
 };
 
 const COULEURS = [
@@ -60,20 +63,21 @@ function Statut({ actif }: { actif: boolean }) {
   );
 }
 
-function Actions({ classe, peutModifier, peutNotifier, ouvrir, compact = false }: {
+function Actions({ classe, peutModifier, peutNotifier, ouvrir, ouvrirEleves, compact = false }: {
   classe: LigneClasseParametre;
   peutModifier: boolean;
   peutNotifier: boolean;
   ouvrir: (classe: LigneClasseParametre) => void;
+  ouvrirEleves: (ids: string[]) => void;
   compact?: boolean;
 }) {
   const classesBouton = "inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800";
   return (
     <div className={"classes-list-actions flex items-center gap-2 " + (compact ? "flex-wrap" : "justify-end")}>
-      <Link className={classesBouton} href={"/dashboard/eleves?classe=" + encodeURIComponent(classe.id)}>
+      <button type="button" className={classesBouton} onClick={() => ouvrirEleves([classe.id])}>
         <Users className="size-3.5 shrink-0" aria-hidden />
         <span>Élèves</span>
-      </Link>
+      </button>
       {peutModifier && (
         <button type="button" className={classesBouton} onClick={() => ouvrir(classe)}>
           <Pencil className="size-3.5 shrink-0" aria-hidden />
@@ -95,7 +99,7 @@ function Actions({ classe, peutModifier, peutNotifier, ouvrir, compact = false }
 }
 
 /** Vue liste cohérente avec la vue cartes, sans tableau débordant sur mobile. */
-export function ListeClasses({ classes, toutesClasses = classes, peutModifier, peutNotifier, ouvrir }: Props) {
+export function ListeClasses({ classes, toutesClasses = classes, peutModifier, peutNotifier, ouvrir, selection, basculerSelection, ouvrirEleves }: Props) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900" aria-label="Liste des classes">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3.5 dark:border-slate-800 sm:px-5">
@@ -116,16 +120,18 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
       <div className="hidden 2xl:block">
         <table className="w-full table-fixed text-left" aria-label="Classes, effectifs et actions">
           <colgroup>
-            <col className="w-[16%]" />
+            <col className="w-[4%]" />
+            <col className="w-[17%]" />
             <col className="w-[12%]" />
             <col className="w-[8%]" />
             <col className="w-[9%]" />
             <col className="w-[13%]" />
             <col className="w-[9%]" />
-            <col className="w-[33%]" />
+            <col className="w-[29%]" />
           </colgroup>
           <thead className="border-b border-slate-200 bg-[#f3f7fd] text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500 dark:border-slate-800 dark:bg-slate-800/75 dark:text-slate-300">
             <tr>
+              <th scope="col" className="px-3 py-3.5"><span className="sr-only">Sélection</span></th>
               <th scope="col" className="px-5 py-3.5">Classe</th>
               <th scope="col" className="px-3 py-3.5">Niveau</th>
               <th scope="col" className="px-3 py-3.5 text-center">Effectif</th>
@@ -141,9 +147,11 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
               const couleur = COULEURS[paletteIndex % COULEURS.length];
               return (
                 <tr key={classe.id} className="group transition-colors hover:bg-blue-50/40 dark:hover:bg-slate-800/55">
+                  <td className="pl-3"><input type="checkbox" aria-label={"Sélectionner " + classe.libelle} checked={selection.includes(classe.id)} onChange={() => basculerSelection(classe.id)} className="size-4 accent-blue-600" /></td>
                   <th scope="row" className="py-3.5 pl-5 pr-3 text-left">
                     <div className="flex min-w-0 items-center gap-2.5">
-                      <span className={"flex size-10 shrink-0 items-center justify-center rounded-xl " + couleur.fond + " " + couleur.texte}>
+                      <input type="checkbox" aria-label={"Sélectionner " + classe.libelle} checked={selection.includes(classe.id)} onChange={() => basculerSelection(classe.id)} className="size-4 shrink-0 accent-blue-600" />
+                  <span className={"flex size-10 shrink-0 items-center justify-center rounded-xl " + couleur.fond + " " + couleur.texte}>
                         <GraduationCap className="size-5" aria-hidden />
                       </span>
                       <span className="min-w-0">
@@ -157,7 +165,7 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
                   <td className="px-3 py-3.5 text-center text-sm tabular-nums text-slate-600 dark:text-slate-300">{classe.capaciteMax}</td>
                   <td className="px-3 py-3.5"><TauxOccupation classe={classe} index={paletteIndex} /></td>
                   <td className="px-3 py-3.5"><Statut actif={classe.active} /></td>
-                  <td className="px-5 py-3.5"><Actions classe={classe} peutModifier={peutModifier} peutNotifier={peutNotifier} ouvrir={ouvrir} /></td>
+                  <td className="px-5 py-3.5"><Actions classe={classe} peutModifier={peutModifier} peutNotifier={peutNotifier} ouvrir={ouvrir} ouvrirEleves={ouvrirEleves} /></td>
                 </tr>
               );
             })}
@@ -170,7 +178,7 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
           const paletteIndex = Math.max(0, toutesClasses.findIndex((c) => c.id === classe.id));
           const couleur = COULEURS[paletteIndex % COULEURS.length];
           return (
-            <article key={classe.id} className="space-y-3 px-4 py-4 transition-colors hover:bg-blue-50/30 dark:hover:bg-slate-800/40 sm:px-5">
+            <article key={classe.id} className="space-y-3 border-l-4 px-4 py-4 transition-colors hover:bg-blue-50/30 dark:hover:bg-slate-800/40 sm:px-5" style={{borderLeftColor:["#2563eb","#059669","#7c3aed","#e11d48","#d97706"][paletteIndex%5]}}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <span className={"flex size-10 shrink-0 items-center justify-center rounded-xl " + couleur.fond + " " + couleur.texte}>
@@ -190,7 +198,7 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
                 </div>
                 <TauxOccupation classe={classe} index={paletteIndex} />
               </div>
-              <Actions compact classe={classe} peutModifier={peutModifier} peutNotifier={peutNotifier} ouvrir={ouvrir} />
+              <Actions compact classe={classe} peutModifier={peutModifier} peutNotifier={peutNotifier} ouvrir={ouvrir} ouvrirEleves={ouvrirEleves} />
             </article>
           );
         })}
