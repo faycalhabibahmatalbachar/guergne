@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, BellRing, GraduationCap, Pencil, Users } from "lucide-react";
+import { BarChart3, BellRing, GraduationCap, Pencil, Printer, Users } from "lucide-react";
 import type { LigneClasseParametre } from "@/server/domain/parametres";
 import { BoutonNotifier } from "../_components/bouton-notifier";
+import { urlImpressionClasses } from "./impression-url";
 
 type Props = {
   classes: LigneClasseParametre[];
   toutesClasses?: LigneClasseParametre[];
   peutModifier: boolean;
   peutNotifier: boolean;
+  peutImprimer: boolean;
+  anneeId: string;
   ouvrir: (classe: LigneClasseParametre) => void;
   selection: string[];
   basculerSelection: (id: string) => void;
@@ -63,10 +66,12 @@ function Statut({ actif }: { actif: boolean }) {
   );
 }
 
-function Actions({ classe, peutModifier, peutNotifier, ouvrir, ouvrirEleves, compact = false }: {
+function Actions({ classe, peutModifier, peutNotifier, peutImprimer, anneeId, ouvrir, ouvrirEleves, compact = false }: {
   classe: LigneClasseParametre;
   peutModifier: boolean;
   peutNotifier: boolean;
+  peutImprimer: boolean;
+  anneeId: string;
   ouvrir: (classe: LigneClasseParametre) => void;
   ouvrirEleves: (ids: string[]) => void;
   compact?: boolean;
@@ -78,6 +83,14 @@ function Actions({ classe, peutModifier, peutNotifier, ouvrir, ouvrirEleves, com
         <Users className="size-3.5 shrink-0" aria-hidden />
         <span>Élèves</span>
       </button>
+      {peutImprimer && (
+        <a href={urlImpressionClasses(anneeId, [classe.id])} target="_blank" rel="noopener noreferrer" className={classesBouton}
+          title={"Imprimer la liste officielle des élèves de " + classe.libelle}
+          aria-label={"Imprimer la liste des élèves de " + classe.libelle}>
+          <Printer className="size-3.5 shrink-0" aria-hidden />
+          <span className={compact ? "" : "sr-only"}>Imprimer</span>
+        </a>
+      )}
       {peutModifier && (
         <button type="button" className={classesBouton} onClick={() => ouvrir(classe)}>
           <Pencil className="size-3.5 shrink-0" aria-hidden />
@@ -99,7 +112,7 @@ function Actions({ classe, peutModifier, peutNotifier, ouvrir, ouvrirEleves, com
 }
 
 /** Vue liste cohérente avec la vue cartes, sans tableau débordant sur mobile. */
-export function ListeClasses({ classes, toutesClasses = classes, peutModifier, peutNotifier, ouvrir, selection, basculerSelection, ouvrirEleves }: Props) {
+export function ListeClasses({ classes, toutesClasses = classes, peutModifier, peutNotifier, peutImprimer, anneeId, ouvrir, selection, basculerSelection, ouvrirEleves }: Props) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900" aria-label="Liste des classes">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3.5 dark:border-slate-800 sm:px-5">
@@ -165,7 +178,7 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
                   <td className="px-3 py-3.5 text-center text-sm tabular-nums text-slate-600 dark:text-slate-300">{classe.capaciteMax}</td>
                   <td className="px-3 py-3.5"><TauxOccupation classe={classe} index={paletteIndex} /></td>
                   <td className="px-3 py-3.5"><Statut actif={classe.active} /></td>
-                  <td className="px-5 py-3.5"><Actions classe={classe} peutModifier={peutModifier} peutNotifier={peutNotifier} ouvrir={ouvrir} ouvrirEleves={ouvrirEleves} /></td>
+                  <td className="px-5 py-3.5"><Actions classe={classe} peutModifier={peutModifier} peutNotifier={peutNotifier} peutImprimer={peutImprimer} anneeId={anneeId} ouvrir={ouvrir} ouvrirEleves={ouvrirEleves} /></td>
                 </tr>
               );
             })}
@@ -198,7 +211,7 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
                 </div>
                 <TauxOccupation classe={classe} index={paletteIndex} />
               </div>
-              <Actions compact classe={classe} peutModifier={peutModifier} peutNotifier={peutNotifier} ouvrir={ouvrir} ouvrirEleves={ouvrirEleves} />
+              <Actions compact classe={classe} peutModifier={peutModifier} peutNotifier={peutNotifier} peutImprimer={peutImprimer} anneeId={anneeId} ouvrir={ouvrir} ouvrirEleves={ouvrirEleves} />
             </article>
           );
         })}
