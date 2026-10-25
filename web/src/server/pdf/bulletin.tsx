@@ -233,7 +233,7 @@ function Cellule({
         {/* Grille d'identification alignée sur les fusions de cellules Excel. */}
         <View style={s.identite}>
           <View style={s.identiteRangee}>
-            <View style={[s.identiteCase, { width: "24%" }]}>
+            <View style={[s.identiteCase, { width: "24%", borderRightWidth: 0 }]}>
               <Text style={[s.identiteLibelle, s.identiteCentre]}>Nom & Prénom :</Text>
             </View>
             <View style={[s.identiteCase, { width: "47%" }]}>
@@ -244,7 +244,7 @@ function Cellule({
             </View>
           </View>
           <View style={s.identiteRangee}>
-            <View style={[s.identiteCase, { width: "24%" }]}>
+            <View style={[s.identiteCase, { width: "24%", borderRightWidth: 0 }]}>
               <Text style={[s.identiteLibelle, s.identiteCentre]}>Matricule :</Text>
             </View>
             <View style={[s.identiteCase, { width: "12%" }]}>
