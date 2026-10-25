@@ -34,23 +34,29 @@
   margin-bottom: 28px;
 }
 .entete-officiel {
-  display: flex; align-items: center; gap: 13px;
-  border-bottom: 2px solid #1b498d; padding: 0 0 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  text-align: center;
+  border-bottom: 2px solid #1b498d;
+  padding: 0 0 15px;
 }
-.logo-officiel { object-fit: contain; width: 76px; height: 76px; flex: none; }
-.identite-officielle { min-width: 0; flex: 1; }
-.identite-officielle .ministere {
-  font-size: 9px; text-transform: uppercase; letter-spacing: .06em;
-  font-weight: 600; color: #52627a; margin-bottom: 3px;
+.entete-officiel .ministere {
+  font-size: 12px;
+  font-weight: 800;
+  color: #263953;
+  line-height: 1.35;
 }
-.identite-officielle h2 { font-size: 16px; font-weight: 800; line-height: 1.26; }
-.identite-officielle .devise { margin-top: 2px; font-style: italic; font-size: 10px; color: #365177; }
-.identite-officielle .coordonnees { margin-top: 3px; font-size: 10px; color: #596679; }
-.code-ecole {
-  align-self: start; font-size: 11px; font-weight: 800;
-  letter-spacing: .08em; color: #1b498d; border: 1px solid #b5c9e9;
-  border-radius: 5px; padding: 5px 7px;
+.logo-officiel {
+  object-fit: contain;
+  width: 72px;
+  height: 72px;
+  margin: 4px auto;
 }
+.entete-officiel h2 { font-size: 17px; font-weight: 800; line-height: 1.26; }
+.entete-officiel .coordonnees { font-size: 11px; color: #445571; }
 .titre-liste { text-align: center; margin: 20px 0 13px; }
 .sur-titre { font-size: 10px; color: #5a6a80; }
 .titre-liste h3 { margin: 5px 0; font-size: 17px; font-weight: 800; letter-spacing: .025em; }
@@ -77,20 +83,11 @@
 .tableau-eleves .nom-eleve { font-weight: 700; }
 .tableau-eleves .matricule { color: #243e61; font-size: 9px; }
 .tableau-eleves .vide { text-align: center; padding: 24px 6px; color: #6b7280; }
-.pied-document {
-  margin-top: 25px; padding-top: 12px; border-top: 1px solid #cbd6e6;
-  display: flex; justify-content: space-between; gap: 20px;
-  font-size: 10px; color: #42546e; break-inside: avoid;
-}
-.pied-document p + p { margin-top: 4px; }
-.signature { min-width: 170px; text-align: center; font-weight: 700; color: #102a4b; }
-.signature span { display: block; margin-top: 14px; color: #64748b; font-size: 9px; font-weight: 400; }
 @media (max-width: 700px) {
   .actions-impression { align-items: flex-start; flex-direction: column; }
   .feuille-classe { padding: 15px 12px; min-height: 0; }
-  .logo-officiel { width: 55px; height: 55px; }
-  .identite-officielle h2 { font-size: 13px; }
-  .code-ecole { display: none; }
+  .logo-officiel { width: 60px; height: 60px; }
+  .entete-officiel h2 { font-size: 14px; }
   .tableau-eleves { font-size: 9px; }
   .tableau-eleves th, .tableau-eleves td { padding: 5px 3px; }
 }
