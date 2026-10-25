@@ -7,7 +7,7 @@ import {
   ArrowRight, BarChart3, BookOpen, CalendarDays, Check, ChevronDown,
   Ellipsis, GraduationCap, Grid2X2, List, Mail, MoreHorizontal,
   Pencil, Plus, School, Search, SlidersHorizontal, Trash2, Users, ClipboardList,
-  UserRound, X,
+  UserRound, X, Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,6 +30,7 @@ import { creerClasse, modifierClasse, supprimerClasse } from "../parametres/acti
 import { BoutonNotifier } from "../_components/bouton-notifier";
 import { ListeClasses } from "./liste-classes";
 import { ElevesClassesTiroir } from "./eleves-tiroir";
+import { urlImpressionClasses } from "./impression-url";
 
 type Props = {
   annee: LigneAnnee;
@@ -42,6 +43,7 @@ type Props = {
   peutModifier: boolean;
   peutVoirPersonnel: boolean;
   peutNotifier: boolean;
+  peutImprimer: boolean;
 };
 
 const PALETTE = [
@@ -83,13 +85,15 @@ function Statistique({ icon: Icon, valeur, libelle, note, couleur }: {
   );
 }
 
-function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotifier, ouvrir, selectionne, basculer, ouvrirEleves }: {
+function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotifier, peutImprimer, anneeId, ouvrir, selectionne, basculer, ouvrirEleves }: {
   classe: LigneClasseParametre;
   index: number;
   peutModifier: boolean;
   peutVoirPersonnel: boolean;
   peutNotifier: boolean;
   ouvrir: (c: LigneClasseParametre | null) => void;
+  peutImprimer: boolean;
+  anneeId: string;
   selectionne: boolean;
   basculer: (id: string) => void;
   ouvrirEleves: (ids: string[]) => void;
@@ -162,6 +166,10 @@ function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotif
               </button>
             )}
           </div>
+          {peutImprimer && <a href={urlImpressionClasses(anneeId, [classe.id])} target="_blank" rel="noopener noreferrer"
+            className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+            <Printer className="size-4" aria-hidden /> Imprimer la liste
+          </a>}
           {peutNotifier && classe.active && total > 0 ? (
             <BoutonNotifier cible={{ type: "classe", id: classe.id, nom: classe.libelle }} variante="outline" contexteClasses />
           ) : (
@@ -175,7 +183,7 @@ function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotif
   );
 }
 
-export function ClassesDashboard({ annee, annees, classes, niveaux, series, enseignants, peutCreer, peutModifier, peutVoirPersonnel, peutNotifier }: Props) {
+export function ClassesDashboard({ annee, annees, classes, niveaux, series, enseignants, peutCreer, peutModifier, peutVoirPersonnel, peutNotifier, peutImprimer }: Props) {
   const router = useRouter();
   const [recherche, setRecherche] = useState("");
   const [niveau, setNiveau] = useState("tous");
@@ -310,13 +318,16 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs dark:border-slate-800 dark:bg-slate-900">
         <label className="flex cursor-pointer items-center gap-2 font-semibold text-slate-700 dark:text-white"><input type="checkbox" aria-label="Sélectionner toutes les classes filtrées" className="size-4 accent-blue-600" checked={visiblesToutesSelectionnees} onChange={e => setSelection(l => e.target.checked ? [...new Set([...l, ...visible.map(c => c.id)])] : l.filter(id => !visible.some(c => c.id === id)))} />Sélectionner les {visible.length} classes affichées</label>
         <div className="flex flex-wrap items-center gap-2">
-          {selection.length > 0 && <><span className="rounded-full bg-blue-50 px-2.5 py-1 font-bold text-blue-700">{selection.length} sélectionnée(s)</span><Button type="button" variant="outline" size="sm" className="h-8" onClick={() => setSelection([])}>Effacer</Button><Button type="button" variant="outline" size="sm" className="h-8" onClick={exporterSelection}>Exporter CSV</Button><Button type="button" size="sm" className="h-8 bg-blue-600 text-white hover:bg-blue-700" onClick={() => ouvrirEleves(selection)}><Users className="size-3.5" />Élèves des classes choisies</Button></>}
+          {selection.length > 0 && <><span className="rounded-full bg-blue-50 px-2.5 py-1 font-bold text-blue-700">{selection.length} sélectionnée(s)</span><Button type="button" variant="outline" size="sm" className="h-8" onClick={() => setSelection([])}>Effacer</Button><Button type="button" variant="outline" size="sm" className="h-8" onClick={exporterSelection}>Exporter CSV</Button>{peutImprimer && <a href={urlImpressionClasses(annee.id, selection)} target="_blank" rel="noopener noreferrer"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+            <Printer className="size-3.5" aria-hidden />Imprimer les listes ({selection.length})
+          </a>}<Button type="button" size="sm" className="h-8 bg-blue-600 text-white hover:bg-blue-700" onClick={() => ouvrirEleves(selection)}><Users className="size-3.5" />Élèves des classes choisies</Button></>}
           <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => ouvrirEleves([])}><School className="size-3.5" />Tous les élèves du lycée</Button>
         </div>
       </div>
       {visible.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center dark:border-slate-700 dark:bg-slate-900"><BookOpen className="mx-auto mb-3 size-9 text-slate-400" /><h2 className="text-lg font-semibold">Aucune classe trouvée</h2><p className="mt-1 text-sm text-slate-500">Ajustez les filtres ou la recherche pour afficher les classes.</p><Button variant="outline" className="mt-4" onClick={() => {setNiveau("tous");setStatut("tous");setRecherche("");}}>Effacer les filtres</Button></div> : vue === "grille" ? (
         <div className="grid items-stretch gap-4 md:grid-cols-2 2xl:grid-cols-3">
-          {visible.map((c) => <ClasseCarte key={c.id} classe={c} index={classes.findIndex((v) => v.id === c.id)} peutModifier={peutModifier && peutEditerCetteAnnee} peutVoirPersonnel={peutVoirPersonnel} peutNotifier={peutNotifier} ouvrir={ouvrir} selectionne={selection.includes(c.id)} basculer={basculerSelection} ouvrirEleves={ouvrirEleves} />)}
+          {visible.map((c) => <ClasseCarte key={c.id} classe={c} index={classes.findIndex((v) => v.id === c.id)} peutModifier={peutModifier && peutEditerCetteAnnee} peutVoirPersonnel={peutVoirPersonnel} peutNotifier={peutNotifier} peutImprimer={peutImprimer} anneeId={annee.id} ouvrir={ouvrir} selectionne={selection.includes(c.id)} basculer={basculerSelection} ouvrirEleves={ouvrirEleves} />)}
         </div>
       ) : (
         <ListeClasses
@@ -327,11 +338,13 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
           ouvrirEleves={ouvrirEleves}
           peutModifier={peutModifier && peutEditerCetteAnnee}
           peutNotifier={peutNotifier}
+          peutImprimer={peutImprimer}
+          anneeId={annee.id}
           ouvrir={ouvrir}
         />
       )}
       <p className="text-right text-xs text-slate-500 dark:text-slate-400">{etiquette(visible.length, "classe affichée", "classes affichées")} sur {classes.length}</p>
-      <ElevesClassesTiroir ouvert={tiroirOuvert} surFermeture={() => setTiroirOuvert(false)} anneeId={annee.id} anneeLibelle={annee.libelle} classes={classes} initiales={tiroirInitial} />
+      <ElevesClassesTiroir ouvert={tiroirOuvert} surFermeture={() => setTiroirOuvert(false)} anneeId={annee.id} anneeLibelle={annee.libelle} classes={classes} initiales={tiroirInitial} peutImprimer={peutImprimer} />
 
       <Dialog open={form !== null} onOpenChange={(open) => { if (!open && !enCours) setForm(null); }}>
         <DialogContent className="flex h-[min(92dvh,840px)] w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl sm:max-w-[min(850px,calc(100vw-2.5rem))] dark:border-slate-700 dark:bg-slate-900">
