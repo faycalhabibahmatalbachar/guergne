@@ -6,6 +6,9 @@ import { peut, requirePermission } from "@/server/guard";
 
 export type ApercuDossier = {
   naissance: string;
+  inscriptionId: string | null;
+  classeId: string | null;
+  statut: string;
   sexe: string;
   adresse: string | null;
   telephone: string | null;
@@ -67,6 +70,9 @@ export async function chargerApercuEleve(id: string): Promise<ApercuDossier | nu
 
   return {
     naissance: eleve.dateNaissance,
+    inscriptionId: inscription?.id ?? null,
+    classeId: inscription?.classeId ?? null,
+    statut: eleve.statut,
     sexe: eleve.sexe,
     adresse: eleve.adresse,
     telephone: eleve.telephone,
