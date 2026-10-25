@@ -16,7 +16,10 @@ import { OngletClasses } from "./_components/classes";
 import { OngletCoefficients } from "./_components/coefficients";
 import { OngletMatieres } from "./_components/matieres";
 import { SettingsCards } from "./_components/settings-cards";
-import { CommunicationSettingsPanel } from "./_components/communication-settings-panel";
+import { CommunicationSettingsPanel, type CouvertureFamilles } from "./_components/communication-settings-panel";
+import type { ApercuPolitique } from "./_components/communication-policies";
+import { statistiquesParents } from "@/server/domain/parents";
+import { etatFileNotifications } from "@/server/domain/communication";
 import { SettingsCategoryPanel, type IndicateurParametre, type AccesModule } from "./_components/settings-category-panel";
 import { findSettingsCategory, type SettingsCategoryId } from "@/navigation/sidebar/settings-categories";
 import type { Action } from "@/server/guard/permissions";
@@ -189,20 +192,59 @@ export default async function PageParametres({
         .map(({ permission: _permission, ...lien }) => lien);
 
       if (categorie.id === "communication") {
-        const [joursInvitations, nombrePolitiques] = await Promise.all([
+        // Les synthèses sont strictement limitées aux permissions réelles.
+        // Aucun SMS, aucune invitation ou notification n'est expédié ici.
+        const [peutVoirParents, peutVoirCommunication] = await Promise.all([
+          peut(principal, "tuteur:gerer"),
+          peut(principal, "annonce:lire"),
+        ]);
+        const [joursInvitations, parents, couverture, file, politiques] = await Promise.all([
           peutConfigurer ? dureeInvitationJours() : Promise.resolve(null),
+          peutVoirParents ? statistiquesParents() : Promise.resolve(null),
+          peutVoirParents || peutNotifier
+            ? db.execute<{ canal: string; total: number }>(sql`
+                SELECT fn_canal_tuteur(t.id)::text AS canal, count(*)::int AS total
+                FROM tuteurs t
+                GROUP BY fn_canal_tuteur(t.id)
+              `).then((resultat): CouvertureFamilles => {
+                const valeurs = { push: 0, sms: 0, interne: 0 };
+                for (const ligne of resultat.rows) {
+                  if (ligne.canal === "PUSH") valeurs.push = Number(ligne.total);
+                  if (ligne.canal === "SMS") valeurs.sms = Number(ligne.total);
+                  if (ligne.canal === "IN_APP") valeurs.interne = Number(ligne.total);
+                }
+                return valeurs;
+              })
+            : Promise.resolve(null),
+          peutNotifier || peutVoirCommunication ? etatFileNotifications() : Promise.resolve(null),
           peutNotifier
-            ? db.execute<{ nombre: string }>(
-                sql`SELECT count(*)::text AS nombre FROM v_couverture_notifications`,
-              ).then((resultat) => Number(resultat.rows[0]?.nombre ?? 0))
+            ? db.execute<{
+                type: string; libelle: string; politique: string;
+                description: string | null; deja_produites: number; cout_total_fcfa: number;
+              }>(sql`
+                SELECT type, libelle, politique, description, deja_produites, cout_total_fcfa
+                FROM v_couverture_notifications
+                ORDER BY libelle
+              `).then((resultat): ApercuPolitique[] => resultat.rows.map((ligne) => ({
+                type: ligne.type,
+                libelle: ligne.libelle,
+                politique: ligne.politique,
+                description: ligne.description,
+                dejaProduites: Number(ligne.deja_produites),
+                coutTotalFcfa: Number(ligne.cout_total_fcfa),
+              })))
             : Promise.resolve(null),
         ]);
+
         return (
           <CommunicationSettingsPanel
             items={rubrique}
             accesModules={accesModules}
             joursInvitations={joursInvitations}
-            nombrePolitiques={nombrePolitiques}
+            parents={parents}
+            couverture={couverture}
+            file={file}
+            politiques={politiques}
           />
         );
       }
