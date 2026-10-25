@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import type { BlocMatieres, DonneesBulletin, LigneMatiere } from "@/server/pdf/bulletin";
+import { libelleAppreciationTravail } from "./appreciations-travail.ts";
 
 /**
  * Assemble les données d'un bulletin imprimable.
@@ -107,13 +108,7 @@ function libelleMention(mention: string | null): string | null {
 }
 
 function libelleTravail(moyenne: number | null): string | null {
-  if (moyenne === null) return null;
-  if (moyenne >= 14) return "Tableau d'honneur";
-  if (moyenne >= 12) return "Félicitations";
-  if (moyenne >= 10) return "Encouragement";
-  if (moyenne >= 8) return "Efforts à fournir";
-  if (moyenne >= 6) return "Avertissement";
-  return "Blâme";
+  return libelleAppreciationTravail(moyenne);
 }
 
 function libelleDiscipline(note: number | null): string | null {
