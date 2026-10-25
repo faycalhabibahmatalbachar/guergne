@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   AlertTriangle, ArrowRight, Bell, CheckCircle2, ChevronRight, CircleAlert,
-  History, KeyRound, MessageSquare, Settings2, ShieldCheck, Smartphone,
+  KeyRound, MessageSquare, Settings2, ShieldCheck, Smartphone,
   Users, UserRoundCheck, UserRoundX, Wallet, type LucideIcon,
 } from "lucide-react";
 
@@ -110,7 +110,6 @@ function SettingsTable({
   onSuivi: () => void;
 }) {
   const rowClasses = "border-t border-slate-100 dark:border-border";
-  const actionClasses = "h-9 min-w-[104px] gap-1.5 border-slate-200 bg-white text-xs font-semibold shadow-none dark:border-border dark:bg-card";
   const labelClasses = "flex items-center gap-2.5 font-semibold";
   const iconClasses = "flex size-8 shrink-0 items-center justify-center rounded-lg";
   const rows = [
@@ -184,7 +183,7 @@ function Attention({ parents, file, echecs30Jours, onSuivi, hrefParents, hrefMes
     ...(echecs30Jours !== null && echecs30Jours > 0 ? [{
       key: "echecs", icon: Bell, tone: "bg-rose-50 text-rose-600",
       titre: `${echecs30Jours.toLocaleString("fr-FR")} notification${echecs30Jours > 1 ? "s" : ""} échouée${echecs30Jours > 1 ? "s" : ""}`,
-      detail: "Échecs au cours des 30 derniers jours", label: "Voir les erreurs", href: hrefMessages,
+      detail: "Échecs au cours des 30 derniers jours", label: "Examiner les erreurs", href: undefined,
       onClick: onSuivi,
     }] : []),
     ...(parents && parents.sansCompte > 0 ? [{
