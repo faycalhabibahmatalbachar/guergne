@@ -435,11 +435,12 @@ export async function chargerBulletin(
     moyenne_generale: string | null;
     rang: number | null;
     appreciation_generale: string | null;
+    appreciation_travail: string | null;
     mention: string | null;
     decision: string | null;
     note_conduite: string | null;
   }>(sql`
-    SELECT moyenne_generale::text, rang, appreciation_generale,
+    SELECT moyenne_generale::text, rang, appreciation_generale, appreciation_travail,
            mention::text, decision::text, note_conduite::text
       FROM bulletins
      WHERE inscription_id = ${inscriptionId}::uuid AND periode_id = ${periodeId}::uuid
@@ -544,7 +545,9 @@ export async function chargerBulletin(
 
     // Les valeurs écrites par l'administration restent prioritaires ; les
     // cellules non saisies suivent les formules du classeur Excel.
-    appreciationTravail: libelleTravail(moyennePourAppreciationTravail),
+    appreciationTravail: ctx.est_derniere_periode
+      ? libelleTravail(moyennePourAppreciationTravail)
+      : (b?.appreciation_travail ?? libelleTravail(moyennePourAppreciationTravail)),
     appreciationGenerale,
     appreciationDiscipline: c?.appreciation ?? libelleDiscipline(
       c?.note !== null && c?.note !== undefined ? Number(c.note) :

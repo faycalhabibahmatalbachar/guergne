@@ -14,6 +14,7 @@ import {
   type NoteBrute,
   type Ponderation,
 } from "./notes";
+import { libelleAppreciationTravail } from "./appreciations-travail";
 
 /**
  * Production des bulletins d'une classe pour une période.
@@ -252,20 +253,20 @@ export async function genererBulletins(
       const rang = rangs.get(eleve.id);
       const mention = proposerMention(generale.moyenne, noteConduite, Number(a.non_justifiees));
 
-      // Le `DO UPDATE` ne touche QUE les chiffres. `appreciation_generale`,
-      // `decision`, `est_publie` et `conseil_classe_id` appartiennent au
-      // conseil de classe et survivent à un recalcul.
+      // Le `DO UPDATE` rafraîchit les chiffres et l’appréciation automatique
+      // du travail. `appreciation_generale`, `decision`, `est_publie` et
+      // `conseil_classe_id` sont les champs du conseil qui survivent au recalcul.
       await tx.execute(sql`
         INSERT INTO bulletins (
           inscription_id, periode_id, moyenne_generale, rang, effectif_classe,
           moyenne_classe, heures_absence_justifiees, heures_absence_non_justifiees,
-          nb_retards, note_conduite, mention, genere_le
+          nb_retards, note_conduite, mention, appreciation_travail, genere_le
         ) VALUES (
           ${eleve.id}::uuid, ${periodeId}::uuid, ${generale.moyenne}, ${rang?.rang ?? null},
           ${rapport.eleves},
           ${moyenneDeClasse(calculs)},
           ${Number(a.justifiees)}, ${Number(a.non_justifiees)}, ${Number(a.retards)},
-          ${noteConduite}, ${mention}::mention_bulletin, now()
+          ${noteConduite}, ${mention}::mention_bulletin, ${libelleAppreciationTravail(generale.moyenne)}, now()
         )
         ON CONFLICT (inscription_id, periode_id) DO UPDATE
           SET moyenne_generale = EXCLUDED.moyenne_generale,
@@ -277,6 +278,7 @@ export async function genererBulletins(
               nb_retards = EXCLUDED.nb_retards,
               note_conduite = EXCLUDED.note_conduite,
               mention = EXCLUDED.mention,
+              appreciation_travail = EXCLUDED.appreciation_travail,
               genere_le = now()
       `);
 

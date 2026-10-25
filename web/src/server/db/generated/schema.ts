@@ -1012,6 +1012,7 @@ export const bulletins = pgTable("bulletins", {
 	nbRetards: smallint("nb_retards").default(0).notNull(),
 	noteConduite: numeric("note_conduite", { precision: 5, scale:  2 }),
 	appreciationGenerale: text("appreciation_generale"),
+	appreciationTravail: text("appreciation_travail"),
 	mention: mentionBulletin().default('AUCUNE').notNull(),
 	decision: decisionFinAnnee(),
 	estPublie: boolean("est_publie").default(false).notNull(),
