@@ -29,7 +29,7 @@ export function HabillageAuthentification({
         <div className={styles.brandContent}>
           <div className={styles.logoFrame}>
             <Image
-              src="/logo.svg"
+              src={APP_CONFIG.logoUrl}
               alt="Blason du Lycée Guergné La Renaissance"
               width={128}
               height={128}

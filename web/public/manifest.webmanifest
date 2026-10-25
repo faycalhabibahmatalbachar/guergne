@@ -9,19 +9,19 @@
   "lang": "fr",
   "icons": [
     {
-      "src": "/icone-192.png",
+      "src": "/api/identite/icone/192",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icone-512.png",
+      "src": "/api/identite/icone/512",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icone-512-pleine.png",
+      "src": "/api/identite/icone/512-maskable",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

@@ -8,7 +8,7 @@ import { join } from "node:path";
  */
 type Style = ReturnType<typeof StyleSheet.create>[string];
 
-const LOGO_ETABLISSEMENT = join(process.cwd(), "public", "icone-512-pleine.png");
+const LOGO_ETABLISSEMENT = join(process.cwd(), "public", "logo-officiel.png");
 
 import type { Etablissement } from "./gabarit";
 

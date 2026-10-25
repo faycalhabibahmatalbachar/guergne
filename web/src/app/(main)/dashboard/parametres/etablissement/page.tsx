@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { School, ShieldCheck } from "lucide-react";
+import Image from "next/image";
+import { APP_CONFIG } from "@/config/app-config";
+import { ShieldCheck } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { chargerIdentiteLycee } from "@/server/domain/identite-lycee";
@@ -33,8 +35,8 @@ export default async function PageIdentiteLycee() {
       ) : (
         <>
           <section className="flex items-start gap-4 rounded-xl border bg-card p-5" aria-label="Identité institutionnelle">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-lg border bg-muted/50">
-              <School className="size-6 text-primary" aria-hidden />
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-lg border bg-white p-1">
+              <Image src={APP_CONFIG.logoUrl} alt="Blason officiel du lycée" width={48} height={48} className="size-12 object-contain" />
             </span>
             <div className="min-w-0">
               <h2 className="font-semibold">{identite.nom}</h2>
@@ -52,8 +54,9 @@ export default async function PageIdentiteLycee() {
           <p className="flex items-start gap-2 text-muted-foreground text-xs">
             <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
             Ces informations proviennent de la fiche unique en base et sont
-            réutilisées par le générateur de bulletins. Logo, cachet et signature
-            numérique auront leurs propres circuits sécurisés.
+            réutilisées par le générateur de bulletins. Le blason officiel est
+            partagé par les écrans et les documents ; cachet et signature
+            numérique conservent leurs circuits sécurisés.
           </p>
         </>
       )}

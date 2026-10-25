@@ -6,6 +6,8 @@ export const APP_CONFIG = {
   name: "Lycée La Renaissance",
   nomComplet: "Lycée Guergné La Renaissance",
   sigle: "LGR",
+  /** Source unique du blason officiel, commune aux interfaces et documents. */
+  logoUrl: "/logo-officiel.png",
   version: packageJson.version,
   copyright: `© ${anneeCourante}, Lycée Guergné La Renaissance.`,
   devise: "FCFA",

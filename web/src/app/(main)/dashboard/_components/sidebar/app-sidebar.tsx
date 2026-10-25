@@ -93,7 +93,7 @@ export function AppSidebar({ utilisateur, actionsAutorisees, ...props }: Props) 
                 <div className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg border bg-white">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src="/logo.svg"
+                    src={APP_CONFIG.logoUrl}
                     alt=""
                     width={32}
                     height={32}

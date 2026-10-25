@@ -37,7 +37,7 @@ export function creerContenuReinitialisation(lien: string): { texte: string; htm
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:560px;border:1px solid #e3eae7;border-radius:14px;background:#ffffff">',
     '<tr><td style="height:5px;background:#26765b;font-size:0">&nbsp;</td></tr>',
     '<tr><td align="center" style="padding:30px 28px 18px">',
-    '<img src="', BASE, '/logo-officiel.webp" width="76" height="66" alt="Blason officiel du lycée" style="display:block;max-width:76px;border:0">',
+    '<img src="', BASE, '/logo-officiel.png" width="84" height="60" alt="Blason officiel du lycée" style="display:block;max-width:84px;border:0">',
     '<div style="padding-top:12px;color:#163d33;font-size:17px;line-height:24px;font-weight:bold">Lycée Guergné La Renaissance</div>',
     '<div style="padding-top:4px;color:#70817a;font-size:12px">Espace d’administration</div>',
     '</td></tr><tr><td style="padding:16px 34px 20px">',

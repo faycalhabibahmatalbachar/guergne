@@ -1,4 +1,7 @@
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { join } from "node:path";
+
+const LOGO_OFFICIEL = join(process.cwd(), "public", "logo-officiel.png");
 
 /**
  * Gabarit commun des documents officiels.
@@ -31,7 +34,9 @@ export const styles = StyleSheet.create({
     paddingBottom: 10,
     marginBottom: 18,
   },
-  enteteBloc: { width: "48%" },
+  enteteBloc: { width: "40%" },
+  enteteLogo: { width: "18%", alignItems: "center", justifyContent: "center" },
+  enteteLogoImage: { width: 58, height: 49, objectFit: "contain" },
   enteteCentre: { alignItems: "center", justifyContent: "center" },
   ministere: { fontSize: 8, textAlign: "center", lineHeight: 1.4 },
   devise: { fontSize: 7, fontStyle: "italic", textAlign: "center", marginTop: 2 },
@@ -139,6 +144,10 @@ export function EnTete({ etablissement }: { etablissement: Etablissement }) {
         <Text style={[styles.ministere, { marginTop: 4 }]}>
           {etablissement.ministereTutelle ?? "Ministère de l'Éducation Nationale"}
         </Text>
+      </View>
+
+      <View style={styles.enteteLogo}>
+        <Image src={LOGO_OFFICIEL} style={styles.enteteLogoImage} />
       </View>
 
       <View style={[styles.enteteBloc, { alignItems: "flex-end" }]}>
