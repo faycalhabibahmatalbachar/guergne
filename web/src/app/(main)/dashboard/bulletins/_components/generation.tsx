@@ -308,8 +308,8 @@ export function GenerationBulletins({
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <AvisConseil inscriptionId={b.inscriptionId} periodeId={b.periodeId} eleve={b.eleve} mention={b.mention} appreciation={b.appreciation} decision={b.decision} publie={b.publie} />
-                          <Button type="button" variant="outline" size="sm" onClick={() => setBulletinApercu(b)} aria-label={`Prévisualiser le bulletin de ${b.eleve}`} title="Aperçu du bulletin" className="gap-1 border-cyan-700/30 text-cyan-800 hover:bg-cyan-50 hover:text-cyan-950 dark:border-cyan-400/30 dark:text-cyan-200 dark:hover:bg-cyan-950/50">
-                            <Eye aria-hidden /> <span className="hidden md:inline">Aperçu</span>
+                          <Button type="button" variant="outline" size="sm" onClick={() => setBulletinApercu(b)} aria-label={`Prévisualiser le bulletin de ${b.eleve}`} title="Aperçu du bulletin" className="h-7 min-w-[5.75rem] justify-center gap-2 px-4 py-0 text-xs border-cyan-700/30 text-cyan-800 hover:bg-cyan-50 hover:text-cyan-950 dark:border-cyan-400/30 dark:text-cyan-200 dark:hover:bg-cyan-950/50">
+                            <Eye className="size-3.5 shrink-0" aria-hidden /> <span className="hidden md:inline">Aperçu</span>
                           </Button>
                           <Button asChild variant="ghost" size="sm">
                             <a href={`/api/bulletins/${b.inscriptionId}/${b.periodeId}`} target="_blank" rel="noopener noreferrer" aria-label={`Ouvrir pour imprimer le bulletin de ${b.eleve}`} title="Ouvrir le PDF pour impression">
