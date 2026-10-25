@@ -46,8 +46,11 @@ export async function indicateursCles(
       (SELECT count(*) FROM classes WHERE annee_id = ${anneeId}::uuid AND active) AS classes,
 
       (SELECT count(DISTINCT a.inscription_id) FROM absences a
+        JOIN inscrits x ON x.id = a.inscription_id
         WHERE a.date_absence = CURRENT_DATE)                                   AS absents_jour,
-      (SELECT count(*) FROM retards r WHERE r.date_retard = CURRENT_DATE)      AS retards_jour,
+      (SELECT count(DISTINCT r.inscription_id) FROM retards r
+        JOIN inscrits x ON x.id = r.inscription_id
+        WHERE r.date_retard = CURRENT_DATE)                                    AS retards_jour,
 
       (SELECT count(*) FROM eleves e
         JOIN inscrits x ON x.eleve_id = e.id
@@ -93,7 +96,9 @@ export async function indicateursCles(
     reinscriptions: Number(l.reinscriptions ?? 0),
     enseignants: Number(l.enseignants ?? 0),
     classes: Number(l.classes ?? 0),
-    presentsAujourdhui: Math.max(0, effectif - absents),
+    // Les absences seules ne prouvent pas les présences.
+    // Conservé uniquement pour compatibilité historique ; ne pas afficher comme un pointage.
+    presentsAujourdhui: 0,
     absentsAujourdhui: absents,
     retardsAujourdhui: Number(l.retards_jour ?? 0),
     suspendus: Number(l.suspendus ?? 0),
