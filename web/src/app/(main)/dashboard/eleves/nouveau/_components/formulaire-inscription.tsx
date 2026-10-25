@@ -15,6 +15,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { messageTelephoneInscription } from "@/lib/telephone";
 
 import { inscrireEleve } from "../../actions";
 import { definirPhotoEleve } from "../../[id]/photo-actions";
@@ -207,7 +208,8 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
       tuteurs.forEach((t, i) => {
         if (t.nom.trim().length < 2) erreursLocales[`tuteurs.${i}.nom`] = "Nom requis.";
         if (t.prenom.trim().length < 2) erreursLocales[`tuteurs.${i}.prenom`] = "Prénom requis.";
-        if (!/^\\+?[0-9\\s.-]{8,20}$/.test(t.telephone.trim())) erreursLocales[`tuteurs.${i}.telephone`] = "Numéro invalide.";
+        const erreurTelephone = messageTelephoneInscription(t.telephone);
+        if (erreurTelephone) erreursLocales[`tuteurs.${i}.telephone`] = erreurTelephone;
       });
     }
     if (Object.keys(erreursLocales).length) {
@@ -662,11 +664,11 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                       value={t.telephone}
                       disabled={Boolean(t.existantId)}
                       onChange={(e) => majTuteur(t.cle, "telephone", e.target.value)}
-                      placeholder="+235 66 00 00 00"
+                      placeholder="Ex. : 66 00 00 00 ou +235 66 00 00 00"
                     />
                     {erreur(`tuteurs.${index}.telephone`)}
                     <p className="text-muted-foreground text-xs">
-                      C&apos;est ce numéro qui donnera accès à l&apos;application mobile.
+                      8 chiffres au Tchad (3, 6, 8 ou 9), avec ou sans +235. Pour un parent à l’étranger, saisissez son indicatif (+33, +225…).
                     </p>
                   </div>
                   <div className="grid gap-2">
