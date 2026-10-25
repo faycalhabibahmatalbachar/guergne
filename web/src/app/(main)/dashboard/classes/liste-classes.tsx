@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, BellRing, GraduationCap, Pencil, Printer, Users } from "lucide-react";
+import { BarChart3, BellRing, Eye, GraduationCap, Pencil, Printer, Users } from "lucide-react";
 import type { LigneClasseParametre } from "@/server/domain/parametres";
 import { BoutonNotifier } from "../_components/bouton-notifier";
 import { urlImpressionClasses } from "./impression-url";
@@ -79,6 +79,9 @@ function Actions({ classe, peutModifier, peutNotifier, peutImprimer, anneeId, ou
   const classesBouton = "inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800";
   return (
     <div className={"classes-list-actions flex items-center gap-2 " + (compact ? "flex-wrap" : "justify-end")}>
+      <Link href={`/dashboard/classes/${classe.id}?annee=${anneeId}`} className={classesBouton} title="Ouvrir les détails de la classe">
+        <Eye className="size-3.5 shrink-0" aria-hidden /> Détails
+      </Link>
       <button type="button" className={classesBouton} onClick={() => ouvrirEleves([classe.id])}>
         <Users className="size-3.5 shrink-0" aria-hidden />
         <span>Élèves</span>
@@ -163,12 +166,11 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
                   <td className="pl-3"><input type="checkbox" aria-label={"Sélectionner " + classe.libelle} checked={selection.includes(classe.id)} onChange={() => basculerSelection(classe.id)} className="size-4 accent-blue-600" /></td>
                   <th scope="row" className="py-3.5 pl-5 pr-3 text-left">
                     <div className="flex min-w-0 items-center gap-2.5">
-                      <input type="checkbox" aria-label={"Sélectionner " + classe.libelle} checked={selection.includes(classe.id)} onChange={() => basculerSelection(classe.id)} className="size-4 shrink-0 accent-blue-600" />
                   <span className={"flex size-10 shrink-0 items-center justify-center rounded-xl " + couleur.fond + " " + couleur.texte}>
                         <GraduationCap className="size-5" aria-hidden />
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-bold text-[#102244] dark:text-white">{classe.libelle}</span>
+                        <Link href={`/dashboard/classes/${classe.id}?annee=${anneeId}`} className="block truncate text-sm font-bold text-[#102244] hover:text-blue-700 hover:underline dark:text-white">{classe.libelle}</Link>
                         <span className="mt-0.5 inline-block rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{classe.code}</span>
                       </span>
                     </div>
@@ -194,11 +196,12 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
             <article key={classe.id} className="space-y-3 border-l-4 px-4 py-4 transition-colors hover:bg-blue-50/30 dark:hover:bg-slate-800/40 sm:px-5" style={{borderLeftColor:["#2563eb","#059669","#7c3aed","#e11d48","#d97706"][paletteIndex%5]}}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
+                  <input type="checkbox" checked={selection.includes(classe.id)} onChange={() => basculerSelection(classe.id)} aria-label={"Sélectionner " + classe.libelle} className="size-4 shrink-0 accent-blue-600" />
                   <span className={"flex size-10 shrink-0 items-center justify-center rounded-xl " + couleur.fond + " " + couleur.texte}>
                     <GraduationCap className="size-5" aria-hidden />
                   </span>
                   <div className="min-w-0">
-                    <h3 className="truncate text-sm font-bold text-[#102244] dark:text-white">{classe.libelle} <span className="ml-1 text-xs font-medium text-slate-400">({classe.code})</span></h3>
+                    <h3 className="truncate text-sm font-bold text-[#102244] dark:text-white"><Link href={`/dashboard/classes/${classe.id}?annee=${anneeId}`} className="hover:text-blue-700 hover:underline">{classe.libelle}</Link> <span className="ml-1 text-xs font-medium text-slate-400">({classe.code})</span></h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">{classe.niveauLibelle}</p>
                   </div>
                 </div>

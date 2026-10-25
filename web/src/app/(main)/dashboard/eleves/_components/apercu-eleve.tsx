@@ -78,7 +78,7 @@ export function ApercuEleve({
         <Eye className="size-4" aria-hidden />
       </Button>
     </SheetTrigger>
-    <SheetContent side="right" className="flex h-dvh w-full max-w-full flex-col gap-0 overflow-hidden border-l border-slate-200 p-0 sm:max-w-[760px] xl:max-w-[920px] dark:border-border">
+    <SheetContent side="right" className="flex h-dvh w-full max-w-full flex-col gap-0 overflow-hidden border-l border-slate-200 p-0 sm:w-[min(94vw,1000px)] sm:max-w-[min(94vw,1000px)] xl:w-[1000px] xl:max-w-[1000px] dark:border-border">
       <SheetHeader className="shrink-0 border-b border-slate-200 px-5 py-4 dark:border-border">
         <SheetTitle className="text-base font-bold">Aperçu du dossier élève</SheetTitle>
         <SheetDescription>Consultez les informations essentielles sans quitter la liste.</SheetDescription>

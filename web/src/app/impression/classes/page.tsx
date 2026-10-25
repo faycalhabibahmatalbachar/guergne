@@ -70,9 +70,6 @@ export default async function ImpressionClasses({
   const parClasse = new Map(autorisees.map((c) => [c.id, [] as typeof lignes]));
   for (const eleve of lignes) parClasse.get(eleve.classeId)?.push(eleve);
 
-  const dateEmission = new Date().toLocaleString("fr-FR", {
-    timeZone: "Africa/Ndjamena", day: "2-digit", month: "long", year: "numeric",
-  });
   const effectifTotal = lignes.length;
 
   return <main className="classes-impression">
@@ -94,28 +91,21 @@ export default async function ImpressionClasses({
         const garcons = inscrits.filter((e) => e.sexe === "M").length;
         return <section className="feuille-classe" key={classe.id}>
           <header className="entete-officiel">
-            {/* Blason officiel unique utilisé également dans toute l'application. */}
-            <img src={APP_CONFIG.logoUrl} alt={"Logo officiel de " + (identite?.nom || APP_CONFIG.nomComplet)} width={84} height={84} className="logo-officiel" />
-            <div className="identite-officielle">
-              {identite?.ministereTutelle && <p className="ministere">{identite.ministereTutelle}</p>}
-              <h2>{identite?.nom || APP_CONFIG.nomComplet}</h2>
-              {identite?.devise && <p className="devise">{identite.devise}</p>}
-              <p className="coordonnees">{[identite?.adresse, identite?.ville, identite?.pays].filter(Boolean).join(" · ") || "Tchad"}</p>
-              {identite?.telephone && <p className="coordonnees">Tél. : {identite.telephone}</p>}
-            </div>
-            <span className="code-ecole">{identite?.sigle || APP_CONFIG.sigle}</span>
+            <p className="ministere">Ministère de l'Éducation Nationale</p>
+            <img src={APP_CONFIG.logoUrl} alt={"Logo officiel de " + APP_CONFIG.nomComplet} width={84} height={84} className="logo-officiel" />
+            <h2>{identite?.nom || APP_CONFIG.nomComplet}</h2>
+            <p className="coordonnees">N'Djamena · Tchad</p>
           </header>
 
           <div className="titre-liste">
             <p className="sur-titre">Registre scolaire · Année {annee.libelle}</p>
             <h3>LISTE NOMINATIVE DES ÉLÈVES</h3>
-            <p className="nom-classe">Classe : <strong>{classe.libelle}</strong> · {classe.niveauLibelle}{classe.serieCode ? " · Série " + classe.serieCode : ""}</p>
+            <p className="nom-classe">Classe : <strong>{classe.libelle}</strong>{classe.serieCode ? " · Série " + classe.serieCode : ""}</p>
           </div>
           <div className="recapitulatif">
             <span>Effectif inscrit : <strong>{inscrits.length}</strong></span>
             <span>Filles : <strong>{filles}</strong></span>
             <span>Garçons : <strong>{garcons}</strong></span>
-            <span>Capacité : <strong>{classe.capaciteMax}</strong></span>
           </div>
           <table className="tableau-eleves">
             <colgroup>
@@ -143,10 +133,6 @@ export default async function ImpressionClasses({
               {inscrits.length === 0 && <tr><td colSpan={6} className="vide">Aucun élève inscrit dans cette classe pour l'année sélectionnée.</td></tr>}
             </tbody>
           </table>
-          <footer className="pied-document">
-            <div><p>Liste établie le {dateEmission} (heure du Tchad).</p><p>Document administratif — usage interne à l'établissement.</p></div>
-            <div className="signature">Le responsable de l'établissement<br/><span>Signature et cachet</span></div>
-          </footer>
         </section>;
       })}
     </div>

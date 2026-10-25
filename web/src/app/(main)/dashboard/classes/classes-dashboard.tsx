@@ -7,7 +7,7 @@ import {
   ArrowRight, BarChart3, BookOpen, CalendarDays, Check, ChevronDown,
   Ellipsis, GraduationCap, Grid2X2, List, Mail, MoreHorizontal,
   Pencil, Plus, School, Search, SlidersHorizontal, Trash2, Users, ClipboardList,
-  UserRound, X, Printer,
+  UserRound, X, Printer, Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -73,7 +73,7 @@ function Statistique({ icon: Icon, valeur, libelle, note, couleur }: {
     <div className="classes-stat min-w-0 rounded-2xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center gap-4">
         <div className={"flex size-13 shrink-0 items-center justify-center rounded-xl text-white shadow-sm " + couleur}>
-          <Icon className="size-6" aria-hidden />
+          <Icon className="size-5" aria-hidden />
         </div>
         <div className="min-w-0">
           <div className="text-2xl font-bold leading-none tracking-tight text-slate-950 dark:text-white">{valeur}</div>
@@ -106,16 +106,16 @@ function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotif
   const plein = capacite > 0 && total >= capacite;
 
   return (
-    <article className={"classes-class-card flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-slate-900 " + palette.border}>
-      <div className={"flex items-center justify-between gap-3 border-b border-slate-100/70 px-4 py-3.5 dark:border-slate-800 " + palette.surface}>
+    <article className={"classes-class-card flex min-w-0 flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-slate-900 " + palette.border}>
+      <div className={"flex items-center justify-between gap-2 border-b border-slate-100/70 px-3 py-2.5 dark:border-slate-800 " + palette.surface}>
         <div className="flex min-w-0 items-center gap-3">
           <input type="checkbox" aria-label={"Sélectionner " + classe.libelle} checked={selectionne} onChange={() => basculer(classe.id)} className="size-4 shrink-0 accent-blue-600" />
-          <span className={"flex size-12 shrink-0 items-center justify-center rounded-xl text-white " + palette.icon}>
+          <span className={"flex size-10 shrink-0 items-center justify-center rounded-lg text-white " + palette.icon}>
             <GraduationCap className="size-6" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h3 className="truncate text-[17px] font-bold leading-6 text-slate-950 dark:text-white">{classe.libelle}</h3>
-            <p className="truncate text-sm text-slate-500 dark:text-slate-400">{classe.niveauLibelle}</p>
+            <h3 className="truncate text-[15px] font-bold leading-5 text-slate-950 dark:text-white">{classe.libelle}</h3>
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">{classe.niveauLibelle}</p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -125,10 +125,10 @@ function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotif
           </span>
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-3.5 px-4 py-4">
+      <div className="flex flex-1 flex-col gap-2.5 px-3 py-3">
         <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-slate-800">
           <div className="flex items-center gap-2 pr-2">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10"><Users className="size-4" /></span>
+            <span className="flex size-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10"><Users className="size-4" /></span>
             <div><strong className="block text-sm font-bold text-slate-950 dark:text-white">{total}</strong><span className="text-[11px] text-slate-500">Élèves</span></div>
           </div>
           <div className="flex items-center justify-center gap-2 px-2">
@@ -142,41 +142,27 @@ function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotif
             <div><strong className="block text-sm font-bold text-slate-950 dark:text-white">{capacite ? taux + "%" : "—"}</strong><span className="text-[11px] text-slate-500">Taux</span></div>
           </div>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800" role="progressbar" aria-label={"Taux de remplissage de " + classe.libelle} aria-valuemin={0} aria-valuemax={100} aria-valuenow={tauxLimite}>
+        <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800" role="progressbar" aria-label={"Taux de remplissage de " + classe.libelle} aria-valuemin={0} aria-valuemax={100} aria-valuenow={tauxLimite}>
           <div className={"h-full rounded-full transition-all " + palette.bar} style={{ width: tauxLimite + "%" }} />
         </div>
-        <div className="flex min-h-10 items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"><UserRound className="size-4" /></span>
-            <span className="leading-snug">Professeur principal<br/><strong className="font-medium text-slate-700 dark:text-slate-300">Non renseigné</strong></span>
-          </div>
-          {peutVoirPersonnel && (
-            <Link href="/dashboard/personnel" title="Consulter les enseignants" aria-label={"Consulter les enseignants pour " + classe.libelle} className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-blue-600 hover:bg-blue-50 dark:border-slate-700"><ArrowRight className="size-4" /></Link>
-          )}
-        </div>
         {plein && <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Capacité atteinte : inscriptions complètes.</p>}
-        <div className="mt-auto space-y-2.5 border-t border-slate-100 pt-3 dark:border-slate-800">
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => ouvrirEleves([classe.id])} className={"inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-800 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800 " + (!peutModifier ? "col-span-2" : "")}>
-              <Users className="size-4 shrink-0" /> Voir les élèves
-            </button>
-            {peutModifier && (
-              <button type="button" onClick={() => ouvrir(classe)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-800 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800">
-                <Pencil className="size-4 shrink-0" /> Modifier la classe
-              </button>
-            )}
-          </div>
+        <div className="mt-auto grid grid-cols-2 gap-1.5 border-t border-slate-100 pt-2.5 dark:border-slate-800">
+          <Link href={`/dashboard/classes/${classe.id}?annee=${anneeId}`} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+            <Eye className="size-3.5" aria-hidden /> Détails
+          </Link>
+          <button type="button" onClick={() => ouvrirEleves([classe.id])} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-2 text-xs font-semibold hover:bg-blue-50 dark:border-slate-700">
+            <Users className="size-3.5" aria-hidden /> Élèves
+          </button>
           {peutImprimer && <a href={urlImpressionClasses(anneeId, [classe.id])} target="_blank" rel="noopener noreferrer"
-            className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
-            <Printer className="size-4" aria-hidden /> Imprimer la liste
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+            <Printer className="size-3.5" aria-hidden /> Imprimer
           </a>}
-          {peutNotifier && classe.active && total > 0 ? (
+          {peutModifier && <button type="button" onClick={() => ouvrir(classe)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-2 text-xs font-semibold hover:bg-blue-50 dark:border-slate-700">
+            <Pencil className="size-3.5" aria-hidden /> Modifier
+          </button>}
+          {peutNotifier && classe.active && total > 0 && <div className="col-span-2 mt-0.5">
             <BoutonNotifier cible={{ type: "classe", id: classe.id, nom: classe.libelle }} variante="outline" contexteClasses />
-          ) : (
-            <p className="flex h-9 items-center justify-center rounded-lg bg-slate-50 px-2 text-center text-xs text-slate-400 dark:bg-slate-800">
-              {total === 0 ? "Aucun parent à prévenir pour le moment" : "Notifications indisponibles"}
-            </p>
-          )}
+          </div>}
         </div>
       </div>
     </article>
@@ -326,7 +312,7 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
         </div>
       </div>
       {visible.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center dark:border-slate-700 dark:bg-slate-900"><BookOpen className="mx-auto mb-3 size-9 text-slate-400" /><h2 className="text-lg font-semibold">Aucune classe trouvée</h2><p className="mt-1 text-sm text-slate-500">Ajustez les filtres ou la recherche pour afficher les classes.</p><Button variant="outline" className="mt-4" onClick={() => {setNiveau("tous");setStatut("tous");setRecherche("");}}>Effacer les filtres</Button></div> : vue === "grille" ? (
-        <div className="grid items-stretch gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid items-stretch gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {visible.map((c) => <ClasseCarte key={c.id} classe={c} index={classes.findIndex((v) => v.id === c.id)} peutModifier={peutModifier && peutEditerCetteAnnee} peutVoirPersonnel={peutVoirPersonnel} peutNotifier={peutNotifier} peutImprimer={peutImprimer} anneeId={annee.id} ouvrir={ouvrir} selectionne={selection.includes(c.id)} basculer={basculerSelection} ouvrirEleves={ouvrirEleves} />)}
         </div>
       ) : (

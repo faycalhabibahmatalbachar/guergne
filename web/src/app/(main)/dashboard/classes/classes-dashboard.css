@@ -41,7 +41,7 @@ body.dark:has(.classes-dashboard) [data-slot="sidebar-inset"] > header {
   border-color: #25344b;
 }
 .classes-dashboard .classes-stat { min-height: 110px; }
-.classes-dashboard .classes-class-card { min-height: 260px; }
+.classes-dashboard .classes-class-card { min-height: 220px; }
 .classes-dashboard .classes-filter-chip {
   display: inline-flex;
   align-items: center;
