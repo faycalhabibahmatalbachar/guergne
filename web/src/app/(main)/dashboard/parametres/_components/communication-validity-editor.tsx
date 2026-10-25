@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Clock3, Info, Pencil, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -25,9 +25,7 @@ export function CommunicationValidityEditor({ joursActuels }: { joursActuels: nu
   const valide = Number.isInteger(entier) && entier >= 1 && entier <= 30;
   const modifie = valide && entier !== joursActuels;
 
-  useEffect(() => {
-    if (!open) setJours(String(joursActuels));
-  }, [joursActuels, open]);
+
 
   function enregistrer() {
     if (!modifie || enCours) return;
@@ -47,7 +45,7 @@ export function CommunicationValidityEditor({ joursActuels }: { joursActuels: nu
     <>
       <Button type="button" variant="outline" size="sm"
         className="h-9 shrink-0 gap-2 border-slate-200 bg-white font-semibold text-slate-700 shadow-none dark:border-border dark:bg-card dark:text-foreground"
-        onClick={() => setOpen(true)}>
+        onClick={() => { setJours(String(joursActuels)); setOpen(true); }}>
         <Pencil className="size-3.5" aria-hidden /> Modifier
       </Button>
       <Sheet open={open} onOpenChange={(ouvert) => { if (!enCours) setOpen(ouvert); }}>
