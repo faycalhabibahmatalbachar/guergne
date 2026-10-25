@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import ExcelJS from "exceljs";
 
 import { db } from "@/server/db";
-import { enTetesClasseur, nomFichier } from "@/server/export/classeur";
+import { ajouterLogoOfficielClasseur, installerBandeauOfficiel, enTetesClasseur, nomFichier } from "@/server/export/classeur";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 
 export const dynamic = "force-dynamic";
@@ -38,18 +38,36 @@ export const maxDuration = 60;
 const BLEU = "FF1E429F";
 const MONNAIE = '# ##0 "F"';
 
-function feuille(classeur: ExcelJS.Workbook, nom: string, colonnes: Array<[string, number, string?]>) {
+function feuille(
+  classeur: ExcelJS.Workbook,
+  nom: string,
+  colonnes: Array<[string, number, string?]>,
+  logoId: number,
+  anneeScolaire: string,
+) {
   const f = classeur.addWorksheet(nom);
-  f.columns = colonnes.map(([entete, largeur, format]) => ({
-    header: entete,
+  // Ne pas utiliser 'header' sur les colonnes : cela écraserait le bandeau en A1.
+  f.columns = colonnes.map(([, largeur, format]) => ({
     width: largeur,
     style: format ? { numFmt: format } : undefined,
   }));
-  const e = f.getRow(1);
-  e.font = { bold: true, color: { argb: "FFFFFFFF" } };
-  e.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLEU } };
-  e.height = 20;
-  f.views = [{ state: "frozen", ySplit: 1 }];
+  const ligneEntete = installerBandeauOfficiel(
+    f,
+    logoId,
+    nom,
+    colonnes.length,
+    [`Année scolaire : ${anneeScolaire}`],
+  );
+  const e = f.getRow(ligneEntete);
+  colonnes.forEach(([libelle], index) => {
+    const cellule = e.getCell(index + 1);
+    cellule.value = libelle;
+    cellule.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cellule.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLEU } };
+    cellule.alignment = { vertical: "middle", wrapText: true };
+  });
+  e.height = 26;
+  f.views = [{ state: "frozen", ySplit: ligneEntete }];
   return f;
 }
 
@@ -92,6 +110,7 @@ export async function GET(requete: Request) {
   const classeur = new ExcelJS.Workbook();
   classeur.creator = "Lycée Guergné La Renaissance";
   classeur.created = new Date();
+  const logoId = await ajouterLogoOfficielClasseur(classeur);
 
   // === 1. Journal de caisse ==================================================
   const journal = await db.execute<Record<string, unknown>>(sql`
@@ -124,7 +143,7 @@ export async function GET(requete: Request) {
     ["Référence", 18],
     ["Montant", 14, MONNAIE],
     ["Annulé", 10],
-  ]);
+  ], logoId, annee.libelle);
 
   let encaisse = 0;
   for (const l of journal.rows) {
@@ -164,7 +183,7 @@ export async function GET(requete: Request) {
     ["Mode d'encaissement", 26],
     ["Écritures", 12],
     ["Montant", 16, MONNAIE],
-  ]);
+  ], logoId, annee.libelle);
   for (const l of parMode.rows) {
     f2.addRow([l.mode, Number(l.nb), Number(l.montant)]);
   }
@@ -198,7 +217,7 @@ export async function GET(requete: Request) {
     ["Exonéré", 16, MONNAIE],
     ["Reste à percevoir", 18, MONNAIE],
     ["Échéances dépassées", 20],
-  ]);
+  ], logoId, annee.libelle);
 
   let totalDu = 0;
   let totalPaye = 0;
@@ -245,7 +264,7 @@ export async function GET(requete: Request) {
     ["Taux", 10],
     ["Montant", 16, MONNAIE],
     ["Justification", 34],
-  ]);
+  ], logoId, annee.libelle);
 
   let totalExo = 0;
   for (const l of exonerations.rows) {

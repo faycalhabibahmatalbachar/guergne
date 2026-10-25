@@ -2,7 +2,7 @@ import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/render
 import { join } from "node:path";
 import type { Etablissement } from "./gabarit";
 
-const LOGO_ETABLISSEMENT = join(process.cwd(), "public", "icone-192.png");
+const LOGO_ETABLISSEMENT = join(process.cwd(), "public", "logo-officiel.png");
 
 type Style = ReturnType<typeof StyleSheet.create>[string];
 

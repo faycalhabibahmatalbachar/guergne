@@ -1,6 +1,8 @@
 import "server-only";
 
 import ExcelJS from "exceljs";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 /**
  * Production de classeurs Excel, pour toutes les listes du portail.
@@ -40,6 +42,67 @@ export interface OptionsClasseur {
 }
 
 const BLEU = "FF1E429F";
+
+/**
+ * Le fichier PNG est la référence officielle, pas le logo SVG redessiné.
+ * L'image est incorporée dans le XLSX : elle reste présente hors connexion
+ * et dans une impression, sans faire appel au site web.
+ */
+export async function ajouterLogoOfficielClasseur(classeur: ExcelJS.Workbook): Promise<number> {
+  const donnees = await readFile(join(process.cwd(), "public", "logo-officiel.png"));
+  return classeur.addImage({ buffer: donnees, extension: "png" });
+}
+
+/**
+ * En-tête cohérent pour les exports de listes et les quatre feuilles comptables.
+ * Ne touche ni au type ni à l'ordre des colonnes : les données restent filtrables.
+ */
+export function installerBandeauOfficiel(
+  feuille: ExcelJS.Worksheet,
+  imageId: number,
+  titre: string,
+  nbColonnes: number,
+  contexte: string[] = [],
+): number {
+  const colonneTexte = nbColonnes > 4 ? 3 : 2;
+  const derniereColonne = Math.max(colonneTexte, nbColonnes);
+
+  feuille.addImage(imageId, {
+    tl: { col: 0.1, row: 0.15 },
+    ext: { width: 104, height: 78 },
+    editAs: "oneCell",
+  });
+
+  function ligneMarquee(ligne: number, valeur: string, taille: number, couleur: string, gras = false) {
+    if (derniereColonne > colonneTexte) {
+      feuille.mergeCells(ligne, colonneTexte, ligne, derniereColonne);
+    }
+    const cellule = feuille.getCell(ligne, colonneTexte);
+    cellule.value = valeur;
+    cellule.font = { bold: gras, size: taille, color: { argb: couleur } };
+    cellule.alignment = { vertical: "middle", wrapText: true };
+    feuille.getRow(ligne).height = ligne === 2 ? 29 : 24;
+  }
+
+  ligneMarquee(1, "LYCÉE GUERGNÉ LA RENAISSANCE", 12, BLEU, true);
+  ligneMarquee(2, titre, 15, "FF172B4D", true);
+  contexte.forEach((valeur, index) => ligneMarquee(3 + index, valeur, 9, "FF64748B"));
+
+  // La première ligne du tableau commence après le bandeau et une ligne vide.
+  const ligneEntete = Math.max(6, 4 + contexte.length);
+  feuille.getRow(ligneEntete - 1).height = 12;
+  feuille.pageSetup.orientation = nbColonnes > 7 ? "landscape" : "portrait";
+  feuille.pageSetup.fitToPage = true;
+  feuille.pageSetup.fitToWidth = 1;
+  feuille.pageSetup.fitToHeight = 0;
+  feuille.pageSetup.printTitlesRow = `1:${ligneEntete}`;
+  feuille.pageSetup.margins = {
+    left: 0.3, right: 0.3, top: 0.45, bottom: 0.45, header: 0.2, footer: 0.2,
+  };
+  feuille.headerFooter.oddFooter = "&LLycée Guergné La Renaissance&CCopie administrative&RPage &P / &N";
+  return ligneEntete;
+}
+
 
 /** Excel refuse certains caractères dans un nom d'onglet, et le tronque à 31. */
 function nomFeuilleValide(brut: string): string {
@@ -84,27 +147,15 @@ export async function construireClasseur<T>(
 
   const feuille = classeur.addWorksheet(nomFeuilleValide(options.feuille));
 
-  // --- Bandeau : titre et contexte ------------------------------------------
-  let ligneEntete = 1;
-
-  if (options.titre) {
-    feuille.mergeCells(1, 1, 1, colonnes.length);
-    const c = feuille.getCell(1, 1);
-    c.value = options.titre;
-    c.font = { bold: true, size: 14, color: { argb: BLEU } };
-    ligneEntete = 2;
-  }
-
-  for (const [i, texte] of (options.contexte ?? []).entries()) {
-    const rang = (options.titre ? 2 : 1) + i;
-    feuille.mergeCells(rang, 1, rang, colonnes.length);
-    const c = feuille.getCell(rang, 1);
-    c.value = texte;
-    c.font = { size: 9, color: { argb: "FF64748B" } };
-    ligneEntete = rang + 1;
-  }
-
-  if (ligneEntete > 1) ligneEntete += 1; // une ligne vide de respiration
+  // Une seule identité graphique pour toute impression ou export Excel.
+  const logoId = await ajouterLogoOfficielClasseur(classeur);
+  const ligneEntete = installerBandeauOfficiel(
+    feuille,
+    logoId,
+    options.titre ?? options.feuille,
+    colonnes.length,
+    options.contexte,
+  );
 
   // --- En-tête des colonnes -------------------------------------------------
   const entete = feuille.getRow(ligneEntete);
