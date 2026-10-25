@@ -56,6 +56,7 @@ export function ElevesClassesTiroir({ ouvert, surFermeture, anneeId, anneeLibell
   }, [ouvert, anneeId, mode, ids, page, recherche]);
 
   function changerClasse(id: string) {
+    if (id === "multiple") return;
     setPage(1);
     setMode(id ? "choix" : "tous");
     setIds(id ? [id] : []);
@@ -88,7 +89,7 @@ export function ElevesClassesTiroir({ ouvert, surFermeture, anneeId, anneeLibell
             <select value={mode === "tous" ? "" : ids.length === 1 ? ids[0] : "multiple"} onChange={e => changerClasse(e.target.value)}
               className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-border dark:bg-card">
               <option value="">Toutes les classes</option>
-              {ids.length > 1 && <option value="multiple">Sélection multiple ({ids.length})</option>}
+              {ids.length > 1 && <option value="multiple" disabled>Sélection multiple ({ids.length})</option>}
               {classes.map(c => <option value={c.id} key={c.id}>{c.libelle} ({c.effectif})</option>)}
             </select>
           </label>
