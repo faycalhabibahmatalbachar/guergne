@@ -58,8 +58,8 @@ export function FiltresEleves({ classes, annees, valeurs, statistiques }: {
   ];
 
   return (
-    <section aria-label="Rechercher et filtrer les élèves" className="rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-sm dark:border-border dark:bg-card">
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
+    <section aria-label="Rechercher et filtrer les élèves" className="grid grid-cols-1 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-sm dark:border-border dark:bg-card">
+      <div className="order-2 flex flex-wrap items-center justify-between gap-2 pt-3">
         <div className="flex flex-wrap items-center gap-2">
           {raccourcis.map((r) => (
             <button
@@ -82,7 +82,7 @@ export function FiltresEleves({ classes, annees, valeurs, statistiques }: {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,2.1fr)_repeat(5,minmax(120px,1fr))] dark:border-border">
+      <div className="order-1 grid grid-cols-1 gap-2 border-b border-slate-100 pb-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,2.1fr)_repeat(5,minmax(120px,1fr))] dark:border-border">
         <div className="relative sm:col-span-2 lg:col-span-1">
           {enCours ? <LoaderCircle className="absolute top-1/2 left-3 size-4 -translate-y-1/2 animate-spin text-slate-500" aria-hidden /> : <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-500" aria-hidden />}
           <Input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher un élève…" aria-label="Rechercher par nom, prénom ou matricule" className="h-10 bg-slate-50/50 pl-10 dark:bg-background" />
