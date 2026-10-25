@@ -22,6 +22,9 @@ import { BadgeStatut } from "./_components/badge-statut";
 import { FiltresEleves, PaginationEleves } from "./_components/filtres";
 import { ActionsLotEleves } from "./_components/actions-lot";
 import { ModifierDossier } from "./[id]/_components/modifier-dossier";
+import { InscriptionFenetre } from "./_components/inscription-fenetre";
+import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
+import { listerClassesAnnee } from "@/server/domain/parametres";
 import { ApercuEleve } from "./_components/apercu-eleve";
 
 export const metadata: Metadata = { title: "Élèves" };
@@ -30,6 +33,7 @@ export const dynamic = "force-dynamic";
 type Parametres = {
   q?: string; classe?: string; niveau?: string; statut?: string; dossier?: string;
   annee?: string; rapide?: string; page?: string; parPage?: string; tri?: string; sens?: string;
+  inscription?: string;
 };
 const DOSSIERS = ["BROUILLON", "A_VALIDER", "VALIDE", "INCOMPLET", "REFUSE"] as const;
 const RAPIDES = ["inscrits", "suspendus", "incomplets", "redoublants"] as const;
@@ -84,7 +88,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
   const niveauId = classes.some((c) => c.niveauId === p.niveau) ? p.niveau : undefined;
   const classeId = classes.some((c) => c.id === p.classe) ? p.classe : undefined;
 
-  const [resultat, stats, peutCreer, peutAffecter, peutEnvoyer, peutModifier, peutVoirParents, peutEmettreDocument] = await Promise.all([
+  const [resultat, stats, peutCreer, peutAffecter, peutEnvoyer, peutModifier, peutVoirParents, peutEmettreDocument, peutInscrire] = await Promise.all([
     listerEleves({
       recherche: p.q, classeId, niveauId, statut, dossier, rapide, anneeId,
       page: Math.max(1, Number(p.page) || 1), parPage, tri: p.tri, sens: p.sens,
@@ -96,7 +100,10 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
     peut(principal, "eleve:modifier"),
     peut(principal, "tuteur:gerer"),
     peut(principal, "document:emettre"),
+    peut(principal, "eleve:inscrire"),
   ]);
+  const anneeInscription = peutInscrire ? await chargerAnneeCourante() : null;
+  const classesInscription = peutInscrire && anneeInscription ? await listerClassesAnnee(anneeInscription.id) : [];
   const { lignes, total, page, nbPages } = resultat;
   const filtreActif = Boolean(p.q || classeId || niveauId || statut || dossier || rapide || anneeId);
   const exportParams = new URLSearchParams();
@@ -140,11 +147,15 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          {peutCreer ? (
-            <Button asChild className="order-first h-10 w-full gap-2 bg-blue-600 px-4 font-semibold text-white shadow-sm hover:bg-blue-700 sm:order-last sm:w-auto">
-              <Link href="/dashboard/eleves/nouveau"><Plus className="size-4" aria-hidden />Inscrire un élève</Link>
-            </Button>
-          ) : null}
+          {peutInscrire ? <InscriptionFenetre
+            annee={anneeInscription?.libelle ?? null}
+            classes={classesInscription.map((cl) => ({
+              id: cl.id, libelle: cl.libelle, niveauLibelle: cl.niveauLibelle,
+              serieCode: cl.serieCode, effectif: cl.effectif, capaciteMax: cl.capaciteMax,
+            }))}
+            ouvrirInitialement={p.inscription === "1"}
+            peutPhoto={peutModifier}
+          /> : null}
         </div>
       </header>
 
