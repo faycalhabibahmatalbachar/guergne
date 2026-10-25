@@ -50,7 +50,12 @@ interface Tuteur {
   telephoneSecondaire: string;
   email: string;
   profession: string;
+  employeur: string;
   adresse: string;
+  quartier: string;
+  pieceIdentite: string;
+  sexe: "M" | "F" | null;
+  accepteSms: boolean;
   lien: string;
   estPrincipal: boolean;
   estResponsableFinancier: boolean;
@@ -68,7 +73,12 @@ function tuteurVide(cle: number, premier: boolean): Tuteur {
     telephoneSecondaire: "",
     email: "",
     profession: "",
+    employeur: "",
     adresse: "",
+    quartier: "",
+    pieceIdentite: "",
+    sexe: null,
+    accepteSms: false,
     lien: premier ? "PERE" : "MERE",
     estPrincipal: premier,
     estResponsableFinancier: premier,
@@ -129,7 +139,7 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
   const majEleve = (champ: string, valeur: string | boolean) =>
     setEleve((precedent) => ({ ...precedent, [champ]: valeur }));
 
-  const majTuteur = (cle: number, champ: string, valeur: string | boolean) =>
+  const majTuteur = (cle: number, champ: string, valeur: string | boolean | null) =>
     setTuteurs((liste) =>
       liste.map((t) => {
         if (t.cle !== cle) {
@@ -589,7 +599,9 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                   onSelection={(p) => setTuteurs((liste) => liste.map((x) => x.cle === t.cle ? ({
                     ...x, existantId: p.id, nom: p.nom, prenom: p.prenom,
                     telephone: p.telephone, telephoneSecondaire: p.telephoneSecondaire ?? "",
-                    email: p.email ?? "", profession: p.profession ?? "", adresse: p.adresse ?? "",
+                    email: p.email ?? "", profession: p.profession ?? "", employeur: p.employeur ?? "",
+                    adresse: p.adresse ?? "", quartier: p.quartier ?? "", pieceIdentite: p.pieceIdentite ?? "",
+                    sexe: p.sexe ?? null, accepteSms: p.accepteSms,
                   }) : x))}
                   onEffacer={() => setTuteurs((liste) => liste.map((x) => x.cle === t.cle ? ({
                     ...tuteurVide(x.cle, x.estPrincipal),
@@ -600,6 +612,13 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                 />
                 {t.existantId && <p className="text-xs text-blue-700">Parent existant sélectionné. Ses coordonnées sont conservées : pour les modifier, ouvrez sa fiche dans Comptes parents.</p>}
                 <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor={`t-sexe-${t.cle}`}>Sexe</Label>
+                    <NativeSelect id={`t-sexe-${t.cle}`} value={t.sexe ?? ""} disabled={Boolean(t.existantId)}
+                      onChange={e => majTuteur(t.cle, "sexe", e.target.value === "" ? null : e.target.value)}>
+                      <option value="">Non renseigné</option><option value="M">Masculin</option><option value="F">Féminin</option>
+                    </NativeSelect>
+                  </div>
                   <div className="grid gap-2">
                     <Label htmlFor={`t-nom-${t.cle}`}>Nom *</Label>
                     <Input
@@ -686,6 +705,21 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                       onChange={(e) => majTuteur(t.cle, "adresse", e.target.value)}
                     />
                   </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor={`t-employeur-${t.cle}`}>Employeur</Label>
+                    <Input id={`t-employeur-${t.cle}`} value={t.employeur} disabled={Boolean(t.existantId)}
+                      onChange={e => majTuteur(t.cle, "employeur", e.target.value)} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor={`t-quartier-${t.cle}`}>Quartier</Label>
+                    <Input id={`t-quartier-${t.cle}`} value={t.quartier} disabled={Boolean(t.existantId)}
+                      onChange={e => majTuteur(t.cle, "quartier", e.target.value)} />
+                  </div>
+                  <div className="grid gap-2 sm:col-span-2">
+                    <Label htmlFor={`t-piece-${t.cle}`}>Numéro de pièce d'identité</Label>
+                    <Input id={`t-piece-${t.cle}`} value={t.pieceIdentite} disabled={Boolean(t.existantId)}
+                      onChange={e => majTuteur(t.cle, "pieceIdentite", e.target.value)} />
+                  </div>
                 </div>
 
                 <Separator />
@@ -711,6 +745,11 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                     </label>
                   ))}
                 </div>
+                <label className="flex items-center gap-2 border-t border-slate-100 pt-3 text-xs dark:border-border">
+                  <input type="checkbox" checked={t.accepteSms} disabled={Boolean(t.existantId)}
+                    onChange={e => majTuteur(t.cle, "accepteSms", e.target.checked)} className="size-4 accent-blue-600" />
+                  Consentement du responsable à recevoir des SMS du lycée
+                </label>
               </CardContent>
             </Card>
           ))}
