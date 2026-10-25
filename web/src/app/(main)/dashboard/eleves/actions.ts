@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
@@ -64,6 +64,7 @@ const TELEPHONE = /^\+?[0-9\s.-]{8,20}$/;
 // ===========================================================================
 
 const schemaTuteur = z.object({
+  existantId: z.string().uuid().optional(),
   nom: z.string().trim().min(2, "Nom requis"),
   prenom: z.string().trim().min(2, "Prénom requis"),
   sexe: z.enum(["M", "F"]).nullable().optional(),
@@ -232,7 +233,12 @@ export async function inscrireEleve(donnees: unknown): Promise<Resultat> {
         const [existant] = await tx
           .select({ id: tuteurs.id })
           .from(tuteurs)
-          .where(eq(tuteurs.telephone, t.telephone));
+          .where(t.existantId ? eq(tuteurs.id, t.existantId) : eq(tuteurs.telephone, t.telephone));
+        // Un identifiant sélectionné explicitement ne doit jamais tomber
+        // silencieusement sur la création d'un doublon.
+        if (t.existantId && !existant) {
+          throw new Error("Le parent sélectionné n'existe plus. Actualisez la recherche.");
+        }
 
         const tuteurId =
           existant?.id ??
@@ -296,6 +302,32 @@ export async function inscrireEleve(donnees: unknown): Promise<Resultat> {
   } catch (erreur) {
     return echec(erreur, "L'inscription a échoué.");
   }
+}
+
+/** Recherche ciblée des responsables déjà présents lors de l'inscription.
+ * Seules les données minimales nécessaires au rattachement sont retournées.
+ */
+export async function rechercherParentsInscription(recherche: string) {
+  await requirePermission("eleve:inscrire");
+  const q = recherche.trim().slice(0, 65);
+  if (q.length < 3) return [];
+  const terme = "%" + q.replaceAll("%", "\\%").replaceAll("_", "\\_") + "%";
+  return db.select({
+    id: tuteurs.id,
+    nom: tuteurs.nom,
+    prenom: tuteurs.prenom,
+    telephone: tuteurs.telephone,
+    telephoneSecondaire: tuteurs.telephoneSecondaire,
+    email: tuteurs.email,
+    profession: tuteurs.profession,
+    adresse: tuteurs.adresse,
+  }).from(tuteurs)
+    .where(or(
+      ilike(tuteurs.nom, terme),
+      ilike(tuteurs.prenom, terme),
+      ilike(tuteurs.telephone, terme),
+    ))
+    .limit(8);
 }
 
 // ===========================================================================
