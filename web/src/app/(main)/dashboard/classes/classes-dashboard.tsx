@@ -334,22 +334,22 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
       <ElevesClassesTiroir ouvert={tiroirOuvert} surFermeture={() => setTiroirOuvert(false)} anneeId={annee.id} anneeLibelle={annee.libelle} classes={classes} initiales={tiroirInitial} />
 
       <Dialog open={form !== null} onOpenChange={(open) => { if (!open && !enCours) setForm(null); }}>
-        <DialogContent className="max-h-[min(90dvh,780px)] w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl sm:max-w-[620px] dark:border-slate-700 dark:bg-slate-900">
-          <DialogHeader className="border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-white px-6 py-6 pr-14 dark:border-slate-800 dark:from-blue-950/40 dark:via-slate-900 dark:to-slate-900">
-            <div className="mb-3 flex items-center gap-3">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">{form?.id ? <Pencil className="size-5" /> : <Plus className="size-5" />}</span>
+        <DialogContent className="flex h-[min(92dvh,840px)] w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl sm:max-w-[min(850px,calc(100vw-2.5rem))] dark:border-slate-700 dark:bg-slate-900">
+          <DialogHeader className="shrink-0 border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-white px-5 py-4 pr-14 dark:border-slate-800 dark:from-blue-950/40 dark:via-slate-900 dark:to-slate-900 sm:px-6">
+            <div className="mb-1 flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">{form?.id ? <Pencil className="size-5" /> : <Plus className="size-5" />}</span>
               <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">Gestion des classes · {annee.libelle}</span>
             </div>
-            <DialogTitle className="text-left text-xl font-bold tracking-tight text-slate-950 dark:text-white">{form?.id ? "Modifier la classe" : "Ajouter une classe"}</DialogTitle>
+            <DialogTitle className="text-left text-lg font-bold tracking-tight text-slate-950 dark:text-white sm:text-xl">{form?.id ? "Modifier la classe" : "Ajouter une classe"}</DialogTitle>
             <DialogDescription className="pt-1 text-left text-sm text-slate-500 dark:text-slate-400">
               {form?.id ? "Mettez à jour les informations sans affecter les élèves inscrits." : "Créez une nouvelle classe dans le registre scolaire de l’établissement."}
             </DialogDescription>
           </DialogHeader>
-          {form && <form onSubmit={enregistrer} className="flex flex-col">
-            <div className="space-y-6 px-6 py-5">
+          {form && <form onSubmit={enregistrer} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-5">
               <section className="space-y-3">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-2 dark:border-slate-800"><GraduationCap className="size-4 text-blue-600" /><h3 className="text-sm font-semibold text-slate-900 dark:text-white">Structure pédagogique</h3></div>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 min-[550px]:grid-cols-2">
                   <div className="grid gap-2"><Label htmlFor="classe-niveau" className="font-semibold text-slate-800 dark:text-slate-100">Niveau <span className="text-blue-600">*</span></Label><NativeSelect id="classe-niveau" className="h-11 w-full rounded-xl border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800" value={form.niveauId} onChange={(e) => setForm({ ...form, niveauId: e.target.value, serieId: "" })} required><option value="">Sélectionner un niveau</option>{niveaux.map((n) => <option key={n.id} value={n.id}>{n.libelle}</option>)}</NativeSelect>{erreurs.niveauId && <p className="text-xs text-red-600">{erreurs.niveauId}</p>}</div>
                   <div className="grid gap-2"><Label htmlFor="classe-serie" className="font-semibold text-slate-800 dark:text-slate-100">Série <span className="font-normal text-slate-400">(si applicable)</span></Label><NativeSelect id="classe-serie" className="h-11 w-full rounded-xl border-slate-200 bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800" value={niveauChoisi?.seriesApplicables ? form.serieId : ""} onChange={(e) => setForm({ ...form, serieId: e.target.value })} disabled={!niveauChoisi?.seriesApplicables}><option value="">{niveauChoisi?.seriesApplicables ? "Sans série" : "Non applicable"}</option>{series.filter((s) => s.active).map((s) => <option key={s.id} value={s.id}>{s.code} — {s.libelle}</option>)}</NativeSelect>{erreurs.serieId && <p className="text-xs text-red-600">{erreurs.serieId}</p>}</div>
                 </div>
@@ -370,9 +370,9 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
               </section>
               {form.id && peutModifier && classes.find((c) => c.id === form.id)?.effectif === 0 && <button type="button" onClick={() => {const c = classes.find((v) => v.id === form.id);if (c) supprimer(c);}} disabled={enCours} className="inline-flex items-center gap-2 text-xs font-semibold text-red-600 hover:underline"><Trash2 className="size-4" /> Supprimer cette classe vide</button>}
             </div>
-            <DialogFooter className="flex gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">
-              <Button type="button" variant="outline" className="h-11 rounded-xl border-slate-200 px-5 dark:border-slate-700" disabled={enCours} onClick={() => setForm(null)}>Annuler</Button>
-              <Button type="submit" className="h-11 rounded-xl bg-blue-600 px-5 font-semibold text-white hover:bg-blue-700" disabled={enCours}>{enCours ? "Enregistrement…" : <>{form.id ? <Check className="size-4" /> : <Plus className="size-4" />} {form.id ? "Enregistrer les modifications" : "Créer la classe"}</>}</Button>
+            <DialogFooter className="shrink-0 flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80 sm:px-6">
+              <Button type="button" variant="outline" className="h-10 rounded-lg border-slate-200 px-4 dark:border-slate-700" disabled={enCours} onClick={() => setForm(null)}>Annuler</Button>
+              <Button type="submit" className="h-10 rounded-lg bg-blue-600 px-4 font-semibold text-white hover:bg-blue-700" disabled={enCours}>{enCours ? "Enregistrement…" : <>{form.id ? <Check className="size-4" /> : <Plus className="size-4" />} {form.id ? "Enregistrer les modifications" : "Créer la classe"}</>}</Button>
             </DialogFooter>
           </form>}
         </DialogContent>
