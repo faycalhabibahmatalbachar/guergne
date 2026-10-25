@@ -76,9 +76,9 @@ function Actions({ classe, peutModifier, peutNotifier, peutImprimer, anneeId, ou
   ouvrirEleves: (ids: string[]) => void;
   compact?: boolean;
 }) {
-  const classesBouton = "inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800";
+  const classesBouton = "inline-flex h-9 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800";
   return (
-    <div className={"classes-list-actions flex items-center gap-2 " + (compact ? "flex-wrap" : "justify-end")}>
+    <div className={"classes-list-actions min-w-0 gap-1.5 " + (compact ? "grid grid-cols-2 sm:grid-cols-3" : "flex w-full flex-wrap items-center justify-end")}>
       <Link href={`/dashboard/classes/${classe.id}?annee=${anneeId}`} className={classesBouton} title="Ouvrir les détails de la classe">
         <Eye className="size-3.5 shrink-0" aria-hidden /> Détails
       </Link>
@@ -91,7 +91,7 @@ function Actions({ classe, peutModifier, peutNotifier, peutImprimer, anneeId, ou
           title={"Imprimer la liste officielle des élèves de " + classe.libelle}
           aria-label={"Imprimer la liste des élèves de " + classe.libelle}>
           <Printer className="size-3.5 shrink-0" aria-hidden />
-          <span className={compact ? "" : "sr-only"}>Imprimer</span>
+          <span>Imprimer</span>
         </a>
       )}
       {peutModifier && (
@@ -101,14 +101,14 @@ function Actions({ classe, peutModifier, peutNotifier, peutImprimer, anneeId, ou
         </button>
       )}
       {peutNotifier && (
-        classe.active && Number(classe.effectif) > 0
-          ? <div className={compact ? "classes-list-notify min-w-[150px] flex-1 sm:flex-none" : "classes-list-notify w-[168px] shrink-0"}>
-              <BoutonNotifier contexteClasses cible={{ type: "classe", id: classe.id, nom: classe.libelle }} libelle="Prévenir les parents" />
-            </div>
-          : <span title="Cette classe ne compte aucun élève actif à notifier" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500">
-              <BellRing className="size-3.5" aria-hidden />
-              Aucun parent à prévenir
-            </span>
+        <div className={compact ? "classes-list-notify col-span-2 w-full sm:col-span-3" : "classes-list-notify shrink-0"}>
+          {classe.active && Number(classe.effectif) > 0
+            ? <BoutonNotifier contexteClasses cible={{ type: "classe", id: classe.id, nom: classe.libelle }} libelle="Prévenir les parents" />
+            : <button type="button" disabled aria-disabled="true" title="Aucun parent à prévenir pour cette classe"
+                className="inline-flex h-9 w-full cursor-not-allowed items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs font-semibold text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500">
+                <BellRing className="size-3.5 shrink-0" aria-hidden />Aucun parent à prévenir
+              </button>}
+        </div>
       )}
     </div>
   );
@@ -136,14 +136,14 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
       <div className="hidden 2xl:block">
         <table className="w-full table-fixed text-left" aria-label="Classes, effectifs et actions">
           <colgroup>
-            <col className="w-[4%]" />
-            <col className="w-[17%]" />
-            <col className="w-[12%]" />
+            <col className="w-[3%]" />
+            <col className="w-[15%]" />
             <col className="w-[8%]" />
+            <col className="w-[6%]" />
+            <col className="w-[6%]" />
             <col className="w-[9%]" />
-            <col className="w-[13%]" />
-            <col className="w-[9%]" />
-            <col className="w-[29%]" />
+            <col className="w-[8%]" />
+            <col className="w-[45%]" />
           </colgroup>
           <thead className="border-b border-slate-200 bg-[#f3f7fd] text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500 dark:border-slate-800 dark:bg-slate-800/75 dark:text-slate-300">
             <tr>
@@ -154,7 +154,7 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
               <th scope="col" className="px-3 py-3.5 text-center">Capacité</th>
               <th scope="col" className="px-3 py-3.5">Remplissage</th>
               <th scope="col" className="px-3 py-3.5">Statut</th>
-              <th scope="col" className="px-5 py-3.5 text-right">Actions</th>
+              <th scope="col" className="px-3 py-3.5 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -164,7 +164,7 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
               return (
                 <tr key={classe.id} className="group transition-colors hover:bg-blue-50/40 dark:hover:bg-slate-800/55">
                   <td className="pl-3"><input type="checkbox" aria-label={"Sélectionner " + classe.libelle} checked={selection.includes(classe.id)} onChange={() => basculerSelection(classe.id)} className="size-4 accent-blue-600" /></td>
-                  <th scope="row" className="py-3.5 pl-5 pr-3 text-left">
+                  <th scope="row" className="py-3.5 pl-3 pr-2 text-left">
                     <div className="flex min-w-0 items-center gap-2.5">
                   <span className={"flex size-10 shrink-0 items-center justify-center rounded-xl " + couleur.fond + " " + couleur.texte}>
                         <GraduationCap className="size-5" aria-hidden />
@@ -180,7 +180,7 @@ export function ListeClasses({ classes, toutesClasses = classes, peutModifier, p
                   <td className="px-3 py-3.5 text-center text-sm tabular-nums text-slate-600 dark:text-slate-300">{classe.capaciteMax}</td>
                   <td className="px-3 py-3.5"><TauxOccupation classe={classe} index={paletteIndex} /></td>
                   <td className="px-3 py-3.5"><Statut actif={classe.active} /></td>
-                  <td className="px-5 py-3.5"><Actions classe={classe} peutModifier={peutModifier} peutNotifier={peutNotifier} peutImprimer={peutImprimer} anneeId={anneeId} ouvrir={ouvrir} ouvrirEleves={ouvrirEleves} /></td>
+                  <td className="px-2 py-3"><Actions classe={classe} peutModifier={peutModifier} peutNotifier={peutNotifier} peutImprimer={peutImprimer} anneeId={anneeId} ouvrir={ouvrir} ouvrirEleves={ouvrirEleves} /></td>
                 </tr>
               );
             })}
