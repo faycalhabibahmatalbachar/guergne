@@ -179,6 +179,36 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
     });
   }
 
+  function avancer() {
+    const erreursLocales: Record<string, string> = {};
+    if (etape === 0) {
+      if (eleve.nom.trim().length < 2) erreursLocales.nom = "Nom requis.";
+      if (eleve.prenom.trim().length < 2) erreursLocales.prenom = "Prénom requis.";
+      if (!["M", "F"].includes(eleve.sexe)) erreursLocales.sexe = "Sexe requis.";
+      const d = new Date(eleve.dateNaissance);
+      const age = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
+      if (!eleve.dateNaissance || !Number.isFinite(age) || age < 8 || age > 30) erreursLocales.dateNaissance = "Indiquez une date valide (âge 8 à 30 ans).";
+    }
+    if (etape === 2 && !classes.some((cl) => cl.id === eleve.classeId && cl.effectif < cl.capaciteMax)) {
+      erreursLocales.classeId = "Choisissez une classe ayant des places disponibles.";
+    }
+    if (etape === 3) {
+      if (tuteurs.filter((t) => t.estPrincipal).length !== 1) erreursLocales.tuteurs = "Désignez exactement un responsable principal.";
+      tuteurs.forEach((t, i) => {
+        if (t.nom.trim().length < 2) erreursLocales[`tuteurs.${i}.nom`] = "Nom requis.";
+        if (t.prenom.trim().length < 2) erreursLocales[`tuteurs.${i}.prenom`] = "Prénom requis.";
+        if (!/^\\+?[0-9\\s.-]{8,20}$/.test(t.telephone.trim())) erreursLocales[`tuteurs.${i}.telephone`] = "Numéro invalide.";
+      });
+    }
+    if (Object.keys(erreursLocales).length) {
+      setErreurs(erreursLocales);
+      toast.error("Veuillez renseigner les champs obligatoires.");
+      return;
+    }
+    setErreurs({});
+    setEtape(Math.min(etape + 1, ETAPES.length - 1));
+  }
+
   const erreur = (champ: string) =>
     erreurs[champ] ? <p className="text-destructive text-sm">{erreurs[champ]}</p> : null;
 
@@ -696,8 +726,36 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
         </div>
       ) : null}
 
+      {etape === 4 ? <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base"><ClipboardCheck className="size-5 text-blue-600" aria-hidden />Vérification du dossier</CardTitle>
+          <CardDescription>Contrôlez les informations avant leur enregistrement. Le matricule et le numéro d’inscription sont attribués automatiquement.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-border dark:bg-muted/20">
+              <p className="text-xs text-slate-500">Identité</p><p className="mt-1 font-semibold">{eleve.prenom} {eleve.nom.toUpperCase()}</p><p className="mt-1 text-xs text-slate-500">{eleve.dateNaissance} · {eleve.sexe === "F" ? "Fille" : "Garçon"}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-border dark:bg-muted/20">
+              <p className="text-xs text-slate-500">Scolarité</p><p className="mt-1 font-semibold">{classes.find((cl) => cl.id === eleve.classeId)?.libelle ?? "Non affecté"}</p><p className="mt-1 text-xs text-slate-500">{eleve.type.replaceAll("_", " ")}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-border dark:bg-muted/20">
+              <p className="text-xs text-slate-500">Photo d’identité</p><p className="mt-1 font-semibold">{photo ? "Préparée" : "Aucune photo"}</p><p className="mt-1 text-xs text-slate-500">Ajout possible depuis le dossier après inscription</p>
+            </div>
+          </div>
+          <section className="rounded-lg border border-slate-200 p-3 dark:border-border">
+            <h3 className="text-sm font-bold">Parents et responsables ({tuteurs.length})</h3>
+            <div className="mt-2 divide-y divide-slate-100 dark:divide-border">{tuteurs.map((t) => <div key={t.cle} className="flex flex-wrap justify-between gap-2 py-2 text-xs">
+              <span><strong>{t.prenom} {t.nom}</strong> · {LIENS.find((l) => l.valeur === t.lien)?.libelle ?? t.lien}{t.estPrincipal ? " · Principal" : ""}{t.existantId ? " · Compte existant" : ""}</span>
+              <span className="tabular-nums text-slate-500">{t.telephone}</span>
+            </div>)}</div>
+          </section>
+          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200">L’élève, sa classe et ses rattachements sont enregistrés ensemble. Une photo sélectionnée est transférée ensuite. Aucun SMS n’est envoyé automatiquement.</p>
+        </CardContent>
+      </Card> : null}
+
       {/* Navigation */}
-      <div className="flex items-center justify-between gap-3">
+      <div className={cn("flex items-center justify-between gap-3", modeFenetre && "sticky bottom-0 z-10 -mx-3 border-t border-slate-100 bg-white/95 px-3 py-3 backdrop-blur dark:border-border dark:bg-card/95")}>
         <Button
           type="button"
           variant="outline"
@@ -708,11 +766,11 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
         </Button>
 
         {etape < ETAPES.length - 1 ? (
-          <Button type="button" onClick={() => setEtape((e) => e + 1)}>
-            Suivant
+          <Button type="button" className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700" onClick={avancer}>
+            Suivant <ChevronRight className="size-4" aria-hidden />
           </Button>
         ) : (
-          <Button type="button" onClick={soumettre} disabled={enCours}>
+          <Button type="button" className="gap-2 bg-blue-600 text-white hover:bg-blue-700" onClick={soumettre} disabled={enCours}>
             <UserPlus aria-hidden />
             {enCours ? "Inscription…" : "Inscrire l'élève"}
           </Button>
