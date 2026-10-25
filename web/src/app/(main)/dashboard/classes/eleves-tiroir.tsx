@@ -69,7 +69,7 @@ export function ElevesClassesTiroir({ ouvert, surFermeture, anneeId, anneeLibell
     `${ids.length} classes sélectionnées`;
   const pages = Math.max(1, Math.ceil((etat?.total ?? 0) / 25));
   return <Sheet open={ouvert} onOpenChange={v => { if (!v) surFermeture(); }}>
-    <SheetContent side="right" className="flex h-dvh w-full max-w-full flex-col gap-0 overflow-hidden border-l border-slate-200 bg-white p-0 sm:max-w-[680px] xl:max-w-[780px] dark:border-border dark:bg-card">
+    <SheetContent side="right" className="flex h-dvh w-full max-w-full flex-col gap-0 overflow-hidden border-l border-slate-200 bg-white p-0 sm:w-[min(94vw,1080px)] sm:max-w-[min(94vw,1080px)] xl:w-[1080px] xl:max-w-[1080px] dark:border-border dark:bg-card">
       <SheetHeader className="shrink-0 border-b border-slate-200 bg-slate-50/80 px-5 py-5 dark:border-border dark:bg-muted/20">
         <div className="flex items-center gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white"><Users className="size-5" aria-hidden /></span>
@@ -105,12 +105,12 @@ export function ElevesClassesTiroir({ ouvert, surFermeture, anneeId, anneeLibell
           <span className="text-xs font-semibold tabular-nums text-blue-700">{etat ? etat.total.toLocaleString("fr-FR") + " élève(s)" : "—"}</span>
         </div>
         <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-border">
-          <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,.8fr)_auto] gap-3 border-b border-slate-200 bg-slate-50/80 px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:border-border dark:bg-muted/30">
+          <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,.65fr)_auto] gap-3 border-b border-slate-200 bg-slate-50/80 px-3 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:border-border dark:bg-muted/30">
             <span>Élève</span><span>Classe</span><span>Action</span>
           </div>
           {charge && <p role="status" className="flex items-center justify-center gap-2 p-8 text-xs text-slate-500"><LoaderCircle className="size-4 animate-spin" aria-hidden />Chargement des dossiers…</p>}
           {!charge && erreur && <p role="alert" className="p-5 text-xs text-amber-700">Chargement impossible. Fermez puis rouvrez le répertoire.</p>}
-          {!charge && !erreur && etat?.lignes.map(e => <div key={e.id} className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,.8fr)_auto] items-center gap-3 border-b border-slate-100 px-3 py-3 last:border-b-0 hover:bg-blue-50/40 dark:border-border">
+          {!charge && !erreur && etat?.lignes.map(e => <div key={e.id} className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,.65fr)_auto] items-center gap-3 border-b border-slate-100 px-3 py-3 last:border-b-0 hover:bg-blue-50/40 dark:border-border">
             <div className="min-w-0"><p className="truncate text-sm font-semibold">{e.prenom} {e.nom}</p><p className="truncate text-[11px] text-slate-500">{e.matricule} · {e.dossier.replaceAll("_"," ").toLowerCase()}</p></div>
             <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">{e.classeLibelle}</span>
             <Link href={`/dashboard/eleves/${e.id}`} className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-200 px-2 text-xs font-semibold text-slate-700 hover:border-blue-200 hover:text-blue-700 dark:border-border dark:text-foreground">
