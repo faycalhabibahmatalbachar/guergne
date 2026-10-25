@@ -48,7 +48,7 @@ export function SettingsPageHeading({
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-muted-foreground">
               {communication
-                ? "Définissez les règles d'invitation des parents et les canaux de notification du lycée."
+                ? "Pilotez les invitations, les canaux de contact et le suivi des notifications aux familles."
                 : "Configurez les règles de " + lyceeName + " selon vos autorisations."}
             </p>
           </div>
