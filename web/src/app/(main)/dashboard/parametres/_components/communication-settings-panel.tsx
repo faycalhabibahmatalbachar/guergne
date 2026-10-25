@@ -3,6 +3,7 @@ import type { EtatFile } from "@/server/domain/communication";
 import type { SettingsCard } from "../settings-catalog";
 import type { AccesModule } from "./settings-category-panel";
 import type { ApercuPolitique } from "./communication-policies";
+import type { InvitationOverview, NotificationOverview } from "./communication-operations";
 import { CommunicationWorkspace } from "./communication-workspace";
 
 /** Adaptateur serveur : ne transmet que des données sérialisables au module interactif. */
@@ -13,7 +14,7 @@ export interface CouvertureFamilles {
 }
 
 export function CommunicationSettingsPanel({
-  items, accesModules, joursInvitations, graviteIncident, parents, couverture, file, echecs30Jours, politiques,
+  items, accesModules, joursInvitations, graviteIncident, parents, couverture, file, echecs30Jours, politiques, invitations, suiviNotifications,
 }: {
   items: SettingsCard[];
   accesModules: AccesModule[];
@@ -24,6 +25,8 @@ export function CommunicationSettingsPanel({
   file: EtatFile | null;
   echecs30Jours: number | null;
   politiques: ApercuPolitique[] | null;
+  invitations: InvitationOverview | null;
+  suiviNotifications: NotificationOverview | null;
 }) {
   return (
     <CommunicationWorkspace
@@ -36,6 +39,8 @@ export function CommunicationSettingsPanel({
       file={file}
       echecs30Jours={echecs30Jours}
       politiques={politiques}
+      invitations={invitations}
+      suiviNotifications={suiviNotifications}
       accesModules={accesModules.map(({ href, titre, description }) => ({ href, titre, description }))}
     />
   );
