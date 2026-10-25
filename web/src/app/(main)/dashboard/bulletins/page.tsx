@@ -102,6 +102,7 @@ export default async function PageBulletins({
 
   const rBulletins = await db.execute<{
     inscription_id: string;
+    eleve_id: string;
     eleve: string;
     matricule: string;
     moyenne: string | null;
@@ -116,6 +117,7 @@ export default async function PageBulletins({
     periode: string;
   }>(sql`
     SELECT b.inscription_id,
+           e.id AS eleve_id,
            e.prenom || ' ' || e.nom AS eleve,
            e.matricule,
            b.moyenne_generale::text AS moyenne,
@@ -139,6 +141,7 @@ export default async function PageBulletins({
 
   const bulletins: BulletinListe[] = rBulletins.rows.map((x) => ({
     inscriptionId: x.inscription_id,
+    eleveId: x.eleve_id,
     eleve: x.eleve,
     matricule: x.matricule,
     moyenne: x.moyenne,

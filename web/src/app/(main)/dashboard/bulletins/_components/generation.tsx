@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Download, EyeOff, FileText, Play, Search, Send,
-  Clock3, CheckCircle2, TrendingUp, Users,
+  Download, Eye, EyeOff, ExternalLink, FileText, Play, Printer, Search, Send,
+  Clock3, CheckCircle2, TrendingUp, UserRound, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import { genererPourClasse, type ResultatGeneration } from "../actions";
 import { depublierClasse, publierClasse } from "../actions-conseil";
@@ -21,6 +23,7 @@ import { AvisConseil } from "./avis-conseil";
 
 export interface BulletinListe {
   inscriptionId: string;
+  eleveId: string;
   eleve: string;
   matricule: string;
   moyenne: string | null;
@@ -54,6 +57,7 @@ export function GenerationBulletins({
   const [enCours, demarrer] = useTransition();
   const [rapport, setRapport] = useState<ResultatGeneration["rapport"] | null>(null);
   const [recherche, setRecherche] = useState("");
+  const [bulletinApercu, setBulletinApercu] = useState<BulletinListe | null>(null);
   const [filtreClasse, setFiltreClasse] = useState(classeChoisie);
   const [filtrePeriode, setFiltrePeriode] = useState(periodeChoisie);
   const [page, setPage] = useState(1);
@@ -289,8 +293,12 @@ export function GenerationBulletins({
                   {visibles.map((b) => (
                     <TableRow key={b.inscriptionId + b.periodeId} className="transition-colors hover:bg-cyan-500/[0.04]">
                       <TableCell className="min-w-44">
-                        <div className="font-medium">{b.eleve}</div>
-                        <div className="text-slate-600 dark:text-slate-300 text-xs">{b.periode}</div>
+                        <Link href={`/dashboard/eleves/${b.eleveId}`} className="group inline-flex max-w-full items-center gap-1.5 rounded-sm font-semibold text-slate-900 underline-offset-4 hover:text-cyan-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 dark:text-slate-100 dark:hover:text-cyan-300" aria-label={`Ouvrir le dossier de ${b.eleve}`}>
+                          <UserRound className="size-4 shrink-0 text-cyan-700 dark:text-cyan-300" aria-hidden />
+                          <span>{b.eleve}</span>
+                          <ExternalLink className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden />
+                        </Link>
+                        <div className="mt-1 text-slate-600 dark:text-slate-300 text-xs">{b.periode}</div>
                       </TableCell>
                       <TableCell className="font-mono text-xs">{b.matricule}</TableCell>
                       <TableCell>{b.classe}</TableCell>
@@ -300,9 +308,12 @@ export function GenerationBulletins({
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <AvisConseil inscriptionId={b.inscriptionId} periodeId={b.periodeId} eleve={b.eleve} mention={b.mention} appreciation={b.appreciation} decision={b.decision} publie={b.publie} />
+                          <Button type="button" variant="outline" size="sm" onClick={() => setBulletinApercu(b)} aria-label={`Prévisualiser le bulletin de ${b.eleve}`} title="Aperçu du bulletin" className="gap-1 border-cyan-700/30 text-cyan-800 hover:bg-cyan-50 hover:text-cyan-950 dark:border-cyan-400/30 dark:text-cyan-200 dark:hover:bg-cyan-950/50">
+                            <Eye aria-hidden /> <span className="hidden md:inline">Aperçu</span>
+                          </Button>
                           <Button asChild variant="ghost" size="sm">
-                            <a href={`/api/bulletins/${b.inscriptionId}/${b.periodeId}`} target="_blank" rel="noopener noreferrer" aria-label={`Imprimer le bulletin de ${b.eleve}`}>
-                              <FileText aria-hidden /> <span className="hidden xl:inline">Imprimer</span>
+                            <a href={`/api/bulletins/${b.inscriptionId}/${b.periodeId}`} target="_blank" rel="noopener noreferrer" aria-label={`Ouvrir pour imprimer le bulletin de ${b.eleve}`} title="Ouvrir le PDF pour impression">
+                              <Printer aria-hidden /> <span className="hidden xl:inline">Imprimer</span>
                             </a>
                           </Button>
                         </div>
@@ -324,6 +335,42 @@ export function GenerationBulletins({
           </div>
         </CardContent>
       </Card>
+
+      {bulletinApercu ? (
+        <Dialog open onOpenChange={(ouvert) => { if (!ouvert) setBulletinApercu(null); }}>
+          <DialogContent showCloseButton className="flex h-[88vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
+            <DialogHeader className="shrink-0 border-b bg-card p-4 pr-14">
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <FileText className="size-5 text-cyan-700 dark:text-cyan-300" aria-hidden />
+                Aperçu du bulletin
+              </DialogTitle>
+              <DialogDescription>
+                {bulletinApercu.eleve} · {bulletinApercu.classe} · {bulletinApercu.periode}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 bg-slate-100 p-2 dark:bg-slate-950 sm:p-4">
+              <iframe
+                key={bulletinApercu.inscriptionId + bulletinApercu.periodeId}
+                title={"Aperçu PDF du bulletin de " + bulletinApercu.eleve}
+                src={"/api/bulletins/" + bulletinApercu.inscriptionId + "/" + bulletinApercu.periodeId}
+                className="h-full w-full rounded-lg border border-slate-300 bg-white shadow-sm dark:border-slate-700"
+              />
+            </div>
+            <DialogFooter className="shrink-0 flex-row flex-wrap justify-between gap-2 border-t bg-card px-4 py-3">
+              <Button asChild variant="outline" className="gap-2">
+                <a href={"/api/bulletins/" + bulletinApercu.inscriptionId + "/" + bulletinApercu.periodeId + "?telecharger=1"} aria-label={"Télécharger le bulletin de " + bulletinApercu.eleve}>
+                  <Download aria-hidden /> Télécharger PDF
+                </a>
+              </Button>
+              <Button asChild className="gap-2 bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500">
+                <a href={"/api/bulletins/" + bulletinApercu.inscriptionId + "/" + bulletinApercu.periodeId} target="_blank" rel="noopener noreferrer">
+                  <Printer aria-hidden /> Ouvrir pour imprimer
+                </a>
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </div>
   );
 }
