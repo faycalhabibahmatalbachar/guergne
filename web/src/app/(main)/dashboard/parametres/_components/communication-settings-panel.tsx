@@ -13,14 +13,16 @@ export interface CouvertureFamilles {
 }
 
 export function CommunicationSettingsPanel({
-  items, accesModules, joursInvitations, parents, couverture, file, politiques,
+  items, accesModules, joursInvitations, graviteIncident, parents, couverture, file, echecs30Jours, politiques,
 }: {
   items: SettingsCard[];
   accesModules: AccesModule[];
   joursInvitations: number | null;
+  graviteIncident: string | null;
   parents: StatistiquesParents | null;
   couverture: CouvertureFamilles | null;
   file: EtatFile | null;
+  echecs30Jours: number | null;
   politiques: ApercuPolitique[] | null;
 }) {
   return (
@@ -28,9 +30,11 @@ export function CommunicationSettingsPanel({
       autoriseInvitations={items.some((item) => item.id === "parents") && joursInvitations !== null}
       autoriseNotifications={items.some((item) => item.id === "notifications") && politiques !== null}
       joursInvitations={joursInvitations}
+      graviteIncident={graviteIncident}
       parents={parents}
       couverture={couverture}
       file={file}
+      echecs30Jours={echecs30Jours}
       politiques={politiques}
       accesModules={accesModules.map(({ href, titre, description }) => ({ href, titre, description }))}
     />
