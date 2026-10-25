@@ -207,8 +207,8 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
   function exporterSelection() {
     const lignes = classes.filter(c => selection.includes(c.id));
     if (!lignes.length) return;
-    const csv = ["Classe;Code;Niveau;Effectif;Capacité;Statut", ...lignes.map(c => [c.libelle, c.code, c.niveauLibelle, c.effectif, c.capaciteMax, c.active ? "Active" : "Inactive"].map(v => `"${String(v).replaceAll('"', '""')}"`).join(";"))].join("\\r\\n");
-    const url = URL.createObjectURL(new Blob(["\\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
+    const csv = ["Classe;Code;Niveau;Effectif;Capacité;Statut", ...lignes.map(c => [c.libelle, c.code, c.niveauLibelle, c.effectif, c.capaciteMax, c.active ? "Active" : "Inactive"].map(v => `"${String(v).replaceAll('"', '""')}"`).join(";"))].join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = "classes-" + annee.libelle + ".csv"; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
