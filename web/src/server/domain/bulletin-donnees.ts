@@ -488,6 +488,14 @@ export async function chargerBulletin(
   `);
   const rangAnnuelCalcule = classementAnnuel.rows[0]?.rang_annuel ?? null;
 
+  // L'appréciation "Travail" vient toujours du barème, selon la moyenne.
+  // Le commentaire libre du conseil reste affiché séparément dans le bulletin.
+  const moyenneCourante = b?.moyenne_generale !== null && b?.moyenne_generale !== undefined
+    ? nombre(b.moyenne_generale)
+    : totalCoefficientsNotes > 0 ? totalPoints / totalCoefficientsNotes : null;
+  const moyennePourAppreciationTravail = ctx.est_derniere_periode ? moyenneAnnuelle : moyenneCourante;
+  const appreciationGenerale = b?.appreciation_generale?.trim() || null;
+
   return {
     etablissement: {
       nom: e.nom ?? "Lycée Guergné La Renaissance",
@@ -536,9 +544,8 @@ export async function chargerBulletin(
 
     // Les valeurs écrites par l'administration restent prioritaires ; les
     // cellules non saisies suivent les formules du classeur Excel.
-    appreciationTravail: b?.appreciation_generale ?? libelleTravail(
-      ctx.est_derniere_periode ? moyenneAnnuelle : (b ? nombre(b.moyenne_generale) : totalCoefficients > 0 ? totalPoints / totalCoefficients : null),
-    ),
+    appreciationTravail: libelleTravail(moyennePourAppreciationTravail),
+    appreciationGenerale,
     appreciationDiscipline: c?.appreciation ?? libelleDiscipline(
       c?.note !== null && c?.note !== undefined ? Number(c.note) :
       b?.note_conduite !== null && b?.note_conduite !== undefined ? Number(b.note_conduite) : null,

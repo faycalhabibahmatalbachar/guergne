@@ -94,6 +94,7 @@ const s = StyleSheet.create({
   conseilLibelle: { width: "47%", color: "#111111", paddingHorizontal: 5, justifyContent: "center" },
   conseilValeurZone: { width: "53%", paddingHorizontal: 3, justifyContent: "center", alignItems: "center", borderLeftWidth: 0.4, borderLeftColor: "#111111" },
   conseilValeur: { fontFamily: "Times-Bold", textAlign: "center", fontSize: 8.7 },
+  conseilCommentaire: { fontFamily: "Times-Italic", textAlign: "center", fontSize: 6.4, lineHeight: 1.12, marginTop: 1.5 },
   historique: { width: "49%", borderWidth: 0.7, borderColor: "#111111" },
   historiqueCell: { paddingHorizontal: 3, justifyContent: "center", borderRightWidth: 0.4, borderRightColor: "#111111" },
   historiqueEntete: { backgroundColor: "#e2efda", paddingVertical: 6.5 },
@@ -154,6 +155,7 @@ export interface DonneesBulletin {
   rangAnnuel: number | null;
 
   appreciationTravail: string | null;
+  appreciationGenerale: string | null;
   appreciationDiscipline: string | null;
   decisionConseil: string | null;
   /** « Admis(e) en Première L », par exemple. Vide hors conseil de fin d'année. */
@@ -325,13 +327,18 @@ function Cellule({
               <Text style={s.conseilTitreTexte}>Appréciation du Conseil de classe</Text>
             </View>
             {[
-              { libelle: "Travail", valeur: d.appreciationTravail },
-              { libelle: "Discipline", valeur: d.appreciationDiscipline },
-              { libelle: "Décision du Conseil", valeur: d.decisionConseil },
+              { libelle: "Travail", valeur: d.appreciationTravail, detail: d.appreciationGenerale },
+              { libelle: "Discipline", valeur: d.appreciationDiscipline, detail: null },
+              { libelle: "Décision du Conseil", valeur: d.decisionConseil, detail: null },
             ].map((l) => (
               <View key={l.libelle} style={s.conseilLigne}>
                 <View style={s.conseilLibelle}><Text>{l.libelle}</Text></View>
-                <View style={s.conseilValeurZone}><Text style={s.conseilValeur}>{l.valeur ?? ""}</Text></View>
+                <View style={s.conseilValeurZone}>
+                  <View style={{ width: "100%", alignItems: "center" }}>
+                    <Text style={s.conseilValeur}>{l.valeur ?? ""}</Text>
+                    {l.detail ? <Text style={s.conseilCommentaire}>{l.detail}</Text> : null}
+                  </View>
+                </View>
               </View>
             ))}
           </View>
