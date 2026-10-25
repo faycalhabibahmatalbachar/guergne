@@ -72,7 +72,11 @@ const schemaTuteur = z.object({
   telephoneSecondaire: z.string().trim().optional(),
   email: z.string().trim().email("Adresse invalide").optional().or(z.literal("")),
   profession: z.string().trim().optional(),
+  employeur: z.string().trim().optional(),
   adresse: z.string().trim().optional(),
+  quartier: z.string().trim().optional(),
+  pieceIdentite: z.string().trim().optional(),
+  accepteSms: z.boolean().optional(),
   lien: z.enum(["PERE", "MERE", "TUTEUR", "ONCLE", "TANTE", "GRAND_PARENT", "FRERE_SOEUR", "AUTRE"]),
   estPrincipal: z.boolean().default(false),
   estResponsableFinancier: z.boolean().default(false),
@@ -253,7 +257,11 @@ export async function inscrireEleve(donnees: unknown): Promise<Resultat> {
                 telephoneSecondaire: t.telephoneSecondaire || null,
                 email: t.email || null,
                 profession: t.profession || null,
+                employeur: t.employeur || null,
                 adresse: t.adresse || null,
+                quartier: t.quartier || null,
+                pieceIdentite: t.pieceIdentite || null,
+                accepteSms: t.accepteSms ?? false,
               })
               .returning({ id: tuteurs.id })
           )[0].id;
@@ -320,7 +328,12 @@ export async function rechercherParentsInscription(recherche: string) {
     telephoneSecondaire: tuteurs.telephoneSecondaire,
     email: tuteurs.email,
     profession: tuteurs.profession,
+    employeur: tuteurs.employeur,
     adresse: tuteurs.adresse,
+    quartier: tuteurs.quartier,
+    pieceIdentite: tuteurs.pieceIdentite,
+    accepteSms: tuteurs.accepteSms,
+    sexe: tuteurs.sexe,
   }).from(tuteurs)
     .where(or(
       ilike(tuteurs.nom, terme),
