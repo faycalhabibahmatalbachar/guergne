@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   AlertTriangle, ChevronDown, ClipboardList,
-  Download, Eye, FileText, GraduationCap, MoreHorizontal, Plus,
+  Download, FileBadge2, FileText, GraduationCap, MoreHorizontal, Plus,
   Search, Upload, UserPlus, Users,
 } from "lucide-react";
 
@@ -22,6 +22,8 @@ import { BadgeStatut } from "./_components/badge-statut";
 import { FiltresEleves, PaginationEleves } from "./_components/filtres";
 import { ActionsLotEleves } from "./_components/actions-lot";
 import { ModifierDossier } from "./[id]/_components/modifier-dossier";
+import { ApercuEleve } from "./_components/apercu-eleve";
+import { BoutonNotifier } from "../_components/bouton-notifier";
 
 export const metadata: Metadata = { title: "Élèves" };
 export const dynamic = "force-dynamic";
@@ -83,7 +85,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
   const niveauId = classes.some((c) => c.niveauId === p.niveau) ? p.niveau : undefined;
   const classeId = classes.some((c) => c.id === p.classe) ? p.classe : undefined;
 
-  const [resultat, stats, peutCreer, peutAffecter, peutEnvoyer, peutModifier, peutVoirParents] = await Promise.all([
+  const [resultat, stats, peutCreer, peutAffecter, peutEnvoyer, peutModifier, peutVoirParents, peutEmettreDocument] = await Promise.all([
     listerEleves({
       recherche: p.q, classeId, niveauId, statut, dossier, rapide, anneeId,
       page: Math.max(1, Number(p.page) || 1), parPage, tri: p.tri, sens: p.sens,
@@ -94,6 +96,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
     peut(principal, "message:envoyer"),
     peut(principal, "eleve:modifier"),
     peut(principal, "tuteur:gerer"),
+    peut(principal, "document:emettre"),
   ]);
   const { lignes, total, page, nbPages } = resultat;
   const filtreActif = Boolean(p.q || classeId || niveauId || statut || dossier || rapide || anneeId);
@@ -176,7 +179,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
             </CardContent></Card>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1250px] border-collapse text-left text-[13px]">
+              <table className="w-full min-w-[1180px] border-collapse text-left text-[13px]">
                 <thead className="bg-slate-50/90 text-xs text-slate-500 dark:bg-muted/30 dark:text-muted-foreground"><tr className="border-b border-slate-200 dark:border-border">
                   {peutAffecter || peutEnvoyer ? <EnTeteSelection className="px-3 py-3" /> : null}
                   <EnTeteTriable colonne="nom" className="px-3 py-3">Élève</EnTeteTriable>
@@ -191,7 +194,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
                 </tr></thead>
                 <tbody>
                   {lignes.map((e) => (
-                    <tr key={e.id} className="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-emerald-50/40 dark:border-border dark:hover:bg-muted/30">
+                    <tr key={e.id} className="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-blue-50/40 dark:border-border dark:hover:bg-muted/30">
                       {peutAffecter || peutEnvoyer ? <CaseSelection id={e.id} className="px-3 py-2" /> : null}
                       <td className="px-3 py-2"><Link href={`/dashboard/eleves/${e.id}`} className="flex items-center gap-2.5 font-semibold text-slate-950 hover:text-emerald-700 dark:text-foreground">
                         <Avatar className="size-9 shrink-0"><AvatarImage src={imageProfilEleve({ id: e.id, sexe: e.sexe, photoUrl: e.photoUrl })} alt="" /><AvatarFallback className="bg-sky-50 text-xs">{getInitials(`${e.prenom} ${e.nom}`)}</AvatarFallback></Avatar>
@@ -208,9 +211,20 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
                       <td className="px-3 py-2"><BadgeDossier statut={e.statutDossier} /></td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1.5">
-                          <Button asChild variant="outline" size="icon" className="size-8" title="Consulter le dossier"><Link href={`/dashboard/eleves/${e.id}`} aria-label={`Consulter le dossier de ${e.prenom} ${e.nom}`}><Eye className="size-4" aria-hidden /></Link></Button>
+                          <ApercuEleve eleve={e} peutNotifier={peutEnvoyer}
+                            peutModifier={peutModifier && Boolean(principal && ["SUPER_ADMIN", "DIRECTION", "CENSEUR", "SURVEILLANT"].includes(principal.role))}
+                            peutGererActions={peutAffecter && Boolean(principal && ["SUPER_ADMIN", "DIRECTION", "CENSEUR", "SURVEILLANT"].includes(principal.role))}
+                            classes={classes.map(c => ({ id: c.id, libelle: c.libelle }))} />
                           {peutModifier && Boolean(principal && ["SUPER_ADMIN", "DIRECTION", "CENSEUR", "SURVEILLANT"].includes(principal.role)) ? <ModifierDossier eleveId={e.id} declencheur="icone" nomEleve={`${e.prenom} ${e.nom}`} /> : null}
-                          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="size-8" aria-label={`Plus d'actions pour ${e.prenom} ${e.nom}`}><MoreHorizontal className="size-4" aria-hidden /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem asChild><Link href={`/dashboard/eleves/${e.id}`}><ClipboardList className="size-4" aria-hidden /> Ouvrir le dossier</Link></DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+                          {peutEmettreDocument ? <Button asChild variant="outline" size="icon" className="size-8 rounded-lg border-slate-200" title="Certificat de scolarité"><a href={`/api/documents/certificat-scolarite/${e.id}`} target="_blank" rel="noopener noreferrer" aria-label={`Certificat de scolarité de ${e.prenom} ${e.nom}`}><FileBadge2 className="size-4" aria-hidden /></a></Button> : null}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="size-8 rounded-lg border-slate-200" aria-label={`Plus d'actions pour ${e.prenom} ${e.nom}`}><MoreHorizontal className="size-4" aria-hidden /></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                              <DropdownMenuItem asChild><Link href={`/dashboard/eleves/${e.id}`}><ClipboardList className="size-4" aria-hidden /> Ouvrir le dossier complet</Link></DropdownMenuItem>
+                              {e.parentId && peutVoirParents ? <DropdownMenuItem asChild><Link href={`/dashboard/parents/${e.parentId}`}><Users className="size-4" aria-hidden /> Ouvrir le parent</Link></DropdownMenuItem> : null}
+                              {peutEmettreDocument ? <DropdownMenuItem asChild><a href={`/api/documents/certificat-scolarite/${e.id}`} target="_blank" rel="noopener noreferrer"><FileBadge2 className="size-4" aria-hidden /> Certificat de scolarité</a></DropdownMenuItem> : null}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </td>
                     </tr>
