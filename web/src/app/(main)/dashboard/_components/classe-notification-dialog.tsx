@@ -132,7 +132,7 @@ export function ClasseNotificationDialog({ cible, variante = "outline", libelle 
         <Button
           variant={variante}
           size="sm"
-          className="h-10 w-full justify-center gap-2 rounded-xl border-blue-200 bg-blue-50 font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-300"
+          className="h-9 w-full justify-center gap-2 whitespace-nowrap rounded-lg border-blue-200 bg-blue-50 px-2.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-300"
         >
           <BellRing className="size-4 shrink-0" aria-hidden />
           {libelle}

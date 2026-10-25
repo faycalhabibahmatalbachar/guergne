@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowRight, BarChart3, BookOpen, CalendarDays, Check, ChevronDown,
+  ArrowRight, BarChart3, BellRing, BookOpen, CalendarDays, Check, ChevronDown,
   Ellipsis, GraduationCap, Grid2X2, List, Mail, MoreHorizontal,
   Pencil, Plus, School, Search, SlidersHorizontal, Trash2, Users, ClipboardList,
   UserRound, X, Printer, Eye,
@@ -125,7 +125,7 @@ function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotif
           </span>
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-2.5 px-3 py-3">
+      <div className="flex flex-col gap-2.5 px-3 py-3">
         <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-slate-800">
           <div className="flex items-center gap-2 pr-2">
             <span className="flex size-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10"><Users className="size-4" /></span>
@@ -146,7 +146,7 @@ function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotif
           <div className={"h-full rounded-full transition-all " + palette.bar} style={{ width: tauxLimite + "%" }} />
         </div>
         {plein && <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Capacité atteinte : inscriptions complètes.</p>}
-        <div className="mt-auto grid grid-cols-2 gap-1.5 border-t border-slate-100 pt-2.5 dark:border-slate-800">
+        <div className="grid grid-cols-2 gap-1.5 border-t border-slate-100 pt-2.5 dark:border-slate-800">
           <Link href={`/dashboard/classes/${classe.id}?annee=${anneeId}`} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
             <Eye className="size-3.5" aria-hidden /> Détails
           </Link>
@@ -160,8 +160,13 @@ function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotif
           {peutModifier && <button type="button" onClick={() => ouvrir(classe)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-2 text-xs font-semibold hover:bg-blue-50 dark:border-slate-700">
             <Pencil className="size-3.5" aria-hidden /> Modifier
           </button>}
-          {peutNotifier && classe.active && total > 0 && <div className="col-span-2 mt-0.5">
-            <BoutonNotifier cible={{ type: "classe", id: classe.id, nom: classe.libelle }} variante="outline" contexteClasses />
+          {peutNotifier && <div className="col-span-2 mt-0.5">
+            {classe.active && total > 0
+              ? <BoutonNotifier cible={{ type: "classe", id: classe.id, nom: classe.libelle }} variante="outline" contexteClasses />
+              : <button type="button" disabled aria-disabled="true" title="Aucun responsable à prévenir pour cette classe"
+                  className="inline-flex h-9 w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500">
+                  <BellRing className="size-4" aria-hidden /> Aucun parent à prévenir
+                </button>}
           </div>}
         </div>
       </div>
