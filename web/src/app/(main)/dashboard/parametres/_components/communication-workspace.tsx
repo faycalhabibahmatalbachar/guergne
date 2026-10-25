@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
-  Activity, ArrowRight, Bell, ChevronRight, ClipboardList, Clock3,
+  Activity, ArrowRight, Bell, ChevronRight, ClipboardList,
   KeyRound, LayoutDashboard, MessageSquare, Send, Settings2,
   ShieldCheck, Smartphone, Users, Wallet, type LucideIcon,
 } from "lucide-react";
@@ -214,7 +214,7 @@ export function CommunicationWorkspace({
           <nav aria-label="Rubriques Communication" className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200/80 bg-white p-1.5 shadow-sm lg:sticky lg:top-4 lg:flex-col lg:gap-1.5 lg:p-2 dark:border-border dark:bg-card">
             {rubriques.map(({ id, titre, description, icon: Icon }) => (
               <button key={id} type="button"
-                aria-current={rubrique === id ? "page" : undefined}
+                aria-pressed={rubrique === id}
                 onClick={() => setRubrique(id)}
                 className={`flex min-h-11 min-w-max items-center gap-2.5 rounded-lg px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-700 lg:min-w-0 ${rubrique === id
                   ? "bg-emerald-700 text-white shadow-sm"
