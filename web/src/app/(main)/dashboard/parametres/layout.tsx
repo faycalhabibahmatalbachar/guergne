@@ -9,7 +9,10 @@ import { SETTINGS_CARDS, SETTINGS_PERMISSIONS } from "./settings-catalog";
 
 export default async function LayoutParametres({ children }: { children: ReactNode }) {
   const principal = await exigerSession();
-  const [resultats, peutLireMessages] = await Promise.all([\n    Promise.all(SETTINGS_PERMISSIONS.map((droit) => peut(principal, droit))),\n    peut(principal, "annonce:lire"),\n  ]);
+  const [resultats, peutLireMessages] = await Promise.all([
+    Promise.all(SETTINGS_PERMISSIONS.map((droit) => peut(principal, droit))),
+    peut(principal, "annonce:lire"),
+  ]);
   const autorises = new Set(SETTINGS_PERMISSIONS.filter((_, i) => resultats[i]));
   const items = SETTINGS_CARDS.filter((s) => s.droits.some((droit) => autorises.has(droit)))
     .map(({ droits: _droits, description: _description, action: _action, ...item }) => item);
@@ -22,7 +25,8 @@ export default async function LayoutParametres({ children }: { children: ReactNo
         <SettingsPageHeading
           items={items}
           lyceeName={APP_CONFIG.name}
-          peutAuditer={autorises.has("audit:lire")}\n          peutLireMessages={peutLireMessages}
+          peutAuditer={autorises.has("audit:lire")}
+          peutLireMessages={peutLireMessages}
         />
       </Suspense>
       <section aria-label="Contenu des paramètres" className="min-w-0">
