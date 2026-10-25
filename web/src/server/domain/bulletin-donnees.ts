@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import type { BlocMatieres, DonneesBulletin, LigneMatiere } from "@/server/pdf/bulletin";
-import { libelleAppreciationTravail } from "./appreciations-travail.ts";
+import { libelleAppreciationTravail } from "./appreciations-travail";
 
 /**
  * Assemble les données d'un bulletin imprimable.
