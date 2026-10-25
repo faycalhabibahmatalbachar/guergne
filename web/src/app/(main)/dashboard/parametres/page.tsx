@@ -18,6 +18,7 @@ import { OngletMatieres } from "./_components/matieres";
 import { SettingsCards } from "./_components/settings-cards";
 import { CommunicationSettingsPanel, type CouvertureFamilles } from "./_components/communication-settings-panel";
 import type { ApercuPolitique } from "./_components/communication-policies";
+import type { InvitationOverview, NotificationOverview } from "./_components/communication-operations";
 import { statistiquesParents } from "@/server/domain/parents";
 import { etatFileNotifications } from "@/server/domain/communication";
 import { SettingsCategoryPanel, type IndicateurParametre, type AccesModule } from "./_components/settings-category-panel";
@@ -194,11 +195,12 @@ export default async function PageParametres({
       if (categorie.id === "communication") {
         // Les synthèses sont strictement limitées aux permissions réelles.
         // Aucun SMS, aucune invitation ou notification n'est expédié ici.
-        const [peutVoirParents, peutVoirCommunication] = await Promise.all([
+        const [peutVoirParents, peutVoirCommunication, peutVoirInvitations] = await Promise.all([
           peut(principal, "tuteur:gerer"),
           peut(principal, "annonce:lire"),
+          peut(principal, "tuteur:inviter"),
         ]);
-        const [joursInvitations, parents, couverture, file, politiques, graviteIncident, echecs30Jours] = await Promise.all([
+        const [joursInvitations, parents, couverture, file, politiques, graviteIncident, echecs30Jours, invitations, suiviNotifications] = await Promise.all([
           peutConfigurer ? dureeInvitationJours() : Promise.resolve(null),
           peutVoirParents ? statistiquesParents() : Promise.resolve(null),
           peutVoirParents || peutNotifier
@@ -261,6 +263,72 @@ export default async function PageParametres({
                   AND statut::text = 'ECHOUE'
               `).then((resultat) => Number(resultat.rows[0]?.total ?? 0))
             : Promise.resolve(null),
+          peutVoirInvitations
+            ? Promise.all([
+                db.execute<{ statut: string; total: number }>(sql`
+                  SELECT n.statut::text AS statut, count(*)::int AS total
+                  FROM notifications n
+                  WHERE n.canal = 'SMS'::canal_notification
+                    AND n.titre = 'Accès à l''application'
+                  GROUP BY n.statut
+                `),
+                db.execute<{
+                  id: string; statut: string; cree_le: string; tentatives: number; fin_telephone: string;
+                }>(sql`
+                  SELECT n.id::text AS id, n.statut::text AS statut,
+                    n.cree_le::text AS cree_le, n.tentatives::int AS tentatives,
+                    RIGHT(regexp_replace(COALESCE(n.telephone, ''), '[^0-9]', '', 'g'), 4) AS fin_telephone
+                  FROM notifications n
+                  WHERE n.canal = 'SMS'::canal_notification
+                    AND n.titre = 'Accès à l''application'
+                  ORDER BY n.cree_le DESC, n.id DESC
+                  LIMIT 12
+                `),
+              ]).then(([aggregats, dernieres]): InvitationOverview => {
+                const v = Object.fromEntries(aggregats.rows.map((l) => [l.statut, Number(l.total)]));
+                return {
+                  total: Object.values(v).reduce((a,b) => a+b, 0),
+                  enAttente: v.EN_ATTENTE ?? 0,
+                  envoyees: v.ENVOYE ?? 0,
+                  echouees: v.ECHOUE ?? 0,
+                  lues: v.LU ?? 0,
+                  recentes: dernieres.rows.map((l) => ({
+                    id: l.id, statut: l.statut, creeLe: l.cree_le,
+                    tentatives: Number(l.tentatives), finTelephone: l.fin_telephone,
+                  })),
+                };
+              })
+            : Promise.resolve(null),
+          peutNotifier || peutVoirCommunication
+            ? Promise.all([
+                db.execute<{ canal: string; statut: string; total: number }>(sql`
+                  SELECT canal::text AS canal, statut::text AS statut,
+                    count(*)::int AS total
+                  FROM notifications
+                  WHERE cree_le >= now() - interval '30 days'
+                  GROUP BY canal, statut
+                `),
+                db.execute<{
+                  id: string; type: string; canal: string; tentatives: number; cree_le: string;
+                }>(sql`
+                  SELECT id::text AS id, type::text AS type, canal::text AS canal,
+                    tentatives::int AS tentatives, cree_le::text AS cree_le
+                  FROM notifications
+                  WHERE statut::text = 'ECHOUE'
+                    AND cree_le >= now() - interval '30 days'
+                  ORDER BY cree_le DESC, id DESC
+                  LIMIT 12
+                `),
+              ]).then(([repartition, echecs]): NotificationOverview => ({
+                canaux: repartition.rows.map((l) => ({
+                  canal: l.canal, statut: l.statut, total: Number(l.total),
+                })),
+                echecs: echecs.rows.map((l) => ({
+                  id: l.id, type: l.type, canal: l.canal,
+                  tentatives: Number(l.tentatives), creeLe: l.cree_le,
+                })),
+              }))
+            : Promise.resolve(null),
         ]);
 
         return (
@@ -274,6 +342,8 @@ export default async function PageParametres({
             file={file}
             echecs30Jours={echecs30Jours}
             politiques={politiques}
+            invitations={invitations}
+            suiviNotifications={suiviNotifications}
           />
         );
       }
