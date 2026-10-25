@@ -61,12 +61,12 @@ const s = StyleSheet.create({
   titre: { fontSize: 11.1, fontFamily: "Times-Bold", textAlign: "center" },
   identite: { borderWidth: 0.7, borderColor: "#111111", marginBottom: 18 },
   identiteRangee: { flexDirection: "row", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
-  identiteCase: { paddingVertical: 6.5, paddingHorizontal: 3, borderRightWidth: 0.7, borderRightColor: "#111111", justifyContent: "center", alignItems: "stretch" },
+  identiteCase: { paddingVertical: 8.5, paddingHorizontal: 3, borderRightWidth: 0.7, borderRightColor: "#111111", justifyContent: "center", alignItems: "stretch" },
   identiteCentre: { textAlign: "center" },
   identiteCaseFin: { borderRightWidth: 0 },
-  identiteLibelle: { fontSize: 9.1, color: "#111111" },
-  identiteValeur: { fontSize: 9.5, fontFamily: "Times-Bold" },
-  identiteNom: { fontSize: 11.5, fontFamily: "Times-BoldItalic", textAlign: "center" },
+  identiteLibelle: { fontSize: 10, color: "#111111" },
+  identiteValeur: { fontSize: 10.5, fontFamily: "Times-Bold" },
+  identiteNom: { fontSize: 12.7, fontFamily: "Times-BoldItalic", textAlign: "center" },
   table: { borderWidth: 0.7, borderColor: "#111111" },
   ligne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111" },
   ligneEntete: { flexDirection: "row", backgroundColor: "#d9d9d9", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
@@ -236,10 +236,10 @@ function Cellule({
             <View style={[s.identiteCase, { width: "24%" }]}>
               <Text style={[s.identiteLibelle, s.identiteCentre]}>Nom & Prénom :</Text>
             </View>
-            <View style={[s.identiteCase, { width: "44%" }]}>
+            <View style={[s.identiteCase, { width: "47%" }]}>
               <Text style={s.identiteNom}>{identite.nomComplet}</Text>
             </View>
-            <View style={[s.identiteCase, s.identiteCaseFin, { width: "32%" }]}>
+            <View style={[s.identiteCase, s.identiteCaseFin, { width: "29%" }]}>
               <Text style={s.identiteCentre}><Text style={s.identiteLibelle}>Classe : </Text><Text style={s.identiteValeur}>{identite.classe}</Text></Text>
             </View>
           </View>

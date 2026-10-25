@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Download, Eye, EyeOff, ExternalLink, FileText, Play, Printer, Search, Send,
+  Download, Eye, EyeOff, ExternalLink, FileText, Maximize2, Minimize2, Play, Printer, Search, Send,
   Clock3, CheckCircle2, TrendingUp, UserRound, Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -58,6 +58,7 @@ export function GenerationBulletins({
   const [rapport, setRapport] = useState<ResultatGeneration["rapport"] | null>(null);
   const [recherche, setRecherche] = useState("");
   const [bulletinApercu, setBulletinApercu] = useState<BulletinListe | null>(null);
+  const [apercuPleinEcran, setApercuPleinEcran] = useState(false);
   const [filtreClasse, setFiltreClasse] = useState(classeChoisie);
   const [filtrePeriode, setFiltrePeriode] = useState(periodeChoisie);
   const [page, setPage] = useState(1);
@@ -308,7 +309,7 @@ export function GenerationBulletins({
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <AvisConseil inscriptionId={b.inscriptionId} periodeId={b.periodeId} eleve={b.eleve} mention={b.mention} appreciation={b.appreciation} decision={b.decision} publie={b.publie} />
-                          <Button type="button" variant="outline" size="sm" onClick={() => setBulletinApercu(b)} aria-label={`Prévisualiser le bulletin de ${b.eleve}`} title="Aperçu du bulletin" className="h-7 min-w-[5.75rem] justify-center gap-2 px-4 py-0 text-xs border-cyan-700/30 text-cyan-800 hover:bg-cyan-50 hover:text-cyan-950 dark:border-cyan-400/30 dark:text-cyan-200 dark:hover:bg-cyan-950/50">
+                          <Button type="button" variant="outline" size="sm" onClick={() => { setApercuPleinEcran(false); setBulletinApercu(b); }} aria-label={`Prévisualiser le bulletin de ${b.eleve}`} title="Aperçu du bulletin" className="h-7 min-w-[5.75rem] justify-center gap-2 px-4 py-0 text-xs border-cyan-700/30 text-cyan-800 hover:bg-cyan-50 hover:text-cyan-950 dark:border-cyan-400/30 dark:text-cyan-200 dark:hover:bg-cyan-950/50">
                             <Eye className="size-3.5 shrink-0" aria-hidden /> <span className="hidden md:inline">Aperçu</span>
                           </Button>
                           <Button asChild variant="ghost" size="sm">
@@ -337,16 +338,29 @@ export function GenerationBulletins({
       </Card>
 
       {bulletinApercu ? (
-        <Dialog open onOpenChange={(ouvert) => { if (!ouvert) setBulletinApercu(null); }}>
-          <DialogContent showCloseButton className="flex h-[88vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
-            <DialogHeader className="shrink-0 border-b bg-card p-4 pr-14">
-              <DialogTitle className="flex items-center gap-2 text-lg">
-                <FileText className="size-5 text-cyan-700 dark:text-cyan-300" aria-hidden />
-                Aperçu du bulletin
-              </DialogTitle>
-              <DialogDescription>
-                {bulletinApercu.eleve} · {bulletinApercu.classe} · {bulletinApercu.periode}
-              </DialogDescription>
+        <Dialog open onOpenChange={(ouvert) => { if (!ouvert) { setBulletinApercu(null); setApercuPleinEcran(false); } }}>
+          <DialogContent showCloseButton className={apercuPleinEcran ? "fixed inset-0 left-0 top-0 z-50 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-none sm:rounded-none" : "flex h-[88vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl"}>
+            <DialogHeader className="shrink-0 flex-row items-start justify-between gap-3 border-b bg-card p-4 pr-24">
+              <div className="min-w-0">
+                <DialogTitle className="flex items-center gap-2 text-lg">
+                  <FileText className="size-5 shrink-0 text-cyan-700 dark:text-cyan-300" aria-hidden />
+                  Aperçu du bulletin
+                </DialogTitle>
+                <DialogDescription className="mt-1">
+                  {bulletinApercu.eleve} · {bulletinApercu.classe} · {bulletinApercu.periode}
+                </DialogDescription>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="absolute right-12 top-2 border-cyan-700/30 text-cyan-800 hover:bg-cyan-50 dark:border-cyan-400/30 dark:text-cyan-200 dark:hover:bg-cyan-950/50"
+                onClick={() => setApercuPleinEcran((plein) => !plein)}
+                aria-label={apercuPleinEcran ? "Quitter le plein écran" : "Agrandir le bulletin en plein écran"}
+                title={apercuPleinEcran ? "Réduire" : "Plein écran"}
+              >
+                {apercuPleinEcran ? <Minimize2 className="size-4" aria-hidden /> : <Maximize2 className="size-4" aria-hidden />}
+              </Button>
             </DialogHeader>
             <div className="min-h-0 flex-1 bg-slate-100 p-2 dark:bg-slate-950 sm:p-4">
               <iframe
