@@ -198,7 +198,7 @@ export default async function PageParametres({
           peut(principal, "tuteur:gerer"),
           peut(principal, "annonce:lire"),
         ]);
-        const [joursInvitations, parents, couverture, file, politiques] = await Promise.all([
+        const [joursInvitations, parents, couverture, file, politiques, graviteIncident, echecs30Jours] = await Promise.all([
           peutConfigurer ? dureeInvitationJours() : Promise.resolve(null),
           peutVoirParents ? statistiquesParents() : Promise.resolve(null),
           peutVoirParents || peutNotifier
@@ -221,10 +221,22 @@ export default async function PageParametres({
             ? db.execute<{
                 type: string; libelle: string; politique: string;
                 description: string | null; deja_produites: number; cout_total_fcfa: number;
+                envoyees_30j: number; echouees_30j: number;
               }>(sql`
-                SELECT type, libelle, politique, description, deja_produites, cout_total_fcfa
-                FROM v_couverture_notifications
-                ORDER BY libelle
+                SELECT v.type, v.libelle, v.politique, v.description,
+                       v.deja_produites, v.cout_total_fcfa,
+                       COALESCE(s.envoyees_30j, 0)::int AS envoyees_30j,
+                       COALESCE(s.echouees_30j, 0)::int AS echouees_30j
+                FROM v_couverture_notifications v
+                LEFT JOIN (
+                  SELECT n.type::text AS type,
+                         count(*) FILTER (WHERE n.statut::text IN ('ENVOYE', 'LU'))::int AS envoyees_30j,
+                         count(*) FILTER (WHERE n.statut::text = 'ECHOUE')::int AS echouees_30j
+                  FROM notifications n
+                  WHERE n.cree_le >= now() - interval '30 days'
+                  GROUP BY n.type
+                ) s ON s.type = v.type
+                ORDER BY v.libelle
               `).then((resultat): ApercuPolitique[] => resultat.rows.map((ligne) => ({
                 type: ligne.type,
                 libelle: ligne.libelle,
@@ -232,7 +244,22 @@ export default async function PageParametres({
                 description: ligne.description,
                 dejaProduites: Number(ligne.deja_produites),
                 coutTotalFcfa: Number(ligne.cout_total_fcfa),
+                envoyees30Jours: Number(ligne.envoyees_30j),
+                echouees30Jours: Number(ligne.echouees_30j),
               })))
+            : Promise.resolve(null),
+          peutNotifier
+            ? db.execute<{ valeur: string }>(sql`
+                SELECT valeur FROM parametres
+                WHERE cle = 'notification_incident_gravite_min'
+              `).then((resultat) => resultat.rows[0]?.valeur ?? "MOYENNE")
+            : Promise.resolve(null),
+          peutNotifier || peutVoirCommunication
+            ? db.execute<{ total: number }>(sql`
+                SELECT count(*)::int AS total FROM notifications
+                WHERE cree_le >= now() - interval '30 days'
+                  AND statut::text = 'ECHOUE'
+              `).then((resultat) => Number(resultat.rows[0]?.total ?? 0))
             : Promise.resolve(null),
         ]);
 
@@ -241,9 +268,11 @@ export default async function PageParametres({
             items={rubrique}
             accesModules={accesModules}
             joursInvitations={joursInvitations}
+            graviteIncident={graviteIncident}
             parents={parents}
             couverture={couverture}
             file={file}
+            echecs30Jours={echecs30Jours}
             politiques={politiques}
           />
         );
