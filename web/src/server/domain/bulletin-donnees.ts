@@ -50,25 +50,12 @@ const TITRES: Record<string, string> = {
 const ORDRE_BLOCS = ["LITTERAIRE", "SCIENTIFIQUE", "COMPLEMENTAIRE"];
 
 /**
- * Appréciation littérale d'une moyenne sur 20.
- *
- * Les seuils sont ceux du document papier de l'établissement. Ils ne sont pas
- * paramétrables ici : une appréciation qui changerait d'un bulletin à l'autre
- * ne voudrait plus rien dire.
+ * Appréciation de la colonne « Appréciations ».
+ * Toujours calculée depuis la moyenne de la matière, jamais depuis le
+ * commentaire libre saisi par le professeur.
  */
 export function appreciationMoyenne(moyenne: number | null): string {
-  if (moyenne === null) return "";
-  if (moyenne >= 18) return "Excellent";
-  if (moyenne >= 16) return "Très Bien";
-  if (moyenne >= 14) return "Bien";
-  if (moyenne >= 12) return "Assez Bien";
-  if (moyenne >= 11) return "Passable";
-  if (moyenne >= 10) return "Moyen";
-  if (moyenne >= 8) return "Insuffisant";
-  if (moyenne >= 7) return "Faible";
-  if (moyenne >= 5) return "Très Faible";
-  if (moyenne >= 2) return "Médiocre";
-  return "Travail Nul";
+  return libelleAppreciationTravail(moyenne) ?? "";
 }
 const nombre = (v: string | null): number | null => (v === null ? null : Number(v));
 
@@ -325,7 +312,7 @@ export async function chargerBulletin(
           moyenne,
           coefficient: spec.coefficient,
           points: moyenne === null ? null : moyenne * spec.coefficient,
-          appreciation: (ligne?.appreciation_professeur ?? "").trim() || appreciationMoyenne(moyenne),
+          appreciation: appreciationMoyenne(moyenne),
         };
       });
     } else {
@@ -338,7 +325,7 @@ export async function chargerBulletin(
           moyenne,
           coefficient: l.coefficient === null ? null : Number(l.coefficient),
           points: moyenne === null || l.coefficient === null ? null : moyenne * Number(l.coefficient),
-          appreciation: (l.appreciation_professeur ?? "").trim() || appreciationMoyenne(moyenne),
+          appreciation: appreciationMoyenne(moyenne),
         };
       });
     }
@@ -401,9 +388,9 @@ export async function chargerBulletin(
       moyenne: note,
       coefficient,
       points: note === null ? null : note * coefficient,
-      // L'appréciation de conduite est écrite par le conseil, pas déduite d'un
-      // seuil : « Le conseil » figure sur le document papier quand elle manque.
-      appreciation: c?.appreciation ?? "Le conseil",
+      // La colonne « Appréciations » utilise le même barème pour la conduite.
+      // Le commentaire saisi reste stocké, mais n'est pas affiché dans cette colonne.
+      appreciation: appreciationMoyenne(note),
     });
 
     const notees = complementaires.matieres.filter((m) => m.moyenne !== null && m.coefficient !== null);
