@@ -18,6 +18,7 @@ import {
   tuteurs,
 } from "@/server/db/schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
+import { messageTelephoneInscription, normaliserTelephoneInscription } from "@/lib/telephone";
 import { sessionCourante } from "@/server/auth/session";
 import type { DossierModifiable } from "./[id]/_components/modifier-dossier";
 import { reveillerFile } from "@/server/notifications/reveil";
@@ -68,7 +69,10 @@ const schemaTuteur = z.object({
   nom: z.string().trim().min(2, "Nom requis"),
   prenom: z.string().trim().min(2, "Prénom requis"),
   sexe: z.enum(["M", "F"]).nullable().optional(),
-  telephone: z.string().trim().regex(TELEPHONE, "Numéro invalide"),
+  telephone: z.string().trim().superRefine((valeur, ctx) => {
+    const message = messageTelephoneInscription(valeur);
+    if (message) ctx.addIssue({ code: "custom", message });
+  }).transform(normaliserTelephoneInscription),
   telephoneSecondaire: z.string().trim().optional(),
   email: z.string().trim().email("Adresse invalide").optional().or(z.literal("")),
   profession: z.string().trim().optional(),
@@ -99,7 +103,12 @@ const schemaInscription = z
     // Coordonnées
     adresse: z.string().trim().optional(),
     quartier: z.string().trim().optional(),
-    telephone: z.string().trim().regex(TELEPHONE, "Numéro invalide").optional().or(z.literal("")),
+    telephone: z.string().trim().superRefine((valeur, ctx) => {
+      if (valeur) {
+        const message = messageTelephoneInscription(valeur);
+        if (message) ctx.addIssue({ code: "custom", message });
+      }
+    }).transform((v) => v ? normaliserTelephoneInscription(v) : "").optional(),
     email: z.string().trim().email("Adresse invalide").optional().or(z.literal("")),
 
     // Santé et situation
