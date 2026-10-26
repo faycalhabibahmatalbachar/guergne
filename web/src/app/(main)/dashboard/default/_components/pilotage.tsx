@@ -1,22 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle, ArrowRight, Banknote, BarChart3, Bell,
-  BookOpenCheck, CheckCircle2, ChevronRight, CircleHelp, Clock3,
-  GraduationCap, School, ShieldAlert, TrendingUp, Users, UserRoundCheck,
+  ArrowRight, BookOpenCheck, ChevronRight, ClipboardList, GraduationCap,
+  School, Wallet, Users, BellRing, Clock3,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
-  ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from "recharts";
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { statTile, statusBadge, visitorRow } from "@/vendor/gentelella-v4/markup.js";
 import { formaterFcfa } from "@/lib/finances-format";
 import type {
-  Alerte, IndicateursCles, PointClasse, PointMatiere, PointMois,
-  PointNiveau, PointRecouvrement,
+  Alerte, IndicateursCles, PointClasse, PointMatiere, PointMois, PointNiveau, PointRecouvrement,
 } from "@/server/domain/pilotage";
 
 export interface AccesTableauDeBord {
@@ -28,8 +22,7 @@ export interface AccesTableauDeBord {
   communication: boolean;
   personnel: boolean;
 }
-
-interface Props {
+type Donnees = {
   indicateurs: IndicateursCles;
   niveaux: PointNiveau[];
   absences: PointMois[];
@@ -38,282 +31,187 @@ interface Props {
   recouvrement: PointRecouvrement[];
   listeAlertes: Alerte[];
   acces: AccesTableauDeBord;
-}
-
-const AXE = { fontSize: 11, fill: "#64748b" };
-const tooltip = {
-  contentStyle: { backgroundColor: "var(--popover)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 12 },
 };
-const nombre = (valeur: number) => valeur.toLocaleString("fr-FR");
+type Couleur = "teal" | "blue" | "green" | "yellow" | "red" | "purple";
+const nf = (v: number) => v.toLocaleString("fr-FR");
+const tick = { fontSize: 11, fill: "#7e8896" };
+const infoBulle = { contentStyle: { borderRadius: 6, backgroundColor: "var(--bg-surface)", color: "var(--text)", border: "1px solid var(--border-color)", fontSize: 12 } };
 
-function Indicateur({ titre, valeur, detail, icone: Icone, couleur, href }: {
-  titre: string;
-  valeur: string;
-  detail: string;
-  icone: LucideIcon;
-  couleur: string;
-  href?: string;
+// These static SVGs are taken from Gentelella v4 production/index.html.
+const usersSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>';
+const clockSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+const moneySVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>';
+const chartSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>';
+
+function Statistique({ label, value, subtext, color, iconHtml, href }: {
+  label: string; value: string; subtext: string; color: Couleur; iconHtml: string; href?: string;
 }) {
-  const contenu = (
-    <div className="group flex h-full min-w-0 flex-col justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm transition-colors hover:border-slate-300 dark:border-border dark:bg-card dark:hover:border-slate-600">
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-xs font-medium text-slate-500 dark:text-muted-foreground">{titre}</span>
-        <span className={"flex size-9 shrink-0 items-center justify-center rounded-xl " + couleur}>
-          <Icone className="size-[18px]" aria-hidden />
-        </span>
-      </div>
-      <div>
-        <p className="text-[28px] font-bold leading-none tracking-tight text-slate-950 tabular-nums dark:text-foreground">{valeur}</p>
-        <p className="mt-2 text-[11px] leading-4 text-slate-500 dark:text-muted-foreground">{detail}</p>
-      </div>
-    </div>
-  );
-  return href ? <Link href={href} className="block min-w-0 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">{contenu}</Link> : contenu;
+  // This is the ORIGINAL Gentelella v4 markup helper, not a re-created stat component.
+  // It escapes all dynamic data; iconHtml comes exclusively from the trusted constants above.
+  const markup = <div dangerouslySetInnerHTML={{ __html: statTile({ label, value, subtext, color, iconHtml }) }} />;
+  return href
+    ? <Link href={href} className="lgr-card-link" aria-label={label + " : " + value}>{markup}</Link>
+    : <div>{markup}</div>;
 }
 
-function EnTeteBloc({ titre, description, icone: Icone, href, lien = "Voir le détail" }: {
-  titre: string;
-  description?: string;
-  icone: LucideIcon;
-  href?: string;
-  lien?: string;
-}) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-2">
-      <div className="flex min-w-0 items-start gap-2.5">
-        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-muted dark:text-foreground">
-          <Icone className="size-[18px]" aria-hidden />
-        </span>
-        <div>
-          <h2 className="text-[15px] font-semibold text-slate-950 dark:text-foreground">{titre}</h2>
-          {description ? <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-muted-foreground">{description}</p> : null}
-        </div>
-      </div>
-      {href ? <Link href={href} className="inline-flex items-center gap-1 rounded-md px-1 py-1 text-xs font-semibold text-blue-700 hover:underline focus-visible:outline-2 dark:text-blue-300">
-        {lien}<ChevronRight className="size-3.5" aria-hidden />
-      </Link> : null}
-    </div>
-  );
+function Vide({ children }: { children: React.ReactNode }) {
+  return <div className="lgr-chart-empty">{children}</div>;
 }
 
-function AucunResultat({ children }: { children: React.ReactNode }) {
-  return <div className="flex min-h-44 items-center justify-center rounded-xl border border-dashed px-4 text-center text-sm text-slate-500 dark:text-muted-foreground">{children}</div>;
-}
-
-export function Pilotage({
-  indicateurs: i, niveaux, absences, classes, matieres, recouvrement, listeAlertes, acces,
-}: Props) {
-  const dernierRecouvrement = recouvrement.length ? recouvrement[recouvrement.length - 1] : null;
-  const risques = [...listeAlertes].sort((a, b) => {
-    const gravite = { danger: 0, alerte: 1, info: 2 };
-    return gravite[a.gravite] - gravite[b.gravite] || b.nombre - a.nombre;
+export function Pilotage({ indicateurs: i, niveaux, absences, classes, matieres, recouvrement, listeAlertes, acces }: Donnees) {
+  const [graphique, setGraphique] = useState<"effectifs" | "finances">(acces.eleves ? "effectifs" : "finances");
+  const vue = graphique === "finances" && acces.finances ? "finances" : acces.eleves ? "effectifs" : "finances";
+  const totalEncaisse = recouvrement.at(-1)?.cumul ?? null;
+  const garcons = niveaux.reduce((sum, n) => sum + n.garcons, 0);
+  const filles = niveaux.reduce((sum, n) => sum + n.filles, 0);
+  const sexue = garcons + filles;
+  const priorites = [...listeAlertes].sort((a, b) => {
+    const urgence = { danger: 0, alerte: 1, info: 2 };
+    return urgence[a.gravite] - urgence[b.gravite] || b.nombre - a.nombre;
   });
-  const cards = [
-    { titre: "Élèves inscrits", valeur: nombre(i.effectif), detail: nombre(i.nouveauxInscrits) + " nouvelles inscriptions", icone: Users, couleur: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300", href: acces.eleves ? "/dashboard/eleves" : undefined },
-    { titre: "Classes actives", valeur: nombre(i.classes), detail: "Répartition de l'établissement", icone: School, couleur: "bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300", href: acces.classes ? "/dashboard/classes" : undefined },
-    { titre: "Enseignants", valeur: nombre(i.enseignants), detail: "Personnel enseignant actif", icone: UserRoundCheck, couleur: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300", href: acces.personnel ? "/dashboard/personnel" : undefined },
-    ...(acces.notes ? [
-      { titre: "Taux de réussite", valeur: i.tauxReussite === null ? "—" : nombre(i.tauxReussite) + " %", detail: i.moyenneGenerale === null ? "Moyennes non disponibles" : "Moyenne : " + nombre(i.moyenneGenerale) + "/20", icone: GraduationCap, couleur: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300", href: "/dashboard/notes" },
-    ] : []),
+  const classement = [...classes].filter(c => c.moyenne !== null)
+    .sort((a, b) => (b.moyenne ?? 0) - (a.moyenne ?? 0)).slice(0, 5);
+  const raccourcis = [
+    acces.eleves ? { titre: "Dossiers des élèves", lien: "/dashboard/eleves", Icon: Users } : null,
+    acces.classes ? { titre: "Classes", lien: "/dashboard/classes", Icon: School } : null,
+    acces.notes ? { titre: "Notes et résultats", lien: "/dashboard/notes", Icon: GraduationCap } : null,
+    acces.assiduite ? { titre: "Assiduité", lien: "/dashboard/assiduite", Icon: Clock3 } : null,
+    acces.finances ? { titre: "Finances", lien: "/dashboard/finances", Icon: Wallet } : null,
+    acces.communication ? { titre: "Communication", lien: "/dashboard/communication", Icon: BellRing } : null,
+  ].filter(item => item !== null);
+  const kpis: Array<{label:string;value:string;subtext:string;color:Couleur;iconHtml:string;href?:string}> = [
+    { label:"Élèves inscrits", value:nf(i.effectif), subtext:nf(i.nouveauxInscrits)+" nouvelles inscriptions", color:"teal", iconHtml:usersSVG, href:acces.eleves ? "/dashboard/eleves" : undefined },
+    { label:"Classes actives", value:nf(i.classes), subtext:"Pour l'année courante", color:"blue", iconHtml:clockSVG, href:acces.classes ? "/dashboard/classes" : undefined },
+    { label:"Enseignants", value:nf(i.enseignants), subtext:"Personnel actif", color:"purple", iconHtml:usersSVG, href:acces.personnel ? "/dashboard/personnel" : undefined },
+    ...(acces.notes ? [{ label:"Réussite scolaire", value:i.tauxReussite === null ? "—" : nf(i.tauxReussite)+" %", subtext:i.moyenneGenerale === null ? "Moyenne non calculée" : "Moyenne : "+nf(i.moyenneGenerale)+"/20", color:"green" as Couleur, iconHtml:chartSVG, href:"/dashboard/notes" }] : []),
+    ...(acces.assiduite ? [{ label:"Absences signalées", value:nf(i.absentsAujourdhui), subtext:"Aujourd'hui · présence non certifiée", color:"yellow" as Couleur, iconHtml:clockSVG, href:"/dashboard/assiduite" }] : []),
+    ...(acces.finances ? [{ label:"Encaissements", value:totalEncaisse === null ? "—" : formaterFcfa(totalEncaisse), subtext:"Cumul de l'année scolaire", color:"teal" as Couleur, iconHtml:moneySVG, href:"/dashboard/finances" }] : []),
   ];
-  return (
-    <div className="space-y-5 text-slate-950 dark:text-foreground">
-      <section aria-label="Indicateurs clés" className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map((c) => <Indicateur key={c.titre} {...c} />)}
-      </section>
 
-      <section className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]" aria-label="Priorités et suivi du jour">
-        <Card className="min-w-0 rounded-2xl border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
-          <CardContent className="space-y-4 p-4 sm:p-5">
-            <EnTeteBloc titre="À traiter en priorité" description="Situations détectées dans les données de l'établissement." icone={ShieldAlert} />
-            {risques.length ? (
-              <div className="space-y-2.5">
-                {risques.slice(0, 6).map((alerte) => {
-                  const fort = alerte.gravite === "danger";
-                  const Icone = fort ? AlertTriangle : alerte.gravite === "alerte" ? Clock3 : Bell;
-                  return <Link key={alerte.categorie + alerte.libelle} href={alerte.url}
-                    className="group flex items-center gap-3 rounded-xl border border-slate-200/90 px-3 py-2.5 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-600 dark:border-border dark:hover:bg-muted/40">
-                    <span className={"flex size-9 shrink-0 items-center justify-center rounded-lg " + (fort ? "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300" : alerte.gravite === "alerte" ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" : "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300")}>
-                      <Icone className="size-4" aria-hidden />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-medium leading-5">{alerte.libelle}</p>
-                      <p className="text-[11px] text-slate-500 dark:text-muted-foreground">{alerte.categorie}</p>
-                    </div>
-                    <span className="rounded-lg bg-slate-100 px-2 py-1 text-sm font-semibold tabular-nums dark:bg-muted">{nombre(alerte.nombre)}</span>
-                    <ArrowRight className="size-4 shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5" aria-hidden />
-                  </Link>;
-                })}
-                {risques.length > 6 ? <p className="text-xs text-slate-500">{risques.length - 6} autres situations disponibles dans les modules concernés.</p> : null}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
-                <CheckCircle2 className="size-5 shrink-0" aria-hidden />
-                Aucune alerte active dans les modules auxquels vous avez accès.
-              </div>
-            )}
-          </CardContent>
-        </Card>
+  return <div className="page-wrapper" data-template="gentelella" data-template-version="4.2.0">
+    <section className="row col-3" aria-label="Chiffres-clés de l'établissement">
+      {kpis.map(kpi => <Statistique key={kpi.label} {...kpi} />)}
+    </section>
 
-        <Card className="min-w-0 rounded-2xl border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
-          <CardContent className="space-y-4 p-4 sm:p-5">
-            {acces.assiduite ? (
-              <>
-                <EnTeteBloc titre="Assiduité du jour" description="Signalements enregistrés aujourd'hui." icone={BookOpenCheck} href="/dashboard/assiduite" lien="Suivre" />
-                <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 dark:border-amber-900/60 dark:bg-amber-950/20">
-                  <div className="flex items-start gap-2">
-                    <CircleHelp className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
-                    <div>
-                      <p className="text-xs font-semibold text-amber-950 dark:text-amber-200">Présence non certifiée</p>
-                      <p className="mt-1 text-[11px] leading-5 text-amber-900/90 dark:text-amber-200/80">
-                        Les absences signalées ne constituent pas un pointage complet. Aucun nombre de présents n'est déduit automatiquement.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-slate-50 p-3 dark:bg-muted/40">
-                    <p className="text-xs text-slate-500 dark:text-muted-foreground">Absents signalés</p>
-                    <p className="mt-1 text-[27px] font-bold tabular-nums">{nombre(i.absentsAujourdhui)}</p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 p-3 dark:bg-muted/40">
-                    <p className="text-xs text-slate-500 dark:text-muted-foreground">Retards signalés</p>
-                    <p className="mt-1 text-[27px] font-bold tabular-nums">{nombre(i.retardsAujourdhui)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs dark:border-border">
-                  <span className="text-slate-500 dark:text-muted-foreground">Taux d'absentéisme estimé</span>
-                  <span className="font-semibold tabular-nums">{i.tauxAbsenteisme == null ? "—" : nombre(i.tauxAbsenteisme) + " %"}</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <EnTeteBloc titre="Repères de scolarité" description="État global des inscriptions." icone={School} />
-                <div className="space-y-3">
-                  <p className="flex justify-between text-sm"><span>Inscrits</span><strong className="tabular-nums">{nombre(i.effectif)}</strong></p>
-                  <p className="flex justify-between text-sm"><span>Nouvelles inscriptions</span><strong className="tabular-nums">{nombre(i.nouveauxInscrits)}</strong></p>
-                  <p className="flex justify-between text-sm"><span>Réinscriptions</span><strong className="tabular-nums">{nombre(i.reinscriptions)}</strong></p>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2" aria-label="Analyses de l'établissement">
-        {acces.eleves ? <Card className="min-w-0 rounded-2xl border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
-          <CardHeader className="pb-2">
-            <EnTeteBloc titre="Répartition des effectifs" description="Filles et garçons par niveau scolaire." icone={Users} href="/dashboard/eleves" />
-          </CardHeader>
-          <CardContent className="min-w-0 px-3 pb-4 sm:px-5">
-            {niveaux.length ? <div className="min-w-0" role="img" aria-label="Histogramme des effectifs par niveau et par sexe">
-              <ResponsiveContainer width="100%" height={276}>
-                <BarChart data={niveaux} margin={{ top: 10, right: 10, left: -16, bottom: 2 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" opacity={0.6} />
-                  <XAxis dataKey="niveau" tick={AXE} tickLine={false} axisLine={false} />
-                  <YAxis tick={AXE} allowDecimals={false} tickLine={false} axisLine={false} />
-                  <Tooltip {...tooltip} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="garcons" name="Garçons" stackId="total" fill="#1E429F" maxBarSize={38} />
-                  <Bar dataKey="filles" name="Filles" stackId="total" fill="#34A485" radius={[4, 4, 0, 0]} maxBarSize={38} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div> : <AucunResultat>Aucun effectif à représenter.</AucunResultat>}
-          </CardContent>
-        </Card> : null}
-
-        {acces.notes ? <Card className="min-w-0 rounded-2xl border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
-          <CardHeader className="pb-2">
-            <EnTeteBloc titre="Performances par matière" description="Moyennes enregistrées pour la période active, sur 20." icone={TrendingUp} href="/dashboard/notes" />
-          </CardHeader>
-          <CardContent className="min-w-0 px-3 pb-4 sm:px-5">
-            {matieres.length ? <div className="min-w-0" role="img" aria-label="Comparaison des moyennes par matière">
-              <ResponsiveContainer width="100%" height={276}>
-                <BarChart data={matieres.slice(0, 9)} layout="vertical" margin={{ top: 6, right: 14, left: 4, bottom: 2 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#cbd5e1" opacity={0.6} />
-                  <XAxis type="number" domain={[0, 20]} tick={AXE} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="matiere" width={105} tick={AXE} tickLine={false} axisLine={false} />
-                  <Tooltip {...tooltip} />
-                  <Bar dataKey="moyenne" name="Moyenne /20" radius={[0, 4, 4, 0]} maxBarSize={19}>
-                    {matieres.slice(0, 9).map((m, index) => <Cell key={m.matiere + index} fill={m.couleur ?? "#1E429F"} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div> : <AucunResultat>Aucune moyenne par matière disponible.</AucunResultat>}
-            {matieres.length > 9 ? <p className="mt-1 text-right text-[11px] text-slate-500">9 matières affichées sur {matieres.length}. Consultez les notes pour le détail.</p> : null}
-          </CardContent>
-        </Card> : null}
-
-        {acces.finances ? <Card className="min-w-0 rounded-2xl border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
-          <CardHeader className="pb-2">
-            <EnTeteBloc titre="Recouvrement des frais" description="Évolution des versements et cumul de l'année active." icone={Banknote} href="/dashboard/finances" />
-          </CardHeader>
-          <CardContent className="min-w-0 px-3 pb-4 sm:px-5">
-            {dernierRecouvrement ? (
-              <>
-                <div className="mb-3 px-2">
-                  <p className="text-xs text-slate-500 dark:text-muted-foreground">Total encaissé depuis la rentrée</p>
-                  <p className="mt-1 text-[24px] font-bold tracking-tight tabular-nums">{formaterFcfa(dernierRecouvrement.cumul)}</p>
-                </div>
-                <div className="min-w-0" role="img" aria-label="Évolution du recouvrement scolaire">
-                  <ResponsiveContainer width="100%" height={230}>
-                    <LineChart data={recouvrement} margin={{ top: 6, right: 10, left: -12, bottom: 2 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" opacity={0.6} />
-                      <XAxis dataKey="libelle" tick={AXE} tickLine={false} axisLine={false} />
-                      <YAxis tick={AXE} tickFormatter={(value) => nombre(Math.round(Number(value) / 1000000)) + " M"} tickLine={false} axisLine={false} />
-                      <Tooltip {...tooltip} formatter={(value) => formaterFcfa(Number(value))} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} />
-                      <Line dataKey="encaisse" name="Encaissements du mois" type="monotone" stroke="#D29D48" strokeWidth={2} dot={false} />
-                      <Line dataKey="cumul" name="Cumul" type="monotone" stroke="#1E429F" strokeWidth={2.5} dot={{ r: 2 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </>
-            ) : <AucunResultat>Aucun encaissement enregistré pour l'année.</AucunResultat>}
-          </CardContent>
-        </Card> : null}
-
-        {acces.assiduite ? <Card className="min-w-0 rounded-2xl border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
-          <CardHeader className="pb-2">
-            <EnTeteBloc titre="Évolution des absences" description="Heures justifiées et non justifiées par mois." icone={BarChart3} href="/dashboard/assiduite" />
-          </CardHeader>
-          <CardContent className="min-w-0 px-3 pb-4 sm:px-5">
-            {absences.length ? <div className="min-w-0" role="img" aria-label="Histogramme mensuel des absences">
-              <ResponsiveContainer width="100%" height={276}>
-                <BarChart data={absences} margin={{ top: 6, right: 10, left: -12, bottom: 2 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" opacity={0.6} />
-                  <XAxis dataKey="libelle" tick={AXE} tickLine={false} axisLine={false} />
-                  <YAxis tick={AXE} tickLine={false} axisLine={false} />
-                  <Tooltip {...tooltip} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="justifiees" name="Justifiées" stackId="a" fill="#34A485" maxBarSize={35} />
-                  <Bar dataKey="nonJustifiees" name="Non justifiées" stackId="a" fill="#D97745" radius={[4, 4, 0, 0]} maxBarSize={35} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div> : <AucunResultat>Aucune absence enregistrée pour l'année.</AucunResultat>}
-          </CardContent>
-        </Card> : null}
-      </section>
-
-      {(acces.eleves || acces.classes || acces.communication || acces.finances) ? (
-        <section aria-label="Accès opérationnels" className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-border dark:bg-card sm:p-5">
-          <EnTeteBloc titre="Accès rapides aux modules" description="Reprendre le travail sans parcourir les menus." icone={BookOpenCheck} />
-          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {([
-              acces.eleves ? { titre: "Dossiers des élèves", href: "/dashboard/eleves", Icone: Users } : null,
-              acces.classes ? { titre: "Gestion des classes", href: "/dashboard/classes", Icone: School } : null,
-              acces.communication ? { titre: "Communication", href: "/dashboard/communication", Icone: Bell } : null,
-              acces.finances ? { titre: "Gestion financière", href: "/dashboard/finances", Icone: Banknote } : null,
-            ].filter((lien) => lien !== null)).map((lien) => (
-              <Link key={lien.href} href={lien.href} className="flex items-center gap-2 rounded-xl border border-slate-200 p-3 text-sm font-medium transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-600 dark:border-border dark:hover:bg-muted/40">
-                <lien.Icone className="size-4 shrink-0 text-blue-800 dark:text-blue-300" aria-hidden />
-                <span className="min-w-0 flex-1 truncate">{lien.titre}</span>
-                <ArrowRight className="size-4 shrink-0 text-slate-400" aria-hidden />
-              </Link>
-            ))}
+    <section className="row col-8-4" aria-label="Graphique principal et alertes">
+      <div className="card">
+        <div className="chart-header">
+          <div className="chart-header-left">
+            <div className="card-title">Vue d'ensemble des données</div>
+            <div className="card-subtitle">{vue === "effectifs" ? "Effectifs par niveau et par sexe" : "Recouvrement des frais de scolarité"}</div>
+            {vue === "finances" && totalEncaisse !== null ? <div className="chart-stat">{formaterFcfa(totalEncaisse)}</div> : null}
           </div>
-        </section>
-      ) : null}
-    </div>
-  );
+          <div className="chart-tabs" role="tablist" aria-label="Données présentées">
+            {acces.eleves ? <button type="button" role="tab" aria-selected={vue==="effectifs"} className={"chart-tab"+(vue==="effectifs"?" active":"")} onClick={()=>setGraphique("effectifs")}>Effectifs</button> : null}
+            {acces.finances ? <button type="button" role="tab" aria-selected={vue==="finances"} className={"chart-tab"+(vue==="finances"?" active":"")} onClick={()=>setGraphique("finances")}>Finances</button> : null}
+          </div>
+        </div>
+        <div className="chart-area">
+          {vue === "effectifs" && acces.eleves
+            ? niveaux.length ? <div className="lgr-chart-container" role="img" aria-label="Effectifs par niveau">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={niveaux} margin={{top:5,right:8,left:-12,bottom:0}}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e6e7eb"/>
+                  <XAxis tick={tick} dataKey="niveau"/><YAxis tick={tick} allowDecimals={false}/>
+                  <Tooltip {...infoBulle}/><Legend wrapperStyle={{fontSize:11}}/>
+                  <Bar dataKey="garcons" name="Garçons" fill="#066fd1" stackId="total" maxBarSize={38}/>
+                  <Bar dataKey="filles" name="Filles" fill="#1abb9c" stackId="total" maxBarSize={38} radius={[3,3,0,0]}/>
+                </BarChart>
+              </ResponsiveContainer>
+            </div> : <Vide>Aucun effectif disponible.</Vide>
+            : acces.finances && recouvrement.length ? <div className="lgr-chart-container" role="img" aria-label="Évolution des encaissements">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={recouvrement} margin={{top:5,right:8,left:0,bottom:0}}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e6e7eb"/>
+                  <XAxis tick={tick} dataKey="libelle"/><YAxis tick={tick} tickFormatter={v=>Math.round(Number(v)/1000000)+" M"}/>
+                  <Tooltip {...infoBulle} formatter={v=>formaterFcfa(Number(v))}/><Legend wrapperStyle={{fontSize:11}}/>
+                  <Line type="monotone" dataKey="encaisse" name="Par mois" stroke="#4299e1" strokeWidth={2} dot={false}/>
+                  <Line type="monotone" dataKey="cumul" name="Cumul" stroke="#1abb9c" strokeWidth={2} dot={{r:2}}/>
+                </LineChart>
+              </ResponsiveContainer>
+            </div> : <Vide>Aucune série statistique disponible.</Vide>}
+        </div>
+        <div className="card-footer lgr-meta">Données issues du système scolaire · aucune donnée fictive.</div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <div><div className="card-title">À traiter en priorité</div><div className="card-subtitle">{priorites.length} situation(s) à examiner</div></div>
+          <ClipboardList className="lgr-icon" aria-hidden/>
+        </div>
+        {priorites.length ? <div className="card-body" style={{padding:"0 12px"}}>
+          <ul className="activity-list">
+            {priorites.slice(0,6).map(a=><li className="activity-item" key={a.categorie+a.libelle}>
+              <span className="activity-avatar" style={{background:a.gravite==="danger"?"var(--red-lt)":a.gravite==="alerte"?"var(--yellow-lt)":"var(--blue-lt)",color:a.gravite==="danger"?"var(--red)":a.gravite==="alerte"?"#b45309":"var(--blue)"}}>{a.nombre>99?"99+":a.nombre}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <Link href={a.url} className="activity-body" style={{color:"var(--text)",fontWeight:500}}>{a.libelle}</Link>
+                <div className="activity-time">{a.categorie}</div>
+              </div>
+              <span dangerouslySetInnerHTML={{__html:statusBadge(a.gravite==="danger"?"Urgent":a.gravite==="alerte"?"À traiter":"Information",a.gravite==="danger"?"red":a.gravite==="alerte"?"yellow":"blue")}}/>
+            </li>)}
+          </ul>
+        </div> : <Vide>Aucune alerte active pour les modules autorisés.</Vide>}
+        <div className="card-footer lgr-meta">Cliquez sur une situation pour accéder au traitement.</div>
+      </div>
+    </section>
+
+    <section className="row col-8-4" aria-label="Performances et suivi scolaire">
+      {acces.notes ? <div className="card">
+        <div className="card-header">
+          <div><div className="card-title">Classement scolaire</div><div className="card-subtitle">Les cinq premières classes évaluées</div></div>
+          <Link href="/dashboard/notes" className="btn btn-outline btn-sm">Voir les notes <ArrowRight className="lgr-icon" aria-hidden/></Link>
+        </div>
+        {classement.length ? <div className="table-responsive"><table className="table">
+          <thead><tr><th>Classe</th><th>Effectif</th><th>Moyenne /20</th><th>Réussite</th></tr></thead>
+          <tbody>{classement.map(c=><tr key={c.classeId}>
+            <td className="cell-strong">{c.classe}</td>
+            <td className="cell-mono">{nf(c.effectif)}</td>
+            <td className="cell-strong">{c.moyenne?.toFixed(2).replace(".",",")}</td>
+            <td><span dangerouslySetInnerHTML={{__html:statusBadge(c.tauxReussite===null?"Non calculée":nf(c.tauxReussite)+" %",c.tauxReussite!==null&&c.tauxReussite<50?"yellow":"green")}}/></td>
+          </tr>)}</tbody>
+        </table></div> : <Vide>Aucune classe évaluée pour la période.</Vide>}
+      </div> : <div className="card">
+        <div className="card-header"><div className="card-title">Scolarité</div></div>
+        <Vide>Les modules disponibles dépendent de votre rôle.</Vide>
+      </div>}
+      {acces.assiduite ? <div className="card">
+        <div className="card-header"><div><div className="card-title">Assiduité du jour</div><div className="card-subtitle">Signalements, heure du Tchad</div></div></div>
+        <div className="lgr-soft-warning">Le nombre de présents reste non disponible tant qu'un pointage exhaustif n'est pas effectué.</div>
+        <div className="card-body" style={{paddingTop:4}}>
+          <div className="visitor-row"><span className="visitor-name">Absences signalées</span><span className="visitor-pct">{nf(i.absentsAujourdhui)}</span></div>
+          <div className="visitor-row"><span className="visitor-name">Retards signalés</span><span className="visitor-pct">{nf(i.retardsAujourdhui)}</span></div>
+        </div>
+        <Link href="/dashboard/assiduite" className="lgr-item-link"><span>Ouvrir le registre</span><ChevronRight className="lgr-icon" aria-hidden/></Link>
+      </div> : <div className="card">
+        <div className="card-header"><div className="card-title">Accès administratifs</div></div>
+        {raccourcis.slice(0,4).map(a=><Link className="lgr-item-link" href={a.lien} key={a.lien}><a.Icon className="lgr-icon" aria-hidden/><span>{a.titre}</span><ChevronRight className="lgr-icon" aria-hidden/></Link>)}
+      </div>}
+    </section>
+
+    <section className="row col-3" aria-label="Informations complémentaires">
+      {acces.eleves ? <div className="card">
+        <div className="card-header"><div><div className="card-title">Effectifs par sexe</div><div className="card-subtitle">Inscriptions actives</div></div></div>
+        {sexue ? <div className="card-body">
+          <div dangerouslySetInnerHTML={{__html:visitorRow({name:"Garçons",pct:Math.round(100*garcons/sexue)})}}/>
+          <div dangerouslySetInnerHTML={{__html:visitorRow({name:"Filles",pct:Math.round(100*filles/sexue)})}}/>
+          <p className="lgr-meta" style={{paddingTop:12}}>Élèves dont le sexe est renseigné : {nf(sexue)}.</p>
+        </div> : <Vide>Aucune donnée de répartition.</Vide>}
+      </div> : null}
+      {acces.assiduite ? <div className="card">
+        <div className="card-header"><div><div className="card-title">Absences mensuelles</div><div className="card-subtitle">Heures justifiées et non justifiées</div></div></div>
+        {absences.length ? <div className="card-body"><div className="lgr-chart-container" style={{height:190}} role="img" aria-label="Histogramme mensuel des absences"><ResponsiveContainer width="100%" height="100%">
+          <BarChart data={absences} margin={{top:2,right:4,left:-20,bottom:2}}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e6e7eb"/>
+            <XAxis tick={tick} dataKey="libelle"/><YAxis tick={tick}/><Tooltip {...infoBulle}/>
+            <Bar dataKey="justifiees" name="Justifiées" stackId="a" fill="#2fb344"/>
+            <Bar dataKey="nonJustifiees" name="Non justifiées" stackId="a" fill="#f59f00" radius={[3,3,0,0]}/>
+          </BarChart>
+        </ResponsiveContainer></div></div> : <Vide>Aucune absence enregistrée.</Vide>}
+      </div> : null}
+      <div className="card">
+        <div className="card-header"><div><div className="card-title">Accès rapides</div><div className="card-subtitle">Modules du lycée</div></div></div>
+        {raccourcis.length ? raccourcis.map(a=><Link key={a.lien} href={a.lien} className="lgr-item-link"><a.Icon className="lgr-icon" aria-hidden/><span>{a.titre}</span><ChevronRight className="lgr-icon" aria-hidden/></Link>) : <Vide>Aucun raccourci disponible.</Vide>}
+      </div>
+    </section>
+  </div>;
 }

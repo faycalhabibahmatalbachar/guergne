@@ -22,6 +22,10 @@ import { actionsAutorisees } from "@/server/guard/actions-autorisees";
 
 import { ClassementClasses } from "./_components/classement-classes";
 import { Pilotage, type AccesTableauDeBord } from "./_components/pilotage";
+import "./gentelella-tokens.css";
+import "./gentelella-layout.css";
+import "./gentelella-components.css";
+import "./gentelella-widgets.css";
 
 export const metadata: Metadata = { title: "Tableau de bord" };
 export const dynamic = "force-dynamic";
@@ -141,40 +145,25 @@ export default async function PageTableauDeBord() {
   const anneeTerminee = Date.parse(stats.annee.dateFin + "T23:59:59+01:00") < Date.now();
 
   return (
-    <main className="space-y-5 pb-7 text-slate-950 dark:text-foreground">
-      <header className="flex flex-col gap-3 border-b border-slate-200/80 pb-5 lg:flex-row lg:items-end lg:justify-between dark:border-border">
-        <div className="min-w-0">
-          <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-muted-foreground">
-            <GraduationCap className="size-4 text-blue-800 dark:text-blue-300" aria-hidden />
-            Espace de pilotage
+    <main className="gentelella-v4 min-w-0 pb-6" data-skin="gentelella-v4">
+      <div className="page-header">
+        <div className="page-header-row">
+          <div>
+            <div className="page-pretitle">Administration / Vue d'ensemble</div>
+            <h1 className="page-title">Tableau de bord</h1>
+            <p className="lgr-meta">{salutation()}, {acteur.prenom}. {dateTchad} · Année {stats.annee.libelle}{stats.periode ? " · "+stats.periode.libelle : ""}</p>
+            {anneeTerminee ? <div role="status" className="lgr-soft-warning" style={{margin:"8px 0 0"}}>
+              L'année scolaire active est terminée selon sa configuration. Vérifiez l'année courante.
+            </div> : null}
           </div>
-          <h1 className="text-[29px] font-bold leading-tight tracking-tight sm:text-[34px]">Tableau de bord</h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-muted-foreground">
-            {salutation()}, {acteur.prenom}. Voici les priorités de l'établissement.
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500 dark:text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5"><CalendarDays className="size-3.5" aria-hidden />{dateTchad}</span>
-            <span className="rounded-lg border border-slate-200 px-2 py-1 dark:border-border">Année {stats.annee.libelle}</span>
-            {stats.periode ? <span className="rounded-lg border border-slate-200 px-2 py-1 dark:border-border">{stats.periode.libelle}</span> : null}
+          <div className="page-actions">
+            {droits.has("message:envoyer") ? <Link href="/dashboard/communication" className="btn btn-outline"><BellRing className="lgr-icon" aria-hidden/>Communiquer</Link> : null}
+            {droits.has("finance:encaisser") ? <Link href="/dashboard/finances" className="btn btn-outline"><Wallet className="lgr-icon" aria-hidden/>Encaissements</Link> : null}
+            {droits.has("eleve:inscrire") ? <Link href="/dashboard/eleves?inscription=1" className="btn btn-primary"><Plus className="lgr-icon" aria-hidden/>Inscrire un élève</Link> :
+             droits.has("emploi_du_temps:lire") ? <Link href="/dashboard/emploi-du-temps" className="btn btn-outline"><CalendarClock className="lgr-icon" aria-hidden/>Emploi du temps</Link> : null}
           </div>
-          {anneeTerminee ? <p role="status" className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
-            L'année scolaire active est terminée selon ses dates enregistrées. Vérifiez le paramétrage avant de saisir de nouvelles données.
-          </p> : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {droits.has("message:envoyer") ? <Button asChild size="sm" variant="outline" className="h-10 gap-2 bg-white dark:bg-card">
-            <Link href="/dashboard/communication"><BellRing className="size-4" aria-hidden />Communiquer</Link>
-          </Button> : null}
-          {droits.has("finance:encaisser") ? <Button asChild size="sm" variant="outline" className="h-10 gap-2 bg-white dark:bg-card">
-            <Link href="/dashboard/finances"><Wallet className="size-4" aria-hidden />Encaissements</Link>
-          </Button> : null}
-          {droits.has("eleve:inscrire") ? <Button asChild size="sm" className="h-10 gap-2 bg-[#193D7A] text-white hover:bg-[#152F61]">
-            <Link href="/dashboard/eleves?inscription=1"><Plus className="size-4" aria-hidden />Inscrire un élève</Link>
-          </Button> : droits.has("emploi_du_temps:lire") ? <Button asChild size="sm" variant="outline" className="h-10 gap-2">
-            <Link href="/dashboard/emploi-du-temps"><CalendarClock className="size-4" aria-hidden />Emploi du temps</Link>
-          </Button> : null}
-        </div>
-      </header>
+      </div>
 
       <Pilotage
         indicateurs={indicateurs}

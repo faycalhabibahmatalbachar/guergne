@@ -1,0 +1,126 @@
+/* Gentelella v4.2.0 — original upstream design tokens scoped to Next.js dashboard.
+ MIT License in src/vendor/gentelella-v4/LICENSE.txt */
+.gentelella-v4 {
+  --sidebar-bg: #1a2332;
+  --sidebar-hover: rgba(255,255,255,0.04);
+  --sidebar-active: rgba(26,187,156,0.08);
+  --sidebar-text: #7b8fa3;
+  --sidebar-text-hover: #c5d0dc;
+  --sidebar-text-active: #ffffff;
+  --sidebar-border: rgba(255,255,255,0.06);
+  --sidebar-w: 252px;
+
+  --primary: #1ABB9C;
+  --primary-lt: rgba(26,187,156,0.06);
+  --primary-dk: #169f85;
+
+  --body-bg: #f5f7fb;
+  --bg-surface: #ffffff;
+  --bg-surface-secondary: #f9fafb;
+
+  --border-color: #e6e7eb;
+  --border-color-light: #eff0f3;
+  --border-translucent: rgba(4,32,69,0.08);
+
+  --text: #1e2633;
+  --text-secondary: #626d7d;
+  --text-muted: #7e8896;
+  --text-disabled: #c0c7cf;
+
+  --blue: #066fd1;
+  --azure: #4299e1;
+  --green: #2fb344;
+  --lime: #74b816;
+  --yellow: #f59f00;
+  --orange: #f76707;
+  --red: #d63939;
+  --pink: #d6336c;
+  --purple: #ae3ec9;
+  --indigo: #4263eb;
+  --cyan: #17a2b8;
+
+  --green-lt: rgba(47,179,68,0.06);
+  --red-lt: rgba(214,57,57,0.06);
+  --yellow-lt: rgba(245,159,0,0.06);
+  --blue-lt: rgba(6,111,209,0.06);
+  --azure-lt: rgba(66,153,225,0.06);
+  --purple-lt: rgba(174,62,201,0.06);
+  --cyan-lt: rgba(23,162,184,0.06);
+
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-lg: 8px;
+
+  // Spacing scale — 4px base, matches Tailwind's mental model (var(--space-4)
+  // is 16px just like Tailwind's `p-4` is 16px). Use these instead of raw
+  // pixel values for paddings, margins, and grid gaps. Going off-scale is
+  // sometimes correct (e.g. 14px between two specific labels) but should be
+  // the exception. Six steps cover ~95% of UI needs.
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --shadow: rgba(30,38,51,0.04) 0 2px 4px 0;
+  --shadow-card: 0 0 0 1px var(--border-translucent), rgba(30,38,51,0.04) 0 2px 4px 0;
+
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', Monaco, Consolas, 'Liberation Mono', monospace;
+  --font-size: 0.875rem;
+  --line-height: 1.4286;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 600;
+}
+.dark .gentelella-v4 {
+  --body-bg: #0f1623;
+  --bg-surface: #1a2332;
+  --bg-surface-secondary: #141d2b;
+
+  --border-color: rgba(255,255,255,0.08);
+  --border-color-light: rgba(255,255,255,0.05);
+  --border-translucent: rgba(255,255,255,0.08);
+
+  --text: #e6ebf2;
+  --text-secondary: #b3bccb;
+  --text-muted: #8a93a3;
+  --text-disabled: #5a6473;
+
+  --primary-lt: rgba(26,187,156,0.14);
+  --green-lt: rgba(47,179,68,0.16);
+  --red-lt: rgba(214,57,57,0.16);
+  --yellow-lt: rgba(245,159,0,0.16);
+  --blue-lt: rgba(6,111,209,0.18);
+  --azure-lt: rgba(66,153,225,0.16);
+  --purple-lt: rgba(174,62,201,0.16);
+  --cyan-lt: rgba(23,162,184,0.16);
+
+  --shadow: rgba(0,0,0,0.4) 0 2px 4px 0;
+  --shadow-card: 0 0 0 1px var(--border-translucent), rgba(0,0,0,0.3) 0 2px 4px 0;
+}
+.gentelella-v4 { font-family:var(--font);font-size:var(--font-size);font-weight:var(--font-weight-normal);line-height:var(--line-height);color:var(--text); }
+.gentelella-v4 .page-wrapper {padding:0;min-width:0;}
+.gentelella-v4 .chart-area {min-width:0;min-height:260px;}
+.gentelella-v4 .lgr-chart-container {width:100%;min-width:0;height:260px;}
+.gentelella-v4 .card {min-width:0;}
+.gentelella-v4 .lgr-card-link {display:block;min-width:0;color:inherit;text-decoration:none;}
+.gentelella-v4 .lgr-card-link:hover .card {border-color:var(--primary);box-shadow:var(--shadow-card);}
+.gentelella-v4 .lgr-card-link:focus-visible {outline:2px solid var(--primary);outline-offset:2px;border-radius:8px;}
+.gentelella-v4 .lgr-soft-warning {border:1px solid rgba(245,159,0,.28);background:var(--yellow-lt);color:#8a5d00;padding:10px 12px;border-radius:var(--radius);font-size:12px;line-height:1.5;margin:10px 16px;}
+.dark .gentelella-v4 .lgr-soft-warning {color:#fbbf24;}
+.gentelella-v4 .lgr-item-link {display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--border-color-light);text-decoration:none;color:var(--text);}
+.gentelella-v4 .lgr-item-link:hover {background:var(--bg-surface-secondary);}
+.gentelella-v4 .lgr-item-link span {flex:1;min-width:0;}
+.gentelella-v4 .lgr-icon {width:16px;height:16px;flex-shrink:0;}
+.gentelella-v4 .lgr-chart-empty {display:flex;min-height:210px;align-items:center;justify-content:center;text-align:center;padding:16px;color:var(--text-muted);font-size:12px;}
+.gentelella-v4 .lgr-meta {font-size:11px;color:var(--text-muted);}
+.gentelella-v4 .stat-value {font-variant-numeric:tabular-nums;}
+@media (max-width:700px) {
+.gentelella-v4 .chart-area {min-height:210px;}
+.gentelella-v4 .lgr-chart-container {height:215px;}
+.gentelella-v4 .page-header-row {align-items:flex-start;flex-direction:column;gap:10px;}
+}
