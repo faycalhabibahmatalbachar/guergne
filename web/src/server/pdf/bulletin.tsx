@@ -221,8 +221,8 @@ function Cellule({
           </View>
           <View style={s.enteteDroite}>
             <Text style={s.enteteDevise}>Unité - Travail - Progrès</Text>
-            <Text style={s.enteteAnnee}>Année scolaire :</Text>
-            <Text style={s.enteteAnnee}>{d.anneeScolaire.replace(/\s*-\s*/g, " - ")}</Text>
+            <Text style={s.enteteDevise}>{d.anneeScolaire.replace(/\s*-\s*/g, "-")}</Text>
+            <Text style={s.enteteAnnee}>Année scolaire</Text>
           </View>
         </View>
         <View style={s.titreConteneur}>
@@ -244,11 +244,11 @@ function Cellule({
             </View>
           </View>
           <View style={s.identiteRangee}>
-            <View style={[s.identiteCase, { width: "24%", borderRightWidth: 0, paddingRight: 1 }]}>
+            <View style={[s.identiteCase, { width: "24%", borderRightWidth: 0, paddingRight: 10 }]}>
               <Text style={[s.identiteLibelle, { textAlign: "right" }]}>Matricule :</Text>
             </View>
-            <View style={[s.identiteCase, { width: "12%", paddingLeft: 1 }]}>
-              <Text style={[s.identiteValeur, { textAlign: "left" }]}>{identite.matricule}</Text>
+            <View style={[s.identiteCase, { width: "12%", paddingLeft: 0, paddingRight: 4, overflow: "hidden" }]}>
+              <Text style={[s.identiteValeur, { textAlign: "left", fontSize: 9.8 }]}>{identite.matricule}</Text>
             </View>
             <View style={[s.identiteCase, { width: "35%" }]}>
               <Text style={s.identiteCentre}><Text style={s.identiteLibelle}>Statut : </Text><Text style={s.identiteValeur}>{identite.statut}</Text></Text>
