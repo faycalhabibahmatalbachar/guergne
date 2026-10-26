@@ -5,8 +5,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import {
-  ArrowLeft, CalendarDays, ChevronRight, Clock3, CreditCard, FileText, GraduationCap,
-  HeartPulse, MapPin, Phone, ShieldAlert, Users, UserRound, Wallet, History, ClipboardList,
+  ArrowLeft, CalendarDays, ChevronRight, FileText,
+  HeartPulse, MapPin, Phone, ShieldAlert, Users, UserRound, Wallet, History,
   RefreshCw, LayoutDashboard, ContactRound, School2, Files, BookOpenCheck, CalendarCheck2,
 } from "lucide-react";
 
@@ -42,6 +42,11 @@ import { PhotoEleve } from "./_components/photo-eleve";
 import { VueEnsembleEleve } from "./_components/vue-ensemble";
 import { ImprimerDossier, RaccourciOnglet } from "./_components/raccourci-onglet";
 import entete from "./_components/entete-dossier.module.css";
+import { IndicateursDossierGentelella, type StatDossier } from "./_components/indicateurs-gentelella";
+import "../../default/gentelella-tokens.css";
+import "../../default/gentelella-layout.css";
+import "../../default/gentelella-components.css";
+import "../../default/gentelella-widgets.css";
 
 export const dynamic = "force-dynamic";
 
@@ -178,24 +183,53 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
     </div>
   );
 
+  const indicateursDossier: StatDossier[] = [
+    {
+      onglet: "scolarite",
+      libelle: "Statut scolaire",
+      valeur: eleve.statut.replaceAll("_", " "),
+      detail: inscription ? inscription.classeLibelle + " · " + inscription.anneeLibelle : "Sans inscription active",
+      couleur: "teal",
+    },
+    {
+      onglet: "documents",
+      libelle: "Dossier administratif",
+      valeur: inscription ? STATUTS_DOSSIER[inscription.statutDossier] ?? inscription.statutDossier : "Non renseigné",
+      detail: "Consulter les documents",
+      couleur: "blue",
+    },
+    ...(peutVoirFinances ? [{
+      onglet: "finances" as const,
+      libelle: "Situation financière",
+      valeur: resteFinancier === null ? "Non renseignée" : resteFinancier > 0 ? "En attente" : "À jour",
+      detail: resteFinancier === null ? "Aucune échéance" : resteFinancier.toLocaleString("fr-FR") + " FCFA restant",
+      couleur: "yellow" as const,
+    }] : []),
+    {
+      onglet: "historique",
+      libelle: "Dernière activité",
+      valeur: derniereActivite ? dateFr(derniereActivite) : "Aucune",
+      detail: "Voir l'historique",
+      couleur: "purple",
+    },
+  ];
+
   return (
     <div className="space-y-4">
       <nav aria-label="Fil d’Ariane du dossier élève" className="flex min-h-10 flex-wrap items-center gap-2 rounded-xl border border-slate-200/70 bg-slate-50/70 px-3 py-2 text-xs text-slate-600 dark:border-border dark:bg-card dark:text-muted-foreground print:hidden">
         <Link href="/dashboard/eleves" className="font-medium hover:text-emerald-700">Élèves</Link>
         <ChevronRight className="size-3.5 text-slate-400" aria-hidden />
-        <Link href="/dashboard/eleves" className="hover:text-emerald-700">Liste des élèves</Link>
-        <ChevronRight className="size-3.5 text-slate-400" aria-hidden />
         <span aria-current="page" className="font-semibold text-slate-900 dark:text-foreground">{eleve.prenom} {eleve.nom}</span>
       </nav>
 
-      <section aria-label="En-tête du dossier élève" className={entete.header + " min-w-0 rounded-[24px] border border-slate-200/80 bg-white px-4 py-4 shadow-[0_5px_22px_rgba(15,23,42,0.045)] dark:border-border dark:bg-card sm:px-6 sm:py-5"}>
+      <section aria-label="En-tête du dossier élève" className={entete.header + " min-w-0 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm dark:border-border dark:bg-card sm:px-5 sm:py-5"}>
         <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 dark:border-border md:flex-row md:items-center md:justify-between print:hidden">
-          <Button asChild variant="outline" size="sm" className="h-9 w-fit gap-1.5 rounded-lg bg-white px-3 shadow-none dark:bg-card">
+          <Button asChild variant="outline" size="sm" className="h-10 w-fit gap-1.5 rounded-lg border-slate-200 bg-white px-3.5 shadow-none dark:border-border dark:bg-card">
             <Link href="/dashboard/eleves"><ArrowLeft className="size-4" aria-hidden />Retour à la liste</Link>
           </Button>
           <div role="group" aria-label="Commandes du dossier" className="flex flex-wrap items-center gap-2 sm:justify-end">
-            {voisins?.precedent ? <Button asChild variant="outline" size="sm" className="h-9 gap-1 rounded-lg bg-white shadow-none dark:bg-card"><Link href={"/dashboard/eleves/" + voisins.precedent}><ArrowLeft className="size-4" aria-hidden />Précédent</Link></Button> : <Button disabled variant="outline" size="sm" className="h-9 gap-1 rounded-lg"><ArrowLeft className="size-4" aria-hidden />Précédent</Button>}
-            {voisins?.suivant ? <Button asChild variant="outline" size="sm" className="h-9 gap-1 rounded-lg bg-white shadow-none dark:bg-card"><Link href={"/dashboard/eleves/" + voisins.suivant}>Suivant<ChevronRight className="size-4" aria-hidden /></Link></Button> : <Button disabled variant="outline" size="sm" className="h-9 gap-1 rounded-lg">Suivant<ChevronRight className="size-4" aria-hidden /></Button>}
+            {voisins?.precedent ? <Button asChild variant="outline" size="sm" className="h-10 gap-1.5 rounded-lg border-slate-200 bg-white px-3 shadow-none dark:border-border dark:bg-card"><Link href={"/dashboard/eleves/" + voisins.precedent}><ArrowLeft className="size-4" aria-hidden />Précédent</Link></Button> : <Button disabled variant="outline" size="sm" className="h-10 gap-1.5 rounded-lg"><ArrowLeft className="size-4" aria-hidden />Précédent</Button>}
+            {voisins?.suivant ? <Button asChild variant="outline" size="sm" className="h-10 gap-1.5 rounded-lg border-slate-200 bg-white px-3 shadow-none dark:border-border dark:bg-card"><Link href={"/dashboard/eleves/" + voisins.suivant}>Suivant<ChevronRight className="size-4" aria-hidden /></Link></Button> : <Button disabled variant="outline" size="sm" className="h-10 gap-1.5 rounded-lg">Suivant<ChevronRight className="size-4" aria-hidden /></Button>}
             <ImprimerDossier />
             {peutModifierSensible ? <ModifierDossier
             eleveId={eleve.id}
@@ -279,64 +313,23 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
-          <div className={entete.cards} aria-label="Indicateurs du dossier">
-            <RaccourciOnglet onglet="scolarite" className={entete.card + " h-auto justify-start border-emerald-100 bg-emerald-50/60 shadow-none hover:bg-emerald-50/90 dark:border-emerald-900 dark:bg-emerald-950/20"}>
-              <span className={entete.iconTile + " bg-emerald-600"}><GraduationCap className="size-[25px]" aria-hidden /></span>
-              <span className={entete.cardText}>
-                <span className="text-xs font-medium text-slate-600 dark:text-muted-foreground">Statut scolaire</span>
-                <span className="break-words text-lg font-bold text-emerald-700 dark:text-emerald-300">{eleve.statut.replaceAll("_", " ")}</span>
-                <span className="text-[11px] font-normal text-slate-500 dark:text-muted-foreground">{inscription ? "Inscrit le " + dateFr(inscription.dateInscription) : "Sans inscription active"}</span>
-              </span>
-              <span className={entete.cardArrow + " bg-emerald-100/80 text-emerald-700 dark:bg-emerald-950"}><ChevronRight className="size-4" aria-hidden /></span>
-            </RaccourciOnglet>
+          <IndicateursDossierGentelella indicateurs={indicateursDossier} />
 
-            <RaccourciOnglet onglet="documents" className={entete.card + " h-auto justify-start border-blue-100 bg-blue-50/60 shadow-none hover:bg-blue-50/90 dark:border-blue-900 dark:bg-blue-950/20"}>
-              <span className={entete.iconTile + " bg-blue-600"}><ClipboardList className="size-[24px]" aria-hidden /></span>
-              <span className={entete.cardText}>
-                <span className="text-xs font-medium text-slate-600 dark:text-muted-foreground">Dossier administratif</span>
-                <span className="break-words text-lg font-bold text-blue-700 dark:text-blue-300">{inscription ? STATUTS_DOSSIER[inscription.statutDossier] ?? inscription.statutDossier : "Non renseigné"}</span>
-                <span className="text-[11px] font-normal text-slate-500 dark:text-muted-foreground">État du dossier</span>
-              </span>
-              <span className={entete.cardArrow + " bg-blue-100/80 text-blue-700 dark:bg-blue-950"}><ChevronRight className="size-4" aria-hidden /></span>
-            </RaccourciOnglet>
-
-            {peutVoirFinances ? (
-              <RaccourciOnglet onglet="finances" className={entete.card + " h-auto justify-start border-orange-100 bg-orange-50/65 shadow-none hover:bg-orange-50/90 dark:border-orange-900 dark:bg-orange-950/20"}>
-                <span className={entete.iconTile + " bg-orange-500"}><CreditCard className="size-[24px]" aria-hidden /></span>
-                <span className={entete.cardText}>
-                  <span className="text-xs font-medium text-slate-600 dark:text-muted-foreground">Situation financière</span>
-                  <span className="break-words text-lg font-bold text-orange-700 dark:text-orange-300">{resteFinancier === null ? "Non renseignée" : resteFinancier > 0 ? "En attente" : "À jour"}</span>
-                  <span className="text-[11px] font-normal text-slate-500 dark:text-muted-foreground">{resteFinancier !== null ? "Reste : " + resteFinancier.toLocaleString("fr-FR") + " FCFA" : "Aucune échéance enregistrée"}</span>
-                </span>
-                <span className={entete.cardArrow + " bg-orange-100/80 text-orange-700 dark:bg-orange-950"}><ChevronRight className="size-4" aria-hidden /></span>
-              </RaccourciOnglet>
-            ) : null}
-
-            <RaccourciOnglet onglet="historique" className={entete.card + " h-auto justify-start border-violet-100 bg-violet-50/65 shadow-none hover:bg-violet-50/90 dark:border-violet-900 dark:bg-violet-950/20"}>
-              <span className={entete.iconTile + " bg-violet-600"}><Clock3 className="size-[24px]" aria-hidden /></span>
-              <span className={entete.cardText}>
-                <span className="text-xs font-medium text-slate-600 dark:text-muted-foreground">Dernière activité</span>
-                <span className="break-words text-lg font-bold text-violet-700 dark:text-violet-300">{derniereActivite ? dateFr(derniereActivite) : "Aucune"}</span>
-                <span className="text-[11px] font-normal text-slate-500 dark:text-muted-foreground">Événement enregistré</span>
-              </span>
-              <span className={entete.cardArrow + " bg-violet-100/80 text-violet-700 dark:bg-violet-950"}><ChevronRight className="size-4" aria-hidden /></span>
-            </RaccourciOnglet>
-          </div>
         </div>
       </section>
       <Tabs defaultValue="ensemble" className="gap-3">
-        <nav aria-label="Rubriques du dossier" className="min-w-0 overflow-x-auto overflow-y-hidden rounded-2xl border border-slate-200/80 bg-white px-2 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden dark:border-border dark:bg-card">
-          <TabsList variant="line" className="flex h-[56px] w-max min-w-full items-center justify-start gap-1.5 p-1.5">
-            <TabsTrigger id="dossier-onglet-ensemble" value="ensemble" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs font-semibold after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 dark:data-active:bg-emerald-950 sm:text-sm"><LayoutDashboard className="size-4" aria-hidden />Vue d’ensemble</TabsTrigger>
-            <TabsTrigger id="dossier-onglet-identite" value="identite" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><ContactRound className="size-4" aria-hidden />Identité</TabsTrigger>
-            <TabsTrigger id="dossier-onglet-scolarite" value="scolarite" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><School2 className="size-4" aria-hidden />Scolarité</TabsTrigger>
-            <TabsTrigger id="dossier-onglet-tuteurs" value="tuteurs" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><Users className="size-4" aria-hidden />Parents & tuteurs</TabsTrigger>
-            <TabsTrigger id="dossier-onglet-documents" value="documents" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><Files className="size-4" aria-hidden />Documents</TabsTrigger>
-            {peutVoirNotes ? <TabsTrigger id="dossier-onglet-notes" value="notes" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><BookOpenCheck className="size-4" aria-hidden />Notes</TabsTrigger> : null}
-            {peutVoirAssiduite ? <TabsTrigger id="dossier-onglet-assiduite" value="assiduite" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><CalendarCheck2 className="size-4" aria-hidden />Assiduité</TabsTrigger> : null}
-            {peutVoirFinances ? <TabsTrigger id="dossier-onglet-finances" value="finances" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><Wallet className="size-4" aria-hidden />Finances</TabsTrigger> : null}
-            <TabsTrigger id="dossier-onglet-historique" value="historique" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><History className="size-4" aria-hidden />Historique</TabsTrigger>
-            {peutVoirDiscipline ? <TabsTrigger id="dossier-onglet-discipline" value="discipline" className="h-10 flex-none gap-2 rounded-xl px-3.5 text-xs after:hidden data-active:bg-emerald-50 data-active:text-emerald-800 sm:text-sm"><ShieldAlert className="size-4" aria-hidden />Discipline</TabsTrigger> : null}
+        <nav aria-label="Rubriques du dossier" className="gentelella-v4 min-w-0 overflow-x-auto overflow-y-hidden rounded-xl border border-slate-200/80 bg-white px-2 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden dark:border-border dark:bg-card print:hidden">
+          <TabsList variant="line" className="tabs-underline flex h-[54px] w-max min-w-full items-center justify-start gap-1 p-1">
+            <TabsTrigger id="dossier-onglet-ensemble" value="ensemble" className="tab h-10 flex-none gap-2 rounded-lg px-3 text-xs font-semibold after:hidden data-active:border-b-2 data-active:border-emerald-600 data-active:text-emerald-800 dark:data-active:text-emerald-300 sm:text-sm"><LayoutDashboard className="size-4" aria-hidden />Vue d’ensemble</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-identite" value="identite" className="tab h-10 flex-none gap-2 rounded-lg px-3 text-xs after:hidden data-active:border-b-2 data-active:border-emerald-600 data-active:text-emerald-800 dark:data-active:text-emerald-300 sm:text-sm"><ContactRound className="size-4" aria-hidden />Identité</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-scolarite" value="scolarite" className="tab h-10 flex-none gap-2 rounded-lg px-3 text-xs after:hidden data-active:border-b-2 data-active:border-emerald-600 data-active:text-emerald-800 dark:data-active:text-emerald-300 sm:text-sm"><School2 className="size-4" aria-hidden />Scolarité</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-tuteurs" value="tuteurs" className="tab h-10 flex-none gap-2 rounded-lg px-3 text-xs after:hidden data-active:border-b-2 data-active:border-emerald-600 data-active:text-emerald-800 dark:data-active:text-emerald-300 sm:text-sm"><Users className="size-4" aria-hidden />Parents & tuteurs</TabsTrigger>
+            <TabsTrigger id="dossier-onglet-documents" value="documents" className="tab h-10 flex-none gap-2 rounded-lg px-3 text-xs after:hidden data-active:border-b-2 data-active:border-emerald-600 data-active:text-emerald-800 dark:data-active:text-emerald-300 sm:text-sm"><Files className="size-4" aria-hidden />Documents</TabsTrigger>
+            {peutVoirNotes ? <TabsTrigger id="dossier-onglet-notes" value="notes" className="tab h-10 flex-none gap-2 rounded-lg px-3 text-xs after:hidden data-active:border-b-2 data-active:border-emerald-600 data-active:text-emerald-800 dark:data-active:text-emerald-300 sm:text-sm"><BookOpenCheck className="size-4" aria-hidden />Notes</TabsTrigger> : null}
+            {peutVoirAssiduite ? <TabsTrigger id="dossier-onglet-assiduite" value="assiduite" className="tab h-10 flex-none gap-2 rounded-lg px-3 text-xs after:hidden data-active:border-b-2 data-active:border-emerald-600 data-active:text-emerald-800 dark:data-active:text-emerald-300 sm:text-sm"><CalendarCheck2 className="size-4" aria-hidden />Assiduité</TabsTrigger> : null}
+            {peutVoirFinances ? <TabsTrigger id="dossier-onglet-finances" value="finances" className="tab h-10 flex-none gap-2 rounded-lg px-3 text-xs after:hidden data-active:border-b-2 data-active:border-emerald-600 data-active:text-emerald-800 dark:data-active:text-emerald-300 sm:text-sm"><Wallet className="size-4" aria-hidden />Finances</TabsTrigger> : null}
+            <TabsTrigger id="dossier-onglet-historique" value="historique" className="tab h-10 flex-none gap-2 rounded-lg px-3 text-xs after:hidden data-active:border-b-2 data-active:border-emerald-600 data-active:text-emerald-800 dark:data-active:text-emerald-300 sm:text-sm"><History className="size-4" aria-hidden />Historique</TabsTrigger>
+            {peutVoirDiscipline ? <TabsTrigger id="dossier-onglet-discipline" value="discipline" className="tab h-10 flex-none gap-2 rounded-lg px-3 text-xs after:hidden data-active:border-b-2 data-active:border-emerald-600 data-active:text-emerald-800 dark:data-active:text-emerald-300 sm:text-sm"><ShieldAlert className="size-4" aria-hidden />Discipline</TabsTrigger> : null}
           </TabsList>
         </nav>
 
@@ -391,7 +384,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
         </TabsContent>
         <TabsContent value="documents" className="mt-5 space-y-4">
           <Card>
-            <CardHeader><CardTitle className="text-base">Documents officiels du dossier</CardTitle><CardDescription>Les documents éditables ne sont pas assimilés à des pièces déjà déposées ou validées.</CardDescription></CardHeader>
+            <CardHeader><CardTitle className="text-base">Documents du dossier</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {peutEmettreDocument ? <DocumentsEleve eleveId={eleve.id} estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)} bulletins={bulletinsDisponibles} /> : <p className="text-sm text-muted-foreground">Édition non autorisée pour ce compte.</p>}
               {bulletinsDisponibles.map((b) => <a key={b.periodeId} href={"/api/bulletins/" + b.inscriptionId + "/" + b.periodeId} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm hover:bg-slate-50 dark:hover:bg-muted"><span>Bulletin — {b.periodeLibelle}</span><Badge variant={b.publie ? "default" : "outline"}>{b.publie ? "Publié" : "Brouillon"}</Badge></a>)}

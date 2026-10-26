@@ -9,26 +9,26 @@
     "side"
     "finance"
     "activity";
-  gap: 18px;
+  gap: 14px;
   align-items: start;
 }
 .middle, .side, .finance, .activity { min-width: 0; }
-.middle { grid-area: middle; display: grid; gap: 18px; align-content: start; }
-.side { grid-area: side; display: grid; gap: 18px; align-content: start; }
+.middle { grid-area: middle; display: grid; gap: 14px; align-content: start; }
+.side { grid-area: side; display: grid; gap: 14px; align-content: start; }
 .finance { grid-area: finance; }
 .activity { grid-area: activity; }
 .card {
   min-width: 0;
   border: 1px solid #e7edf4;
   background: #fff;
-  border-radius: 17px;
-  padding: 19px;
-  box-shadow: 0 3px 14px rgba(20,40,80,.04);
+  border-radius: 14px;
+  padding: 17px;
+  box-shadow: 0 2px 9px rgba(20,40,80,.035);
 }
 .sectionIcon {
   width: 47px;
   height: 47px;
-  border-radius: 14px;
+  border-radius: 11px;
   display: flex;
   flex: 0 0 auto;
   justify-content: center;
