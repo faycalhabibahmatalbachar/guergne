@@ -9,6 +9,10 @@ import { exigerPage } from "@/server/guard";
 
 import { FiltresPersonnel } from "./_components/filtres-personnel";
 import { ListeEnseignants } from "./_components/liste-enseignants";
+import "../default/gentelella-tokens.css";
+import "../default/gentelella-layout.css";
+import "../default/gentelella-components.css";
+import "../default/gentelella-widgets.css";
 
 export const metadata: Metadata = { title: "Personnel" };
 export const dynamic = "force-dynamic";
@@ -50,9 +54,9 @@ export default async function PagePersonnel({
   ]);
 
   return (
-    <div className="space-y-4">
+    <main className="space-y-4 pb-6 text-slate-950 dark:text-foreground">
       <FiltresPersonnel matieres={matieres.rows} />
       <ListeEnseignants enseignants={enseignants} />
-    </div>
+    </main>
   );
 }
