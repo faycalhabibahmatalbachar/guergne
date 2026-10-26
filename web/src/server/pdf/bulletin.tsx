@@ -221,9 +221,8 @@ function Cellule({
             <Text style={s.enteteMotto}>Discipline-Travail-Réussite</Text>
           </View>
           <View style={s.enteteDroite}>
-            <Text style={s.enteteAnneeValeur}>{d.anneeScolaire.replace(/\s*-\s*/g, "-")}</Text>
-            <Text style={s.enteteAnnee}>Année scolaire</Text>
             <Text style={s.enteteDevise}>Unité - Travail - Progrès</Text>
+            <Text style={s.enteteAnnee}>Année scolaire : <Text style={s.enteteAnneeValeur}>{d.anneeScolaire.replace(/\s*-\s*/g, " - ")}</Text></Text>
           </View>
         </View>
         <View style={s.titreConteneur}>
