@@ -54,6 +54,7 @@ const s = StyleSheet.create({
   enteteLogoZone: { width: "14%", alignItems: "center", justifyContent: "center" },
   logo: { width: 43, height: 43, objectFit: "contain" },
   enteteDevise: { fontSize: 8.1, fontFamily: "Times-Bold", textAlign: "center", marginBottom: 4 },
+  enteteAnneeValeur: { fontSize: 10.2, fontFamily: "Times-Bold", textAlign: "center", lineHeight: 1.25, marginBottom: 1 },
   enteteAnnee: { fontSize: 7.8, textAlign: "center", lineHeight: 1.35 },
   enteteMotto: { fontSize: 5.8, fontFamily: "Times-Bold", textAlign: "center", color: "#1b5e20", marginTop: 1 },
   enteteDroite: { width: "43%", alignItems: "center", justifyContent: "center" },
@@ -220,9 +221,9 @@ function Cellule({
             <Text style={s.enteteMotto}>Discipline-Travail-Réussite</Text>
           </View>
           <View style={s.enteteDroite}>
-            <Text style={s.enteteDevise}>Unité - Travail - Progrès</Text>
-            <Text style={s.enteteDevise}>{d.anneeScolaire.replace(/\s*-\s*/g, "-")}</Text>
+            <Text style={s.enteteAnneeValeur}>{d.anneeScolaire.replace(/\s*-\s*/g, "-")}</Text>
             <Text style={s.enteteAnnee}>Année scolaire</Text>
+            <Text style={s.enteteDevise}>Unité - Travail - Progrès</Text>
           </View>
         </View>
         <View style={s.titreConteneur}>
@@ -247,8 +248,8 @@ function Cellule({
             <View style={[s.identiteCase, { width: "24%", borderRightWidth: 0, paddingRight: 10 }]}>
               <Text style={[s.identiteLibelle, { textAlign: "right" }]}>Matricule :</Text>
             </View>
-            <View style={[s.identiteCase, { width: "12%", paddingLeft: 0, paddingRight: 4, overflow: "hidden" }]}>
-              <Text style={[s.identiteValeur, { textAlign: "left", fontSize: 9.8 }]}>{identite.matricule}</Text>
+            <View style={[s.identiteCase, { width: "12%", paddingHorizontal: 0, alignItems: "center", justifyContent: "center", overflow: "hidden" }]}>
+              <Text style={[s.identiteValeur, { textAlign: "center", fontSize: 9.8, width: "100%" }]}>{identite.matricule}</Text>
             </View>
             <View style={[s.identiteCase, { width: "35%" }]}>
               <Text style={s.identiteCentre}><Text style={s.identiteLibelle}>Statut : </Text><Text style={s.identiteValeur}>{identite.statut}</Text></Text>
