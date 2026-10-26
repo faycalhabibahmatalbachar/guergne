@@ -18,7 +18,7 @@ const LIEN: Record<string, string> = {
 const heading = "text-base font-bold tracking-tight text-[#101e3f] dark:text-foreground";
 const subdued = "text-xs text-slate-500 dark:text-muted-foreground";
 const valueClass = "mt-0.5 break-words text-sm font-semibold leading-relaxed text-[#12234c] dark:text-foreground";
-const cardClass = styles.card + " dark:bg-card dark:border-border";
+const cardClass = styles.card + " card dark:bg-card dark:border-border";
 
 function DateCourte({ value }: { value: string | null }) {
   if (!value) return <>—</>;
@@ -135,7 +135,7 @@ export function VueEnsembleEleve({
     })) : []),
   ].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 5);
 
-  return <div className={styles.shell}>
+  return <div className={"gentelella-v4 " + styles.shell}>
     <div className={styles.layout}>
       <div className={styles.middle}>
       <section className={cardClass} aria-label="Scolarité actuelle">

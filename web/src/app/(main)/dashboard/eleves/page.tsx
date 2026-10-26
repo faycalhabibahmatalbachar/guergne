@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  AlertTriangle, ChevronDown, ClipboardList,
-  Download, FileBadge2, FileText, GraduationCap, MoreHorizontal, Plus,
-  Search, Upload, UserPlus, Users,
+  ChevronDown, ClipboardList,
+  Download, FileBadge2, GraduationCap, MoreHorizontal,
+  Search, Upload, ClipboardCheck, Users,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,6 +26,12 @@ import { InscriptionFenetre } from "./_components/inscription-fenetre";
 import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
 import { listerClassesAnnee } from "@/server/domain/parametres";
 import { ApercuEleve } from "./_components/apercu-eleve";
+import { StatistiquesGentelellaEleves } from "./_components/statistiques-gentelella";
+import { statusBadge } from "@/vendor/gentelella-v4/markup.js";
+import "../default/gentelella-tokens.css";
+import "../default/gentelella-layout.css";
+import "../default/gentelella-components.css";
+import "../default/gentelella-widgets.css";
 
 export const metadata: Metadata = { title: "Élèves" };
 export const dynamic = "force-dynamic";
@@ -47,31 +53,15 @@ function ageDepuis(iso: string) {
 }
 
 function BadgeDossier({ statut }: { statut: string | null }) {
-  if (!statut) return <span className="text-xs text-slate-400">Non renseigné</span>;
-  const definitions: Record<string, { texte: string; classe: string; point: string }> = {
-    VALIDE: { texte: "Validé", classe: "bg-emerald-50 text-emerald-700", point: "bg-emerald-500" },
-    INCOMPLET: { texte: "Incomplet", classe: "bg-amber-50 text-amber-700", point: "bg-amber-500" },
-    A_VALIDER: { texte: "À valider", classe: "bg-blue-50 text-blue-700", point: "bg-blue-500" },
-    BROUILLON: { texte: "Brouillon", classe: "bg-slate-100 text-slate-600", point: "bg-slate-500" },
-    REFUSE: { texte: "Refusé", classe: "bg-red-50 text-red-700", point: "bg-red-500" },
+  const libelles: Record<string, { label: string; color: "green" | "blue" | "yellow" | "red" | "gray" }> = {
+    VALIDE: { label: "Validé", color: "green" },
+    INCOMPLET: { label: "Incomplet", color: "yellow" },
+    A_VALIDER: { label: "À valider", color: "blue" },
+    BROUILLON: { label: "Brouillon", color: "gray" },
+    REFUSE: { label: "Refusé", color: "red" },
   };
-  const definition = definitions[statut] ?? { texte: statut, classe: "bg-slate-100 text-slate-700", point: "bg-slate-500" };
-  return <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${definition.classe}`}><span aria-hidden className={`size-2 rounded-full ${definition.point}`} />{definition.texte}</span>;
-}
-
-function CarteStatistique({ titre, valeur, icone: Icone, couleur, fond, detail }: {
-  titre: string; valeur: number; icone: typeof Users; couleur: string; fond: string; detail: string;
-}) {
-  return (
-    <article className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3.5 py-4 shadow-sm dark:border-border dark:bg-card">
-      <div className={`flex size-14 shrink-0 items-center justify-center rounded-xl ${fond}`}><Icone aria-hidden className={`size-7 ${couleur}`} strokeWidth={1.8} /></div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[12px] font-medium text-slate-600 dark:text-muted-foreground">{titre}</p>
-        <div className="mt-1 flex items-end justify-between gap-2"><span className="text-[27px] font-bold leading-none tracking-tight text-slate-950 tabular-nums dark:text-foreground">{valeur.toLocaleString("fr-FR")}</span></div>
-        <p className="mt-1.5 text-[11px] text-slate-400">{detail}</p>
-      </div>
-    </article>
-  );
+  const donnees = statut ? libelles[statut] ?? { label: statut, color: "gray" as const } : { label: "Non renseigné", color: "gray" as const };
+  return <span dangerouslySetInnerHTML={{ __html: statusBadge(donnees.label, donnees.color) }} />;
 }
 
 export default async function PageEleves({ searchParams }: { searchParams: Promise<Parametres> }) {
@@ -113,7 +103,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
   const lienExport = "/api/export/eleves?" + exportParams.toString();
 
   return (
-    <div className="space-y-4 pb-6 text-slate-950 dark:text-foreground">
+    <main className="space-y-4 pb-6 text-slate-950 dark:text-foreground">
       <header aria-label="En-tête de la page Élèves" className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 xl:flex-row xl:items-end xl:justify-between dark:border-border">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -122,22 +112,25 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
               {stats.total.toLocaleString("fr-FR")} dossiers
             </span>
           </div>
-          <p className="mt-1.5 text-sm text-slate-500 dark:text-muted-foreground">Suivez les inscriptions et gérez les dossiers scolaires.</p>
+          
         </div>
 
         <div role="group" aria-label="Actions sur les élèves" className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <div className="order-last flex items-center gap-2 sm:order-first">
-            <Button asChild variant="outline" className="hidden h-10 gap-2 border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 sm:inline-flex dark:bg-card dark:text-foreground" title="Export Excel — recherche, classe et statut">
+            {peutModifier ? <Button asChild variant="outline" className="h-10 gap-2 rounded-lg border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 dark:border-border dark:bg-card dark:text-foreground">
+              <Link href="/dashboard/eleves/completer"><ClipboardCheck className="size-4" aria-hidden />Compléter les fiches</Link>
+            </Button> : null}
+            <Button asChild variant="outline" className="hidden h-10 gap-2 rounded-lg border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 sm:inline-flex dark:bg-card dark:text-foreground" title="Export Excel — recherche, classe et statut">
               <a href={lienExport}><Download className="size-4" aria-hidden />Exporter Excel</a>
             </Button>
             {peutCreer ? (
-              <Button asChild variant="outline" className="hidden h-10 gap-2 border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 lg:inline-flex dark:bg-card dark:text-foreground">
+              <Button asChild variant="outline" className="hidden h-10 gap-2 rounded-lg border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 lg:inline-flex dark:bg-card dark:text-foreground">
                 <Link href="/dashboard/eleves/importer"><Upload className="size-4" aria-hidden />Importer</Link>
               </Button>
             ) : null}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className={`h-10 gap-2 border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 dark:bg-card dark:text-foreground ${peutCreer ? "lg:hidden" : "sm:hidden"}`} aria-label="Autres actions sur les élèves">
+                <Button variant="outline" className={`h-10 gap-2 rounded-lg border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 dark:bg-card dark:text-foreground ${peutCreer ? "lg:hidden" : "sm:hidden"}`} aria-label="Autres actions sur les élèves">
                   <MoreHorizontal className="size-4" aria-hidden />Actions<ChevronDown className="size-3.5 text-slate-400" aria-hidden />
                 </Button>
               </DropdownMenuTrigger>
@@ -159,13 +152,13 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
         </div>
       </header>
 
-      <section aria-label="Indicateurs des élèves" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <CarteStatistique titre="Élèves inscrits" valeur={stats.inscrits} icone={Users} couleur="text-emerald-600" fond="bg-emerald-50" detail="Statut scolaire : inscrit" />
-        <CarteStatistique titre="Nouveaux cette semaine" valeur={stats.nouveaux} icone={UserPlus} couleur="text-blue-600" fond="bg-blue-50" detail="Nouvelles inscriptions" />
-        <CarteStatistique titre="Dossiers incomplets" valeur={stats.incomplets} icone={FileText} couleur="text-amber-600" fond="bg-amber-50" detail="État administratif" />
-        <CarteStatistique titre="Suspendus" valeur={stats.suspendus} icone={AlertTriangle} couleur="text-red-600" fond="bg-red-50" detail="Tous motifs confondus" />
-        <CarteStatistique titre="Réinscriptions" valeur={stats.reinscriptions} icone={GraduationCap} couleur="text-violet-600" fond="bg-violet-50" detail="Année scolaire sélectionnée" />
-      </section>
+      <StatistiquesGentelellaEleves statistiques={[
+        { titre:"Élèves inscrits", valeur:stats.inscrits, detail:"Inscriptions actives", couleur:"teal", icone:"effectifs" },
+        { titre:"Nouveaux cette semaine", valeur:stats.nouveaux, detail:"Nouvelles inscriptions", couleur:"blue", icone:"nouveaux" },
+        { titre:"Dossiers incomplets", valeur:stats.incomplets, detail:"Statut administratif", couleur:"yellow", icone:"incomplets" },
+        { titre:"Suspendus", valeur:stats.suspendus, detail:"Tous motifs", couleur:"red", icone:"suspendus" },
+        { titre:"Réinscriptions", valeur:stats.reinscriptions, detail:"Année sélectionnée", couleur:"purple", icone:"reinscriptions" },
+      ]} />
 
       <FiltresEleves
         classes={classes.map((c) => ({ id: c.id, libelle: c.libelle, niveauId: c.niveauId, niveauLibelle: c.niveauLibelle }))}
@@ -174,7 +167,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
         statistiques={stats}
       />
 
-      <div id="liste-eleves" className="scroll-mt-6 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
+      <div id="liste-eleves" className="gentelella-v4 scroll-mt-6 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
         <ZoneSelection ids={lignes.map((e) => e.id)}>
           {peutAffecter || peutEnvoyer ? <div><ActionsLotEleves
             classes={classes.map((c) => ({ id: c.id, libelle: c.libelle, effectif: c.effectif, capaciteMax: c.capaciteMax }))}
@@ -188,8 +181,8 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
               {filtreActif ? <Button asChild variant="outline" size="sm"><Link href="/dashboard/eleves">Effacer les filtres</Link></Button> : peutCreer ? <Button asChild size="sm"><Link href="/dashboard/eleves/nouveau">Inscrire le premier élève</Link></Button> : null}
             </CardContent></Card>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1180px] border-collapse text-left text-[13px]">
+            <div className="table-responsive overflow-x-auto">
+              <table className="table w-full min-w-[1180px] border-collapse text-left text-[13px]">
                 <thead className="bg-slate-50/90 text-xs text-slate-500 dark:bg-muted/30 dark:text-muted-foreground"><tr className="border-b border-slate-200 dark:border-border">
                   {peutAffecter || peutEnvoyer ? <EnTeteSelection className="px-3 py-3" /> : null}
                   <EnTeteTriable colonne="nom" className="px-3 py-3">Élève</EnTeteTriable>
@@ -246,6 +239,6 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
         </ZoneSelection>
         <PaginationEleves page={Math.min(page, nbPages)} nbPages={nbPages} total={total} parPage={resultat.parPage} />
       </div>
-    </div>
+    </main>
   );
 }

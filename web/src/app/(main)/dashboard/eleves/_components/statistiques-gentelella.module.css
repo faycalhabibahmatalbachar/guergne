@@ -1,0 +1,17 @@
+/* Fiche statistiques : vrais widgets statTile Gentelella v4.
+ Source officielle conservée avec licence MIT dans src/vendor/gentelella-v4 */
+.grille {display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0;}
+.tuile{height:100%;min-width:0;}
+.tuile :global(.card){border-radius:14px;min-height:120px;height:100%;overflow:hidden;}
+.tuile :global(.stat){padding:15px;gap:10px;align-items:flex-start;}
+.tuile :global(.stat-icon){width:42px;height:42px;border-radius:11px;}
+.tuile :global(.stat-icon svg){width:21px;height:21px;}
+.tuile :global(.stat-content){min-width:0;}
+.tuile :global(.stat-label){font-size:12px;letter-spacing:0;text-transform:none;font-weight:600;}
+.tuile :global(.stat-value-row){margin-top:9px;}
+.tuile :global(.stat-value){font-size:clamp(21px,2vw,29px);font-weight:750;line-height:1.1;}
+.tuile :global(.stat-subtext){font-size:11px;line-height:1.35;margin-top:10px;}
+@media(min-width:640px){.grille{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(min-width:1080px){.grille{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media(min-width:1500px){.grille{grid-template-columns:repeat(5,minmax(0,1fr));}}
+@media print{.grille{grid-template-columns:repeat(5,minmax(0,1fr));}.tuile{break-inside:avoid;}}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { LoaderCircle, Pencil } from "lucide-react";
 import { toast } from "sonner";
@@ -68,21 +68,33 @@ export function ModifierDossier({
   dossier,
   declencheur = "bouton",
   nomEleve,
+  activerDepuisUrl = false,
 }: {
   eleveId: string;
   dossier?: DossierModifiable;
   declencheur?: "bouton" | "icone";
   nomEleve?: string;
+  activerDepuisUrl?: boolean;
 }) {
   const router = useRouter();
-  const [ouvert, setOuvert] = useState(false);
+  const params = useSearchParams();
+  const demandeOuverture = activerDepuisUrl && params.get("completer") === "1";
+  const [ouvert, setOuvert] = useState(demandeOuverture);
+  useEffect(() => { if (demandeOuverture) setOuvert(true); }, [demandeOuverture]);
+  function nettoyerUrl() {
+    if (!activerDepuisUrl || !params.has("completer")) return;
+    const nouveaux = new URLSearchParams(params.toString());
+    nouveaux.delete("completer");
+    router.replace("/dashboard/eleves/" + eleveId + (nouveaux.size ? "?" + nouveaux.toString() : ""), { scroll: false });
+  }
   const [charge, setCharge] = useState<DossierModifiable | null>(null);
   const [chargement, setChargement] = useState(false);
   const [erreurChargement, setErreurChargement] = useState("");
   const valeurs = dossier ?? charge;
   async function changerOuverture(next: boolean) {
     setOuvert(next);
-    if (!next || dossier) return;
+    if (!next) { nettoyerUrl(); return; }
+    if (dossier) return;
     setCharge(null);
     setErreurChargement("");
     setChargement(true);
@@ -112,6 +124,7 @@ export function ModifierDossier({
       if (r.ok) {
         toast.success(r.message ?? "Dossier mis à jour.");
         setOuvert(false);
+        nettoyerUrl();
         router.refresh();
       } else {
         setErreurs(r.erreurs ?? {});
@@ -157,7 +170,7 @@ export function ModifierDossier({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[90dvh] w-[calc(100vw-2rem)] overflow-y-auto rounded-xl sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Corriger le dossier</DialogTitle>
           <DialogDescription>
@@ -166,6 +179,9 @@ export function ModifierDossier({
           </DialogDescription>
         </DialogHeader>
 
+        {valeurs ? <p className="rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs leading-5 text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-200">
+          Utilisez les documents et déclarations des familles. Un champ vide ne signifie pas « néant », notamment pour la santé.
+        </p> : null}
         {chargement ? <div className="flex min-h-36 items-center justify-center gap-3 text-sm text-muted-foreground"><LoaderCircle className="size-5 animate-spin" aria-hidden />Chargement des informations…</div> : erreurChargement ? <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-800">{erreurChargement}</p> : valeurs ? (
         <form onSubmit={soumettre} className="space-y-6">
           <section className="space-y-3">
@@ -237,7 +253,7 @@ export function ModifierDossier({
           </section>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOuvert(false)}>
+            <Button type="button" variant="outline" onClick={() => { setOuvert(false); nettoyerUrl(); }}>
               Annuler
             </Button>
             <Button type="submit" disabled={enCours}>

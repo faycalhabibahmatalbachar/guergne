@@ -215,7 +215,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="gentelella-v4 space-y-4">
       <nav aria-label="Fil d’Ariane du dossier élève" className="flex min-h-10 flex-wrap items-center gap-2 rounded-xl border border-slate-200/70 bg-slate-50/70 px-3 py-2 text-xs text-slate-600 dark:border-border dark:bg-card dark:text-muted-foreground print:hidden">
         <Link href="/dashboard/eleves" className="font-medium hover:text-emerald-700">Élèves</Link>
         <ChevronRight className="size-3.5 text-slate-400" aria-hidden />
@@ -233,6 +233,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             <ImprimerDossier />
             {peutModifierSensible ? <ModifierDossier
             eleveId={eleve.id}
+            activerDepuisUrl
             dossier={{
               nom: eleve.nom,
               prenom: eleve.prenom,
@@ -383,9 +384,9 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           />
         </TabsContent>
         <TabsContent value="documents" className="mt-5 space-y-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Documents du dossier</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
+          <Card className="card">
+            <CardHeader className="card-header"><CardTitle className="card-title text-base">Documents du dossier</CardTitle></CardHeader>
+            <CardContent className="card-body space-y-3">
               {peutEmettreDocument ? <DocumentsEleve eleveId={eleve.id} estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)} bulletins={bulletinsDisponibles} /> : <p className="text-sm text-muted-foreground">Édition non autorisée pour ce compte.</p>}
               {bulletinsDisponibles.map((b) => <a key={b.periodeId} href={"/api/bulletins/" + b.inscriptionId + "/" + b.periodeId} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm hover:bg-slate-50 dark:hover:bg-muted"><span>Bulletin — {b.periodeLibelle}</span><Badge variant={b.publie ? "default" : "outline"}>{b.publie ? "Publié" : "Brouillon"}</Badge></a>)}
             </CardContent>
@@ -394,11 +395,11 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
 
         {/* --- Identité --- */}
         <TabsContent value="identite" className="mt-6 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">État civil</CardTitle>
+          <Card className="card">
+            <CardHeader className="card-header">
+              <CardTitle className="card-title text-base">État civil</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="card-body">
               <dl className="grid gap-4 sm:grid-cols-3">
                 <Info libelle="Nom" valeur={eleve.nom} />
                 <Info libelle="Prénom" valeur={eleve.prenom} />
@@ -417,17 +418,17 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           </Card>
 
           {peutVoirSante ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
+          <Card className="card">
+            <CardHeader className="card-header">
+              <CardTitle className="card-title flex items-center gap-2 text-base">
                 <HeartPulse className="size-4" aria-hidden />
                 Santé et situation
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="card-subtitle">
                 Informations sensibles — réservées à la direction et à la vie scolaire.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="card-body">
               <dl className="grid gap-4 sm:grid-cols-2">
                 <Info libelle="Groupe sanguin" valeur={eleve.groupeSanguin} />
                 <Info libelle="Allergies" valeur={eleve.allergies} />
@@ -467,21 +468,21 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           ) : null}
 
           {tuteurs.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground text-sm">
+            <Card className="card">
+              <CardContent className="card-body py-12 text-center text-muted-foreground text-sm">
                 Aucun tuteur rattaché. Un élève doit avoir au moins un responsable joignable.
               </CardContent>
             </Card>
           ) : (
             tuteurs.map((t) => (
-              <Card key={t.id}>
-                <CardHeader className="pb-3">
+              <Card key={t.id} className="card">
+                <CardHeader className="card-header pb-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <CardTitle className="text-base">
+                      <CardTitle className="card-title text-base">
                         {t.prenom} {t.nom}
                       </CardTitle>
-                      <CardDescription>{LIENS[t.lien] ?? t.lien}</CardDescription>
+                      <CardDescription className="card-subtitle">{LIENS[t.lien] ?? t.lien}</CardDescription>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {t.estPrincipal ? <Badge>Principal</Badge> : null}
@@ -496,7 +497,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="card-body space-y-4">
                   <dl className="grid gap-4 sm:grid-cols-3">
                     <Info libelle="Téléphone" valeur={t.telephone} />
                     <Info libelle="Téléphone secondaire" valeur={t.telephoneSecondaire} />
@@ -573,14 +574,14 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           {proposition ? <Reinscription eleveId={eleve.id} proposition={proposition} /> : null}
 
           {inscription ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
+            <Card className="card">
+              <CardHeader className="card-header">
+                <CardTitle className="card-title flex items-center gap-2 text-base">
                   <FileText className="size-4" aria-hidden />
                   Inscription en cours
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="card-body">
                 <dl className="grid gap-4 sm:grid-cols-3">
                   <Info libelle="Année scolaire" valeur={inscription.anneeLibelle} />
                   <Info libelle="Classe" valeur={inscription.classeLibelle} />
@@ -621,14 +622,14 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             </Card>
           ) : null}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
+          <Card className="card">
+            <CardHeader className="card-header">
+              <CardTitle className="card-title flex items-center gap-2 text-base">
                 <CalendarDays className="size-4" aria-hidden />
                 Parcours dans l&apos;établissement
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="card-body">
               {parcours.length === 0 ? (
                 <p className="text-muted-foreground text-sm">Aucune scolarité enregistrée.</p>
               ) : (
@@ -665,17 +666,17 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
 
         {/* --- Historique --- */}
         <TabsContent value="historique" className="mt-6 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
+          <Card className="card">
+            <CardHeader className="card-header">
+              <CardTitle className="card-title flex items-center gap-2 text-base">
                 <ShieldAlert className="size-4" aria-hidden />
                 Changements de statut
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="card-subtitle">
                 Chaque décision est conservée avec son auteur et son motif — non modifiable.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="card-body">
               {historiqueStatuts.length === 0 ? (
                 <p className="text-muted-foreground text-sm">Aucun changement enregistré.</p>
               ) : (
@@ -706,11 +707,11 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Changements de classe</CardTitle>
+          <Card className="card">
+            <CardHeader className="card-header">
+              <CardTitle className="card-title text-base">Changements de classe</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="card-body">
               {changementsClasse.length === 0 ? (
                 <p className="text-muted-foreground text-sm">Aucun changement de classe.</p>
               ) : (

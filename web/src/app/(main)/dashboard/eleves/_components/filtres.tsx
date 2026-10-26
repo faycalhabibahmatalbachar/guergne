@@ -24,7 +24,7 @@ export function FiltresEleves({ classes, annees, valeurs, statistiques }: {
   const parametres = useSearchParams();
   const [enCours, demarrer] = useTransition();
   const [recherche, setRecherche] = useState(valeurs.q);
-  const [etendus, setEtendus] = useState(true);
+  const [etendus, setEtendus] = useState(false);
 
   const niveaux = useMemo(
     () => [...new Map(classes.map((c) => [c.niveauId, { id: c.niveauId, libelle: c.niveauLibelle }])).values()],
@@ -58,7 +58,7 @@ export function FiltresEleves({ classes, annees, valeurs, statistiques }: {
   ];
 
   return (
-    <section aria-label="Rechercher et filtrer les élèves" className="grid grid-cols-1 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-sm dark:border-border dark:bg-card">
+    <section aria-label="Rechercher et filtrer les élèves" className="gentelella-v4 grid grid-cols-1 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-sm dark:border-border dark:bg-card">
       <div className="order-2 flex flex-wrap items-center justify-between gap-2 pt-3">
         <div className="flex flex-wrap items-center gap-2">
           {raccourcis.map((r) => (
@@ -67,7 +67,7 @@ export function FiltresEleves({ classes, annees, valeurs, statistiques }: {
               type="button"
               onClick={() => appliquer({ rapide: r.id })}
               aria-pressed={valeurs.rapide === r.id}
-              className={`inline-flex h-10 items-center gap-2 rounded-lg px-3 text-[13px] font-medium transition-colors ${valeurs.rapide === r.id ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700" : "bg-slate-50 text-slate-800 hover:bg-slate-100 dark:bg-muted dark:text-foreground"}`}
+              className={`tab inline-flex h-10 items-center gap-2 rounded-lg px-3 text-[13px] font-medium transition-colors ${valeurs.rapide === r.id ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700" : "bg-slate-50 text-slate-800 hover:bg-slate-100 dark:bg-muted dark:text-foreground"}`}
             >
               {r.dot ? <span aria-hidden className={`size-2.5 rounded-full ${r.dot}`} /> : null}
               {r.label} <span className="tabular-nums opacity-80">({r.count})</span>
@@ -76,7 +76,7 @@ export function FiltresEleves({ classes, annees, valeurs, statistiques }: {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setEtendus(!etendus)} aria-expanded={etendus}>
-            <SlidersHorizontal className="size-4" aria-hidden /> Filtres avancés <ChevronDown className={`size-3 transition-transform ${etendus ? "rotate-180" : ""}`} aria-hidden />
+            <SlidersHorizontal className="size-4" aria-hidden /> Plus de filtres <ChevronDown className={`size-3 transition-transform ${etendus ? "rotate-180" : ""}`} aria-hidden />
           </Button>
           {filtreActif ? <Button variant="ghost" size="sm" onClick={() => { setRecherche(""); demarrer(() => router.push("/dashboard/eleves")); }}><X className="size-4" aria-hidden /> Effacer</Button> : null}
         </div>
@@ -125,7 +125,7 @@ export function FiltresEleves({ classes, annees, valeurs, statistiques }: {
               <SelectContent><SelectItem value={TOUS}>Année courante</SelectItem>{annees.map((a) => <SelectItem key={a.id} value={a.id}>{a.libelle}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-        </> : <div className="flex items-center gap-2 text-xs text-slate-500 lg:col-span-6"><ListFilter className="size-4" aria-hidden /> Afficher les filtres par niveau, statut, dossier et année scolaire</div>}
+        </> : <div className="flex items-center gap-2 text-xs text-slate-500 lg:col-span-6"><ListFilter className="size-4" aria-hidden /> Niveau · Statut · Dossier · Année</div>}
       </div>
     </section>
   );

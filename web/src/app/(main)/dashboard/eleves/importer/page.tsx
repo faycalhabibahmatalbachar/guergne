@@ -9,6 +9,10 @@ import { exigerPage } from "@/server/guard";
 
 import { Prerequis } from "../../_components/prerequis";
 import { ImportEleves } from "./_components/import-eleves";
+import "../../default/gentelella-tokens.css";
+import "../../default/gentelella-layout.css";
+import "../../default/gentelella-components.css";
+import "../../default/gentelella-widgets.css";
 
 export const metadata: Metadata = { title: "Importer des élèves" };
 export const dynamic = "force-dynamic";
@@ -19,24 +23,13 @@ export default async function PageImport() {
   const annee = await chargerAnneeCourante();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/dashboard/eleves">
-            <ArrowLeft aria-hidden />
-            Retour
-          </Link>
+    <div className="gentelella-v4 space-y-6">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 pb-5 dark:border-border">
+        <div><h1 className="text-[29px] font-bold tracking-tight sm:text-[34px]">Importer des élèves</h1></div>
+        <Button asChild variant="outline" className="h-10 gap-2 rounded-lg border-slate-200 bg-white px-3.5 shadow-none dark:border-border dark:bg-card">
+          <Link href="/dashboard/eleves"><ArrowLeft className="size-4" aria-hidden />Élèves</Link>
         </Button>
-      </div>
-
-      <div>
-        <h1 className="font-semibold text-2xl tracking-tight">Importer des élèves</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Reprise d&apos;un fichier de rentrée. Les élèves sont inscrits pour l&apos;année
-          courante, et leur tuteur principal est créé — ou réutilisé s&apos;il est déjà connu
-          par son numéro.
-        </p>
-      </div>
+      </header>
 
       {annee ? (
         <ImportEleves />
