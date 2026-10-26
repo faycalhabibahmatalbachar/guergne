@@ -1,0 +1,190 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+src/app/(main)/dashboard/communication/_components/communication.tsx:389:46 lint/nursery/useSortedClasses  FIXABLE  ━━━━━━━━━━
+
+  i These CSS classes should be sorted.
+  
+    387 │                           {n.telephone ?? "Compte applicatif"}
+    388 │                         </TableCell>
+  > 389 │                         <TableCell className="tabular-nums text-sm">{dateFr(n.creeLe)}</TableCell>
+        │                                              ^^^^^^^^^^^^^^^^^^^^^^
+    390 │                         <TableCell>
+    391 │                           <Badge
+  
+  i This rule is still being actively worked on, so it may be missing features or have rough edges. Visit https://github.com/biomejs/biome/issues/1274 for more information or to report possible bugs.
+  
+  i This rule belongs to the nursery group, which means it is not yet stable and may change in the future. Visit https://biomejs.dev/linter/#nursery for more information.
+  
+  i Unsafe fix: Sort the classes.
+  
+    387 387 │                             {n.telephone ?? "Compte applicatif"}
+    388 388 │                           </TableCell>
+    389     │ - ························<TableCell·className="tabular-nums·text-sm">{dateFr(n.creeLe)}</TableCell>
+        389 │ + ························<TableCell·className="text-sm·tabular-nums">{dateFr(n.creeLe)}</TableCell>
+    390 390 │                           <TableCell>
+    391 391 │                             <Badge
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:395:35 lint/style/noNestedTernary ━━━━━━━━━━
+
+  ! Do not nest ternary expressions.
+  
+    393 │                               n.statut === "ENVOYE" || n.statut === "LU"
+    394 │                                 ? "default"
+  > 395 │                                 : n.statut === "ECHOUE"
+        │                                   ^^^^^^^^^^^^^^^^^^^^^
+  > 396 │                                   ? "destructive"
+  > 397 │                                   : "outline"
+        │                                   ^^^^^^^^^^^
+    398 │                             }
+    399 │                           >
+  
+  i Nesting ternary expressions can make code more difficult to understand.
+  
+  i Convert nested ternary expression into if-else statements or separate the conditions to make the logic easier to understand.
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:402:33 lint/style/noNestedTernary ━━━━━━━━━━
+
+  ! Do not nest ternary expressions.
+  
+    400 │                             {n.statut === "EN_ATTENTE"
+    401 │                               ? "En attente"
+  > 402 │                               : n.statut === "ENVOYE"
+        │                                 ^^^^^^^^^^^^^^^^^^^^^
+  > 403 │                                 ? "Envoyée"
+  > 404 │                                 : n.statut === "ECHOUE"
+  > 405 │                                   ? "Échec"
+  > 406 │                                   : "Lue"}
+        │                                   ^^^^^^^
+    407 │                           </Badge>
+    408 │                           {n.tentatives > 0 ? (
+  
+  i Nesting ternary expressions can make code more difficult to understand.
+  
+  i Convert nested ternary expression into if-else statements or separate the conditions to make the logic easier to understand.
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:404:35 lint/style/noNestedTernary ━━━━━━━━━━
+
+  ! Do not nest ternary expressions.
+  
+    402 │                               : n.statut === "ENVOYE"
+    403 │                                 ? "Envoyée"
+  > 404 │                                 : n.statut === "ECHOUE"
+        │                                   ^^^^^^^^^^^^^^^^^^^^^
+  > 405 │                                   ? "Échec"
+  > 406 │                                   : "Lue"}
+        │                                   ^^^^^^^
+    407 │                           </Badge>
+    408 │                           {n.tentatives > 0 ? (
+  
+  i Nesting ternary expressions can make code more difficult to understand.
+  
+  i Convert nested ternary expression into if-else statements or separate the conditions to make the logic easier to understand.
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:38:8 lint/correctness/noUnusedImports  FIXABLE  ━━━━━━━━━━
+
+  ! This import is unused.
+  
+    36 │ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    37 │ import { Textarea } from "@/components/ui/textarea";
+  > 38 │ import { COUT_SMS_FCFA } from "@/lib/tarifs";
+       │        ^^^^^^^^^^^^^^^^^
+    39 │ import type { EtatFile, LigneAnnonce, LigneMessage, LigneNotification } from "@/server/domain/communication";
+    40 │ 
+  
+  i Unused imports might be the result of an incomplete refactoring.
+  
+  i Unsafe fix: Remove the unused imports.
+  
+     36  36 │   import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+     37  37 │   import { Textarea } from "@/components/ui/textarea";
+     38     │ - import·{·COUT_SMS_FCFA·}·from·"@/lib/tarifs";
+     39  38 │   import type { EtatFile, LigneAnnonce, LigneMessage, LigneNotification } from "@/server/domain/communication";
+     40  39 │   
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:76:3 lint/correctness/noUnusedFunctionParameters ━━━━━━━━━━
+
+  ! This parameter anneeLibelle is unused.
+  
+    74 │ export function Communication({
+    75 │   anneeId,
+  > 76 │   anneeLibelle,
+       │   ^^^^^^^^^^^^
+    77 │   niveaux,
+    78 │   classes,
+  
+  i Unused parameters might be the result of an incomplete refactoring.
+  
+
+src/app/(main)/dashboard/communication/communication-v2.css:28:1 lint/style/noDescendingSpecificity ━━━━━━━━━━
+
+  ! Descending specificity selector found. This selector specificity is (0, 1, 1)
+  
+    26 │   gap: 14px;
+    27 │ }
+  > 28 │ .communication-v2 label {
+       │ ^^^^^^^^^^^^^^^^^^^^^^^
+    29 │   display: grid;
+    30 │   gap: 6px;
+  
+  i This selector specificity is (0, 2, 1)
+  
+    18 │   align-items: center;
+    19 │ }
+  > 20 │ .communication-v2 .communication-fields > label {
+       │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    21 │   flex: 1;
+    22 │   min-width: 180px;
+  
+  i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+  
+
+src/server/domain/communication-v2.ts:178:30 lint/style/noNestedTernary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! Do not nest ternary expressions.
+  
+    176 │       channel: row.channel,
+    177 │       status: row.state,
+  > 178 │       category: row.error ? (row.simulated ? row.error : classifyFailure(row.error)) : null,
+        │                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    179 │       phone: maskPhone(row.phone),
+    180 │       parent: row.parent,
+  
+  i Nesting ternary expressions can make code more difficult to understand.
+  
+  i Convert nested ternary expression into if-else statements or separate the conditions to make the logic easier to understand.
+  
+
+src/app/(main)/dashboard/communication/_components/journal-v2.tsx:41:45 lint/a11y/noNoninteractiveTabindex  FIXABLE  ━━━━━━━━━━
+
+  × The HTML element section is non-interactive. Do not use tabIndex.
+  
+    39 │     <>
+    40 │       <p role="status">{status}</p>
+  > 41 │       <section className="table-responsive" tabIndex={0} aria-label="Journal des notifications, défilement horizontal">
+       │                                             ^^^^^^^^^^^^
+    42 │         <table className="table">
+    43 │           <caption>Notifications · heures du Tchad · numéros masqués</caption>
+  
+  i Adding non-interactive elements to the keyboard navigation flow can confuse users.
+  
+  i Unsafe fix: Remove the tabIndex attribute.
+  
+    41 │ ······<section·className="table-responsive"·tabIndex={0}·aria-label="Journal·des·notifications,·défilement·horizontal">
+       │                                             -------------                                                              
+
+Skipped 3 suggested fixes.
+If you wish to apply the suggested (unsafe) fixes, use the command biome check --write --unsafe
+
+Checked 18 files in 302ms. Fixed 4 files.
+Found 1 error.
+Found 7 warnings.
+Found 1 info.
+check ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while applying fixes.
+  
+

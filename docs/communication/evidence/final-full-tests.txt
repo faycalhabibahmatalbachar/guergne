@@ -1,0 +1,333 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> lycee-renaissance-admin@0.1.0 test
+> node --test src/server/domain/*.test.ts src/lib/*.test.ts
+
+(node:25) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/acces-administration.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ refuse explicitement les rôles de parent et d'élève dans le back-office (1.453413ms)
+✔ conserve l'accès au personnel habilité sans élargir ses permissions (0.323805ms)
+(node:26) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/audit-presentation.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ masque systématiquement les secrets et identifiants sensibles (24.871622ms)
+✔ n'invente aucune valeur d'avant lorsque la preuve est absente (13.671388ms)
+✔ présente les actions et appareils sans JSON brut (0.578549ms)
+(node:37) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/audit-preuve-v2.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ refuse secrets et données personnelles avant stockage (3.79276ms)
+✔ données atomiques uniquement (0.567929ms)
+(node:39) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/avatar-eleve.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ avatars illustrés des élèves
+  ✔ retourne toujours le même avatar pour un élève (1.668525ms)
+  ✔ utilise les packs masculin, féminin et neutre (0.576536ms)
+  ✔ respecte la photo officielle en priorité (0.282878ms)
+  ✔ utilise l'illustration en absence de photo (0.244527ms)
+  ✔ n'expose pas de données personnelles dans l'URL (0.371864ms)
+✔ avatars illustrés des élèves (5.043414ms)
+(node:40) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/communication-safety.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ dispatch fails closed with missing, malformed or partially configured environment (1.487316ms)
+✔ mask before serialization and redact legacy errors (0.621891ms)
+(node:47) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/communication-v2.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ signed SMS estimate includes extended GSM and Unicode multipart (2.25561ms)
+✔ budget rejects bypass, overspending, invalid values, permits exact bound (0.72317ms)
+✔ phone validation does not turn foreign and seed numbers into valid campaigns (0.838916ms)
+✔ failure reasons have actionable categories and bounded jitter (0.956656ms)
+(node:54) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/etat-compte-parent.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ état d'un accès parent
+  ✔ distingue une fiche sans compte (1.499188ms)
+  ✔ n'affiche jamais un compte révoqué comme actif, même s'il a déjà accédé à l'application (0.497789ms)
+  ✔ considère un compte existant mais désactivé ou incohérent comme révoqué (1.334882ms)
+  ✔ distingue l'invitation sans connexion d'un accès utilisé (0.178484ms)
+✔ état d'un accès parent (18.474854ms)
+(node:81) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/examen-doublon.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ Examen prudent des doublons familiaux
+  ✔ interdit de comparer une fiche avec elle-même (10.703369ms)
+  ✔ exige une confirmation documentaire et un motif (2.298039ms)
+  ✔ ne permet pas de supprimer ou fusionner des fiches (0.748898ms)
+  ✔ ordonne les identifiants pour retrouver le même audit depuis les deux dossiers (17.586318ms)
+✔ Examen prudent des doublons familiaux (35.430606ms)
+(node:87) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/parametres-periodes.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ Validation des périodes scolaires
+  ✔ accepte une période dans l'année sans recoupement (11.354804ms)
+  ✔ rejette une date de calendrier impossible (0.410015ms)
+  ✔ rejette les dates inversées ou identiques (0.253173ms)
+  ✔ rejette toute sortie de l'année scolaire (8.34144ms)
+  ✔ interdit le chevauchement de deux périodes, même sur une journée (0.437246ms)
+  ✔ autorise deux périodes consécutives sans intersection (0.187019ms)
+✔ Validation des périodes scolaires (23.429793ms)
+(node:88) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/segments-sms.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ estGsm7
+  ✔ accepte les accents qui sont RÉELLEMENT dans l'alphabet GSM (1.124799ms)
+  ✔ refuse le ç minuscule, absent de la table alors que Ç y figure (0.416147ms)
+  ✔ refuse les accents qui n'y sont pas — c'est là que se cachait le bogue (7.234253ms)
+  ✔ accepte les caractères d'extension (0.228677ms)
+  ✔ refuse les émojis (0.150461ms)
+✔ estGsm7 (11.233708ms)
+▶ segmentsSms
+  ✔ un message court tient en un segment (0.36953ms)
+  ✔ 160 caractères GSM-7 tiennent en un segment, 161 en font deux (0.317933ms)
+  ✔ un seul caractère hors GSM-7 divise la capacité par plus de deux (0.568161ms)
+  ✔ compte le cas réel qui était sous-facturé (0.665442ms)
+  ✔ les caractères d'extension comptent double (0.644463ms)
+  ✔ un message vide reste facturé un segment (0.132928ms)
+✔ segmentsSms (3.344492ms)
+▶ alignerSurGsm7
+  ✔ retire les accents coûteux et garde les autres (0.378176ms)
+  ✔ ramène un message à un seul segment (0.199172ms)
+  ✔ laisse le texte lisible (0.129581ms)
+✔ alignerSurGsm7 (1.063245ms)
+(node:101) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/settings-category-routing.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ Sous-menu Paramètres du lycée
+  ✔ affiche précisément les cinq catégories, dans l'ordre attendu (3.185005ms)
+  ✔ identifie les liens du sous-menu et conserve leurs droits distincts (0.838034ms)
+  ✔ conserve la catégorie active sur toutes les pages de détail (0.562981ms)
+  ✔ la page générale et les autres modules n'activent aucune sous-rubrique (9.229348ms)
+  ✔ ne confond pas finance et contrôle : deux rubriques séparées (0.615589ms)
+✔ Sous-menu Paramètres du lycée (17.38469ms)
+(node:104) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/smtp-message.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ email Gmail possède un lien, le logo, et des alternatives HTML et texte (13.713997ms)
+✔ refuse les adresses injectées et les liens externes (2.213933ms)
+(node:105) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/sql-uuid.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ Paramètres UUID pour Neon/PostgreSQL
+  ✔ lie un seul UUID sous forme de paramètre scalaire, pas de tableau (3.848433ms)
+  ✔ lie chaque UUID à un paramètre distinct (sélection multiple) (0.788291ms)
+✔ Paramètres UUID pour Neon/PostgreSQL (7.12025ms)
+(node:129) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/statistiques-notes.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ calculerStatistiques
+  ✔ calcule moyenne, min et max sur les notes retenues (2.418905ms)
+  ✔ prend la moyenne des deux valeurs centrales quand l'effectif est pair (0.644594ms)
+  ✔ prend la valeur centrale quand l'effectif est impair (0.226343ms)
+  ✔ ne trie pas les notes dans l'ordre d'arrivée pour la médiane (0.197138ms)
+  ✔ compte ABSENT_ZERO et NON_RENDU comme des zéros (0.251389ms)
+  ✔ exclut ABSENT et DISPENSE du calcul, sans les compter comme non saisis (0.31599ms)
+  ✔ compte comme non saisie une ligne sans statut (0.200945ms)
+  ✔ ramène les tranches sur 20 quel que soit le barème (0.301733ms)
+  ✔ range 20/20 dans la dernière tranche, borne haute incluse (1.959957ms)
+  ✔ place une note pile sur une borne dans la tranche supérieure (0.504773ms)
+  ✔ calcule un écart-type de population (0.259885ms)
+  ✔ distingue deux séries de même moyenne par leur écart-type (0.607374ms)
+  ✔ ne renvoie aucun indicateur quand rien n'est noté (0.302886ms)
+  ✔ compte la réussite au seuil de 10 sur 20, borne incluse (0.23016ms)
+✔ calculerStatistiques (17.070221ms)
+(node:135) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/tableur.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ cleColonne
+  ✔ ramène les variantes d'un même intitulé à une seule clé (1.720772ms)
+  ✔ supprime les accents plutôt que de créer deux colonnes distinctes (0.238045ms)
+✔ cleColonne (4.171085ms)
+▶ decouperCsv
+  ✔ respecte les guillemets : une adresse contient presque toujours une virgule (1.616888ms)
+  ✔ rend un guillemet littéral quand il est doublé (0.282808ms)
+  ✔ conserve les champs vides — sinon toutes les colonnes se décalent (0.201526ms)
+✔ decouperCsv (3.711658ms)
+▶ devinerSeparateur
+  ✔ reconnaît le point-virgule d'un Excel francophone (0.400126ms)
+  ✔ reconnaît la virgule d'un export anglophone (6.629735ms)
+  ✔ reconnaît la tabulation d'un copier-coller (0.388796ms)
+✔ devinerSeparateur (8.224721ms)
+▶ normaliserDate
+  ✔ accepte le format tapé au clavier, jour d'abord (0.9645ms)
+  ✔ accepte le format ISO d'un export (0.917493ms)
+  ✔ convertit le nombre de jours qu'Excel stocke réellement (0.733269ms)
+  ✔ refuse ce qu'il ne comprend pas plutôt que d'inventer une date (0.149369ms)
+✔ normaliserDate (3.097873ms)
+▶ normaliserSexe
+  ✔ accepte les écritures courantes (0.280394ms)
+  ✔ refuse plutôt que de choisir au hasard (0.116557ms)
+✔ normaliserSexe (0.741625ms)
+▶ normaliserBooleen
+  ✔ comprend ce qu'un humain écrit pour dire oui (0.180617ms)
+  ✔ tout le reste vaut non, y compris le vide (0.119173ms)
+✔ normaliserBooleen (0.414053ms)
+▶ lireCsv
+  ✔ lit un CSV UTF-8 et numérote les lignes comme l'utilisateur les voit (0.628262ms)
+  ✔ récupère les accents d'un fichier Windows-1252 (0.37469ms)
+  ✔ ignore le BOM, qui sinon colle un caractère invisible au premier intitulé (0.236772ms)
+  ✔ ignore les lignes vides plutôt que de produire des élèves fantômes (0.239136ms)
+✔ lireCsv (1.678373ms)
+(node:145) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/telephone.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ Validation
+  ✔ accepte les quatre préfixes tchadiens (2.040048ms)
+  ✔ refuse un préfixe hors plan de numérotation (0.223588ms)
+  ✔ exige exactement huit chiffres (0.174857ms)
+✔ Validation (5.638585ms)
+▶ Formes acceptées à la saisie
+  ✔ « 66000000 » (0.570895ms)
+  ✔ « 66 00 00 00 » (0.368688ms)
+  ✔ « 66-00-00-00 » (0.1503ms)
+  ✔ « +23566000000 » (0.205404ms)
+  ✔ « +235 66 00 00 00 » (0.250378ms)
+  ✔ « 23566000000 » (0.171831ms)
+  ✔ « 0023566000000 » (0.215242ms)
+  ✔ « 066000000 » (0.352648ms)
+✔ Formes acceptées à la saisie (3.634226ms)
+▶ Motif de refus
+  ✔ dit combien de chiffres manquent (0.368939ms)
+  ✔ nomme les préfixes valides (0.301723ms)
+  ✔ ne dit rien sur un numéro correct (0.677455ms)
+  ✔ demande une saisie quand le champ est vide (0.25191ms)
+✔ Motif de refus (9.209008ms)
+▶ Mise en forme
+  ✔ groupe par deux (0.671403ms)
+  ✔ supporte un numéro incomplet (0.153577ms)
+✔ Mise en forme (1.134698ms)
+▶ Numéros étrangers
+  ✔ respecte un indicatif étranger explicite (0.228847ms)
+  ✔ ramène toujours un numéro tchadien à +235 (0.167042ms)
+  ✔ ne considère pas un numéro étranger comme valide ici (0.149669ms)
+✔ Numéros étrangers (0.919827ms)
+▶ Saisie scolaire des responsables
+  ✔ accepte un numéro tchadien national, espacé ou international (0.33222ms)
+  ✔ accepte les préfixes internationaux étrangers explicites (0.292707ms)
+  ✔ donne une erreur exploitable pour les numéros incomplets ou invalides (0.315278ms)
+✔ Saisie scolaire des responsables (1.203256ms)
+(node:146) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/server/domain/appreciations-travail.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ libelleAppreciationTravail
+  ✔ retourne null pour une moyenne absente ou hors de l'échelle sur 20 (1.595838ms)
+  ✔ applique les 11 appréciations aux bornes sans chevauchement (0.457504ms)
+✔ libelleAppreciationTravail (4.25415ms)
+(node:157) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/server/domain/identite-lycee-schema.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ configuration de l'identité du lycée
+  ✔ accepte les coordonnées usuelles et normalise les chaînes (7.476865ms)
+  ✔ autorise les champs facultatifs vides sous forme de null (0.534648ms)
+  ✔ rejette une version absente ou vide (1.44093ms)
+  ✔ rejette un e-mail malformé (1.099292ms)
+  ✔ exige HTTPS pour le site public (0.80329ms)
+  ✔ rejette un site local, des identifiants ou un port explicite (1.035814ms)
+  ✔ rejette des caractères interdits dans le numéro de téléphone (1.013772ms)
+  ✔ rejette les valeurs trop longues (1.048587ms)
+  ✔ rejette les données arbitraires et les tentatives de modification de l'identité légale (1.00182ms)
+  ✔ exige tous les champs du formulaire, même s'ils sont vides (0.811725ms)
+✔ configuration de l'identité du lycée (19.203935ms)
+(node:169) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/server/domain/notes.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ arrondir
+  ✔ arrondit sans le biais des flottants (1.536609ms)
+✔ arrondir (3.650404ms)
+▶ calculerMoyenneMatiere
+  ✔ retourne null quand aucune note n'est exploitable (2.787032ms)
+  ✔ calcule la moyenne simple d'un seul type d'évaluation (0.607364ms)
+  ✔ pondère la composition plus lourdement que les interrogations (0.434642ms)
+  ✔ ignore un type d'évaluation absent au lieu de minorer la moyenne (0.601032ms)
+  ✔ exclut une absence justifiée du calcul (0.47151ms)
+  ✔ compte une absence non justifiée sanctionnée comme un zéro (0.495355ms)
+  ✔ compte un travail non rendu comme un zéro (0.48258ms)
+  ✔ exclut une dispense (EPS sur certificat médical) (0.515732ms)
+  ✔ ramène les notes sur 20 quel que soit le barème (0.491477ms)
+  ✔ respecte le poids propre de chaque évaluation dans son type (0.350454ms)
+  ✔ ignore les évaluations marquées hors moyenne (0.42349ms)
+  ✔ retourne null si toutes les notes sont des absences justifiées (0.304358ms)
+  ✔ rejette un poids nul ou négatif (0.792379ms)
+  ✔ rejette un barème nul ou négatif (0.38586ms)
+  ✔ accepte une pondération personnalisée (0.64808ms)
+✔ calculerMoyenneMatiere (12.517334ms)
+▶ calculerMoyenneGenerale
+  ✔ pondère chaque matière par son coefficient (0.648962ms)
+  ✔ exclut du dénominateur les matières sans moyenne (0.267209ms)
+  ✔ retourne null quand aucune matière n'est notée (0.301553ms)
+  ✔ rejette un coefficient nul ou négatif (0.301643ms)
+✔ calculerMoyenneGenerale (2.179809ms)
+▶ calculerRangs
+  ✔ classe par moyenne décroissante (0.845037ms)
+  ✔ applique le classement olympique aux ex æquo (1, 2, 2, 4) (0.405757ms)
+  ✔ signale les ex æquo (0.377023ms)
+  ✔ place hors classement les élèves sans moyenne (0.339413ms)
+  ✔ retourne une liste vide pour une classe vide (0.225241ms)
+✔ calculerRangs (5.459129ms)
+▶ calculerStatistiquesClasse
+  ✔ calcule moyenne, extrêmes et écart-type (0.409495ms)
+  ✔ calcule le taux de réussite au seuil de 10 (0.210172ms)
+  ✔ exclut les élèves non notés des statistiques mais pas de l'effectif (0.230961ms)
+  ✔ gère une classe sans aucune note (0.125875ms)
+✔ calculerStatistiquesClasse (1.220959ms)
+▶ proposerMention
+  ✔ propose les félicitations à partir de 16 (0.285062ms)
+  ✔ propose les encouragements entre 14 et 16 (0.148167ms)
+  ✔ propose le tableau d'honneur entre 12 et 14 (0.192098ms)
+  ✔ propose un avertissement travail en dessous de 8 (0.141835ms)
+  ✔ fait primer la conduite sur les résultats (0.103364ms)
+  ✔ sanctionne un absentéisme important malgré de bons résultats (0.242703ms)
+  ✔ ne propose rien sans moyenne (0.163255ms)
+✔ proposerMention (1.685185ms)
+ℹ tests 160
+ℹ suites 31
+ℹ pass 159
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1478.402032
+
+✖ failing tests:
+
+test at src/lib/smtp-message.test.ts:8:1
+✖ email Gmail possède un lien, le logo, et des alternatives HTML et texte (13.713997ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(contenu.html.includes("logo-officiel.webp"))
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/smtp-message.test.ts:22:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

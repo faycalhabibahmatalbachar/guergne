@@ -1,0 +1,22 @@
+(node:12) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/communication-safety.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ dispatch fails closed with missing, malformed or partially configured environment (1.600739ms)
+✔ mask before serialization and redact legacy errors (0.751944ms)
+(node:13) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/118cc7b00db4/guergne/web/src/lib/communication-v2.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/118cc7b00db4/guergne/web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ signed SMS estimate includes extended GSM and Unicode multipart (1.947055ms)
+✔ budget rejects bypass, overspending, invalid values, permits exact bound (0.562881ms)
+✔ phone validation does not turn foreign and seed numbers into valid campaigns (0.689798ms)
+✔ failure reasons have actionable categories and bounded jitter (1.051223ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 265.331662

@@ -1,17 +1,13 @@
+// biome-ignore lint/correctness/noUndeclaredDependencies: Next.js resolves its bundled server-only marker.
 import "server-only";
 
 import { and, desc, eq, sql } from "drizzle-orm";
 
+import { maskPhone, redactPhones } from "@/lib/communication-safety";
+import { estimateSms, prepareSms } from "@/lib/communication-v2";
+import { COUT_SMS_FCFA } from "@/lib/tarifs";
 import { db } from "@/server/db";
-import {
-  annonces,
-  classes,
-  eleves,
-  messages,
-  niveaux,
-  notifications,
-  utilisateurs,
-} from "@/server/db/schema";
+import { annonces, classes, eleves, messages, niveaux, notifications, utilisateurs } from "@/server/db/schema";
 
 /** Lectures du module Communication. */
 
@@ -143,7 +139,7 @@ export async function etatFileNotifications(): Promise<EtatFile> {
     echouees: Number(l.echouees ?? 0),
     pushEnAttente: Number(l.push_attente ?? 0),
     smsEnAttente,
-    coutSmsEstime: smsEnAttente * 25,
+    coutSmsEstime: await coutFileSms(),
   };
 }
 
@@ -162,7 +158,7 @@ export interface LigneNotification {
 }
 
 export async function listerNotifications(limite = 50): Promise<LigneNotification[]> {
-  return db
+  const rows = await db
     .select({
       id: notifications.id,
       type: notifications.type,
@@ -179,6 +175,13 @@ export async function listerNotifications(limite = 50): Promise<LigneNotificatio
     .from(notifications)
     .orderBy(desc(notifications.creeLe))
     .limit(limite);
+  return rows.map((row) => ({
+    ...row,
+    telephone: maskPhone(row.telephone),
+    titre: redactPhones(row.titre),
+    corps: redactPhones(row.corps),
+    erreur: row.erreur ? redactPhones(row.erreur) : null,
+  }));
 }
 
 /** Élèves pour le ciblage nominatif d'une annonce. */
@@ -196,7 +199,7 @@ export async function listerElevesActifs(anneeId: string) {
 
 /** Tuteurs disposant d'un compte, destinataires possibles d'un message. */
 export async function listerTuteursAvecCompte() {
-  return db
+  const rows = await db
     .select({
       utilisateurId: utilisateurs.id,
       nom: utilisateurs.nom,
@@ -207,4 +210,16 @@ export async function listerTuteursAvecCompte() {
     .where(and(eq(utilisateurs.role, "PARENT"), eq(utilisateurs.actif, true)))
     .orderBy(utilisateurs.nom)
     .limit(500);
+  return rows.map((row) => ({ ...row, telephone: maskPhone(row.telephone) }));
+}
+
+async function coutFileSms(): Promise<number> {
+  const rows = await db.execute<{ titre: string; corps: string }>(
+    sql`SELECT titre,corps FROM notifications WHERE statut='EN_ATTENTE' AND canal='SMS'`,
+  );
+  return rows.rows.reduce(
+    (total, row) =>
+      total + estimateSms(prepareSms(row.titre, row.corps, process.env.SMS_SIGNATURE ?? "LGR"), COUT_SMS_FCFA).cost,
+    0,
+  );
 }

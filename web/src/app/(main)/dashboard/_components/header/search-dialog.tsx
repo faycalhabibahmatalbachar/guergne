@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { useRouter } from "next/navigation";
 
-import { GraduationCap, Search, School, UserCog } from "lucide-react";
+import { GraduationCap, School, Search, UserCog } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,7 @@ import {
 import type { NavMainItem } from "@/navigation/sidebar/sidebar-items";
 import { sidebarItems } from "@/navigation/sidebar/sidebar-items";
 
-import { rechercheGlobale, type ResultatRecherche } from "../../_actions/recherche";
+import { type ResultatRecherche, rechercheGlobale } from "../../_actions/recherche";
 
 type SearchItem = {
   id: string;
@@ -133,7 +133,7 @@ export function SearchDialog() {
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "j" && (e.metaKey || e.ctrlKey)) {
+      if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((prev) => !prev);
       }
@@ -190,12 +190,17 @@ export function SearchDialog() {
         className="px-0! font-normal text-muted-foreground hover:no-underline"
       >
         <Search data-icon="inline-start" />
-        Search
+        Rechercher
         <kbd className="inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-medium text-[10px]">
-          <span className="text-xs">⌘</span>J
+          <span className="text-xs">Ctrl / ⌘</span>K
         </kbd>
       </Button>
-      <CommandDialog open={open} onOpenChange={handleOpenChange}>
+      <CommandDialog
+        title="Rechercher"
+        description="Rechercher un élève, une classe ou une page"
+        open={open}
+        onOpenChange={handleOpenChange}
+      >
         <Command>
           <CommandInput
             placeholder="Un élève, un matricule, une classe, une page…"
@@ -203,9 +208,7 @@ export function SearchDialog() {
             onValueChange={setQuery}
           />
           <CommandList>
-            <CommandEmpty>
-              {cherche ? "Recherche…" : "Aucun résultat."}
-            </CommandEmpty>
+            <CommandEmpty>{cherche ? "Recherche…" : "Aucun résultat."}</CommandEmpty>
 
             {/*
               Les données AVANT les pages : quand on tape un nom, ce qu'on
@@ -225,13 +228,7 @@ export function SearchDialog() {
                           key={d.id}
                           /* Unique — cmdk déduplique sur cette clé, et deux
                              homonymes se masqueraient l'un l'autre. */
-                          value={[
-                            d.type,
-                            d.id,
-                            d.libelle,
-                            sansAccents(d.libelle),
-                            d.detail ?? "",
-                          ].join(" ")}
+                          value={[d.type, d.id, d.libelle, sansAccents(d.libelle), d.detail ?? ""].join(" ")}
                           onSelect={() => {
                             handleOpenChange(false);
                             router.push(d.url);
@@ -241,9 +238,7 @@ export function SearchDialog() {
                             <Icone />
                             <span className="truncate">{d.libelle}</span>
                             {d.detail ? (
-                              <span className="text-muted-foreground truncate text-xs">
-                                {d.detail}
-                              </span>
+                              <span className="text-muted-foreground truncate text-xs">{d.detail}</span>
                             ) : null}
                           </span>
                         </CommandItem>

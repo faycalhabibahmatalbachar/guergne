@@ -1,0 +1,128 @@
+/* Gentelella official tokens, panels, table and button markup; scoped AA overrides. */
+.communication-v2 {
+  --primary: #117864;
+  --primary-dk: #0d6152;
+  --text-muted: #626d7d;
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.dark .communication-v2 {
+  --text-muted: #b3bccb;
+}
+.communication-v2 .communication-actions,
+.communication-v2 .communication-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.communication-v2 .communication-form {
+  display: grid;
+  gap: 14px;
+}
+.communication-v2 label {
+  display: grid;
+  gap: 6px;
+  font-weight: 500;
+}
+.communication-v2 .communication-fields > label {
+  flex: 1;
+  min-width: 180px;
+}
+.communication-v2 input:not([type="checkbox"]),
+.communication-v2 select,
+.communication-v2 textarea {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text);
+  font: inherit;
+}
+.communication-v2 :is(button, input, select, textarea, a, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+.communication-v2 .btn {
+  min-height: 44px;
+  white-space: normal;
+  height: auto;
+  padding: 10px 14px;
+}
+.communication-v2 button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+.communication-v2 .communication-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.communication-v2 .communication-checkbox input {
+  width: 20px;
+  height: 20px;
+}
+.communication-v2 .communication-review {
+  display: grid;
+  gap: 14px;
+}
+.communication-v2 blockquote {
+  white-space: pre-wrap;
+  border-inline-start: 3px solid var(--primary);
+  padding: 12px;
+  background: var(--bg-surface-secondary);
+  overflow-wrap: anywhere;
+}
+.communication-v2 .communication-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+.communication-v2 .communication-kpis .card-body {
+  padding: 16px;
+}
+.communication-v2 .communication-kpis strong {
+  display: block;
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+.communication-v2 .communication-warning {
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-secondary);
+}
+.communication-v2 table td {
+  max-width: 300px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+.communication-v2 caption {
+  text-align: start;
+  padding: 12px;
+  color: var(--text-secondary);
+}
+.communication-v2 .table-responsive {
+  max-width: 100%;
+}
+.communication-v2 .card-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+}
+.communication-v2 .status-blue {
+  color: var(--text-secondary);
+}
+@media (max-width: 600px) {
+  .communication-v2 .card-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .communication-v2 .communication-fields > label {
+    min-width: 100%;
+  }
+  .communication-v2 .communication-actions > * {
+    flex: 1;
+  }
+}

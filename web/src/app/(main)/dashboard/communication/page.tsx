@@ -15,11 +15,17 @@ import { exigerPage } from "@/server/guard";
 
 import { Prerequis } from "../_components/prerequis";
 import { Communication } from "./_components/communication";
+import { CommunicationPageV2 } from "./page-v2";
 
 export const metadata: Metadata = { title: "Communication" };
 export const dynamic = "force-dynamic";
 
-export default async function PageCommunication() {
+export default async function PageCommunication({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  if (process.env.COMMUNICATION_V2 === "true") return <CommunicationPageV2 params={await searchParams} />;
   const acteur = await exigerPage("annonce:lire");
   const annee = await chargerAnneeCourante();
 
@@ -36,31 +42,28 @@ export default async function PageCommunication() {
     );
   }
 
-  const [{ classes }, niveaux, annonces, messages, notifications, file, eleves, tuteurs] =
-    await Promise.all([
-      listerClassesEtMatieres(annee.id),
-      listerNiveaux(),
-      listerAnnonces(annee.id),
-      listerMessages(acteur.id),
-      listerNotifications(50),
-      etatFileNotifications(),
-      listerElevesActifs(annee.id),
-      listerTuteursAvecCompte(),
-    ]);
+  const [{ classes }, niveaux, annonces, messages, notifications, file, eleves, tuteurs] = await Promise.all([
+    listerClassesEtMatieres(annee.id),
+    listerNiveaux(),
+    listerAnnonces(annee.id),
+    listerMessages(acteur.id),
+    listerNotifications(50),
+    etatFileNotifications(),
+    listerElevesActifs(annee.id),
+    listerTuteursAvecCompte(),
+  ]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-semibold text-2xl tracking-tight">Communication</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          Année {annee.libelle}. Push pour les familles équipées, SMS pour les autres — aucune
-          famille n&apos;est laissée sans information.
+          Année {annee.libelle}. Suivez les annonces, les messages et les erreurs de distribution.
         </p>
       </div>
 
       <Communication
         anneeId={annee.id}
-        anneeLibelle={annee.libelle}
         niveaux={niveaux.map((n) => ({ id: n.id, libelle: n.libelle }))}
         classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
         eleves={eleves.rows}

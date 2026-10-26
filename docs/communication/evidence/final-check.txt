@@ -1,0 +1,229 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+src/app/(main)/dashboard/_components/header/search-dialog.tsx:241:47 lint/nursery/useSortedClasses  FIXABLE  ━━━━━━━━━━
+
+  i These CSS classes should be sorted.
+  
+    239 │                             <span className="truncate">{d.libelle}</span>
+    240 │                             {d.detail ? (
+  > 241 │                               <span className="text-muted-foreground truncate text-xs">{d.detail}</span>
+        │                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    242 │                             ) : null}
+    243 │                           </span>
+  
+  i This rule is still being actively worked on, so it may be missing features or have rough edges. Visit https://github.com/biomejs/biome/issues/1274 for more information or to report possible bugs.
+  
+  i This rule belongs to the nursery group, which means it is not yet stable and may change in the future. Visit https://biomejs.dev/linter/#nursery for more information.
+  
+  i Unsafe fix: Sort the classes.
+  
+    239 239 │                               <span className="truncate">{d.libelle}</span>
+    240 240 │                               {d.detail ? (
+    241     │ - ······························<span·className="text-muted-foreground·truncate·text-xs">{d.detail}</span>
+        241 │ + ······························<span·className="truncate·text-muted-foreground·text-xs">{d.detail}</span>
+    242 242 │                               ) : null}
+    243 243 │                             </span>
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:386:46 lint/nursery/useSortedClasses  FIXABLE  ━━━━━━━━━━
+
+  i These CSS classes should be sorted.
+  
+    384 │                           {n.telephone ?? "Compte applicatif"}
+    385 │                         </TableCell>
+  > 386 │                         <TableCell className="tabular-nums text-sm">{dateFr(n.creeLe)}</TableCell>
+        │                                              ^^^^^^^^^^^^^^^^^^^^^^
+    387 │                         <TableCell>
+    388 │                           <Badge
+  
+  i This rule is still being actively worked on, so it may be missing features or have rough edges. Visit https://github.com/biomejs/biome/issues/1274 for more information or to report possible bugs.
+  
+  i This rule belongs to the nursery group, which means it is not yet stable and may change in the future. Visit https://biomejs.dev/linter/#nursery for more information.
+  
+  i Unsafe fix: Sort the classes.
+  
+    384 384 │                             {n.telephone ?? "Compte applicatif"}
+    385 385 │                           </TableCell>
+    386     │ - ························<TableCell·className="tabular-nums·text-sm">{dateFr(n.creeLe)}</TableCell>
+        386 │ + ························<TableCell·className="text-sm·tabular-nums">{dateFr(n.creeLe)}</TableCell>
+    387 387 │                           <TableCell>
+    388 388 │                             <Badge
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:392:35 lint/style/noNestedTernary ━━━━━━━━━━
+
+  ! Do not nest ternary expressions.
+  
+    390 │                               n.statut === "ENVOYE" || n.statut === "LU"
+    391 │                                 ? "default"
+  > 392 │                                 : n.statut === "ECHOUE"
+        │                                   ^^^^^^^^^^^^^^^^^^^^^
+  > 393 │                                   ? "destructive"
+  > 394 │                                   : "outline"
+        │                                   ^^^^^^^^^^^
+    395 │                             }
+    396 │                           >
+  
+  i Nesting ternary expressions can make code more difficult to understand.
+  
+  i Convert nested ternary expression into if-else statements or separate the conditions to make the logic easier to understand.
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:399:33 lint/style/noNestedTernary ━━━━━━━━━━
+
+  ! Do not nest ternary expressions.
+  
+    397 │                             {n.statut === "EN_ATTENTE"
+    398 │                               ? "En attente"
+  > 399 │                               : n.statut === "ENVOYE"
+        │                                 ^^^^^^^^^^^^^^^^^^^^^
+  > 400 │                                 ? "Envoyée"
+  > 401 │                                 : n.statut === "ECHOUE"
+  > 402 │                                   ? "Échec"
+  > 403 │                                   : "Lue"}
+        │                                   ^^^^^^^
+    404 │                           </Badge>
+    405 │                           {n.tentatives > 0 ? (
+  
+  i Nesting ternary expressions can make code more difficult to understand.
+  
+  i Convert nested ternary expression into if-else statements or separate the conditions to make the logic easier to understand.
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:401:35 lint/style/noNestedTernary ━━━━━━━━━━
+
+  ! Do not nest ternary expressions.
+  
+    399 │                               : n.statut === "ENVOYE"
+    400 │                                 ? "Envoyée"
+  > 401 │                                 : n.statut === "ECHOUE"
+        │                                   ^^^^^^^^^^^^^^^^^^^^^
+  > 402 │                                   ? "Échec"
+  > 403 │                                   : "Lue"}
+        │                                   ^^^^^^^
+    404 │                           </Badge>
+    405 │                           {n.tentatives > 0 ? (
+  
+  i Nesting ternary expressions can make code more difficult to understand.
+  
+  i Convert nested ternary expression into if-else statements or separate the conditions to make the logic easier to understand.
+  
+
+Skipped 3 suggested fixes.
+If you wish to apply the suggested (unsafe) fixes, use the command biome check --write --unsafe
+
+Checked 19 files in 277ms. Fixed 1 file.
+Found 3 warnings.
+Found 2 infos.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+src/app/(main)/dashboard/_components/header/search-dialog.tsx:241:47 lint/nursery/useSortedClasses  FIXABLE  ━━━━━━━━━━
+
+  i These CSS classes should be sorted.
+  
+    239 │                             <span className="truncate">{d.libelle}</span>
+    240 │                             {d.detail ? (
+  > 241 │                               <span className="text-muted-foreground truncate text-xs">{d.detail}</span>
+        │                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    242 │                             ) : null}
+    243 │                           </span>
+  
+  i This rule is still being actively worked on, so it may be missing features or have rough edges. Visit https://github.com/biomejs/biome/issues/1274 for more information or to report possible bugs.
+  
+  i This rule belongs to the nursery group, which means it is not yet stable and may change in the future. Visit https://biomejs.dev/linter/#nursery for more information.
+  
+  i Unsafe fix: Sort the classes.
+  
+    239 239 │                               <span className="truncate">{d.libelle}</span>
+    240 240 │                               {d.detail ? (
+    241     │ - ······························<span·className="text-muted-foreground·truncate·text-xs">{d.detail}</span>
+        241 │ + ······························<span·className="truncate·text-muted-foreground·text-xs">{d.detail}</span>
+    242 242 │                               ) : null}
+    243 243 │                             </span>
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:386:46 lint/nursery/useSortedClasses  FIXABLE  ━━━━━━━━━━
+
+  i These CSS classes should be sorted.
+  
+    384 │                           {n.telephone ?? "Compte applicatif"}
+    385 │                         </TableCell>
+  > 386 │                         <TableCell className="tabular-nums text-sm">{dateFr(n.creeLe)}</TableCell>
+        │                                              ^^^^^^^^^^^^^^^^^^^^^^
+    387 │                         <TableCell>
+    388 │                           <Badge
+  
+  i This rule is still being actively worked on, so it may be missing features or have rough edges. Visit https://github.com/biomejs/biome/issues/1274 for more information or to report possible bugs.
+  
+  i This rule belongs to the nursery group, which means it is not yet stable and may change in the future. Visit https://biomejs.dev/linter/#nursery for more information.
+  
+  i Unsafe fix: Sort the classes.
+  
+    384 384 │                             {n.telephone ?? "Compte applicatif"}
+    385 385 │                           </TableCell>
+    386     │ - ························<TableCell·className="tabular-nums·text-sm">{dateFr(n.creeLe)}</TableCell>
+        386 │ + ························<TableCell·className="text-sm·tabular-nums">{dateFr(n.creeLe)}</TableCell>
+    387 387 │                           <TableCell>
+    388 388 │                             <Badge
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:392:35 lint/style/noNestedTernary ━━━━━━━━━━
+
+  ! Do not nest ternary expressions.
+  
+    390 │                               n.statut === "ENVOYE" || n.statut === "LU"
+    391 │                                 ? "default"
+  > 392 │                                 : n.statut === "ECHOUE"
+        │                                   ^^^^^^^^^^^^^^^^^^^^^
+  > 393 │                                   ? "destructive"
+  > 394 │                                   : "outline"
+        │                                   ^^^^^^^^^^^
+    395 │                             }
+    396 │                           >
+  
+  i Nesting ternary expressions can make code more difficult to understand.
+  
+  i Convert nested ternary expression into if-else statements or separate the conditions to make the logic easier to understand.
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:399:33 lint/style/noNestedTernary ━━━━━━━━━━
+
+  ! Do not nest ternary expressions.
+  
+    397 │                             {n.statut === "EN_ATTENTE"
+    398 │                               ? "En attente"
+  > 399 │                               : n.statut === "ENVOYE"
+        │                                 ^^^^^^^^^^^^^^^^^^^^^
+  > 400 │                                 ? "Envoyée"
+  > 401 │                                 : n.statut === "ECHOUE"
+  > 402 │                                   ? "Échec"
+  > 403 │                                   : "Lue"}
+        │                                   ^^^^^^^
+    404 │                           </Badge>
+    405 │                           {n.tentatives > 0 ? (
+  
+  i Nesting ternary expressions can make code more difficult to understand.
+  
+  i Convert nested ternary expression into if-else statements or separate the conditions to make the logic easier to understand.
+  
+
+src/app/(main)/dashboard/communication/_components/communication.tsx:401:35 lint/style/noNestedTernary ━━━━━━━━━━
+
+  ! Do not nest ternary expressions.
+  
+    399 │                               : n.statut === "ENVOYE"
+    400 │                                 ? "Envoyée"
+  > 401 │                                 : n.statut === "ECHOUE"
+        │                                   ^^^^^^^^^^^^^^^^^^^^^
+  > 402 │                                   ? "Échec"
+  > 403 │                                   : "Lue"}
+        │                                   ^^^^^^^
+    404 │                           </Badge>
+    405 │                           {n.tentatives > 0 ? (
+  
+  i Nesting ternary expressions can make code more difficult to understand.
+  
+  i Convert nested ternary expression into if-else statements or separate the conditions to make the logic easier to understand.
+  
+
+Checked 19 files in 276ms. No fixes applied.
+Found 3 warnings.
+Found 2 infos.

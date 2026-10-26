@@ -1,5 +1,7 @@
+// biome-ignore lint/correctness/noUndeclaredDependencies: Next.js resolves its bundled server-only marker.
 import "server-only";
 
+import { dispatchMode } from "@/lib/communication-safety";
 import { alignerSurGsm7, segmentsSms } from "@/lib/segments-sms";
 import { formatInternational } from "@/lib/telephone";
 
@@ -78,9 +80,7 @@ export function smsConfigure(): boolean {
   if (f === "journal") return true;
   if (f === "twilio") {
     return Boolean(
-      process.env.TWILIO_ACCOUNT_SID &&
-        process.env.TWILIO_AUTH_TOKEN &&
-        process.env.TWILIO_NUMERO_EXPEDITEUR,
+      process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_NUMERO_EXPEDITEUR,
     );
   }
   if (f === "generique") return Boolean(process.env.SMS_API_URL && process.env.SMS_API_KEY);
@@ -137,6 +137,7 @@ async function envoyerTwilio(numero: string, texte: string): Promise<ResultatSms
 
   const reponse = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
     method: "POST",
+    signal: AbortSignal.timeout(8_000),
     headers: {
       Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
       "Content-Type": "application/x-www-form-urlencoded",
@@ -150,8 +151,7 @@ async function envoyerTwilio(numero: string, texte: string): Promise<ResultatSms
     if (texteErreur.includes("21608")) {
       return {
         succes: false,
-        erreur:
-          "Compte Twilio en essai : ce numéro doit d'abord être vérifié dans la console Twilio.",
+        erreur: "Compte Twilio en essai : ce numéro doit d'abord être vérifié dans la console Twilio.",
       };
     }
     return { succes: false, erreur: `Twilio ${reponse.status} : ${texteErreur.slice(0, 200)}` };
@@ -197,6 +197,7 @@ async function envoyerGenerique(
 
   const reponse = await fetch(url, {
     method: "POST",
+    signal: AbortSignal.timeout(8_000),
     headers: {
       Authorization: `Bearer ${cle}`,
       "Content-Type": "application/json",
@@ -262,6 +263,8 @@ export async function envoyerSms(
    */
   idempotence?: string,
 ): Promise<ResultatSms> {
+  if (dispatchMode(process.env) !== "live")
+    return { succes: false, erreur: "Envois suspendus ou simulation : aucun SMS expédié." };
   const fournisseur = fournisseurSms();
 
   if (!fournisseur) {
@@ -282,10 +285,7 @@ export async function envoyerSms(
     if (fournisseur === "journal") {
       // Mode sans dépense : la chaîne complète se déroule, seul l'envoi réel
       // est remplacé par une trace. Indispensable pour la recette.
-      console.info(
-        `[sms:journal] ${numero} — ${segmentsSms(texteSigne)} segment(s) — ${texteSigne.slice(0, 120)}`,
-      );
-      return { succes: true, reference: `journal-${Date.now()}`, segments: segmentsSms(texteSigne) };
+      return { succes: false, erreur: "Simulation journal : aucun SMS expédié.", segments: segmentsSms(texteSigne) };
     }
     const segments = segmentsSms(texteSigne);
 

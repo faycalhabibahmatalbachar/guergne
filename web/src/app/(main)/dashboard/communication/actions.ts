@@ -2,14 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
 import { annonceDestinataires, annonces, messages } from "@/server/db/schema";
-import { traiterFile } from "@/server/notifications/expediteur";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
+import { traiterFile } from "@/server/notifications/expediteur";
 
 export interface Resultat {
   ok: boolean;
@@ -23,7 +23,7 @@ function echec(e: unknown, defaut: string): Resultat {
   if (e instanceof ErreurAutorisation) {
     return { ok: false, message: "Vous n'avez pas les droits pour cette opération." };
   }
-  console.error("[communication]", e);
+  console.error("[communication] Échec de l’opération (détails non journalisés).");
   return { ok: false, message: defaut };
 }
 
@@ -50,7 +50,7 @@ const schemaAnnonce = z
     classeId: z.string().uuid().nullable().optional(),
     elevesIds: z.array(z.string().uuid()).default([]),
     epinglee: z.boolean().default(false),
-    envoyerPush: z.boolean().default(true),
+    envoyerPush: z.boolean().default(false),
     expireLe: z.string().optional(),
   })
   .refine((v) => v.cible !== "NIVEAU" || !!v.niveauId, {
@@ -81,6 +81,8 @@ export async function publierAnnonce(donnees: unknown): Promise<Resultat> {
     if (!a.success) return { ok: false, erreurs: messagesErreur(a.error) };
 
     const v = a.data;
+    if (v.envoyerPush)
+      return { ok: false, message: "Utilisez le composeur V2 avec estimation et confirmation des coûts." };
     let nbNotifications = 0;
 
     await db.transaction(async (tx) => {
@@ -101,9 +103,7 @@ export async function publierAnnonce(donnees: unknown): Promise<Resultat> {
         .returning({ id: annonces.id });
 
       if (v.cible === "ELEVE" && v.elevesIds.length > 0) {
-        await tx
-          .insert(annonceDestinataires)
-          .values(v.elevesIds.map((eleveId) => ({ annonceId: creee.id, eleveId })));
+        await tx.insert(annonceDestinataires).values(v.elevesIds.map((eleveId) => ({ annonceId: creee.id, eleveId })));
       }
 
       const r = await tx.execute<{ n: number }>(sql`SELECT diffuser_annonce(${creee.id}::uuid) AS n`);
@@ -175,6 +175,13 @@ export async function envoyerMessage(donnees: unknown): Promise<Resultat> {
 
     const v = a.data;
 
+    const destinataires = await db.execute<{ ok: boolean }>(sql`
+      SELECT EXISTS(SELECT 1 FROM utilisateurs u WHERE u.id=${v.destinataireId}::uuid
+        AND u.actif AND u.role='PARENT' AND (${v.eleveId ?? null}::uuid IS NULL OR EXISTS(
+          SELECT 1 FROM tuteurs t JOIN eleve_tuteur et ON et.tuteur_id=t.id
+          WHERE t.utilisateur_id=u.id AND et.eleve_id=${v.eleveId ?? null}::uuid))) AS ok`);
+    if (!destinataires.rows[0]?.ok) return { ok: false, message: "Destinataire ou élève hors périmètre." };
+
     await db.transaction(async (tx) => {
       const [cree] = await tx
         .insert(messages)
@@ -221,11 +228,12 @@ export async function envoyerMessage(donnees: unknown): Promise<Resultat> {
 
 export async function marquerMessageLu(messageId: string): Promise<Resultat> {
   try {
-    await requirePermission("message:lire");
+    const acteur = await requirePermission("message:lire");
+    z.string().uuid().parse(messageId);
     await db
       .update(messages)
       .set({ lu: true, luLe: new Date().toISOString() })
-      .where(eq(messages.id, messageId));
+      .where(and(eq(messages.id, messageId), eq(messages.destinataireId, acteur.id)));
     revalidatePath("/dashboard/communication");
     return OK;
   } catch (e) {

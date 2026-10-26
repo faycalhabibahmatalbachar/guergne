@@ -1,4 +1,7 @@
+// biome-ignore lint/correctness/noUndeclaredDependencies: Next.js resolves its bundled server-only marker.
 import "server-only";
+
+import { dispatchMode } from "@/lib/communication-safety";
 
 import { createSign } from "node:crypto";
 
@@ -27,9 +30,7 @@ export interface ResultatEnvoi {
 }
 
 export function fcmConfigure(): boolean {
-  return Boolean(
-    process.env.FCM_PROJECT_ID && process.env.FCM_CLIENT_EMAIL && process.env.FCM_PRIVATE_KEY,
-  );
+  return Boolean(process.env.FCM_PROJECT_ID && process.env.FCM_CLIENT_EMAIL && process.env.FCM_PRIVATE_KEY);
 }
 
 // Le jeton d'accès vaut une heure : le redemander à chaque notification
@@ -37,11 +38,7 @@ export function fcmConfigure(): boolean {
 let jetonCache: { valeur: string; expireLe: number } | null = null;
 
 function base64url(donnees: Buffer | string): string {
-  return Buffer.from(donnees)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+  return Buffer.from(donnees).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 /**
@@ -69,12 +66,11 @@ async function obtenirJeton(): Promise<string> {
     }),
   );
 
-  const signature = base64url(
-    createSign("RSA-SHA256").update(`${entete}.${charge}`).sign(cle),
-  );
+  const signature = base64url(createSign("RSA-SHA256").update(`${entete}.${charge}`).sign(cle));
 
   const reponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
+    signal: AbortSignal.timeout(8_000),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
@@ -110,6 +106,7 @@ async function envoyerAUnJeton(
 
   const reponse = await fetch(`https://fcm.googleapis.com/v1/projects/${projet}/messages:send`, {
     method: "POST",
+    signal: AbortSignal.timeout(8_000),
     headers: {
       Authorization: `Bearer ${jetonAcces}`,
       "Content-Type": "application/json",
@@ -144,10 +141,7 @@ async function envoyerAUnJeton(
   const texte = await reponse.text();
   // 404 UNREGISTERED / 400 INVALID_ARGUMENT sur le jeton : l'appareil a
   // désinstallé l'application ou le jeton a été renouvelé. Inutile de réessayer.
-  const invalide =
-    reponse.status === 404 ||
-    texte.includes("UNREGISTERED") ||
-    texte.includes("INVALID_ARGUMENT");
+  const invalide = reponse.status === 404 || texte.includes("UNREGISTERED") || texte.includes("INVALID_ARGUMENT");
 
   return { ok: false, invalide, erreur: `${reponse.status} ${texte.slice(0, 200)}` };
 }
@@ -156,6 +150,8 @@ export async function envoyerPush(
   jetonsAppareils: string[],
   contenu: { titre: string; corps: string; route?: string | null; donnees?: unknown },
 ): Promise<ResultatEnvoi> {
+  if (dispatchMode(process.env) !== "live")
+    return { succes: false, erreur: "Envois suspendus ou simulation : aucun push expédié." };
   if (!fcmConfigure()) {
     return { succes: false, erreur: "Firebase non configuré (FCM_PROJECT_ID / CLIENT_EMAIL / PRIVATE_KEY)." };
   }
@@ -165,9 +161,7 @@ export async function envoyerPush(
 
   try {
     const jetonAcces = await obtenirJeton();
-    const resultats = await Promise.all(
-      jetonsAppareils.map((j) => envoyerAUnJeton(jetonAcces, j, contenu)),
-    );
+    const resultats = await Promise.all(jetonsAppareils.map((j) => envoyerAUnJeton(jetonAcces, j, contenu)));
 
     const invalides = jetonsAppareils.filter((_, i) => resultats[i].invalide);
     const auMoinsUn = resultats.some((r) => r.ok);

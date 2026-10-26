@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+
+import { useRouter } from "next/navigation";
 
 import { Megaphone, Pin, Send, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -17,7 +18,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { COUT_SMS_FCFA } from "@/lib/tarifs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,20 +35,9 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-  EtatFile,
-  LigneAnnonce,
-  LigneMessage,
-  LigneNotification,
-} from "@/server/domain/communication";
+import type { EtatFile, LigneAnnonce, LigneMessage, LigneNotification } from "@/server/domain/communication";
 
-import {
-  basculerAnnonce,
-  envoyerMessage,
-  epinglerAnnonce,
-  publierAnnonce,
-  traiterFileNotifications,
-} from "../actions";
+import { basculerAnnonce, envoyerMessage, epinglerAnnonce, publierAnnonce, traiterFileNotifications } from "../actions";
 
 interface Option {
   id: string;
@@ -83,7 +72,6 @@ const LIBELLE_TYPE_NOTIF: Record<string, string> = {
 
 export function Communication({
   anneeId,
-  anneeLibelle,
   niveaux,
   classes,
   eleves,
@@ -94,7 +82,6 @@ export function Communication({
   file,
 }: {
   anneeId: string;
-  anneeLibelle: string;
   niveaux: Option[];
   classes: Option[];
   eleves: Array<{ id: string; nom: string; prenom: string; classe: string }>;
@@ -111,8 +98,7 @@ export function Communication({
   const [cible, setCible] = useState("TOUS");
   const [elevesChoisis, setElevesChoisis] = useState<string[]>([]);
 
-  const erreur = (c: string) =>
-    erreurs[c] ? <p className="text-destructive text-sm">{erreurs[c]}</p> : null;
+  const erreur = (c: string) => (erreurs[c] ? <p className="text-destructive text-sm">{erreurs[c]}</p> : null);
 
   function agir(action: () => Promise<Resultat>) {
     setErreurs({});
@@ -139,8 +125,8 @@ export function Communication({
             <div>
               <CardTitle className="text-base">File d&apos;expédition</CardTitle>
               <CardDescription>
-                Les notifications sont mises en file par l&apos;application, puis expédiées en push
-                pour les familles équipées et en SMS pour les autres.
+                Les notifications sont mises en file par l&apos;application, puis expédiées en push pour les familles
+                équipées et en SMS pour les autres.
               </CardDescription>
             </div>
             {/*
@@ -166,27 +152,22 @@ export function Communication({
                         <strong>{file.smsEnAttente} par SMS</strong>
                         {file.smsEnAttente > 0 && (
                           <>
-                            , soit environ{" "}
-                            <strong>
-                              {(file.smsEnAttente * COUT_SMS_FCFA).toLocaleString("fr-FR")} F
-                            </strong>{" "}
-                            à la charge de l&apos;établissement
+                            , soit environ <strong>{file.coutSmsEstime.toLocaleString("fr-FR")} F</strong> à la charge
+                            de l&apos;établissement
                           </>
                         )}
                         .
                       </p>
                       <p>
-                        L&apos;expédition part par lots de 200. Les messages déjà expédiés ne
-                        repartent pas : chacun porte une clé qui empêche le double envoi.
+                        L&apos;expédition part par lots de 200. Les messages déjà expédiés ne repartent pas : chacun
+                        porte une clé qui empêche le double envoi.
                       </p>
                     </div>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => agir(() => traiterFileNotifications())}>
-                    Expédier
-                  </AlertDialogAction>
+                  <AlertDialogAction onClick={() => agir(() => traiterFileNotifications())}>Expédier</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -219,7 +200,7 @@ export function Communication({
               <span className="font-medium tabular-nums">
                 {new Intl.NumberFormat("fr-FR").format(file.coutSmsEstime)} F
               </span>{" "}
-              à 25 F le message. Le SMS est le seul poste de dépense variable du projet.
+              FCFA, segments et signature compris. Le SMS est le seul poste de dépense variable du projet.
             </p>
           ) : null}
 
@@ -256,9 +237,7 @@ export function Communication({
           <Card>
             <CardContent className="p-0">
               {annonces.length === 0 ? (
-                <p className="py-14 text-center text-muted-foreground text-sm">
-                  Aucune annonce publiée cette année.
-                </p>
+                <p className="py-14 text-center text-muted-foreground text-sm">Aucune annonce publiée cette année.</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -329,9 +308,7 @@ export function Communication({
           <Card>
             <CardContent className="p-0">
               {messages.length === 0 ? (
-                <p className="py-14 text-center text-muted-foreground text-sm">
-                  Aucun message échangé.
-                </p>
+                <p className="py-14 text-center text-muted-foreground text-sm">Aucun message échangé.</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -350,17 +327,13 @@ export function Communication({
                           <span className="font-medium">{m.objet}</span>
                           <p className="truncate text-muted-foreground text-xs">{m.contenu}</p>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {m.destinataire ?? "—"}
-                        </TableCell>
+                        <TableCell className="text-muted-foreground">{m.destinataire ?? "—"}</TableCell>
                         <TableCell className="text-muted-foreground">
                           {m.elevePrenom ? `${m.elevePrenom} ${m.eleveNom}` : "—"}
                         </TableCell>
                         <TableCell className="tabular-nums">{dateFr(m.creeLe)}</TableCell>
                         <TableCell>
-                          <Badge variant={m.lu ? "secondary" : "outline"}>
-                            {m.lu ? "Lu" : "Non lu"}
-                          </Badge>
+                          <Badge variant={m.lu ? "secondary" : "outline"}>{m.lu ? "Lu" : "Non lu"}</Badge>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -377,15 +350,13 @@ export function Communication({
             <CardHeader>
               <CardTitle className="text-base">Journal d&apos;envoi</CardTitle>
               <CardDescription>
-                Toute notification produite par le système, quel que soit son canal. Rien n&apos;est
-                marqué « envoyé » tant qu&apos;un canal ne l&apos;a pas réellement acheminé.
+                Toute notification produite par le système, quel que soit son canal. Rien n&apos;est marqué « envoyé »
+                tant qu&apos;un canal ne l&apos;a pas réellement acheminé.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {notifications.length === 0 ? (
-                <p className="py-14 text-center text-muted-foreground text-sm">
-                  Aucune notification produite.
-                </p>
+                <p className="py-14 text-center text-muted-foreground text-sm">Aucune notification produite.</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -432,9 +403,7 @@ export function Communication({
                                   : "Lue"}
                           </Badge>
                           {n.tentatives > 0 ? (
-                            <span className="ml-1 text-muted-foreground text-xs">
-                              {n.tentatives} tentative(s)
-                            </span>
+                            <span className="ml-1 text-muted-foreground text-xs">{n.tentatives} tentative(s)</span>
                           ) : null}
                         </TableCell>
                       </TableRow>
@@ -471,8 +440,8 @@ export function Communication({
             <DialogHeader>
               <DialogTitle>Nouvelle annonce</DialogTitle>
               <DialogDescription>
-                Une annonce générale ne part qu&apos;au tuteur principal de chaque famille : inonder
-                les deux parents du même message double le coût SMS sans rien apporter.
+                Une annonce générale ne part qu&apos;au tuteur principal de chaque famille : inonder les deux parents du
+                même message double le coût SMS sans rien apporter.
               </DialogDescription>
             </DialogHeader>
 
@@ -547,9 +516,7 @@ export function Communication({
                             className="size-4 accent-primary"
                             checked={elevesChoisis.includes(e.id)}
                             onChange={(ev) =>
-                              setElevesChoisis((p) =>
-                                ev.target.checked ? [...p, e.id] : p.filter((x) => x !== e.id),
-                              )
+                              setElevesChoisis((p) => (ev.target.checked ? [...p, e.id] : p.filter((x) => x !== e.id)))
                             }
                           />
                           {e.prenom} {e.nom}
@@ -572,7 +539,7 @@ export function Communication({
 
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="envoyerPush" defaultChecked className="size-4 accent-primary" />
+                  <input type="checkbox" name="envoyerPush" className="size-4 accent-primary" />
                   Notifier les familles (push, puis SMS pour les non équipées)
                 </label>
                 <label className="flex items-center gap-2 text-sm">
@@ -610,8 +577,8 @@ export function Communication({
             <DialogHeader>
               <DialogTitle>Message ciblé</DialogTitle>
               <DialogDescription>
-                Destiné à un tuteur disposant d&apos;un compte sur l&apos;application. Pour les
-                familles non équipées, utilisez une annonce : elle bascule automatiquement en SMS.
+                Destiné à un tuteur disposant d&apos;un compte sur l&apos;application. Pour les familles non équipées,
+                utilisez une annonce : elle bascule automatiquement en SMS.
               </DialogDescription>
             </DialogHeader>
 

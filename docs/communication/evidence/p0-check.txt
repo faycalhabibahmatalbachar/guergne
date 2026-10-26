@@ -1,0 +1,71 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+src/server/notifications/expediteur.ts:11:22 lint/correctness/noUnusedImports  FIXABLE  ━━━━━━━━━━━━
+
+  ! Several of these imports are unused.
+  
+    10 │ import { envoyerPush, fcmConfigure } from "./fcm";
+  > 11 │ import { envoyerSms, fournisseurSms, segmentsSms, smsConfigure } from "./sms";
+       │                      ^^^^^^^^^^^^^^
+    12 │ 
+    13 │ /**
+  
+  i Unused imports might be the result of an incomplete refactoring.
+  
+  i Unsafe fix: Remove the unused imports.
+  
+    11 │ import·{·envoyerSms,·fournisseurSms,·segmentsSms,·smsConfigure·}·from·"./sms";
+       │                      ----------------                                         
+
+src/server/notifications/expediteur.ts:1:8 lint/correctness/noUndeclaredDependencies ━━━━━━━━━━━━━━━
+
+  × Dependency server-only isn't specified in package.json.
+  
+  > 1 │ import "server-only";
+      │        ^^^^^^^^^^^^^
+    2 │ 
+    3 │ import { eq, inArray, sql } from "drizzle-orm";
+  
+  i This could lead to errors.
+  
+  i Add the dependency in your manifest.
+  
+
+src/server/notifications/fcm.ts:1:8 lint/correctness/noUndeclaredDependencies ━━━━━━━━━━━━━━━━━━━━━━
+
+  × Dependency server-only isn't specified in package.json.
+  
+  > 1 │ import "server-only";
+      │        ^^^^^^^^^^^^^
+    2 │ 
+    3 │ import { dispatchMode } from "@/lib/communication-safety";
+  
+  i This could lead to errors.
+  
+  i Add the dependency in your manifest.
+  
+
+src/server/notifications/sms.ts:1:8 lint/correctness/noUndeclaredDependencies ━━━━━━━━━━━━━━━━━━━━━━
+
+  × Dependency server-only isn't specified in package.json.
+  
+  > 1 │ import "server-only";
+      │        ^^^^^^^^^^^^^
+    2 │ 
+    3 │ import { dispatchMode } from "@/lib/communication-safety";
+  
+  i This could lead to errors.
+  
+  i Add the dependency in your manifest.
+  
+
+Skipped 1 suggested fixes.
+If you wish to apply the suggested (unsafe) fixes, use the command biome check --write --unsafe
+
+Checked 7 files in 345ms. Fixed 6 files.
+Found 3 errors.
+Found 1 warning.
+check ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while applying fixes.
+  
+

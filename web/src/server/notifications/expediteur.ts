@@ -1,13 +1,15 @@
+// biome-ignore lint/correctness/noUndeclaredDependencies: Next.js resolves its bundled server-only marker.
 import "server-only";
 
 import { eq, inArray, sql } from "drizzle-orm";
 
+import { dispatchMode } from "@/lib/communication-safety";
 import { COUT_SMS_FCFA } from "@/lib/tarifs";
 import { db } from "@/server/db";
 import { appareils, notifications } from "@/server/db/schema";
 
 import { envoyerPush, fcmConfigure } from "./fcm";
-import { envoyerSms, fournisseurSms, segmentsSms, smsConfigure } from "./sms";
+import { envoyerSms, segmentsSms, smsConfigure } from "./sms";
 
 /**
  * Vide la file des notifications en attente.
@@ -37,7 +39,6 @@ export interface RapportExpedition {
   canauxIndisponibles: string[];
 }
 
-
 interface LigneFile {
   id: string;
   canal: string;
@@ -64,9 +65,7 @@ interface LigneFile {
  */
 async function relancerEcheances(): Promise<number> {
   try {
-    const r = await db.execute<{ posees: number }>(
-      sql`SELECT fn_relancer_echeances() AS posees`,
-    );
+    const r = await db.execute<{ posees: number }>(sql`SELECT fn_relancer_echeances() AS posees`);
     return Number(r.rows[0]?.posees ?? 0);
   } catch (erreur) {
     // Une relance qui échoue ne doit pas empêcher la file de se vider : les
@@ -87,6 +86,13 @@ export async function traiterFile(limite = 100): Promise<RapportExpedition> {
     coutSmsFcfa: 0,
     canauxIndisponibles: [],
   };
+
+  // A dry run must never mutate real statuses, invoke reminders, or clean tokens.
+  const mode = dispatchMode(process.env);
+  if (mode !== "live") {
+    rapport.canauxIndisponibles.push(mode === "suspended" ? "Envois suspendus" : "Simulation : file inchangée");
+    return rapport;
+  }
 
   // Avant de lire la file : les relances du jour doivent y figurer.
   rapport.relancesEcheances = await relancerEcheances();
@@ -133,10 +139,7 @@ export async function traiterFile(limite = 100): Promise<RapportExpedition> {
       erreur = r.erreur;
 
       if (r.jetonsInvalides?.length) {
-        await db
-          .update(appareils)
-          .set({ actif: false })
-          .where(inArray(appareils.jetonFcm, r.jetonsInvalides));
+        await db.update(appareils).set({ actif: false }).where(inArray(appareils.jetonFcm, r.jetonsInvalides));
         rapport.jetonsNettoyes += r.jetonsInvalides.length;
       }
     } else if (canal === "SMS") {

@@ -1,0 +1,12 @@
+# Décisions
+- Worktree séparé depuis main courant ; pas de réutilisation de fichiers non commités d'une autre session.
+- Pas de données de production ni d'envoi réel. Simulation ne doit pas modifier les statuts d'expédition réels.
+- L'historique existant reste intact ; nouveaux objets ajoutés et migrations up/down explicites.
+- Aucun nouveau package applicatif prévu. Gentelella MIT déjà distribué dans le dépôt, React sans jQuery.
+- Le mandat Gentelella du propriétaire prime sur la recommandation shadcn de web/AGENTS.md pour cette page. Composants primitifs existants non modifiés.
+- La V2 est une recette isolée, derrière `COMMUNICATION_V2=true`. Ses campagnes et destinataires simulés restent dans `communication_campaigns` et `communication_outbox` ; ils ne créent ni annonces ni notifications historiques.
+- La valeur par défaut des deux niveaux de garde est fermée : suspension active et mode simulation. Le code V2 refuse explicitement le mode réel, qui demande une certification fournisseur distincte.
+- Un accusé HTTP fournisseur signifiera « accepté ». La livraison et la lecture exigent des événements distincts, idempotents et monotones.
+- Le budget est verrouillé et recalculé dans la transaction qui crée la campagne. L'aperçu est lié à l'audience et au tarif par une empreinte SHA-256.
+- L'outbox utilise `FOR UPDATE SKIP LOCKED`, un bail de deux minutes et une clé d'idempotence. Un worker interrompu est repris sans conserver un verrou durant l'appel externe.
+- L'IN_APP immédiat ne s'applique qu'aux nouvelles insertions après migration ; aucune ligne historique n'est réécrite.

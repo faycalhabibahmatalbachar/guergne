@@ -1,0 +1,104 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> lycee-renaissance-admin@0.1.0 build
+> next build --webpack
+
+▲ Next.js 16.3.1 (webpack)
+✓ Running next.config.mjs took 33ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 49s
+  Running TypeScript ...
+  Finished TypeScript in 28.6s ...
+  Collecting page data using 8 workers ...
+  Generating static pages using 8 workers (0/12) ...
+  Generating static pages using 8 workers (3/12) 
+  Generating static pages using 8 workers (6/12) 
+  Generating static pages using 8 workers (9/12) 
+✓ Generating static pages using 8 workers (12/12) in 527ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/bulletins/[inscriptionId]/[periodeId]
+├ ƒ /api/bulletins/conseil-orientation/[classeId]
+├ ƒ /api/documents/[type]/[id]
+├ ƒ /api/eleves/gabarit
+├ ƒ /api/emploi-du-temps/[vue]/[id]
+├ ƒ /api/export/[liste]
+├ ƒ /api/export/comptable
+├ ƒ /api/fichiers/[id]
+├ ƒ /api/identite/icone/[taille]
+├ ƒ /api/mobile/activation
+├ ƒ /api/mobile/annonces/[id]/lue
+├ ƒ /api/mobile/appareil
+├ ƒ /api/mobile/enfants
+├ ƒ /api/mobile/enfants/[id]/assiduite
+├ ƒ /api/mobile/enfants/[id]/bulletins
+├ ƒ /api/mobile/enfants/[id]/bulletins/[periodeId]/pdf
+├ ƒ /api/mobile/enfants/[id]/emploi-du-temps
+├ ƒ /api/mobile/enfants/[id]/finances
+├ ƒ /api/mobile/enfants/[id]/notes
+├ ƒ /api/mobile/enfants/[id]/photo
+├ ƒ /api/mobile/session
+├ ƒ /api/mobile/session/rafraichir
+├ ƒ /api/notes/gabarit/[evaluationId]
+├ ƒ /api/notifications/traiter
+├ ƒ /api/personnel/gabarit
+├ ƒ /api/sante
+├ ○ /apple-icon.png
+├ ○ /auth/assistance
+├ ƒ /auth/connexion
+├ ƒ /auth/mot-de-passe
+├ ƒ /auth/reinitialiser
+├ ƒ /dashboard
+├ ƒ /dashboard/[...not-found]
+├ ƒ /dashboard/assiduite
+├ ƒ /dashboard/bulletins
+├ ƒ /dashboard/classes
+├ ƒ /dashboard/classes/[id]
+├ ƒ /dashboard/coming-soon
+├ ƒ /dashboard/communication
+├ ƒ /dashboard/default
+├ ƒ /dashboard/discipline
+├ ƒ /dashboard/discipline/conseils
+├ ƒ /dashboard/discipline/statistiques
+├ ƒ /dashboard/eleves
+├ ƒ /dashboard/eleves/[id]
+├ ƒ /dashboard/eleves/completer
+├ ƒ /dashboard/eleves/importer
+├ ƒ /dashboard/eleves/nouveau
+├ ƒ /dashboard/emploi-du-temps
+├ ƒ /dashboard/emploi-du-temps/journee
+├ ƒ /dashboard/finances
+├ ƒ /dashboard/finances/caisse
+├ ƒ /dashboard/finances/exonerations
+├ ƒ /dashboard/notes
+├ ƒ /dashboard/notes/appreciations
+├ ƒ /dashboard/notes/calendrier
+├ ƒ /dashboard/parametres
+├ ƒ /dashboard/parametres/audit
+├ ƒ /dashboard/parametres/diagnostic
+├ ƒ /dashboard/parametres/etablissement
+├ ƒ /dashboard/parametres/finances
+├ ƒ /dashboard/parametres/notifications
+├ ƒ /dashboard/parametres/parents
+├ ƒ /dashboard/parents
+├ ƒ /dashboard/parents/[id]
+├ ƒ /dashboard/parents/familles
+├ ƒ /dashboard/parents/familles/doublons
+├ ƒ /dashboard/parents/familles/doublons/[id]
+├ ƒ /dashboard/parents/invitations
+├ ƒ /dashboard/personnel
+├ ƒ /dashboard/personnel/[id]
+├ ƒ /dashboard/personnel/importer
+├ ○ /icon.png
+├ ƒ /impression/classes
+└ ○ /unauthorized
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

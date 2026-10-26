@@ -1,0 +1,6 @@
+PASS up preserves historical notification rows
+PASS reservation, duplicate key, stale token, completion replay
+PASS injected worker crash, lease recovery, expiration
+PASS duplicate and out-of-order receipts cannot downgrade delivery or read
+{"test":"5000 database simulated rows (no provider calls)","processed":5000,"duration_ms":976,"rss_delta_bytes":3014656,"simulated_cost_XAF":250000,"counts":[{"state":"READ","n":1},{"state":"EXPIRED","n":1},{"state":"PROCESSING","n":1},{"state":"ACCEPTED","n":5001}]}
+PASS down preserves legacy rows; up/down/up/down repeatable
