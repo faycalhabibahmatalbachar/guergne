@@ -48,6 +48,9 @@ import "../../default/gentelella-layout.css";
 import "../../default/gentelella-components.css";
 import "../../default/gentelella-widgets.css";
 import "./gentelella-pages.css";
+import "./gentelella-forms.css";
+import "./gentelella-datatable.css";
+import "./gentelella-apps.css";
 
 export const dynamic = "force-dynamic";
 
@@ -249,6 +252,9 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             {voisins?.precedent ? <Button asChild variant="outline" size="sm" className="h-10 gap-1.5 rounded-lg border-slate-200 bg-white px-3 shadow-none dark:border-border dark:bg-card"><Link href={"/dashboard/eleves/" + voisins.precedent}><ArrowLeft className="size-4" aria-hidden />Précédent</Link></Button> : <Button disabled variant="outline" size="sm" className="h-10 gap-1.5 rounded-lg"><ArrowLeft className="size-4" aria-hidden />Précédent</Button>}
             {voisins?.suivant ? <Button asChild variant="outline" size="sm" className="h-10 gap-1.5 rounded-lg border-slate-200 bg-white px-3 shadow-none dark:border-border dark:bg-card"><Link href={"/dashboard/eleves/" + voisins.suivant}>Suivant<ChevronRight className="size-4" aria-hidden /></Link></Button> : <Button disabled variant="outline" size="sm" className="h-10 gap-1.5 rounded-lg">Suivant<ChevronRight className="size-4" aria-hidden /></Button>}
             <ImprimerDossier />
+            {peutNotifier ? <div className="[&>button]:h-10 [&>button]:rounded-lg [&>button]:border-slate-200 [&>button]:bg-white [&>button]:px-3.5 [&>button]:text-slate-700 [&>button]:shadow-none dark:[&>button]:border-border dark:[&>button]:bg-card dark:[&>button]:text-foreground">
+              <BoutonNotifier cible={{type:"eleve",id:eleve.id,nom:eleve.prenom+" "+eleve.nom}} libelle="Prévenir" variante="outline" contexteEleves />
+            </div> : null}
             {peutModifierSensible ? <ModifierDossier
             eleveId={eleve.id}
             activerDepuisUrl
@@ -386,7 +392,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             peutVoirNotes={peutVoirNotes}
             peutVoirAssiduite={peutVoirAssiduite}
             peutVoirTuteurs={true}
-            notification={peutNotifier ? <BoutonNotifier cible={{ type: "eleve", id: eleve.id, nom: eleve.prenom + " " + eleve.nom }} contexteEleves variante="default" /> : null}
+            notification={null}
             actions={peutAdministrer ? <ActionsDossier
               eleveId={eleve.id}
               statut={eleve.statut}
