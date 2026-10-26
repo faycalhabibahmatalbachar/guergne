@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import {
@@ -120,7 +120,7 @@ export async function chargerDossierComplet(eleveId: string): Promise<DossierCom
         .innerJoin(anneesScolaires, eq(anneesScolaires.id, inscriptions.anneeId))
         .leftJoin(series, eq(series.id, classes.serieId))
         .where(eq(inscriptions.eleveId, eleveId))
-        .orderBy(desc(anneesScolaires.dateDebut))
+        .orderBy(desc(inscriptions.active), desc(anneesScolaires.dateDebut))
         .limit(1),
 
       db
@@ -199,33 +199,41 @@ export async function chargerDossierComplet(eleveId: string): Promise<DossierCom
   ];
   const libelles = new Map<string, string>();
   if (idsClasses.length > 0) {
-    const lignes = await db.select({ id: classes.id, libelle: classes.libelle }).from(classes);
+    const lignes = await db.select({ id: classes.id, libelle: classes.libelle }).from(classes).where(inArray(classes.id, idsClasses));
     for (const l of lignes) libelles.set(l.id, l.libelle);
   }
 
   // Fratrie : les autres enfants rattachés à chaque tuteur. C'est ce qui
   // permet, côté application parent, de basculer d'un enfant à l'autre.
-  const tuteursAvecFratrie = await Promise.all(
-    lignesTuteurs.map(async (t) => {
-      const fratrie = await db
-        .select({
-          id: eleves.id,
-          nom: eleves.nom,
-          prenom: eleves.prenom,
-          classe: classes.libelle,
-        })
-        .from(eleveTuteur)
-        .innerJoin(eleves, eq(eleves.id, eleveTuteur.eleveId))
-        .leftJoin(inscriptions, eq(inscriptions.eleveId, eleves.id))
-        .leftJoin(classes, eq(classes.id, inscriptions.classeId))
-        .where(eq(eleveTuteur.tuteurId, t.id));
-
-      return {
-        ...t,
-        autresEnfants: fratrie.filter((f) => f.id !== eleveId),
-      };
-    }),
-  );
+  // Regroupement en une seule requête pour tous les tuteurs.
+  const fratriesParTuteur = new Map<string, Map<string, {
+    id: string; nom: string; prenom: string; classe: string | null;
+  }>>();
+  if (lignesTuteurs.length > 0) {
+    const fratries = await db
+      .select({
+        tuteurId: eleveTuteur.tuteurId,
+        id: eleves.id, nom: eleves.nom, prenom: eleves.prenom,
+        classe: classes.libelle,
+      })
+      .from(eleveTuteur)
+      .innerJoin(eleves, eq(eleves.id, eleveTuteur.eleveId))
+      .leftJoin(inscriptions, and(eq(inscriptions.eleveId, eleves.id), eq(inscriptions.active, true)))
+      .leftJoin(classes, eq(classes.id, inscriptions.classeId))
+      .where(inArray(eleveTuteur.tuteurId, lignesTuteurs.map(t => t.id)));
+    for (const enfant of fratries) {
+      if (enfant.id === eleveId) continue;
+      let registre = fratriesParTuteur.get(enfant.tuteurId);
+      if (!registre) { registre = new Map(); fratriesParTuteur.set(enfant.tuteurId, registre); }
+      const ancien = registre.get(enfant.id);
+      if (!ancien || (!ancien.classe && enfant.classe)) {
+        registre.set(enfant.id, { id: enfant.id, nom: enfant.nom, prenom: enfant.prenom, classe: enfant.classe });
+      }
+    }
+  }
+  const tuteursAvecFratrie = lignesTuteurs.map(t => ({
+    ...t, autresEnfants: Array.from(fratriesParTuteur.get(t.id)?.values() ?? []),
+  }));
 
   return {
     eleve,

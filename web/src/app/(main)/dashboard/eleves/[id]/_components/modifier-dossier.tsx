@@ -138,7 +138,7 @@ export function ModifierDossier({
     libelle: string,
     options?: { type?: string; requis?: boolean },
   ) => (
-    <div className="space-y-1.5">
+    <div className="form-group space-y-1.5">
       <Label htmlFor={nom}>
         {libelle}
         {options?.requis ? <span className="text-destructive"> *</span> : null}
@@ -148,6 +148,7 @@ export function ModifierDossier({
         name={nom}
         type={options?.type ?? "text"}
         defaultValue={valeurs?.[nom] ?? ""}
+        className="form-control h-10 rounded-lg"
         aria-invalid={Boolean(erreurs[nom])}
       />
       {erreur(nom)}
@@ -170,7 +171,7 @@ export function ModifierDossier({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-h-[90dvh] w-[calc(100vw-2rem)] overflow-y-auto rounded-xl sm:max-w-3xl">
+      <DialogContent className="gentelella-v4 max-h-[90dvh] w-[calc(100vw-2rem)] overflow-y-auto rounded-xl sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Corriger le dossier</DialogTitle>
           <DialogDescription>
@@ -179,7 +180,7 @@ export function ModifierDossier({
           </DialogDescription>
         </DialogHeader>
 
-        {valeurs ? <p className="rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs leading-5 text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-200">
+        {valeurs ? <p className="alert alert-info rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs leading-5 text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-200">
           Utilisez les documents et déclarations des familles. Un champ vide ne signifie pas « néant », notamment pour la santé.
         </p> : null}
         {chargement ? <div className="flex min-h-36 items-center justify-center gap-3 text-sm text-muted-foreground"><LoaderCircle className="size-5 animate-spin" aria-hidden />Chargement des informations…</div> : erreurChargement ? <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-800">{erreurChargement}</p> : valeurs ? (
@@ -194,7 +195,7 @@ export function ModifierDossier({
                 <Label htmlFor="sexe">
                   Sexe<span className="text-destructive"> *</span>
                 </Label>
-                <NativeSelect id="sexe" name="sexe" defaultValue={valeurs.sexe}>
+                <NativeSelect id="sexe" name="sexe" className="form-control h-10 rounded-lg" defaultValue={valeurs.sexe}>
                   <option value="M">Masculin</option>
                   <option value="F">Féminin</option>
                 </NativeSelect>
@@ -230,13 +231,14 @@ export function ModifierDossier({
 
             <div className="space-y-1.5">
               <Label htmlFor="allergies">Allergies</Label>
-              <Textarea id="allergies" name="allergies" rows={2} defaultValue={valeurs.allergies ?? ""} />
+              <Textarea id="allergies" name="allergies" className="form-control rounded-lg" rows={2} defaultValue={valeurs.allergies ?? ""} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="observationsMedicales">Observations médicales</Label>
               <Textarea
                 id="observationsMedicales"
                 name="observationsMedicales"
+                className="form-control rounded-lg"
                 rows={2}
                 defaultValue={valeurs.observationsMedicales ?? ""}
               />
@@ -246,6 +248,7 @@ export function ModifierDossier({
               <Textarea
                 id="situationParticuliere"
                 name="situationParticuliere"
+                className="form-control rounded-lg"
                 rows={2}
                 defaultValue={valeurs.situationParticuliere ?? ""}
               />
@@ -253,10 +256,10 @@ export function ModifierDossier({
           </section>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => { setOuvert(false); nettoyerUrl(); }}>
+            <Button type="button" variant="outline" className="h-10 rounded-lg" onClick={() => { setOuvert(false); nettoyerUrl(); }}>
               Annuler
             </Button>
-            <Button type="submit" disabled={enCours}>
+            <Button type="submit" className="h-10 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800" disabled={enCours}>
               {enCours ? "Enregistrement…" : "Enregistrer"}
             </Button>
           </DialogFooter>

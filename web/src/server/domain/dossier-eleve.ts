@@ -95,25 +95,26 @@ const nb = (v: unknown): number | null => (v === null || v === undefined ? null 
 export async function chargerDossierScolarite(
   inscriptionId: string,
   periodeId: string | null,
+  droits: { notes: boolean; assiduite: boolean; discipline: boolean; finances: boolean } = { notes: true, assiduite: true, discipline: true, finances: true },
 ): Promise<DossierScolarite> {
   const [releve, evolution, assiduite, discipline, echeances, paiements, periode] =
     await Promise.all([
       // --- Relevé par matière ------------------------------------------------
-      db.execute<Record<string, unknown>>(sql`
+      (droits.notes ? db.execute<Record<string, unknown>>(sql`
         SELECT m.libelle AS matiere, mm.coefficient, mm.moyenne::text AS moyenne,
                mm.moyenne_classe::text AS moyenne_classe, mm.rang_matiere AS rang,
                mm.nb_evaluations
           FROM moyennes_matiere mm
           JOIN matieres m ON m.id = mm.matiere_id
          WHERE mm.inscription_id = ${inscriptionId}::uuid
-           AND (${periodeId}::uuid IS NULL OR mm.periode_id = ${periodeId}::uuid)
+           AND mm.periode_id = ${periodeId}::uuid
          ORDER BY m.ordre_bulletin NULLS LAST, m.libelle
-      `),
+      `) : Promise.resolve({ rows: [] as Record<string, unknown>[] })),
 
       // --- Évolution sur l'année (E-34) --------------------------------------
       // Toutes les périodes, même celles sans bulletin : une courbe qui saute
       // un trimestre laisserait croire à une progression continue.
-      db.execute<Record<string, unknown>>(sql`
+      (droits.notes ? db.execute<Record<string, unknown>>(sql`
         SELECT p.libelle AS periode,
                b.moyenne_generale::text AS moyenne,
                b.moyenne_classe::text   AS moyenne_classe,
@@ -123,12 +124,12 @@ export async function chargerDossierScolarite(
             ON b.periode_id = p.id AND b.inscription_id = ${inscriptionId}::uuid
          WHERE p.annee_id = (SELECT annee_id FROM inscriptions WHERE id = ${inscriptionId}::uuid)
          ORDER BY p.numero
-      `),
+      `) : Promise.resolve({ rows: [] as Record<string, unknown>[] })),
 
       // --- Assiduité : absences ET retards dans une seule liste --------------
       // Les deux se lisent ensemble : un élève à dix retards et zéro absence
       // n'a pas le même problème qu'un élève à dix absences.
-      db.execute<Record<string, unknown>>(sql`
+      (droits.assiduite ? db.execute<Record<string, unknown>>(sql`
         SELECT a.id, a.date_absence::text AS date, 'absence' AS type,
                a.nb_heures::text || ' h' AS duree,
                a.statut::text AS statut, a.motif, m.libelle AS matiere
@@ -144,10 +145,10 @@ export async function chargerDossierScolarite(
          WHERE r.inscription_id = ${inscriptionId}::uuid
          ORDER BY 2 DESC
          LIMIT 100
-      `),
+      `) : Promise.resolve({ rows: [] as Record<string, unknown>[] })),
 
       // --- Discipline : incidents ET sanctions -------------------------------
-      db.execute<Record<string, unknown>>(sql`
+      (droits.discipline ? db.execute<Record<string, unknown>>(sql`
         SELECT i.id, i.date_incident::text AS date, 'incident' AS nature,
                'Incident' AS libelle, i.description AS detail,
                i.gravite::text AS gravite, NULL::boolean AS executee
@@ -161,10 +162,10 @@ export async function chargerDossierScolarite(
          WHERE s.inscription_id = ${inscriptionId}::uuid
          ORDER BY 2 DESC
          LIMIT 60
-      `),
+      `) : Promise.resolve({ rows: [] as Record<string, unknown>[] })),
 
       // --- Échéancier ---------------------------------------------------------
-      db.execute<Record<string, unknown>>(sql`
+      (droits.finances ? db.execute<Record<string, unknown>>(sql`
         SELECT ec.id, ec.libelle, ec.nature::text AS nature,
                ec.date_limite::text AS date_limite,
                ec.montant_du_fcfa AS du, ec.montant_paye_fcfa AS paye,
@@ -177,21 +178,21 @@ export async function chargerDossierScolarite(
           FROM echeances ec
          WHERE ec.inscription_id = ${inscriptionId}::uuid
          ORDER BY ec.date_limite
-      `),
+      `) : Promise.resolve({ rows: [] as Record<string, unknown>[] })),
 
       // --- Reçus --------------------------------------------------------------
-      db.execute<Record<string, unknown>>(sql`
+      (droits.finances ? db.execute<Record<string, unknown>>(sql`
         SELECT p.id, p.numero_recu, p.date_paiement::text AS date,
                p.montant_fcfa AS montant, p.mode::text AS mode,
                p.nom_payeur, p.annule
           FROM paiements p
          WHERE p.inscription_id = ${inscriptionId}::uuid
          ORDER BY p.date_paiement DESC
-      `),
+      `) : Promise.resolve({ rows: [] as Record<string, unknown>[] })),
 
-      db.execute<{ libelle: string }>(sql`
+      (droits.notes ? db.execute<{ libelle: string }>(sql`
         SELECT libelle FROM periodes WHERE id = ${periodeId}::uuid
-      `),
+      `) : Promise.resolve({ rows: [] as { libelle: string }[] })),
     ]);
 
   return {

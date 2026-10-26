@@ -1,3 +1,5 @@
+import { sql } from "drizzle-orm";
+import { db } from "@/server/db";
 import { requirePermission } from "@/server/guard";
 import { produireDocumentEleve, produireRecu, type TypeDocument } from "@/server/pdf/service";
 
@@ -32,11 +34,28 @@ export async function GET(
 
   const typeDocument = TYPES[type];
   if (!typeDocument) return new Response("Type de document inconnu", { status: 404 });
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return new Response("Identifiant invalide", { status: 400 });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return new Response("Identifiant invalide", { status: 400 });
+
+  const cible = typeDocument === "RECU_PAIEMENT"
+    ? await db.execute<{ eleve_id: string; classe_id: string }>(sql`
+        SELECT i.eleve_id, i.classe_id
+        FROM paiements p JOIN inscriptions i ON i.id=p.inscription_id
+        WHERE p.id=${id}::uuid
+      `)
+    : await db.execute<{ eleve_id: string; classe_id: string | null }>(sql`
+        SELECT e.id AS eleve_id,
+          (SELECT classe_id FROM inscriptions
+           WHERE eleve_id=e.id ORDER BY active DESC,date_inscription DESC LIMIT 1) AS classe_id
+        FROM eleves e WHERE e.id=${id}::uuid
+      `);
+  if (!cible.rows.length) return new Response("Dossier introuvable", { status: 404 });
 
   let acteur;
   try {
-    acteur = await requirePermission("document:emettre");
+    acteur = await requirePermission("document:emettre", {
+      eleveId: cible.rows[0].eleve_id,
+      classeId: cible.rows[0].classe_id ?? undefined,
+    });
   } catch {
     return new Response("Non autorisé", { status: 403 });
   }

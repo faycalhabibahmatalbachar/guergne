@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DossierScolarite } from "@/server/domain/dossier-eleve";
+import { CourbeResultats } from "./courbe-resultats";
 
 const n2 = (v: number | null) => (v === null ? "—" : v.toFixed(2).replace(".", ","));
 const fcfa = (v: number) => `${v.toLocaleString("fr-FR")} F`;
@@ -29,16 +30,17 @@ export function OngletNotes({ dossier }: { dossier: DossierScolarite }) {
       {/* E-34 : la progression se lit d'abord. Un parent, comme un professeur
           principal, regarde si l'élève monte ou décroche avant de regarder le
           détail par matière. */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Évolution sur l&apos;année</CardTitle>
-          <CardDescription>
+      <Card className="card">
+        <CardHeader className="card-header pb-3">
+          <CardTitle className="card-title text-base">Évolution sur l&apos;année</CardTitle>
+          <CardDescription className="card-subtitle">
             La moyenne de la classe est rappelée à côté : une baisse de 12 à 11 n&apos;a pas le
             même sens si la classe a baissé autant.
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="card-body table-responsive p-0">
+          <CourbeResultats points={evolution} />
+          <Table className="table">
             <TableHeader>
               <TableRow>
                 <TableHead>Période</TableHead>
@@ -82,20 +84,20 @@ export function OngletNotes({ dossier }: { dossier: DossierScolarite }) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
+      <Card className="card">
+        <CardHeader className="card-header pb-3">
+          <CardTitle className="card-title text-base">
             Relevé par matière
             {periodeReleve ? (
               <span className="text-muted-foreground ml-2 font-normal">{periodeReleve}</span>
             ) : null}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="card-body table-responsive p-0">
           {releve.length === 0 ? (
             <Vide texte="Aucune moyenne calculée. Elles apparaissent après la production des bulletins." />
           ) : (
-            <Table>
+            <Table className="table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Matière</TableHead>
@@ -162,20 +164,20 @@ export function OngletAssiduite({ dossier }: { dossier: DossierScolarite }) {
   const nonJustifiees = absences.filter((l) => l.statut === "NON_JUSTIFIEE").length;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Assiduité</CardTitle>
-        <CardDescription>
+    <Card className="card">
+      <CardHeader className="card-header pb-3">
+        <CardTitle className="card-title text-base">Assiduité</CardTitle>
+        <CardDescription className="card-subtitle">
           {absences.length} absence(s) dont {nonJustifiees} non justifiée(s), {retards.length}{" "}
           retard(s). Absences et retards sont mêlés volontairement : dix retards et zéro absence
           n&apos;est pas le même problème que l&apos;inverse.
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="card-body table-responsive p-0">
         {assiduite.length === 0 ? (
           <Vide texte="Aucune absence ni retard enregistré." />
         ) : (
-          <Table>
+          <Table className="table">
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
@@ -232,21 +234,21 @@ export function OngletDiscipline({ dossier }: { dossier: DossierScolarite }) {
   const aExecuter = discipline.filter((l) => l.executee === false).length;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Discipline</CardTitle>
-        <CardDescription>
+    <Card className="card">
+      <CardHeader className="card-header pb-3">
+        <CardTitle className="card-title text-base">Discipline</CardTitle>
+        <CardDescription className="card-subtitle">
           Incidents et sanctions, du plus récent au plus ancien.
           {aExecuter > 0
             ? ` ${aExecuter} sanction(s) prononcée(s) mais pas encore exécutée(s).`
             : ""}
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="card-body table-responsive p-0">
         {discipline.length === 0 ? (
           <Vide texte="Aucun incident ni sanction. Le dossier disciplinaire est vierge." />
         ) : (
-          <Table>
+          <Table className="table">
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
@@ -305,20 +307,20 @@ export function OngletFinances({ dossier }: { dossier: DossierScolarite }) {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Échéancier</CardTitle>
-          <CardDescription>
+      <Card className="card">
+        <CardHeader className="card-header pb-3">
+          <CardTitle className="card-title text-base">Échéancier</CardTitle>
+          <CardDescription className="card-subtitle">
             {enRetard > 0
               ? `${enRetard} échéance(s) dépassée(s) et non soldée(s) — ce sont celles qui justifient une relance.`
               : "Aucune échéance dépassée."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="card-body table-responsive p-0">
           {echeances.length === 0 ? (
             <Vide texte="Aucune échéance. L'échéancier n'a pas encore été généré pour cet élève." />
           ) : (
-            <Table>
+            <Table className="table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Échéance</TableHead>
@@ -379,15 +381,15 @@ export function OngletFinances({ dossier }: { dossier: DossierScolarite }) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Reçus émis</CardTitle>
+      <Card className="card">
+        <CardHeader className="card-header pb-3">
+          <CardTitle className="card-title text-base">Reçus émis</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="card-body table-responsive p-0">
           {paiements.length === 0 ? (
             <Vide texte="Aucun versement enregistré." />
           ) : (
-            <Table>
+            <Table className="table">
               <TableHeader>
                 <TableRow>
                   <TableHead>N° reçu</TableHead>

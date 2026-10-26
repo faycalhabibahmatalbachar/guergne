@@ -21,8 +21,7 @@ import { listerClassesCourantes } from "@/server/domain/eleves";
 import { db } from "@/server/db";
 import { chargerDossierScolarite } from "@/server/domain/dossier-eleve";
 import { chargerStatistiques } from "@/server/domain/tableau-de-bord";
-import { sessionCourante } from "@/server/auth/session";
-import { exigerPage, peut } from "@/server/guard";
+import { exigerPage, exigerSession, peut } from "@/server/guard";
 import { preparerReinscription } from "../actions-reinscription";
 
 import { ActionsDossier } from "./_components/actions-dossier";
@@ -30,6 +29,7 @@ import { ModifierDossier } from "./_components/modifier-dossier";
 
 import { BoutonNotifier } from "../../_components/bouton-notifier";
 import { DocumentsEleve } from "./_components/documents-eleve";
+import { DocumentsGentelella } from "./_components/documents-gentelella";
 import { GestionTuteurs } from "./_components/gestion-tuteurs";
 import { Reinscription } from "./_components/reinscription";
 import {
@@ -47,6 +47,7 @@ import "../../default/gentelella-tokens.css";
 import "../../default/gentelella-layout.css";
 import "../../default/gentelella-components.css";
 import "../../default/gentelella-widgets.css";
+import "./gentelella-pages.css";
 
 export const dynamic = "force-dynamic";
 
@@ -74,28 +75,39 @@ const dateFr = (v: string | null) =>
     ? new Date(v).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })
     : "—";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const { id } = await params;
-  const dossier = await chargerDossierComplet(id);
-  return { title: dossier ? `${dossier.eleve.prenom} ${dossier.eleve.nom}` : "Élève" };
+// Ne jamais consulter ni exposer un nom d'élève dans les métadonnées
+// avant la vérification des droits individuels.
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: "Dossier élève" };
 }
 
 export default async function PageDossier({ params }: { params: Promise<{ id: string }> }) {
-  await exigerPage("eleve:lire");
-
   const { id } = await params;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
+
+  // Authentifier d'abord, puis vérifier la portée réelle sur cette classe.
+  await exigerSession();
+  const contexte = await db.execute<{ classe_id: string | null }>(sql`
+    SELECT i.classe_id FROM eleves e
+    LEFT JOIN LATERAL (
+      SELECT classe_id FROM inscriptions
+      WHERE eleve_id = e.id
+      ORDER BY active DESC, date_inscription DESC
+      LIMIT 1
+    ) i ON TRUE
+    WHERE e.id = ${id}::uuid LIMIT 1
+  `);
+  if (!contexte.rows[0]) notFound();
+  const principal = await exigerPage("eleve:lire", {
+    eleveId: id, classeId: contexte.rows[0].classe_id ?? undefined,
+  });
+
   const dossier = await chargerDossierComplet(id);
   if (!dossier) notFound();
-
   const { eleve, inscription, tuteurs, parcours, historiqueStatuts, changementsClasse } = dossier;
-  const principal = await sessionCourante();
   const [classes, peutGererTuteurs, peutInscrire] = await Promise.all([
     listerClassesCourantes(),
-    peut(principal, "tuteur:gerer"),
+    peut(principal, "tuteur:gerer", { eleveId: id, classeId: inscription?.classeId }),
     peut(principal, "eleve:creer"),
   ]);
 
@@ -133,16 +145,6 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
       }))
     : [];
 
-  // Les quatre volets du dossier scolaire.
-  //
-  // La période courante conditionne le relevé par matière : sans elle, on
-  // cumulerait les trois trimestres et la moyenne affichée ne correspondrait à
-  // aucun bulletin.
-  const { periode } = await chargerStatistiques();
-  const scolarite = inscription
-    ? await chargerDossierScolarite(inscription.id, periode?.id ?? null)
-    : null;
-
   const [peutVoirFinances, peutVoirNotes, peutVoirAssiduite, peutVoirDiscipline, peutVoirSante, peutModifier, peutGererActions, peutEmettreDocument] = await Promise.all([
     peut(principal, "finance:lire", { eleveId: id, classeId: inscription?.classeId }),
     peut(principal, "note:lire", { eleveId: id, classeId: inscription?.classeId }),
@@ -153,6 +155,16 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
     peut(principal, "eleve:affecter", { eleveId: id, classeId: inscription?.classeId }),
     peut(principal, "document:emettre", { eleveId: id, classeId: inscription?.classeId }),
   ]);
+  // Les quatre volets du dossier scolaire.
+  //
+  // La période courante conditionne le relevé par matière : sans elle, on
+  // cumulerait les trois trimestres et la moyenne affichée ne correspondrait à
+  // aucun bulletin.
+  const { periode } = await chargerStatistiques();
+  const scolarite = inscription && (peutVoirFinances || peutVoirNotes || peutVoirAssiduite || peutVoirDiscipline)
+    ? await chargerDossierScolarite(inscription.id, periode?.id ?? null, { notes: peutVoirNotes, assiduite: peutVoirAssiduite, discipline: peutVoirDiscipline, finances: peutVoirFinances })
+    : null;
+
   const peutModifierSensible = peutModifier && peutVoirSante;
   const peutAdministrer = peutGererActions && Boolean(principal && ["SUPER_ADMIN", "DIRECTION", "CENSEUR"].includes(principal.role));
   const resteFinancier = peutVoirFinances && scolarite?.echeances.length ? scolarite.echeances.reduce((s, e) => s + e.reste, 0) : null;
@@ -172,9 +184,15 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
        WHERE i.classe_id = ${inscription.classeId}::uuid AND i.active
     ) SELECT precedent, suivant FROM ordre WHERE id = ${id}::uuid
   `)).rows[0] : null;
-  const age = Math.floor(
-    (Date.now() - new Date(eleve.dateNaissance).getTime()) / (365.25 * 24 * 3600 * 1000),
+  // Âge civil exact dans le fuseau du Tchad, sans approximation à 365,25 jours.
+  const maintenantTchad = Object.fromEntries(
+    new Intl.DateTimeFormat("fr-FR", { timeZone: "Africa/Ndjamena", year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(new Date()).map(p => [p.type, Number(p.value)]),
   );
+  const [anneeN, moisN, jourN] = String(eleve.dateNaissance).slice(0, 10).split("-").map(Number);
+  const age = Number(maintenantTchad.year) - anneeN -
+    (Number(maintenantTchad.month) < moisN ||
+     (Number(maintenantTchad.month) === moisN && Number(maintenantTchad.day) < jourN) ? 1 : 0);
 
   const Info = ({ libelle, valeur }: { libelle: string; valeur: React.ReactNode }) => (
     <div>
@@ -387,6 +405,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           <Card className="card">
             <CardHeader className="card-header"><CardTitle className="card-title text-base">Documents du dossier</CardTitle></CardHeader>
             <CardContent className="card-body space-y-3">
+              {peutEmettreDocument ? <DocumentsGentelella eleveId={eleve.id} estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)} /> : null}
               {peutEmettreDocument ? <DocumentsEleve eleveId={eleve.id} estParti={["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"].includes(eleve.statut)} bulletins={bulletinsDisponibles} /> : <p className="text-sm text-muted-foreground">Édition non autorisée pour ce compte.</p>}
               {bulletinsDisponibles.map((b) => <a key={b.periodeId} href={"/api/bulletins/" + b.inscriptionId + "/" + b.periodeId} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm hover:bg-slate-50 dark:hover:bg-muted"><span>Bulletin — {b.periodeLibelle}</span><Badge variant={b.publie ? "default" : "outline"}>{b.publie ? "Publié" : "Brouillon"}</Badge></a>)}
             </CardContent>
@@ -680,9 +699,11 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               {historiqueStatuts.length === 0 ? (
                 <p className="text-muted-foreground text-sm">Aucun changement enregistré.</p>
               ) : (
-                <ol className="space-y-4">
+                <ol className="activity-list">
                   {historiqueStatuts.map((h) => (
-                    <li key={h.id} className="border-l-2 pl-4">
+                    <li key={h.id} className="activity-item">
+                      <span className="activity-avatar"><History className="size-4" aria-hidden /></span>
+                      <div className="activity-body min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         {h.ancienStatut ? (
                           <>
@@ -698,8 +719,9 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
                       </div>
                       <p className="mt-1 text-sm">{h.motif}</p>
                       {h.decidePar ? (
-                        <p className="mt-0.5 text-muted-foreground text-xs">Décidé par {h.decidePar}</p>
+                        <p className="activity-time">Décidé par {h.decidePar}</p>
                       ) : null}
+                      </div>
                     </li>
                   ))}
                 </ol>
@@ -715,16 +737,19 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
               {changementsClasse.length === 0 ? (
                 <p className="text-muted-foreground text-sm">Aucun changement de classe.</p>
               ) : (
-                <ul className="space-y-3">
+                <ul className="activity-list">
                   {changementsClasse.map((c) => (
-                    <li key={c.id} className="border-b pb-3 last:border-0 last:pb-0">
+                    <li key={c.id} className="activity-item">
+                      <span className="activity-avatar"><School2 className="size-4" aria-hidden /></span>
+                      <div className="activity-body min-w-0">
                       <div className="flex flex-wrap items-center gap-2 text-sm">
                         <span className="font-medium">{c.origine}</span>
                         <span className="text-muted-foreground">→</span>
                         <span className="font-medium">{c.destination}</span>
                         <span className="text-muted-foreground text-xs">{dateFr(c.dateEffet)}</span>
                       </div>
-                      <p className="mt-1 text-muted-foreground text-sm">{c.motif}</p>
+                      <p className="activity-time">{c.motif}</p>
+                      </div>
                     </li>
                   ))}
                 </ul>
