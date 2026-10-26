@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Download, Eye, GraduationCap, KeyRound, MoreHorizontal, Plus, Upload, Users, UserRoundCheck,
+  Eye, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -73,10 +73,20 @@ function ServiceEnseignant({ enseignant }: { enseignant: LigneEnseignant }) {
 }
 
 /** L'URL porte les filtres ; seule la pagination/présentation est locale. */
-export function ListeEnseignants({ enseignants }: { enseignants: LigneEnseignant[] }) {
+export function ListeEnseignants({ enseignants, creationDemandee = false }: { enseignants: LigneEnseignant[]; creationDemandee?: boolean }) {
   const routeur = useRouter();
+  const rechercheParams = useSearchParams();
   const [enCours, demarrer] = useTransition();
-  const [ouvert, setOuvert] = useState(false);
+  const [ouvert, setOuvert] = useState(creationDemandee);
+  useEffect(() => { if (creationDemandee) setOuvert(true); }, [creationDemandee]);
+  function fermerCreation(visible: boolean) {
+    setOuvert(visible);
+    if (!visible && rechercheParams.has("nouveau")) {
+      const q = new URLSearchParams(rechercheParams.toString());
+      q.delete("nouveau");
+      routeur.replace("/dashboard/personnel" + (q.size ? "?" + q.toString() : ""), { scroll: false });
+    }
+  }
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
   const [parPage, setParPage] = useState(10);
   const [page, setPage] = useState(1);
@@ -110,7 +120,7 @@ export function ListeEnseignants({ enseignants }: { enseignants: LigneEnseignant
       });
       if (r.ok) {
         toast.success("Enseignant enregistré.");
-        setOuvert(false);
+        fermerCreation(false);
         routeur.refresh();
       } else {
         setErreurs(r.erreurs ?? {});
@@ -124,35 +134,14 @@ export function ListeEnseignants({ enseignants }: { enseignants: LigneEnseignant
 
   const indicateurs: Array<{titre: string; valeur:number; detail:string; couleur:Couleur; icone:string}> = [
     { titre:"Dossiers enseignants", valeur:total, detail:"Résultats correspondant aux filtres", couleur:"teal", icone:iconPersonnes },
-    { titre:"En activité", valeur:actifs, detail:"Dossiers actuellement actifs", couleur:"green", icone:iconVerif },
-    { titre:"Accès actifs", valeur:comptesActifs, detail:"Comptes pouvant accéder au portail", couleur:"blue", icone:iconCle },
-    { titre:"Sans compte", valeur:sansCompte, detail:"Accès au portail non créé", couleur:"yellow", icone:iconCle },
-    { titre:"Service incomplet", valeur:sousCharges, detail:"Heures affectées inférieures au contrat", couleur:"purple", icone:iconCharge },
+    { titre:"En activité", valeur:actifs, detail:"En activité", couleur:"green", icone:iconVerif },
+    { titre:"Accès actifs", valeur:comptesActifs, detail:"Accès actifs", couleur:"blue", icone:iconCle },
+    { titre:"Sans compte", valeur:sansCompte, detail:"Sans accès", couleur:"yellow", icone:iconCle },
+    { titre:"Service incomplet", valeur:sousCharges, detail:"Charge à compléter", couleur:"purple", icone:iconCharge },
   ];
 
   return (
     <div className="space-y-4">
-      <header aria-label="En-tête de la page Personnel" className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 dark:border-border xl:flex-row xl:items-end xl:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="text-[29px] font-bold leading-tight tracking-tight text-slate-950 dark:text-foreground sm:text-[34px]">Personnel enseignant</h1>
-            <span className="inline-flex items-center rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-sm font-semibold text-emerald-800 tabular-nums dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">{nf(total)} dossiers</span>
-          </div>
-          <p className="mt-1.5 text-sm text-slate-500 dark:text-muted-foreground">Gérez les enseignants, leurs affectations, leur service et l'accès au portail.</p>
-        </div>
-        <div role="group" aria-label="Actions de gestion du personnel" className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <Button variant="outline" asChild className="h-10 gap-2 border-slate-200 bg-white px-3.5 font-semibold shadow-none dark:border-border dark:bg-card">
-            <a href="/api/export/personnel"><Download className="size-4" aria-hidden />Exporter Excel</a>
-          </Button>
-          <Button variant="outline" asChild className="h-10 gap-2 border-slate-200 bg-white px-3.5 font-semibold shadow-none dark:border-border dark:bg-card">
-            <Link href="/dashboard/personnel/importer"><Upload className="size-4" aria-hidden />Importer</Link>
-          </Button>
-          <Button className="h-10 gap-2 bg-emerald-700 px-3.5 font-semibold text-white hover:bg-emerald-800" onClick={() => setOuvert(true)}>
-            <Plus className="size-4" aria-hidden />Nouvel enseignant
-          </Button>
-        </div>
-      </header>
-
       <section className={"gentelella-v4 " + statistiquesStyles.region} aria-label="Indicateurs du personnel enseignant">
         <div className={statistiquesStyles.grid}>
           {indicateurs.map(indicateur => <CarteGentelella key={indicateur.titre} {...indicateur} />)}
@@ -165,7 +154,7 @@ export function ListeEnseignants({ enseignants }: { enseignants: LigneEnseignant
           <strong>À examiner :</strong>
           {sansCompte > 0 ? <span>{nf(sansCompte)} enseignant(s) sans compte d'accès</span> : null}
           {sousCharges > 0 ? <span className="font-medium">· {nf(sousCharges)} service(s) incomplet(s)</span> : null}
-          <span className="text-amber-800/80 dark:text-amber-200">Les données suivent les filtres appliqués.</span>
+          <span className="text-amber-800/80 dark:text-amber-200"></span>
         </section>
       ) : null}
 
@@ -173,7 +162,7 @@ export function ListeEnseignants({ enseignants }: { enseignants: LigneEnseignant
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-border">
           <div>
             <h2 className="text-sm font-semibold text-slate-950 dark:text-foreground">Annuaire des enseignants</h2>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-muted-foreground">{nf(total)} résultat(s) · comptes et service accessibles depuis cette liste</p>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-muted-foreground">{nf(total)} résultat(s)</p>
           </div>
           <NativeSelect value={ordre} onChange={e=>{setOrdre(e.target.value);setPage(1);}} aria-label="Trier les enseignants" className="h-9 w-full max-w-[210px] border-slate-200 bg-white text-xs shadow-none dark:border-border dark:bg-card">
             <option value="nom">Trier par nom</option>
@@ -185,8 +174,7 @@ export function ListeEnseignants({ enseignants }: { enseignants: LigneEnseignant
           <div className="flex flex-col items-center gap-3 px-4 py-14 text-center">
             <Users className="size-9 text-slate-400" aria-hidden/>
             <p className="text-sm font-semibold">Aucun enseignant trouvé</p>
-            <p className="max-w-sm text-xs text-slate-500 dark:text-muted-foreground">Adaptez les filtres ou créez un nouvel enseignant pour commencer.</p>
-            <Button variant="outline" size="sm" onClick={()=>routeur.push("/dashboard/personnel")}>Réinitialiser les filtres</Button>
+                        <Button variant="outline" size="sm" onClick={()=>routeur.push("/dashboard/personnel")}>Réinitialiser les filtres</Button>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -265,14 +253,12 @@ export function ListeEnseignants({ enseignants }: { enseignants: LigneEnseignant
         </footer> : null}
       </section>
 
-      <Dialog open={ouvert} onOpenChange={setOuvert}>
+      <Dialog open={ouvert} onOpenChange={fermerCreation}>
         <DialogContent className="max-h-[90dvh] w-[calc(100vw-2rem)] overflow-y-auto rounded-xl sm:max-w-2xl">
           <form action={soumettre}>
             <DialogHeader>
               <DialogTitle>Nouvel enseignant</DialogTitle>
-              <DialogDescription>
-                Les affectations aux classes et matières se règlent ensuite depuis sa fiche.
-              </DialogDescription>
+              
             </DialogHeader>
 
             <div className="grid gap-4 py-4 sm:grid-cols-2">

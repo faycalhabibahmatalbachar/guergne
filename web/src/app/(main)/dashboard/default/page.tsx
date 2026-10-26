@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { ArrowRight, CalendarDays, CircleDashed, GraduationCap, Plus, Wallet, BellRing, CalendarClock } from "lucide-react";
+import { ArrowRight, CircleDashed, LayoutDashboard, Plus, Wallet, BellRing, CalendarClock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,15 +30,6 @@ import "./gentelella-widgets.css";
 export const metadata: Metadata = { title: "Tableau de bord" };
 export const dynamic = "force-dynamic";
 
-const salutation = () => {
-  const h = Number(new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Africa/Ndjamena", hour: "2-digit", hourCycle: "h23",
-  }).format(new Date()));
-  if (h < 12) return "Bonjour";
-  if (h < 18) return "Bon après-midi";
-  return "Bonsoir";
-};
-
 export default async function PageTableauDeBord() {
   const acteur = await exigerSession();
   const [stats, droitsUtilisateur] = await Promise.all([
@@ -65,7 +56,7 @@ export default async function PageTableauDeBord() {
       <div className="space-y-6">
         <div>
           <h1 className="font-semibold text-2xl tracking-tight">
-            {salutation()}, {acteur.prenom}.
+            Bienvenue.
           </h1>
           <p className="mt-1 text-muted-foreground text-sm">
             Aucune année scolaire n&apos;est encore configurée.
@@ -146,24 +137,31 @@ export default async function PageTableauDeBord() {
 
   return (
     <main className="gentelella-v4 min-w-0 pb-6" data-skin="gentelella-v4">
-      <div className="page-header">
-        <div className="page-header-row">
-          <div>
-            <div className="page-pretitle">Administration / Vue d'ensemble</div>
-            <h1 className="page-title">Tableau de bord</h1>
-            <p className="lgr-meta">{salutation()}, {acteur.prenom}. {dateTchad} · Année {stats.annee.libelle}{stats.periode ? " · "+stats.periode.libelle : ""}</p>
-            {anneeTerminee ? <div role="status" className="lgr-soft-warning" style={{margin:"8px 0 0"}}>
-              L'année scolaire active est terminée selon sa configuration. Vérifiez l'année courante.
-            </div> : null}
-          </div>
-          <div className="page-actions">
-            {droits.has("message:envoyer") ? <Link href="/dashboard/communication" className="btn btn-outline"><BellRing className="lgr-icon" aria-hidden/>Communiquer</Link> : null}
-            {droits.has("finance:encaisser") ? <Link href="/dashboard/finances" className="btn btn-outline"><Wallet className="lgr-icon" aria-hidden/>Encaissements</Link> : null}
-            {droits.has("eleve:inscrire") ? <Link href="/dashboard/eleves?inscription=1" className="btn btn-primary"><Plus className="lgr-icon" aria-hidden/>Inscrire un élève</Link> :
-             droits.has("emploi_du_temps:lire") ? <Link href="/dashboard/emploi-du-temps" className="btn btn-outline"><CalendarClock className="lgr-icon" aria-hidden/>Emploi du temps</Link> : null}
-          </div>
+      <header aria-label="En-tête du tableau de bord" className="mb-5 flex flex-col gap-4 border-b border-slate-200/80 pb-5 xl:flex-row xl:items-end xl:justify-between dark:border-border">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2.5 text-[29px] font-bold leading-tight tracking-tight text-slate-950 dark:text-foreground sm:text-[34px]">
+            <LayoutDashboard className="size-7 shrink-0 text-[#102448] dark:text-foreground" aria-hidden />
+            Tableau de bord
+          </h1>
+          <p className="mt-1.5 text-sm text-slate-500 dark:text-muted-foreground">
+            {dateTchad} · {stats.annee.libelle}{stats.periode ? " · " + stats.periode.libelle : ""}
+          </p>
+          {anneeTerminee ? <p role="status" className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">Année scolaire à vérifier.</p> : null}
         </div>
-      </div>
+        <div role="group" aria-label="Actions du tableau de bord" className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+          {droits.has("message:envoyer") ? <Button asChild variant="outline" className="h-10 gap-2 rounded-lg border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 dark:border-border dark:bg-card dark:text-foreground">
+            <Link href="/dashboard/communication"><BellRing className="size-4 shrink-0" aria-hidden />Messages</Link>
+          </Button> : null}
+          {droits.has("finance:encaisser") ? <Button asChild variant="outline" className="h-10 gap-2 rounded-lg border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 dark:border-border dark:bg-card dark:text-foreground">
+            <Link href="/dashboard/finances"><Wallet className="size-4 shrink-0" aria-hidden />Finances</Link>
+          </Button> : null}
+          {droits.has("eleve:inscrire") ? <Button asChild className="h-10 gap-2 rounded-lg bg-emerald-700 px-3.5 font-semibold text-white shadow-none hover:bg-emerald-800">
+            <Link href="/dashboard/eleves?inscription=1"><Plus className="size-4 shrink-0" aria-hidden />Inscrire un élève</Link>
+          </Button> : droits.has("emploi_du_temps:lire") ? <Button asChild variant="outline" className="h-10 gap-2 rounded-lg border-slate-200 bg-white px-3.5 shadow-none dark:border-border dark:bg-card">
+            <Link href="/dashboard/emploi-du-temps"><CalendarClock className="size-4 shrink-0" aria-hidden />Emploi du temps</Link>
+          </Button> : null}
+        </div>
+      </header>
 
       <Pilotage
         indicateurs={indicateurs}
@@ -179,10 +177,9 @@ export default async function PageTableauDeBord() {
       {acces.notes ? <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-base font-semibold">Détail des résultats par classe</h2>
-            <p className="text-xs text-slate-500 dark:text-muted-foreground">Comparaison exhaustive des classes, sans doublon dans la synthèse.</p>
+            <h2 className="text-base font-semibold">Résultats par classe</h2>
           </div>
-          <Button asChild variant="outline" size="sm"><Link href="/dashboard/notes">Ouvrir les notes<ArrowRight className="ml-1 size-3.5" aria-hidden /></Link></Button>
+          <Button asChild variant="outline" size="sm"><Link href="/dashboard/notes">Notes<ArrowRight className="ml-1 size-3.5" aria-hidden /></Link></Button>
         </div>
         <ClassementClasses lignes={classement} />
       </section> : null}

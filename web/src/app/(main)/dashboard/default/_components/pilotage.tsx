@@ -9,6 +9,7 @@ import {
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { statTile, statusBadge, visitorRow } from "@/vendor/gentelella-v4/markup.js";
 import { formaterFcfa } from "@/lib/finances-format";
+import { Button } from "@/components/ui/button";
 import type {
   Alerte, IndicateursCles, PointClasse, PointMatiere, PointMois, PointNiveau, PointRecouvrement,
 } from "@/server/domain/pilotage";
@@ -102,8 +103,8 @@ export function Pilotage({ indicateurs: i, niveaux, absences, classes, matieres,
             {vue === "finances" && totalEncaisse !== null ? <div className="chart-stat">{formaterFcfa(totalEncaisse)}</div> : null}
           </div>
           <div className="chart-tabs" role="tablist" aria-label="Données présentées">
-            {acces.eleves ? <button type="button" role="tab" aria-selected={vue==="effectifs"} className={"chart-tab"+(vue==="effectifs"?" active":"")} onClick={()=>setGraphique("effectifs")}>Effectifs</button> : null}
-            {acces.finances ? <button type="button" role="tab" aria-selected={vue==="finances"} className={"chart-tab"+(vue==="finances"?" active":"")} onClick={()=>setGraphique("finances")}>Finances</button> : null}
+            {acces.eleves ? <button type="button" role="tab" aria-selected={vue==="effectifs"} className={"chart-tab rounded-lg px-3 py-1.5"+(vue==="effectifs"?" active":"")} onClick={()=>setGraphique("effectifs")}>Effectifs</button> : null}
+            {acces.finances ? <button type="button" role="tab" aria-selected={vue==="finances"} className={"chart-tab rounded-lg px-3 py-1.5"+(vue==="finances"?" active":"")} onClick={()=>setGraphique("finances")}>Finances</button> : null}
           </div>
         </div>
         <div className="chart-area">
@@ -159,7 +160,7 @@ export function Pilotage({ indicateurs: i, niveaux, absences, classes, matieres,
       {acces.notes ? <div className="card">
         <div className="card-header">
           <div><div className="card-title">Classement scolaire</div><div className="card-subtitle">Les cinq premières classes évaluées</div></div>
-          <Link href="/dashboard/notes" className="btn btn-outline btn-sm">Voir les notes <ArrowRight className="lgr-icon" aria-hidden/></Link>
+          <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg border-slate-200 bg-white px-3 text-slate-700 shadow-none dark:border-border dark:bg-card dark:text-foreground"><Link href="/dashboard/notes">Notes <ArrowRight className="size-3.5" aria-hidden/></Link></Button>
         </div>
         {classement.length ? <div className="table-responsive"><table className="table">
           <thead><tr><th>Classe</th><th>Effectif</th><th>Moyenne /20</th><th>Réussite</th></tr></thead>

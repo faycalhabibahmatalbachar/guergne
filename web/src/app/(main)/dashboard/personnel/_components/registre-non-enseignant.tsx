@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Copy, KeyRound, Pencil, Plus, Search, ShieldCheck, ShieldOff, Users, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,7 +20,7 @@ import {
   creerComptePersonnel, gererComptePersonnel,
 } from "../actions-non-enseignants";
 
-type Props={personnels:LignePersonnelNonEnseignant[];categorie:CategoriePersonnel;peutGererRoles:boolean};
+type Props={personnels:LignePersonnelNonEnseignant[];categorie:CategoriePersonnel;peutGererRoles:boolean;creationDemandee?:boolean};
 type Couleur="teal"|"blue"|"green"|"yellow"|"red"|"purple";
 type Carte={titre:string;valeur:number;detail:string;couleur:Couleur;icone:string};
 const svgUsers='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>';
@@ -39,14 +39,23 @@ function StatPersonnel({titre,valeur,detail,couleur,icone}:Carte){
 }
 function nomComplet(p:LignePersonnelNonEnseignant){return p.prenom+" "+p.nom;}
 
-export function RegistrePersonnelNonEnseignant({personnels,categorie,peutGererRoles}:Props){
+export function RegistrePersonnelNonEnseignant({personnels,categorie,peutGererRoles,creationDemandee=false}:Props){
   const routeur=useRouter();
+  const rechercheParams=useSearchParams();
   const [enCours,demarrer]=useTransition();
   const [recherche,setRecherche]=useState("");
   const [etat,setEtat]=useState("TOUS");
   const [page,setPage]=useState(1);
   const [parPage,setParPage]=useState(10);
-  const [edition,setEdition]=useState<LignePersonnelNonEnseignant|null|undefined>(undefined);
+  const [edition,setEdition]=useState<LignePersonnelNonEnseignant|null|undefined>(creationDemandee?null:undefined);
+  useEffect(()=>{if(creationDemandee)setEdition(null);},[creationDemandee]);
+  function fermerFiche(){
+    setEdition(undefined);setErreurs({});
+    if(rechercheParams.has("nouveau")){
+      const q=new URLSearchParams(rechercheParams.toString());q.delete("nouveau");
+      routeur.replace("/dashboard/personnel"+(q.size?"?"+q.toString():""),{scroll:false});
+    }
+  }
   const [cibleCompte,setCibleCompte]=useState<LignePersonnelNonEnseignant|null>(null);
   const [motDePasse,setMotDePasse]=useState<string|null>(null);
   const [role,setRole]=useState("SECRETARIAT");
@@ -58,11 +67,11 @@ export function RegistrePersonnelNonEnseignant({personnels,categorie,peutGererRo
   const nbSansCompte=personnels.filter(p=>!p.utilisateurId).length;
   const nbServices=new Set(personnels.map(p=>p.service?.trim()).filter(Boolean)).size;
   const statistiques:Carte[]=[
-    {titre:"Dossiers "+libelle+"s",valeur:personnels.length,detail:"Personnes enregistrées",couleur:"teal",icone:svgUsers},
+    {titre:"Dossiers "+libelle+"s",valeur:personnels.length,detail:"Effectif",couleur:"teal",icone:svgUsers},
     {titre:"En activité",valeur:nbActifs,detail:"Dossiers actifs",couleur:"green",icone:svgCheck},
-    {titre:"Hors activité",valeur:personnels.length-nbActifs,detail:"Dossiers désactivés",couleur:"yellow",icone:svgWork},
-    {titre:"Services représentés",valeur:nbServices,detail:"Services renseignés",couleur:"blue",icone:svgWork},
-    {titre:categorie==="ADMINISTRATIF"?"Comptes actifs":"Sans compte portail",valeur:categorie==="ADMINISTRATIF"?nbComptes:nbSansCompte,detail:categorie==="ADMINISTRATIF"?"Accès au portail en service":"Aucun accès créé automatiquement",couleur:"purple",icone:svgKey},
+    {titre:"Hors activité",valeur:personnels.length-nbActifs,detail:"Inactifs",couleur:"yellow",icone:svgWork},
+    {titre:"Services représentés",valeur:nbServices,detail:"Services",couleur:"blue",icone:svgWork},
+    {titre:categorie==="ADMINISTRATIF"?"Comptes actifs":"Sans compte portail",valeur:categorie==="ADMINISTRATIF"?nbComptes:nbSansCompte,detail:categorie==="ADMINISTRATIF"?"Comptes actifs":"Sans accès",couleur:"purple",icone:svgKey},
   ];
   const visibles=personnels.filter(p=>{
     const texte=[p.nom,p.prenom,p.matricule,p.fonction,p.service,p.telephone].join(" ").toLocaleLowerCase("fr");
@@ -79,7 +88,7 @@ export function RegistrePersonnelNonEnseignant({personnels,categorie,peutGererRo
     demarrer(async()=>{
       const r=identifiant?await modifierPersonnelNonEnseignant(identifiant,v):await creerPersonnelNonEnseignant(v);
       if(!r.ok){setErreurs(r.erreurs||{});toast.error(r.message||"Enregistrement impossible.");return;}
-      toast.success(r.message||"Enregistré.");setEdition(undefined);setErreurs({});routeur.refresh();
+      toast.success(r.message||"Enregistré.");fermerFiche();routeur.refresh();
     });
   }
   function gererEtat(){
@@ -113,19 +122,11 @@ export function RegistrePersonnelNonEnseignant({personnels,categorie,peutGererRo
     setCibleCompte(p);setMotDePasse(null);setRole("SECRETARIAT");
   };
   return <div className="space-y-4">
-    <header className="flex flex-col gap-3 border-b border-slate-200/80 pb-5 dark:border-border md:flex-row md:items-end md:justify-between">
-      <div><div className="flex flex-wrap items-center gap-2.5">
-        <h1 className="text-[29px] font-bold tracking-tight sm:text-[34px]">Personnel {libelle}</h1>
-        <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-sm font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">{nombre(personnels.length)} dossiers</span>
-      </div>
-      <p className="mt-1 text-sm text-slate-500 dark:text-muted-foreground">Gérez les fonctions, services et accès des agents {libelle}s.</p></div>
-      <Button onClick={()=>{setEdition(null);setErreurs({});}} className="h-10 gap-2 bg-emerald-700 text-white hover:bg-emerald-800"><Plus className="size-4"/>Ajouter un agent</Button>
-    </header>
     <section className={"gentelella-v4 "+statistiquesStyles.region} aria-label={"Statistiques du personnel "+libelle}>
       <div className={statistiquesStyles.grid}>{statistiques.map(k=><StatPersonnel key={k.titre} {...k}/>)}</div>
     </section>
     {categorie==="TECHNIQUE" ? <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-border dark:bg-muted/40 dark:text-muted-foreground">
-      <ShieldCheck className="mr-2 inline size-4 text-emerald-700" aria-hidden/>Les agents techniques disposent de dossiers RH, sans accès automatique aux notes, aux finances ou à l'administration. Aucun rôle technique dédié n'existe encore dans la matrice des permissions.
+      <ShieldCheck className="mr-2 inline size-4 text-emerald-700" aria-hidden/>Aucun accès au portail attribué automatiquement.
     </p> : null}
     <section aria-label="Filtres et recherche" className="flex flex-wrap gap-2 rounded-xl border border-slate-200/80 bg-white p-3 dark:border-border dark:bg-card">
       <div className="relative min-w-[200px] flex-[1_1_260px]"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden/>
@@ -139,11 +140,11 @@ export function RegistrePersonnelNonEnseignant({personnels,categorie,peutGererRo
     <section aria-label="Annuaire du personnel non enseignant" className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-border dark:bg-card">
       <div className="flex items-center justify-between gap-2 border-b border-slate-100 p-4 dark:border-border">
         <div><h2 className="text-sm font-semibold">Annuaire {libelle}</h2><p className="text-xs text-slate-500">{nombre(visibles.length)} résultat(s)</p></div>
-        <span className="text-xs text-slate-500">Dossiers nominatifs</span>
+        
       </div>
       {visibles.length===0?<div className="flex flex-col items-center justify-center gap-2 px-4 py-14 text-center">
         <Users className="size-9 text-slate-300" aria-hidden/><p className="font-semibold">Aucun dossier trouvé</p>
-        <p className="text-xs text-slate-500">Ajoutez un agent ou ajustez les filtres.</p>
+        <p className="text-xs text-slate-500">Modifiez les filtres ou ajoutez un agent.</p>
       </div>:<div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-left text-[13px]">
           <thead className="bg-slate-50 text-xs text-slate-500 dark:bg-muted/40">
@@ -160,12 +161,12 @@ export function RegistrePersonnelNonEnseignant({personnels,categorie,peutGererRo
             <td className="px-3 py-3">{categorie==="ADMINISTRATIF" ? (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-slate-500">{p.utilisateurId?(p.compteActif?(p.roleCompte||"Actif"):"Désactivé"):"Sans compte"}</span>
-                {(!p.utilisateurId||roleAttribuable(p))?<Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={()=>ouvrirCompte(p)}><KeyRound className="size-3.5"/>Gérer</Button>:null}
+                {(!p.utilisateurId||roleAttribuable(p))?<Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg" onClick={()=>ouvrirCompte(p)}><KeyRound className="size-3.5"/>Gérer</Button>:null}
               </div>
             ):<span className="text-xs text-slate-500">Non attribué</span>}</td>
             <td className="px-4 py-3"><div className="flex justify-end gap-1.5">
               <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={()=>{setEdition(p);setErreurs({});}}><Pencil className="size-3.5"/>Modifier</Button>
-              <Button size="sm" variant="outline" className="h-8" onClick={()=>setCibleEtat(p)}>{p.actif?"Désactiver":"Réactiver"}</Button>
+              <Button size="sm" variant="outline" className="h-8 rounded-lg" onClick={()=>setCibleEtat(p)}>{p.actif?"Désactiver":"Réactiver"}</Button>
             </div></td>
           </tr>)}</tbody>
         </table>
@@ -175,17 +176,17 @@ export function RegistrePersonnelNonEnseignant({personnels,categorie,peutGererRo
           <NativeSelect className="h-9 w-20" value={String(parPage)} onChange={e=>{setParPage(Number(e.target.value));setPage(1);}} aria-label="Lignes par page">{[10,25,50,100].map(n=><option key={n} value={n}>{n}</option>)}</NativeSelect>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="icon" variant="outline" className="size-9" aria-label="Page précédente" disabled={pageVisible===1} onClick={()=>setPage(pageVisible-1)}><ChevronLeft className="size-4"/></Button>
+          <Button size="icon" variant="outline" className="size-9 rounded-lg" aria-label="Page précédente" disabled={pageVisible===1} onClick={()=>setPage(pageVisible-1)}><ChevronLeft className="size-4"/></Button>
           <span>Page {pageVisible} / {nbPages}</span>
           <Button size="icon" variant="outline" className="size-9" aria-label="Page suivante" disabled={pageVisible===nbPages} onClick={()=>setPage(pageVisible+1)}><ChevronRight className="size-4"/></Button>
         </div>
       </div>:null}
     </section>
 
-    <Dialog open={edition!==undefined} onOpenChange={o=>{if(!o){setEdition(undefined);setErreurs({});}}}>
+    <Dialog open={edition!==undefined} onOpenChange={o=>{if(!o)fermerFiche();}}>
       <DialogContent className="max-h-[90dvh] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader><DialogTitle>{edition?"Modifier le dossier":"Ajouter un agent "+libelle}</DialogTitle>
-          <DialogDescription>Un dossier RH ne crée aucun droit d'accès. La création d'un compte est une action distincte.</DialogDescription></DialogHeader>
+          </DialogHeader>
         <form key={edition?.id||"nouveau"} action={soumettre} className="space-y-4">
           <input type="hidden" name="categorie" value={categorie}/>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -204,7 +205,7 @@ export function RegistrePersonnelNonEnseignant({personnels,categorie,peutGererRo
               {erreursChamp("observations")}
             </div>
           </div>
-          <DialogFooter><Button type="button" variant="outline" onClick={()=>setEdition(undefined)}>Annuler</Button>
+          <DialogFooter><Button type="button" variant="outline" onClick={fermerFiche}>Annuler</Button>
             <Button type="submit" disabled={enCours}>{enCours?"Enregistrement…":"Enregistrer le dossier"}</Button>
           </DialogFooter>
         </form>
@@ -212,7 +213,7 @@ export function RegistrePersonnelNonEnseignant({personnels,categorie,peutGererRo
     </Dialog>
 
     <Dialog open={Boolean(cibleEtat)} onOpenChange={o=>{if(!o)setCibleEtat(null);}}>
-      <DialogContent className="sm:max-w-md"><DialogHeader>
+      <DialogContent className="rounded-xl sm:max-w-md"><DialogHeader>
         <DialogTitle>{cibleEtat?.actif?"Désactiver":"Réactiver"} le dossier</DialogTitle>
         <DialogDescription>Confirmer le changement d'état de {cibleEtat?nomComplet(cibleEtat):"cet agent"}.
           {cibleEtat?.actif&&cibleEtat.utilisateurId?" Son compte d'accès sera désactivé et ses sessions seront fermées.":""}
