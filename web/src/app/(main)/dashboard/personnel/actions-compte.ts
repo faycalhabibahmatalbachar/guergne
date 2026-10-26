@@ -52,14 +52,8 @@ export interface ResultatCompte {
   motDePasse?: string;
 }
 
-const ROLES_AUTORISES = [
-  "ENSEIGNANT",
-  "SURVEILLANT",
-  "SECRETARIAT",
-  "COMPTABLE",
-  "CENSEUR",
-  "DIRECTION",
-] as const;
+// Interdit d'attribuer un rôle administratif depuis une fiche professeur.
+const ROLES_AUTORISES = ["ENSEIGNANT"] as const;
 
 const schema = z.object({
   enseignantId: z.string().uuid(),

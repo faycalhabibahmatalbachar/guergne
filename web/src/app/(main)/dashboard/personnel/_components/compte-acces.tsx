@@ -43,14 +43,9 @@ import {
  * la fenêtre et rappelle le lendemain.
  */
 
-const ROLES: Array<[string, string]> = [
-  ["ENSEIGNANT", "Enseignant"],
-  ["SURVEILLANT", "Surveillant"],
-  ["SECRETARIAT", "Secrétariat"],
-  ["COMPTABLE", "Comptable"],
-  ["CENSEUR", "Censeur"],
-  ["DIRECTION", "Direction"],
-];
+// Les dossiers enseignants ne confèrent que le rôle Enseignant.
+ // Le personnel administratif a désormais son propre registre et ses permissions.
+const ROLES: Array<[string, string]> = [["ENSEIGNANT", "Enseignant"]];
 
 const LIBELLE_ROLE = Object.fromEntries(ROLES);
 
@@ -164,7 +159,7 @@ export function CompteAcces({
             </DialogTitle>
             <DialogDescription>
               {motDePasse
-                ? "Notez-le maintenant : il ne sera plus jamais affiché. L'enseignant devra le remplacer à sa première connexion."
+                ? "Notez-le maintenant : il ne sera plus jamais affiché. Il devra être changé à la première connexion."
                 : "L'identifiant sera son numéro de téléphone, ou son e-mail s'il en a un."}
             </DialogDescription>
           </DialogHeader>
@@ -201,9 +196,7 @@ export function CompteAcces({
                 ))}
               </NativeSelect>
               <p className="text-muted-foreground text-xs">
-                Le rôle décide de ce que la personne voit et peut faire. Il n&apos;y a pas
-                d&apos;administrateur général dans cette liste : donner les pleins pouvoirs en
-                créant une fiche professeur est une erreur qui ne se remarque jamais.
+                Le rôle Enseignant est réservé aux dossiers pédagogiques. Pour attribuer un rôle administratif, créez une fiche dans l’onglet Administratif.
               </p>
             </div>
           )}
