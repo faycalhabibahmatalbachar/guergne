@@ -1,5 +1,6 @@
 /* Gentelella v4.2.0 ORIGINAL src/scss/v4/_components.scss, MIT.
- CSS-native selectors scoped to the dashboard. Original unchanged in vendor. */
+ Source preserved unchanged in src/vendor/gentelella-v4.
+ Compiled as native CSS with comments removed outside quoted URL strings. */
 @scope (.gentelella-v4) {
 
 
@@ -1102,7 +1103,7 @@ body.modal-open { overflow: hidden; }
 .stepper .step.done .num::after {
   content: '';
   width: 14px; height: 14px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http:
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5'%3E%3Cpath d='M3 8l3 3 7-7'/%3E%3C/svg%3E") center/14px no-repeat;
   position: absolute;
 }
 .stepper .step.done .num span { display: none; }
