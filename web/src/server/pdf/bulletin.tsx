@@ -244,11 +244,11 @@ function Cellule({
             </View>
           </View>
           <View style={s.identiteRangee}>
-            <View style={[s.identiteCase, { width: "24%", borderRightWidth: 0 }]}>
-              <Text style={[s.identiteLibelle, s.identiteCentre]}>Matricule :</Text>
+            <View style={[s.identiteCase, { width: "24%", borderRightWidth: 0, paddingRight: 1 }]}>
+              <Text style={[s.identiteLibelle, { textAlign: "right" }]}>Matricule :</Text>
             </View>
-            <View style={[s.identiteCase, { width: "12%" }]}>
-              <Text style={[s.identiteValeur, s.identiteCentre]}>{identite.matricule}</Text>
+            <View style={[s.identiteCase, { width: "12%", paddingLeft: 1 }]}>
+              <Text style={[s.identiteValeur, { textAlign: "left" }]}>{identite.matricule}</Text>
             </View>
             <View style={[s.identiteCase, { width: "35%" }]}>
               <Text style={s.identiteCentre}><Text style={s.identiteLibelle}>Statut : </Text><Text style={s.identiteValeur}>{identite.statut}</Text></Text>
