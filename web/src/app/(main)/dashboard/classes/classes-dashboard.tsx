@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight, BarChart3, BellRing, BookOpen, CalendarDays, Check, ChevronDown,
   Ellipsis, GraduationCap, Grid2X2, List, Mail, MoreHorizontal,
@@ -176,6 +176,8 @@ function ClasseCarte({ classe, index, peutModifier, peutVoirPersonnel, peutNotif
 
 export function ClassesDashboard({ annee, annees, classes, niveaux, series, enseignants, peutCreer, peutModifier, peutVoirPersonnel, peutNotifier, peutImprimer }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const modifierDemande = searchParams.get("modifier");
   const [recherche, setRecherche] = useState("");
   const [niveau, setNiveau] = useState("tous");
   const [statut, setStatut] = useState("tous");
@@ -200,6 +202,22 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
   }), [classes, recherche, niveau, statut]);
 
   const peutEditerCetteAnnee = annee.estCourante && !annee.estCloturee;
+  // Un bouton Modifier de la fiche de classe ouvre directement le formulaire
+  // existant, sans dupliquer sa logique ni changer ses contrôles serveur.
+  useEffect(() => {
+    if (!modifierDemande || !peutModifier || !peutEditerCetteAnnee) return;
+    const cible = classes.find(c => c.id === modifierDemande);
+    if (!cible) return;
+    setErreurs({});
+    setForm({
+      id: cible.id, niveauId: cible.niveauId, serieId: cible.serieId ?? "",
+      libelle: cible.libelle, code: cible.code, capaciteMax: String(cible.capaciteMax),
+    });
+  }, [modifierDemande, peutModifier, peutEditerCetteAnnee, classes]);
+  function fermerFormulaire() {
+    setForm(null);
+    if (modifierDemande) router.replace("/dashboard/classes?annee=" + encodeURIComponent(annee.id), { scroll: false });
+  }
   function basculerSelection(id: string) { setSelection(l => l.includes(id) ? l.filter(v => v !== id) : [...l, id]); }
   function ouvrirEleves(ids: string[]) { setTiroirInitial(ids); setTiroirOuvert(true); }
   const visiblesToutesSelectionnees = visible.length > 0 && visible.every(c => selection.includes(c.id));
@@ -230,7 +248,7 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
         const res = form.id ? await modifierClasse(form.id, payload) : await creerClasse(payload);
         if (res.ok) {
           toast.success(form.id ? "Classe mise à jour." : "Classe créée.");
-          setForm(null);
+          fermerFormulaire();
           router.refresh();
         } else {
           setErreurs(res.erreurs ?? {});
@@ -337,7 +355,7 @@ export function ClassesDashboard({ annee, annees, classes, niveaux, series, ense
       <p className="text-right text-xs text-slate-500 dark:text-slate-400">{etiquette(visible.length, "classe affichée", "classes affichées")} sur {classes.length}</p>
       <ElevesClassesTiroir ouvert={tiroirOuvert} surFermeture={() => setTiroirOuvert(false)} anneeId={annee.id} anneeLibelle={annee.libelle} classes={classes} initiales={tiroirInitial} peutImprimer={peutImprimer} />
 
-      <Dialog open={form !== null} onOpenChange={(open) => { if (!open && !enCours) setForm(null); }}>
+      <Dialog open={form !== null} onOpenChange={(open) => { if (!open && !enCours) fermerFormulaire(); }}>
         <DialogContent className="flex h-[min(92dvh,840px)] w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl sm:max-w-[min(850px,calc(100vw-2.5rem))] dark:border-slate-700 dark:bg-slate-900">
           <DialogHeader className="shrink-0 border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-white px-5 py-4 pr-14 dark:border-slate-800 dark:from-blue-950/40 dark:via-slate-900 dark:to-slate-900 sm:px-6">
             <div className="mb-1 flex items-center gap-3">
