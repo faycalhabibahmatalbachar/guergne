@@ -58,6 +58,14 @@ interface LignePolitique extends Record<string, unknown> {
   politique: string;
 }
 
+interface LigneMessageContact extends Record<string, unknown> {
+  utilisateurId: string | null;
+  compteActif: boolean;
+  telephone: string | null;
+  accepteSms: boolean;
+  pushDisponible: boolean;
+}
+
 const POLITIQUE_PAR_DEFAUT: PolitiqueCanal = "PUSH_SINON_SMS";
 
 async function politiquePour(
@@ -185,7 +193,7 @@ export async function planifierMessage(
   executor: Executor = db,
 ): Promise<PlanDiffusion> {
   const politique = await politiquePour(executor, "AUTRE");
-  const resultat = await executor.execute<Omit<LigneContact, "eleveId" | "politique">>(sql`
+  const resultat = await executor.execute<LigneMessageContact>(sql`
     SELECT
       t.utilisateur_id::text AS "utilisateurId",
       COALESCE(u.actif, FALSE) AS "compteActif",
