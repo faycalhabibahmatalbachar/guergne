@@ -121,34 +121,57 @@ export interface EtatFile {
   smsEnAttente: number;
   smsSegmentsEstimes: number;
   coutSmsEstime: number;
+  parCanal: Array<{
+    canal: "PUSH" | "SMS";
+    enAttente: number;
+    envoyees: number;
+    echouees: number;
+  }>;
 }
-
 /** L’estimation tient compte de l’alphabet et du nombre de segments SMS. */
 export async function etatFileNotifications(): Promise<EtatFile> {
-  const [enAttente, envoyees, echouees, pushEnAttente, smsLignes] = await Promise.all([
-    db.select({ n: count() }).from(notifications).where(eq(notifications.statut, "EN_ATTENTE")),
-    db.select({ n: count() }).from(notifications).where(eq(notifications.statut, "ENVOYE")),
-    db.select({ n: count() }).from(notifications).where(eq(notifications.statut, "ECHOUE")),
-    db.select({ n: count() }).from(notifications).where(and(
-      eq(notifications.statut, "EN_ATTENTE"), eq(notifications.canal, "PUSH"),
-    )),
-    db.select({ titre: notifications.titre, corps: notifications.corps }).from(notifications).where(and(
-      eq(notifications.statut, "EN_ATTENTE"), eq(notifications.canal, "SMS"),
-    )),
+  // La boîte interne (IN_APP) n'est pas une ligne à expédier par push/SMS.
+  const [statuts, smsLignes] = await Promise.all([
+    db.execute<Record<string, unknown> & { canal: string; statut: string; total: number }>(sql`
+      SELECT canal::text, statut::text, count(*)::int AS total
+        FROM notifications
+       WHERE canal IN ('PUSH'::canal_notification, 'SMS'::canal_notification)
+       GROUP BY canal, statut
+    `),
+    db.select({ titre: notifications.titre, corps: notifications.corps })
+      .from(notifications)
+      .where(and(
+        eq(notifications.statut, "EN_ATTENTE"),
+        eq(notifications.canal, "SMS"),
+      )),
   ]);
+
+  const parCanal = (["PUSH", "SMS"] as const).map((canal) => {
+    const compter = (statut: string) => Number(
+      statuts.rows.find((ligne) => ligne.canal === canal && ligne.statut === statut)?.total ?? 0,
+    );
+    return {
+      canal,
+      enAttente: compter("EN_ATTENTE"),
+      envoyees: compter("ENVOYE"),
+      echouees: compter("ECHOUE"),
+    };
+  });
   const signature = signatureSms();
   const smsSegmentsEstimes = smsLignes.reduce((total, ligne) => {
     const texte = ligne.titre + "\n" + ligne.corps;
     return total + segmentsSms(texte.startsWith(signature) ? texte : signature + texte);
   }, 0);
+
   return {
-    enAttente: Number(enAttente[0]?.n ?? 0),
-    envoyees: Number(envoyees[0]?.n ?? 0),
-    echouees: Number(echouees[0]?.n ?? 0),
-    pushEnAttente: Number(pushEnAttente[0]?.n ?? 0),
-    smsEnAttente: smsLignes.length,
+    enAttente: parCanal.reduce((total, ligne) => total + ligne.enAttente, 0),
+    envoyees: parCanal.reduce((total, ligne) => total + ligne.envoyees, 0),
+    echouees: parCanal.reduce((total, ligne) => total + ligne.echouees, 0),
+    pushEnAttente: parCanal.find((ligne) => ligne.canal === "PUSH")?.enAttente ?? 0,
+    smsEnAttente: parCanal.find((ligne) => ligne.canal === "SMS")?.enAttente ?? 0,
     smsSegmentsEstimes,
     coutSmsEstime: smsSegmentsEstimes * COUT_SMS_FCFA,
+    parCanal,
   };
 }
 
