@@ -6,9 +6,10 @@ import { sql } from "drizzle-orm";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { sessionCourante } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { genererDatesCalendrier } from "@/server/domain/calendrier-scolaire";
-import { exigerPage } from "@/server/guard";
+import { exigerPage, peut } from "@/server/guard";
 
 import { VueCalendrierAnnuel } from "./vue";
 
@@ -43,7 +44,9 @@ export default async function PageCalendrierAnnuel({
   searchParams: Promise<{ annee?: string }>;
 }) {
   await exigerPage("emploi_du_temps:lire");
+  const principal = await sessionCourante();
   const params = await searchParams;
+  const peutGerer = await peut(principal, "emploi_du_temps:gerer");
 
   const anneesResultat = await db.execute<AnneeLigne>(sql`
     SELECT id, libelle, date_debut::text, date_fin::text, est_courante
@@ -159,6 +162,8 @@ export default async function PageCalendrierAnnuel({
       </Card>
 
       <VueCalendrierAnnuel
+        anneeId={annee.id}
+        peutGerer={peutGerer}
         anneeLibelle={annee.libelle}
         dateDebut={annee.date_debut}
         dateFin={annee.date_fin}
