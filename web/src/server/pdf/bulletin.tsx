@@ -9,6 +9,7 @@ import { join } from "node:path";
 type Style = ReturnType<typeof StyleSheet.create>[string];
 
 const LOGO_ETABLISSEMENT = join(process.cwd(), "public", "logo-officiel.png");
+const FOND_BULLETIN = join(process.cwd(), "public", "filigrane-gr.jpg");
 
 import type { Etablissement } from "./gabarit";
 
@@ -47,6 +48,7 @@ import type { Etablissement } from "./gabarit";
 
 const s = StyleSheet.create({
   page: { paddingTop: 25, paddingBottom: 54, paddingHorizontal: 36.8, fontSize: 12, fontFamily: "Times-Roman", color: "#111111" },
+  fondBulletin: { position: "absolute", top: 245, left: 92, width: 410, height: 346 },
   entete: { flexDirection: "row", height: 70.5, alignItems: "center", justifyContent: "flex-start", marginBottom: 0 },
   enteteInstitution: { width: "43%", justifyContent: "center", alignItems: "flex-start" },
   enteteLigne: { fontSize: 12, lineHeight: 1.18, color: "#111111" },
@@ -74,6 +76,7 @@ const s = StyleSheet.create({
   cel: { paddingVertical: 3.4, paddingHorizontal: 2, borderRightWidth: 0.4, borderRightColor: "#111111" },
   celEntete: { paddingVertical: 5.0, paddingHorizontal: 2 },
   celLigneRenforcee: { paddingVertical: 6.2 },
+  celSansBordureVerticale: { borderRightWidth: 0 },
   totalFort: { fontSize: 14, fontFamily: "Times-Bold" },
   celFin: { borderRightWidth: 0 },
   gras: { fontFamily: "Times-Bold" },
@@ -211,7 +214,8 @@ function Cellule({
       author={d.etablissement.nom}
     >
       <Page size="A4" style={s.page} wrap={false}>
-                <View style={s.entete}>
+        <Image src={FOND_BULLETIN} style={s.fondBulletin} />
+        <View style={s.entete}>
           <View style={s.enteteInstitution}>
             <Text style={s.enteteLigneGrasse}>République du Tchad</Text>
             <Text style={s.enteteLigne}>Lycée Guergné : la Renaissance</Text>
@@ -307,10 +311,10 @@ function Cellule({
                 additionner.
               */}
               <View style={s.ligneGroupe}>
-                <Cellule largeur={s.cTitreBloc} cellStyle={s.celLigneRenforcee} style={s.gras}>{bloc.titre}</Cellule>
-                <Cellule largeur={s.cCoeff} cellStyle={s.celLigneRenforcee} style={[s.centre, s.gras]}>{bloc.totalCoefficients}</Cellule>
-                <Cellule largeur={s.cPoints} cellStyle={s.celLigneRenforcee} style={[s.centre, s.gras]}>{n2(bloc.moyenne)}</Cellule>
-                <Cellule largeur={s.cAppreciation} cellStyle={s.celLigneRenforcee} fin>{" "}</Cellule>
+                <Cellule largeur={s.cTitreBloc} cellStyle={s.celSansBordureVerticale} style={s.gras}>{bloc.titre}</Cellule>
+                <Cellule largeur={s.cCoeff} cellStyle={s.celSansBordureVerticale} style={[s.centre, s.gras]}>{bloc.totalCoefficients}</Cellule>
+                <Cellule largeur={s.cPoints} cellStyle={s.celSansBordureVerticale}>{" "}</Cellule>
+                <Cellule largeur={s.cAppreciation} cellStyle={s.celSansBordureVerticale} style={[s.centre, s.gras]} fin>{n2(bloc.moyenne)}</Cellule>
               </View>
             </View>
           ))}
@@ -318,8 +322,8 @@ function Cellule({
           <View style={s.ligneTotal}>
             <Cellule largeur={s.cTitreBloc} cellStyle={s.celLigneRenforcee} style={s.totalFort}>Total</Cellule>
             <Cellule largeur={s.cCoeff} cellStyle={s.celLigneRenforcee} style={[s.centre, s.gras]}>{d.totalCoefficients}</Cellule>
-            <Cellule largeur={s.cPoints} cellStyle={s.celLigneRenforcee} style={[s.centre, s.totalFort]}>{n2(d.totalPoints)}</Cellule>
-            <Cellule largeur={s.cAppreciation} cellStyle={s.celLigneRenforcee} fin>{" "}</Cellule>
+            <Cellule largeur={s.cPoints} cellStyle={s.celLigneRenforcee} style={[s.centre, s.gras]}>{n2(d.totalPoints)}</Cellule>
+            <Cellule largeur={s.cAppreciation} cellStyle={s.celLigneRenforcee} style={[s.centre, s.totalFort]} fin>{n2(d.moyenneGenerale)}</Cellule>
           </View>
         </View>
 
