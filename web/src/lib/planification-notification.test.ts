@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { choisirCanaux, type CapacitesContact } from "./planification-notification";
+import { choisirCanaux, type CapacitesContact } from "./planification-notification.ts";
 
 const complet: CapacitesContact = {
   utilisateurId: "parent-1",
