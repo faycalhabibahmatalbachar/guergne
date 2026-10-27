@@ -163,7 +163,7 @@ export function Communication(p:{
         <div className="overflow-x-auto"><Table className="communication-data-table"><TableHeader><TableRow><TableHead>Objet</TableHead><TableHead>Destinataire</TableHead><TableHead>Élève</TableHead><TableHead>Date</TableHead><TableHead>État</TableHead></TableRow></TableHeader><TableBody>{m.lignes.map((x)=><TableRow key={x.id}>
           <TableCell className="max-w-sm"><p className="font-semibold">{x.objet}</p><p className="communication-secondary line-clamp-2">{x.contenu}</p></TableCell><TableCell>{x.destinataire??"—"}</TableCell><TableCell>{x.elevePrenom?x.elevePrenom+" "+x.eleveNom:"—"}</TableCell><TableCell className="tabular-nums">{dateHeureFr(x.creeLe)}</TableCell><TableCell><Badge variant={x.lu?"secondary":"outline"}>{x.lu?"Lu":"Non lu"}</Badge></TableCell>
         </TableRow>)}</TableBody></Table></div><Pagination total={m.total} page={m.page} pages={m.pages} taille={m.taille} setPage={m.setPage} setTaille={m.setTaille}/>
-      }</section><p className="communication-secondary mt-2">Échanges associés au compte connecté, limités aux 100 plus récents.</p></TabsContent>
+      </>}</section><p className="communication-secondary mt-2">Échanges associés au compte connecté, limités aux 100 plus récents.</p></TabsContent>
 
     {p.peutTraiterFile?<TabsContent value="journal" className="mt-0"><section className="communication-panel"><BarreListe recherche={n.recherche} setRecherche={n.setRecherche} filtre={n.filtre} setFiltre={n.setFiltre} options={filtresN} placeholder="Rechercher par contenu, type ou numéro masqué…"/>
       {n.lignes.length===0?<Vide icone={<BellRing className="size-5"/>} titre={p.notifications.length===0?"Aucune notification récente":"Aucun résultat"} detail={p.notifications.length===0?"Le journal apparaîtra lors de la création de notifications.":"Modifiez la recherche ou le filtre d’état."}/>:<>
@@ -171,7 +171,7 @@ export function Communication(p:{
           <TableCell><Badge variant="outline">{TYPE_NOTIFICATION[x.type]??x.type}</Badge></TableCell><TableCell>{x.canal}</TableCell><TableCell className="max-w-sm"><p className="font-semibold">{x.titre}</p><p className="communication-secondary line-clamp-2">{x.corps}</p></TableCell><TableCell className="communication-secondary">{x.telephone??"Compte applicatif"}</TableCell><TableCell className="tabular-nums">{dateHeureFr(x.creeLe)}</TableCell>
           <TableCell><Badge variant={x.statut==="ENVOYE"||x.statut==="LU"?"secondary":x.statut==="ECHOUE"?"destructive":"outline"}>{x.statut==="EN_ATTENTE"?"En attente":x.statut==="ENVOYE"?"Envoyée":x.statut==="ECHOUE"?"Échec":"Lue"}</Badge>{x.tentatives>0?<p className="communication-secondary mt-1">{x.tentatives} tentative(s)</p>:null}</TableCell>
         </TableRow>)}</TableBody></Table></div><Pagination total={n.total} page={n.page} pages={n.pages} taille={n.taille} setPage={n.setPage} setTaille={n.setTaille}/>
-      }</section><p className="communication-secondary mt-2">100 notifications les plus récentes ; les détails techniques des erreurs restent côté serveur.</p></TabsContent>:null}
+      </>}</section><p className="communication-secondary mt-2">100 notifications les plus récentes ; les détails techniques des erreurs restent côté serveur.</p></TabsContent>:null}
     </Tabs>
 
     <Dialog open={dialogue==="annonce"} onOpenChange={(v)=>{if(!v)setDialogue(null);}}><DialogContent className="max-h-[85vh] overflow-y-auto rounded-xl">
