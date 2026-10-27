@@ -435,30 +435,41 @@ export async function chargerBulletin(
   const b = enregistre.rows[0];
 
   // --- Historique des périodes déjà closes ----------------------------------
-  const historique = await db.execute<{ libelle: string; moyenne: string | null; rang: number | null }>(sql`
-    SELECT p.libelle, bu.moyenne_generale::text AS moyenne, bu.rang
+  const historique = await db.execute<{ numero: number; libelle: string; moyenne: string | null; rang: number | null }>(sql`
+    SELECT p.numero, p.libelle, bu.moyenne_generale::text AS moyenne, bu.rang
       FROM periodes p
       LEFT JOIN bulletins bu ON bu.periode_id = p.id AND bu.inscription_id = ${inscriptionId}::uuid
      WHERE p.annee_id = (SELECT annee_id FROM inscriptions WHERE id = ${inscriptionId}::uuid)
+       AND p.numero IN (1, 2, 3)
      ORDER BY p.numero
   `);
 
-  const moyennes = historique.rows.map((h) => nombre(h.moyenne)).filter((m): m is number => m !== null);
-  const moyenneAnnuelle = moyennes.length > 0 ? moyennes.reduce((a, x) => a + x, 0) / moyennes.length : null;
+  // La moyenne annuelle doit utiliser exactement les trois moyennes
+  // trimestrielles : (T1 + T2 + T3) / 3. Si un trimestre manque, elle reste vide.
+  const moyennesTrimestrielles = historique.rows.map((h) => nombre(h.moyenne));
+  const moyennesValides = moyennesTrimestrielles.filter((m): m is number => m !== null);
+  const moyenneAnnuelle =
+    moyennesTrimestrielles.length === 3 && moyennesValides.length === 3
+      ? moyennesValides.reduce((somme, moyenne) => somme + moyenne, 0) / 3
+      : null;
 
-  // Le rang annuel se calcule sur les MOYENNES ANNUELLES de tous les élèves
-  // de la même classe, pas sur le rang du dernier trimestre. Le bulletin Excel
-  // réserve une ligne distincte à ce classement annuel.
+  // Le rang annuel est calculé pour tous les élèves de la classe avec la même
+  // formule annuelle, exclusivement à partir des trois trimestres. Les ex æquo
+  // gardent le même rang ; les moyennes incomplètes ne sont pas classées.
   const classementAnnuel = await db.execute<{ rang_annuel: number | null }>(sql`
     WITH moyennes_annuelles AS (
       SELECT i.id AS inscription_id,
-             AVG(b.moyenne_generale) AS moyenne_annuelle
+             CASE
+               WHEN COUNT(b.moyenne_generale) = 3 THEN AVG(b.moyenne_generale)
+               ELSE NULL
+             END AS moyenne_annuelle
         FROM inscriptions i
+        LEFT JOIN periodes p
+          ON p.annee_id = i.annee_id
+         AND p.numero IN (1, 2, 3)
         LEFT JOIN bulletins b
           ON b.inscription_id = i.id
-         AND b.periode_id IN (
-           SELECT p2.id FROM periodes p2 WHERE p2.annee_id = i.annee_id
-         )
+         AND b.periode_id = p.id
        WHERE i.classe_id = (
          SELECT i2.classe_id FROM inscriptions i2 WHERE i2.id = ${inscriptionId}::uuid
        )
@@ -468,8 +479,8 @@ export async function chargerBulletin(
     rangs AS (
       SELECT inscription_id,
              CASE WHEN moyenne_annuelle IS NULL THEN NULL
-                  ELSE RANK() OVER (ORDER BY moyenne_annuelle DESC)::int
-              END AS rang_annuel
+                  ELSE RANK() OVER (ORDER BY moyenne_annuelle DESC NULLS LAST)::int
+             END AS rang_annuel
         FROM moyennes_annuelles
     )
     SELECT rang_annuel FROM rangs WHERE inscription_id = ${inscriptionId}::uuid
