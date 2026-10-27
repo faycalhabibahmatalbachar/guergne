@@ -1814,6 +1814,8 @@ export const notifications = pgTable("notifications", {
 	creeLe: timestamp("cree_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	prochaineTentativeLe: timestamp("prochaine_tentative_le", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	referenceExterne: text("reference_externe"),
+	traitementId: uuid("traitement_id"),
+	traitementLe: timestamp("traitement_le", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_notifications_destinataire").using("btree", table.destinataireId.asc().nullsLast().op("uuid_ops"), table.creeLe.desc().nullsFirst().op("timestamptz_ops")),
 	index("idx_notifications_eleve").using("btree", table.eleveId.asc().nullsLast().op("timestamptz_ops"), table.creeLe.desc().nullsFirst().op("timestamptz_ops")),

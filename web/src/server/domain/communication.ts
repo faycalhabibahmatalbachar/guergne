@@ -121,34 +121,57 @@ export interface EtatFile {
   smsEnAttente: number;
   smsSegmentsEstimes: number;
   coutSmsEstime: number;
+  parCanal: Array<{
+    canal: "PUSH" | "SMS";
+    enAttente: number;
+    envoyees: number;
+    echouees: number;
+  }>;
 }
-
 /** L’estimation tient compte de l’alphabet et du nombre de segments SMS. */
 export async function etatFileNotifications(): Promise<EtatFile> {
-  const [enAttente, envoyees, echouees, pushEnAttente, smsLignes] = await Promise.all([
-    db.select({ n: count() }).from(notifications).where(eq(notifications.statut, "EN_ATTENTE")),
-    db.select({ n: count() }).from(notifications).where(eq(notifications.statut, "ENVOYE")),
-    db.select({ n: count() }).from(notifications).where(eq(notifications.statut, "ECHOUE")),
-    db.select({ n: count() }).from(notifications).where(and(
-      eq(notifications.statut, "EN_ATTENTE"), eq(notifications.canal, "PUSH"),
-    )),
-    db.select({ titre: notifications.titre, corps: notifications.corps }).from(notifications).where(and(
-      eq(notifications.statut, "EN_ATTENTE"), eq(notifications.canal, "SMS"),
-    )),
+  // La boîte interne (IN_APP) n'est pas une ligne à expédier par push/SMS.
+  const [statuts, smsLignes] = await Promise.all([
+    db.execute<Record<string, unknown> & { canal: string; statut: string; total: number }>(sql`
+      SELECT canal::text, statut::text, count(*)::int AS total
+        FROM notifications
+       WHERE canal IN ('PUSH'::canal_notification, 'SMS'::canal_notification)
+       GROUP BY canal, statut
+    `),
+    db.select({ titre: notifications.titre, corps: notifications.corps })
+      .from(notifications)
+      .where(and(
+        eq(notifications.statut, "EN_ATTENTE"),
+        eq(notifications.canal, "SMS"),
+      )),
   ]);
+
+  const parCanal = (["PUSH", "SMS"] as const).map((canal) => {
+    const compter = (statut: string) => Number(
+      statuts.rows.find((ligne) => ligne.canal === canal && ligne.statut === statut)?.total ?? 0,
+    );
+    return {
+      canal,
+      enAttente: compter("EN_ATTENTE"),
+      envoyees: compter("ENVOYE"),
+      echouees: compter("ECHOUE"),
+    };
+  });
   const signature = signatureSms();
   const smsSegmentsEstimes = smsLignes.reduce((total, ligne) => {
     const texte = ligne.titre + "\n" + ligne.corps;
     return total + segmentsSms(texte.startsWith(signature) ? texte : signature + texte);
   }, 0);
+
   return {
-    enAttente: Number(enAttente[0]?.n ?? 0),
-    envoyees: Number(envoyees[0]?.n ?? 0),
-    echouees: Number(echouees[0]?.n ?? 0),
-    pushEnAttente: Number(pushEnAttente[0]?.n ?? 0),
-    smsEnAttente: smsLignes.length,
+    enAttente: parCanal.reduce((total, ligne) => total + ligne.enAttente, 0),
+    envoyees: parCanal.reduce((total, ligne) => total + ligne.envoyees, 0),
+    echouees: parCanal.reduce((total, ligne) => total + ligne.echouees, 0),
+    pushEnAttente: parCanal.find((ligne) => ligne.canal === "PUSH")?.enAttente ?? 0,
+    smsEnAttente: parCanal.find((ligne) => ligne.canal === "SMS")?.enAttente ?? 0,
     smsSegmentsEstimes,
     coutSmsEstime: smsSegmentsEstimes * COUT_SMS_FCFA,
+    parCanal,
   };
 }
 
@@ -187,27 +210,43 @@ export async function listerNotifications(limite = 100): Promise<LigneNotificati
 }
 
 /** Élèves pour le ciblage nominatif d'une annonce. */
-export async function listerElevesActifs(anneeId: string) {
+export async function listerElevesActifs(anneeId: string, enseignantUtilisateurId?: string) {
   return db.execute<{ id: string; nom: string; prenom: string; classe: string }>(sql`
     SELECT e.id, e.nom, e.prenom, c.libelle AS classe
       FROM inscriptions i
       JOIN eleves e  ON e.id = i.eleve_id
       JOIN classes c ON c.id = i.classe_id
      WHERE i.active AND c.active AND i.annee_id = ${anneeId}::uuid
+       AND (
+         ${enseignantUtilisateurId ?? null}::uuid IS NULL
+         OR EXISTS (
+           SELECT 1
+             FROM affectations af
+             JOIN enseignants prof ON prof.id = af.enseignant_id
+            WHERE af.classe_id = c.id
+              AND af.annee_id = i.annee_id
+              AND af.active
+              AND prof.utilisateur_id = ${enseignantUtilisateurId ?? null}::uuid
+              AND prof.actif
+         )
+       )
      ORDER BY e.nom, e.prenom
-     LIMIT 500
+     LIMIT 2000
   `);
 }
 
 /** Tuteurs disposant d'un compte, destinataires possibles d'un message. */
-export async function listerTuteursAvecCompte(anneeId: string) {
+export async function listerTuteursAvecCompte(anneeId: string, elevesAutorises?: string[]) {
   const parents = await db.select({
     utilisateurId: utilisateurs.id, nom: utilisateurs.nom, prenom: utilisateurs.prenom, tuteurId: tuteurs.id,
   }).from(utilisateurs)
     .innerJoin(tuteurs, eq(tuteurs.utilisateurId, utilisateurs.id))
     .where(and(eq(utilisateurs.role, "PARENT"), eq(utilisateurs.actif, true)))
     .orderBy(utilisateurs.nom, utilisateurs.prenom).limit(500);
-  if (parents.length === 0) return [];
+  if (parents.length === 0 || (elevesAutorises && elevesAutorises.length === 0)) return [];
+
+  const filtresLiaisons = [inArray(tuteurs.utilisateurId, parents.map((parent) => parent.utilisateurId))];
+  if (elevesAutorises) filtresLiaisons.push(inArray(eleveTuteur.eleveId, elevesAutorises));
 
   const liaisons = await db.select({
     utilisateurId: tuteurs.utilisateurId, eleveId: eleveTuteur.eleveId,
@@ -223,7 +262,7 @@ export async function listerTuteursAvecCompte(anneeId: string) {
       eq(classes.anneeId, anneeId),
       eq(classes.active, true),
     ))
-    .where(inArray(tuteurs.utilisateurId, parents.map((parent) => parent.utilisateurId)));
+    .where(and(...filtresLiaisons));
 
   const elevesParParent = new Map<string, Set<string>>();
   for (const lien of liaisons) {
