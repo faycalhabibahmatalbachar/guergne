@@ -97,9 +97,9 @@ const s = StyleSheet.create({
   conseilValeur: { fontFamily: "Times-Bold", textAlign: "center", fontSize: 8.7 },
   conseilCommentaire: { fontFamily: "Times-Italic", textAlign: "center", fontSize: 6.4, lineHeight: 1.12, marginTop: 1.5 },
   historique: { width: "49%", borderWidth: 0.7, borderColor: "#111111" },
-  historiqueCell: { paddingHorizontal: 3, justifyContent: "center", borderRightWidth: 0.4, borderRightColor: "#111111" },
-  historiqueEntete: { backgroundColor: "#e2efda", paddingVertical: 6.5 },
-  historiqueLigne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111", paddingVertical: 6.5 },
+  historiqueCell: { paddingHorizontal: 3, paddingVertical: 6.5, justifyContent: "center", borderRightWidth: 0.4, borderRightColor: "#111111" },
+  historiqueEntete: { backgroundColor: "#e2efda" },
+  historiqueLigne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111" },
   orientationRow: { height: 17.25, justifyContent: "center" },
   orientation: { fontSize: 8.5, fontFamily: "Times-Bold", color: "#111111" },
   signature: { flexDirection: "row", height: 18, justifyContent: "space-between", alignItems: "center", marginTop: 0, paddingHorizontal: 0 },
@@ -247,8 +247,8 @@ function Cellule({
             <View style={[s.identiteCase, { width: "24%", borderRightWidth: 0, paddingRight: 10 }]}>
               <Text style={[s.identiteLibelle, { textAlign: "right" }]}>Matricule :</Text>
             </View>
-            <View style={[s.identiteCase, { width: "12%", paddingHorizontal: 0, alignItems: "center", justifyContent: "center", overflow: "hidden" }]}>
-              <Text style={[s.identiteValeur, { textAlign: "center", fontSize: 9.8, width: "100%" }]}>{identite.matricule}</Text>
+            <View style={[s.identiteCase, { width: "12%", paddingHorizontal: 0, alignItems: "stretch", justifyContent: "center", overflow: "hidden" }]}>
+              <Text style={[s.identiteValeur, { textAlign: "center", fontSize: 9.2, width: "100%" }]}>{identite.matricule}</Text>
             </View>
             <View style={[s.identiteCase, { width: "35%" }]}>
               <Text style={s.identiteCentre}><Text style={s.identiteLibelle}>Statut : </Text><Text style={s.identiteValeur}>{identite.statut}</Text></Text>
