@@ -12,6 +12,7 @@ import {
   messages,
   niveaux,
   notifications,
+  tuteurs,
   utilisateurs,
 } from "@/server/db/schema";
 
