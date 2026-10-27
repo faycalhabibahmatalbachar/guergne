@@ -1,6 +1,7 @@
 import "server-only";
 
-import { eq, inArray, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { COUT_SMS_FCFA } from "@/lib/tarifs";
 import { db } from "@/server/db";
@@ -88,98 +89,139 @@ export async function traiterFile(limite = 100): Promise<RapportExpedition> {
     canauxIndisponibles: [],
   };
 
-  // Avant de lire la file : les relances du jour doivent y figurer.
   rapport.relancesEcheances = await relancerEcheances();
 
   const pushDisponible = fcmConfigure();
   const smsDisponible = smsConfigure();
-
   if (!pushDisponible) rapport.canauxIndisponibles.push("push (Firebase non configuré)");
   if (!smsDisponible) rapport.canauxIndisponibles.push("SMS (passerelle non configurée)");
   if (!pushDisponible && !smsDisponible) return rapport;
 
+  const limiteSecurisee = Math.max(1, Math.min(200, Math.trunc(Number.isFinite(limite) ? limite : 100)));
+  const workerId = randomUUID();
+
+  // Une exécution interrompue peut laisser un bail expiré. Après trois essais,
+  // la ligne doit devenir un échec définitif, pas rester éternellement en attente.
+  await db.execute(sql`
+    UPDATE notifications
+       SET statut = 'ECHOUE'::statut_envoi,
+           erreur = COALESCE(erreur, 'Traitement interrompu après trois tentatives.'),
+           traitement_id = NULL,
+           traitement_le = NULL
+     WHERE statut = 'EN_ATTENTE'::statut_envoi
+       AND canal IN ('PUSH'::canal_notification, 'SMS'::canal_notification)
+       AND tentatives >= 3
+       AND (traitement_id IS NULL OR traitement_le IS NULL
+            OR traitement_le < now() - interval '10 minutes')
+  `);
+
+  // Réservation atomique : deux workers (cron + bouton manuel, par exemple)
+  // ne peuvent pas envoyer simultanément la même notification.
   const file = await db.execute<LigneFile & Record<string, unknown>>(sql`
-    SELECT id, canal::text, titre, corps, route_cible, donnees, telephone, tentatives, jetons_fcm
-      FROM v_file_notifications
-     LIMIT ${limite}
+    WITH candidates AS (
+      SELECT n.id
+        FROM notifications n
+       WHERE n.statut = 'EN_ATTENTE'::statut_envoi
+         AND n.canal IN ('PUSH'::canal_notification, 'SMS'::canal_notification)
+         AND n.prochaine_tentative_le <= now()
+         AND n.tentatives < 3
+         AND (n.traitement_id IS NULL OR n.traitement_le IS NULL
+              OR n.traitement_le < now() - interval '10 minutes')
+         AND (${pushDisponible}::boolean OR n.canal <> 'PUSH'::canal_notification)
+         AND (${smsDisponible}::boolean OR n.canal <> 'SMS'::canal_notification)
+       ORDER BY n.prochaine_tentative_le, n.cree_le
+       LIMIT ${limiteSecurisee}
+       FOR UPDATE SKIP LOCKED
+    ),
+    reservees AS (
+      UPDATE notifications n
+         SET traitement_id = ${workerId}::uuid,
+             traitement_le = now(),
+             tentatives = n.tentatives + 1
+        FROM candidates c
+       WHERE n.id = c.id
+      RETURNING n.id, n.canal::text AS canal, n.type::text AS type,
+                n.titre, n.corps, n.route_cible, n.donnees, n.telephone,
+                n.tentatives, n.destinataire_id
+    )
+    SELECT r.*,
+           (SELECT array_agg(a.jeton_fcm)
+              FROM appareils a
+             WHERE a.utilisateur_id = r.destinataire_id
+               AND a.actif AND a.jeton_fcm IS NOT NULL) AS jetons_fcm
+      FROM reservees r
+     ORDER BY r.tentatives, r.id
   `);
 
   for (const ligne of file.rows) {
-    const canal = String(ligne.canal);
-
-    // Canal indisponible : on laisse la notification en file plutôt que de la
-    // marquer en échec. Elle partira dès que le canal sera branché.
-    if ((canal === "PUSH" && !pushDisponible) || (canal === "SMS" && !smsDisponible)) {
-      rapport.ignorees += 1;
-      continue;
-    }
-
     rapport.traitees += 1;
-
+    const canal = String(ligne.canal);
     let succes = false;
     let erreur: string | undefined;
     let reference: string | undefined;
     let cout = 0;
     let definitif = false;
 
-    if (canal === "PUSH") {
-      const r = await envoyerPush(ligne.jetons_fcm ?? [], {
-        titre: ligne.titre,
-        corps: ligne.corps,
-        route: ligne.route_cible,
-        donnees: ligne.donnees,
-      });
-      succes = r.succes;
-      erreur = r.erreur;
-
-      if (r.jetonsInvalides?.length) {
-        await db
-          .update(appareils)
-          .set({ actif: false })
-          .where(inArray(appareils.jetonFcm, r.jetonsInvalides));
-        rapport.jetonsNettoyes += r.jetonsInvalides.length;
-      }
-    } else if (canal === "SMS") {
-      if (!ligne.telephone) {
-        succes = false;
-        erreur = "Aucun numéro de téléphone.";
-      } else {
-        const texte = `${ligne.titre}\n${ligne.corps}`;
-        // Un code de connexion passe devant tout le reste : le parent est
-        // devant son écran, en train de l'attendre. Une relance d'impayé peut
-        // patienter derrière cinquante messages sans que personne ne le
-        // remarque.
-        const r = await envoyerSms(
-          ligne.telephone,
-          texte,
-          ligne.type === "AUTRE" ? "otp" : "transactional",
-          // L'identifiant de la notification sert de clé d'idempotence : si
-          // cette exécution est interrompue entre l'envoi et l'enregistrement,
-          // la suivante réenverra la même clé et la passerelle rendra le
-          // message d'origine au lieu d'en créer un second.
-          ligne.id,
-        );
+    try {
+      if (canal === "PUSH") {
+        const r = await envoyerPush(ligne.jetons_fcm ?? [], {
+          titre: ligne.titre,
+          corps: ligne.corps,
+          route: ligne.route_cible,
+          donnees: ligne.donnees,
+        });
         succes = r.succes;
         erreur = r.erreur;
-        reference = r.reference;
-        definitif = r.definitif ?? false;
-        // Le nombre de segments vient de l'expéditeur, qui seul connaît le
-        // texte final : c'est lui qui appose la signature de l'établissement.
-        // Le recalculer ici sous-estimerait la dépense.
-        if (succes) cout = (r.segments ?? segmentsSms(texte)) * COUT_SMS_FCFA;
+
+        if (r.jetonsInvalides?.length) {
+          await db
+            .update(appareils)
+            .set({ actif: false })
+            .where(inArray(appareils.jetonFcm, r.jetonsInvalides));
+          rapport.jetonsNettoyes += r.jetonsInvalides.length;
+        }
+      } else if (canal === "SMS") {
+        if (!ligne.telephone) {
+          erreur = "Aucun numéro de téléphone.";
+        } else {
+          const texte = `${ligne.titre}\n${ligne.corps}`;
+          // Les messages ordinaires et les relances restent transactionnels.
+          // Une priorité OTP doit être déclarée explicitement dans les données
+          // de la notification, jamais déduite du type générique AUTRE.
+          const donnees = ligne.donnees && typeof ligne.donnees === "object"
+            ? ligne.donnees as Record<string, unknown>
+            : {};
+          const priorite = donnees.priorite === "otp" ? "otp" : "transactional";
+          const r = await envoyerSms(
+            ligne.telephone,
+            texte,
+            priorite,
+            String(ligne.id),
+          );
+          succes = r.succes;
+          erreur = r.erreur;
+          reference = r.reference;
+          definitif = r.definitif ?? false;
+          if (succes) cout = (r.segments ?? segmentsSms(texte)) * COUT_SMS_FCFA;
+        }
+      } else {
+        // La requête de réservation filtre déjà ces canaux : cette branche
+        // reste un garde-fou si le schéma de la file évolue.
+        erreur = "Canal de notification non pris en charge.";
       }
-    } else {
-      // EMAIL et IN_APP ne passent pas par cet expéditeur.
-      rapport.ignorees += 1;
-      rapport.traitees -= 1;
-      continue;
+    } catch (cause) {
+      erreur = cause instanceof Error ? cause.message.slice(0, 400) : "Erreur de transport inconnue.";
+      console.error("[notifications] échec d'expédition", { canal, notificationId: ligne.id });
     }
 
-    const tentatives = Number(ligne.tentatives) + 1;
+    const tentatives = Number(ligne.tentatives);
+    const conditionsReservation = and(
+      eq(notifications.id, ligne.id),
+      eq(notifications.traitementId, workerId),
+    );
 
     if (succes) {
-      await db
-        .update(notifications)
+      const confirme = await db.update(notifications)
         .set({
           statut: "ENVOYE",
           envoyeLe: new Date().toISOString(),
@@ -187,33 +229,32 @@ export async function traiterFile(limite = 100): Promise<RapportExpedition> {
           coutFcfa: cout || null,
           referenceExterne: reference ?? null,
           erreur: null,
+          traitementId: null,
+          traitementLe: null,
         })
-        .where(eq(notifications.id, ligne.id));
+        .where(conditionsReservation)
+        .returning({ id: notifications.id });
 
-      rapport.envoyees += 1;
-      rapport.coutSmsFcfa += cout;
+      if (confirme.length) {
+        rapport.envoyees += 1;
+        rapport.coutSmsFcfa += cout;
+      }
     } else {
-      // Report exponentiel : 1 min, puis 5, puis 25. Au-delà de 3 tentatives
-      // la vue de file ne la reprend plus.
-      //
-      // Un refus définitif — numéro Moov, numéro malformé — court-circuite ce
-      // report : le rejouer trois fois produirait trois fois la même erreur, et
-      // chaque tentative repart chez la passerelle. Cent vingt-neuf
-      // notifications ont été rejouées ainsi avant que la distinction existe.
-      const minutes = 5 ** (tentatives - 1);
+      const minutes = 5 ** Math.max(0, tentatives - 1);
       const abandonne = definitif || tentatives >= 3;
-
-      await db
-        .update(notifications)
+      const confirme = await db.update(notifications)
         .set({
           statut: abandonne ? "ECHOUE" : "EN_ATTENTE",
           tentatives,
           erreur: erreur?.slice(0, 500) ?? "Échec inconnu",
           prochaineTentativeLe: new Date(Date.now() + minutes * 60_000).toISOString(),
+          traitementId: null,
+          traitementLe: null,
         })
-        .where(eq(notifications.id, ligne.id));
+        .where(conditionsReservation)
+        .returning({ id: notifications.id });
 
-      rapport.echouees += 1;
+      if (confirme.length) rapport.echouees += 1;
     }
   }
 

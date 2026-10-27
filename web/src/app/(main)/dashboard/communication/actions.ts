@@ -7,9 +7,10 @@ import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
+import { planifierAnnonce, planifierMessage, type AudienceAnnonce } from "@/server/domain/communication-plans";
 import { annonceDestinataires, annonces, anneesScolaires, classes, eleveTuteur, inscriptions, messages, niveaux, notifications, tuteurs, utilisateurs } from "@/server/db/schema";
 import { traiterFile } from "@/server/notifications/expediteur";
-import { ErreurAutorisation, requirePermission } from "@/server/guard";
+import { ErreurAutorisation, requirePermission, type Principal } from "@/server/guard";
 
 export interface Resultat {
   ok: boolean;
@@ -43,8 +44,8 @@ function messagesErreur(e: z.ZodError): Record<string, string> {
 const schemaAnnonce = z
   .object({
     anneeId: z.string().uuid(),
-    titre: z.string().trim().min(3, "Titre requis"),
-    contenu: z.string().trim().min(10, "Le contenu doit être explicite"),
+    titre: z.string().trim().min(3, "Titre requis").max(180, "Titre trop long"),
+    contenu: z.string().trim().min(10, "Le contenu doit être explicite").max(5000, "Contenu trop long"),
     cible: z.enum(["TOUS", "NIVEAU", "CLASSE", "ELEVE"]),
     niveauId: z.string().uuid().nullable().optional(),
     classeId: z.string().uuid().nullable().optional(),
@@ -52,6 +53,10 @@ const schemaAnnonce = z
     epinglee: z.boolean().default(false),
     envoyerPush: z.boolean().default(true),
     expireLe: z.string().refine((v) => v === "" || dateIsoValide(v), { message: "Date d’expiration invalide" }).optional(),
+    confirmerDiffusion: z.boolean().default(false),
+    confirmerCout: z.boolean().default(false),
+    plafondNotifications: z.number().int().min(0).optional(),
+    plafondCoutFcfa: z.number().int().min(0).optional(),
   })
   .refine((v) => v.cible !== "NIVEAU" || !!v.niveauId, {
     message: "Sélectionnez le niveau visé",
@@ -134,20 +139,107 @@ async function validerCibleAnnonce(v: z.infer<typeof schemaAnnonce>): Promise<Re
  * entre-temps, et certaines familles recevraient un message qui ne les
  * concerne plus.
  */
+export interface ApercuDiffusion {
+  politique: string;
+  total: number;
+  parPush: number;
+  parSms: number;
+  dansApplication: number;
+  sansCanal: number;
+  segments: number;
+  coutFcfa: number;
+}
+
+export interface ResultatApercu {
+  ok: boolean;
+  message?: string;
+  erreurs?: Record<string, string>;
+  apercu?: ApercuDiffusion;
+}
+
+function audienceAnnonce(v: z.infer<typeof schemaAnnonce>): AudienceAnnonce {
+  return {
+    anneeId: v.anneeId,
+    titre: v.titre,
+    contenu: v.contenu,
+    cible: v.cible,
+    niveauId: v.niveauId ?? null,
+    classeId: v.classeId ?? null,
+    elevesIds: v.elevesIds,
+    envoyerPush: v.envoyerPush,
+  };
+}
+
+function validerConfirmation(
+  v: { confirmerDiffusion: boolean; confirmerCout: boolean; plafondNotifications?: number; plafondCoutFcfa?: number },
+  apercu: ApercuDiffusion,
+): string | null {
+  if (!v.confirmerDiffusion) return "Confirmez la population et les canaux affichés dans l’aperçu avant de continuer.";
+  if (v.plafondNotifications === undefined || apercu.total > v.plafondNotifications) {
+    return "La population a changé depuis l’aperçu. Recalculez la diffusion avant de continuer.";
+  }
+  if (v.plafondCoutFcfa === undefined || apercu.coutFcfa > v.plafondCoutFcfa) {
+    return "Le coût estimé a augmenté depuis l’aperçu. Recalculez la diffusion avant de continuer.";
+  }
+  if (apercu.parSms > 0 && !v.confirmerCout) {
+    return "Confirmez explicitement le coût SMS estimé avant de continuer.";
+  }
+  return null;
+}
+
+/** Calcule les destinataires et le coût sans écrire d'annonce ni déclencher de canal. */
+export async function previsualiserAnnonce(donnees: unknown): Promise<ResultatApercu> {
+  try {
+    await requirePermission("annonce:publier");
+    const analyse = schemaAnnonce.safeParse(donnees);
+    if (!analyse.success) return { ok: false, erreurs: messagesErreur(analyse.error) };
+    const v = analyse.data;
+    const erreurCible = await validerCibleAnnonce(v);
+    if (erreurCible) return { ok: false, erreurs: erreurCible };
+
+    const plan = await planifierAnnonce(audienceAnnonce(v));
+    return { ok: true, apercu: plan.resume };
+  } catch (e) {
+    return echec(e, "Le calcul de la diffusion a échoué.");
+  }
+}
+
+/**
+ * Publie et dépose la diffusion issue d'un aperçu confirmé.
+ * Les canaux sont planifiés côté serveur sous verrou de lecture de la politique :
+ * aucun SMS ne peut être ajouté après confirmation sans être reflété au client.
+ */
 export async function publierAnnonce(donnees: unknown): Promise<Resultat> {
   try {
     const acteur = await requirePermission("annonce:publier");
-    const a = schemaAnnonce.safeParse(donnees);
-    if (!a.success) return { ok: false, erreurs: messagesErreur(a.error) };
+    const analyse = schemaAnnonce.safeParse(donnees);
+    if (!analyse.success) return { ok: false, erreurs: messagesErreur(analyse.error) };
 
-    const v = a.data;
+    const v = analyse.data;
     const erreurCible = await validerCibleAnnonce(v);
     if (erreurCible) return { ok: false, erreurs: erreurCible };
+
+    let erreurConfirmation: string | null = null;
     let nbNotifications = 0;
+    let coutSmsFcfa = 0;
 
     await db.transaction(async (tx) => {
-      const [creee] = await tx
-        .insert(annonces)
+      let plan: Awaited<ReturnType<typeof planifierAnnonce>> | null = null;
+      if (v.envoyerPush) {
+        await tx.execute(sql`
+          SELECT type FROM politiques_notification
+           WHERE type = 'ANNONCE'::type_notification
+           FOR SHARE
+        `);
+        plan = await planifierAnnonce(audienceAnnonce(v), tx);
+        erreurConfirmation = validerConfirmation(v, plan.resume);
+        if (!erreurConfirmation && plan.resume.total === 0) {
+          erreurConfirmation = "Aucun destinataire joignable par la politique actuelle. Vérifiez les comptes, consentements et canaux.";
+        }
+        if (erreurConfirmation) return;
+      }
+
+      const [creee] = await tx.insert(annonces)
         .values({
           anneeId: v.anneeId,
           titre: v.titre,
@@ -163,28 +255,41 @@ export async function publierAnnonce(donnees: unknown): Promise<Resultat> {
         .returning({ id: annonces.id });
 
       if (v.cible === "ELEVE" && v.elevesIds.length > 0) {
-        await tx
-          .insert(annonceDestinataires)
+        await tx.insert(annonceDestinataires)
           .values(v.elevesIds.map((eleveId) => ({ annonceId: creee.id, eleveId })));
       }
 
-      const r = await tx.execute<{ n: number }>(sql`SELECT diffuser_annonce(${creee.id}::uuid) AS n`);
-      nbNotifications = Number(r.rows[0]?.n ?? 0);
+      if (plan && plan.depots.length > 0) {
+        await tx.insert(notifications).values(plan.depots.map((depot) => ({
+          destinataireId: depot.destinataireId,
+          telephone: depot.telephone,
+          eleveId: depot.eleveId,
+          type: "ANNONCE" as const,
+          canal: depot.canal,
+          titre: v.titre,
+          corps: v.contenu,
+          routeCible: "/annonces/" + creee.id,
+          donnees: { annonce_id: creee.id },
+        })));
+        nbNotifications = plan.resume.total;
+        coutSmsFcfa = plan.resume.coutFcfa;
+      }
 
       await journaliser(acteur, {
         action: "annonce.publiee",
         entite: "annonces",
         entiteId: creee.id,
-        apres: { titre: v.titre, cible: v.cible, nbNotifications },
+        apres: { titre: v.titre, cible: v.cible, nbNotifications, coutSmsEstimeFcfa: coutSmsFcfa },
       });
     });
 
+    if (erreurConfirmation) return { ok: false, message: erreurConfirmation };
     revalidatePath("/dashboard/communication");
     return {
       ok: true,
       message: v.envoyerPush
-        ? `Annonce publiée. ${nbNotifications} notification(s) mise(s) en file.`
-        : "Annonce publiée (sans notification).",
+        ? `Annonce publiée. ${nbNotifications} notification(s) déposée(s) selon la politique actuelle${coutSmsFcfa > 0 ? ` · SMS estimés : ${coutSmsFcfa.toLocaleString("fr-FR")} F` : ""}.`
+        : "Annonce publiée sans notification immédiate.",
     };
   } catch (e) {
     return echec(e, "La publication de l'annonce a échoué.");
@@ -235,91 +340,188 @@ const schemaMessage = z.object({
   eleveId: z.string().uuid().nullable().optional(),
   objet: z.string().trim().min(3, "Objet requis").max(180, "Objet trop long"),
   contenu: z.string().trim().min(5, "Message trop court").max(5000, "Message trop long"),
+  confirmerDiffusion: z.boolean().default(false),
+  confirmerCout: z.boolean().default(false),
+  plafondNotifications: z.number().int().min(0).optional(),
+  plafondCoutFcfa: z.number().int().min(0).optional(),
 });
 
-export async function envoyerMessage(donnees: unknown): Promise<Resultat> {
-  try {
-    const a = schemaMessage.safeParse(donnees);
-    if (!a.success) return { ok: false, erreurs: messagesErreur(a.error) };
-    const v = a.data;
+interface CibleMessageValidee {
+  acteur: Principal;
+  tuteurId: string;
+}
 
-    const contexte = v.eleveId
-      ? await db.select({ classeId: inscriptions.classeId }).from(inscriptions)
-          .innerJoin(classes, eq(classes.id, inscriptions.classeId))
-          .where(and(
-            eq(inscriptions.eleveId, v.eleveId),
-            eq(inscriptions.anneeId, v.anneeId),
-            eq(inscriptions.active, true),
-            eq(classes.anneeId, v.anneeId),
-            eq(classes.active, true),
-          )).limit(1)
-      : [];
-    const acteur = await requirePermission(
+async function validerCibleMessage(
+  v: z.infer<typeof schemaMessage>,
+): Promise<{ ok: true; cible: CibleMessageValidee } | { ok: false; message: string; champ?: string }> {
+  const contexte = v.eleveId
+    ? await db.select({ classeId: inscriptions.classeId })
+        .from(inscriptions)
+        .innerJoin(classes, eq(classes.id, inscriptions.classeId))
+        .where(and(
+          eq(inscriptions.eleveId, v.eleveId),
+          eq(inscriptions.anneeId, v.anneeId),
+          eq(inscriptions.active, true),
+          eq(classes.anneeId, v.anneeId),
+          eq(classes.active, true),
+        ))
+        .limit(1)
+    : [];
+
+  let acteur: Principal;
+  try {
+    acteur = await requirePermission(
       "message:envoyer",
       contexte[0] ? { classeId: contexte[0].classeId, eleveId: v.eleveId ?? undefined } : {},
     );
-    if (v.eleveId && !contexte[0]) {
-      return { ok: false, erreurs: { eleveId: "Cet élève n’est pas inscrit dans une classe active de cette année." } };
+  } catch (e) {
+    if (e instanceof ErreurAutorisation && e.code === "HORS_PERIMETRE" && !v.eleveId) {
+      return { ok: false, champ: "eleveId", message: "Pour ce rôle, sélectionnez un élève appartenant à votre périmètre." };
     }
+    throw e;
+  }
 
-    const [destinataire] = await db.select({ id: utilisateurs.id, tuteurId: tuteurs.id })
-      .from(utilisateurs)
-      .innerJoin(tuteurs, eq(tuteurs.utilisateurId, utilisateurs.id))
-      .where(and(
-        eq(utilisateurs.id, v.destinataireId),
-        eq(utilisateurs.role, "PARENT"),
-        eq(utilisateurs.actif, true),
-      )).limit(1);
-    if (!destinataire) {
-      return { ok: false, erreurs: { destinataireId: "Ce compte parent est introuvable ou inactif." } };
-    }
+  if (v.eleveId && !contexte[0]) {
+    return { ok: false, champ: "eleveId", message: "Cet élève n’est pas inscrit dans une classe active de cette année." };
+  }
 
-    const conditions = [
-      eq(eleveTuteur.tuteurId, destinataire.tuteurId),
-      eq(inscriptions.anneeId, v.anneeId),
-      eq(inscriptions.active, true),
-      eq(classes.anneeId, v.anneeId),
-      eq(classes.active, true),
-    ];
-    if (v.eleveId) conditions.push(eq(eleveTuteur.eleveId, v.eleveId));
-    const lien = await db.select({ eleveId: eleveTuteur.eleveId }).from(eleveTuteur)
-      .innerJoin(inscriptions, eq(inscriptions.eleveId, eleveTuteur.eleveId))
-      .innerJoin(classes, eq(classes.id, inscriptions.classeId))
-      .where(and(...conditions)).limit(1);
-    if (!lien.length) {
-      return v.eleveId
-        ? { ok: false, erreurs: { eleveId: "Le destinataire n’est pas rattaché à cet élève pour l’année sélectionnée." } }
-        : { ok: false, erreurs: { destinataireId: "Ce parent n’est rattaché à aucun élève actif de cette année." } };
-    }
+  const [destinataire] = await db.select({ id: utilisateurs.id, tuteurId: tuteurs.id })
+    .from(utilisateurs)
+    .innerJoin(tuteurs, eq(tuteurs.utilisateurId, utilisateurs.id))
+    .where(and(
+      eq(utilisateurs.id, v.destinataireId),
+      eq(utilisateurs.role, "PARENT"),
+      eq(utilisateurs.actif, true),
+    ))
+    .limit(1);
+  if (!destinataire) {
+    return { ok: false, champ: "destinataireId", message: "Ce compte parent est introuvable ou inactif." };
+  }
+
+  const conditions = [
+    eq(eleveTuteur.tuteurId, destinataire.tuteurId),
+    eq(inscriptions.anneeId, v.anneeId),
+    eq(inscriptions.active, true),
+    eq(classes.anneeId, v.anneeId),
+    eq(classes.active, true),
+  ];
+  if (v.eleveId) conditions.push(eq(eleveTuteur.eleveId, v.eleveId));
+  const lien = await db.select({ eleveId: eleveTuteur.eleveId })
+    .from(eleveTuteur)
+    .innerJoin(inscriptions, eq(inscriptions.eleveId, eleveTuteur.eleveId))
+    .innerJoin(classes, eq(classes.id, inscriptions.classeId))
+    .where(and(...conditions))
+    .limit(1);
+  if (!lien.length) {
+    return v.eleveId
+      ? { ok: false, champ: "eleveId", message: "Le destinataire n’est pas rattaché à cet élève pour l’année sélectionnée." }
+      : { ok: false, champ: "destinataireId", message: "Ce parent n’est rattaché à aucun élève actif de cette année." };
+  }
+  return { ok: true, cible: { acteur, tuteurId: destinataire.tuteurId } };
+}
+
+/** Prévisualise la politique AUTRE et le coût avant d'enregistrer un message ciblé. */
+export async function previsualiserMessageCible(donnees: unknown): Promise<ResultatApercu> {
+  try {
+    const analyse = schemaMessage.safeParse(donnees);
+    if (!analyse.success) return { ok: false, erreurs: messagesErreur(analyse.error) };
+    const v = analyse.data;
+    const cible = await validerCibleMessage(v);
+    if (!cible.ok) return { ok: false, message: cible.message, erreurs: cible.champ ? { [cible.champ]: cible.message } : undefined };
+
+    const plan = await planifierMessage(v.destinataireId, v.eleveId ?? null, v.objet, v.contenu);
+    return { ok: true, apercu: plan.resume };
+  } catch (e) {
+    return echec(e, "Le calcul de la notification a échoué.");
+  }
+}
+
+export async function envoyerMessage(donnees: unknown): Promise<Resultat> {
+  try {
+    const analyse = schemaMessage.safeParse(donnees);
+    if (!analyse.success) return { ok: false, erreurs: messagesErreur(analyse.error) };
+    const v = analyse.data;
+    const cible = await validerCibleMessage(v);
+    if (!cible.ok) return { ok: false, message: cible.message, erreurs: cible.champ ? { [cible.champ]: cible.message } : undefined };
+    const { acteur } = cible.cible;
+
+    let erreurConfirmation: string | null = null;
+    let nbNotifications = 0;
+    let coutSmsFcfa = 0;
 
     await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        SELECT type FROM politiques_notification
+         WHERE type = 'AUTRE'::type_notification
+         FOR SHARE
+      `);
+      const plan = await planifierMessage(v.destinataireId, v.eleveId ?? null, v.objet, v.contenu, tx);
+      erreurConfirmation = validerConfirmation(v, plan.resume);
+      if (erreurConfirmation) return;
+
       const [cree] = await tx.insert(messages).values({
-        expediteurId: acteur.id, destinataireId: v.destinataireId, eleveId: v.eleveId ?? null,
-        objet: v.objet, contenu: v.contenu,
+        expediteurId: acteur.id,
+        destinataireId: v.destinataireId,
+        eleveId: v.eleveId ?? null,
+        objet: v.objet,
+        contenu: v.contenu,
       }).returning({ id: messages.id });
-      await tx.insert(notifications).values({
-        destinataireId: v.destinataireId, eleveId: v.eleveId ?? null, type: "AUTRE", canal: "PUSH",
-        titre: "Message de l’établissement", corps: v.objet, routeCible: "/messages/" + cree.id,
-        donnees: { message_id: cree.id },
-      });
+
+      if (plan.depots.length > 0) {
+        await tx.insert(notifications).values(plan.depots.map((depot) => ({
+          destinataireId: depot.destinataireId,
+          telephone: depot.telephone,
+          eleveId: v.eleveId ?? null,
+          type: "AUTRE" as const,
+          canal: depot.canal,
+          titre: v.objet,
+          corps: v.contenu,
+          routeCible: "/messages/" + cree.id,
+          donnees: { message_id: cree.id },
+        })));
+      }
+      nbNotifications = plan.resume.total;
+      coutSmsFcfa = plan.resume.coutFcfa;
+
       await journaliser(acteur, {
-        action: "message.envoye", entite: "messages", entiteId: cree.id,
-        eleveId: v.eleveId ?? null, apres: { objet: v.objet },
+        action: "message.envoye",
+        entite: "messages",
+        entiteId: cree.id,
+        eleveId: v.eleveId ?? null,
+        apres: { objet: v.objet, notificationsDeposees: nbNotifications, coutSmsEstimeFcfa: coutSmsFcfa },
       });
     });
 
+    if (erreurConfirmation) return { ok: false, message: erreurConfirmation };
     revalidatePath("/dashboard/communication");
-    return { ok: true, message: "Message enregistré et notification mise en file." };
-  } catch (e) { return echec(e, "L’envoi du message a échoué."); }
+    return {
+      ok: true,
+      message: nbNotifications > 0
+        ? `Message enregistré. ${nbNotifications} notification(s) déposée(s)${coutSmsFcfa > 0 ? ` · SMS estimés : ${coutSmsFcfa.toLocaleString("fr-FR")} F` : ""}.`
+        : "Message enregistré dans la messagerie, sans alerte immédiate selon la politique de notification.",
+    };
+  } catch (e) {
+    return echec(e, "L’envoi du message a échoué.");
+  }
 }
 
 export async function marquerMessageLu(messageId: string): Promise<Resultat> {
   try {
-    await requirePermission("message:lire");
-    await db
-      .update(messages)
+    const acteur = await requirePermission("message:lire");
+    const valide = z.string().uuid().safeParse(messageId);
+    if (!valide.success) return { ok: false, message: "Identifiant de message invalide." };
+
+    const modifie = await db.update(messages)
       .set({ lu: true, luLe: new Date().toISOString() })
-      .where(eq(messages.id, messageId));
+      .where(and(
+        eq(messages.id, valide.data),
+        eq(messages.destinataireId, acteur.id),
+      ))
+      .returning({ id: messages.id });
+
+    if (!modifie.length) {
+      return { ok: false, message: "Message introuvable ou inaccessible pour ce compte." };
+    }
     revalidatePath("/dashboard/communication");
     return OK;
   } catch (e) {

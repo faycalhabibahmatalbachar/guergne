@@ -187,27 +187,43 @@ export async function listerNotifications(limite = 100): Promise<LigneNotificati
 }
 
 /** Élèves pour le ciblage nominatif d'une annonce. */
-export async function listerElevesActifs(anneeId: string) {
+export async function listerElevesActifs(anneeId: string, enseignantUtilisateurId?: string) {
   return db.execute<{ id: string; nom: string; prenom: string; classe: string }>(sql`
     SELECT e.id, e.nom, e.prenom, c.libelle AS classe
       FROM inscriptions i
       JOIN eleves e  ON e.id = i.eleve_id
       JOIN classes c ON c.id = i.classe_id
      WHERE i.active AND c.active AND i.annee_id = ${anneeId}::uuid
+       AND (
+         ${enseignantUtilisateurId ?? null}::uuid IS NULL
+         OR EXISTS (
+           SELECT 1
+             FROM affectations af
+             JOIN enseignants prof ON prof.id = af.enseignant_id
+            WHERE af.classe_id = c.id
+              AND af.annee_id = i.annee_id
+              AND af.active
+              AND prof.utilisateur_id = ${enseignantUtilisateurId ?? null}::uuid
+              AND prof.actif
+         )
+       )
      ORDER BY e.nom, e.prenom
-     LIMIT 500
+     LIMIT 2000
   `);
 }
 
 /** Tuteurs disposant d'un compte, destinataires possibles d'un message. */
-export async function listerTuteursAvecCompte(anneeId: string) {
+export async function listerTuteursAvecCompte(anneeId: string, elevesAutorises?: string[]) {
   const parents = await db.select({
     utilisateurId: utilisateurs.id, nom: utilisateurs.nom, prenom: utilisateurs.prenom, tuteurId: tuteurs.id,
   }).from(utilisateurs)
     .innerJoin(tuteurs, eq(tuteurs.utilisateurId, utilisateurs.id))
     .where(and(eq(utilisateurs.role, "PARENT"), eq(utilisateurs.actif, true)))
     .orderBy(utilisateurs.nom, utilisateurs.prenom).limit(500);
-  if (parents.length === 0) return [];
+  if (parents.length === 0 || (elevesAutorises && elevesAutorises.length === 0)) return [];
+
+  const filtresLiaisons = [inArray(tuteurs.utilisateurId, parents.map((parent) => parent.utilisateurId))];
+  if (elevesAutorises) filtresLiaisons.push(inArray(eleveTuteur.eleveId, elevesAutorises));
 
   const liaisons = await db.select({
     utilisateurId: tuteurs.utilisateurId, eleveId: eleveTuteur.eleveId,
@@ -223,7 +239,7 @@ export async function listerTuteursAvecCompte(anneeId: string) {
       eq(classes.anneeId, anneeId),
       eq(classes.active, true),
     ))
-    .where(inArray(tuteurs.utilisateurId, parents.map((parent) => parent.utilisateurId)));
+    .where(and(...filtresLiaisons));
 
   const elevesParParent = new Map<string, Set<string>>();
   for (const lien of liaisons) {

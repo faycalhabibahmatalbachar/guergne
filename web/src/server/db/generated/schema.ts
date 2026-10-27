@@ -1574,6 +1574,8 @@ export const paiements = pgTable("paiements", {
 	montantFcfa: integer("montant_fcfa").notNull(),
 	mode: modePaiement().notNull(),
 	referenceExterne: text("reference_externe"),
+	traitementId: uuid("traitement_id"),
+	traitementLe: timestamp("traitement_le", { withTimezone: true, mode: 'string' }),
 	datePaiement: date("date_paiement").default(sql`CURRENT_DATE`).notNull(),
 	payeParTuteurId: uuid("paye_par_tuteur_id"),
 	nomPayeur: text("nom_payeur"),
