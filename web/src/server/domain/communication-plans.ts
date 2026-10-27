@@ -49,11 +49,12 @@ export interface PlanDiffusion {
 }
 
 interface LigneContact extends CapacitesContact {
+  [key: string]: unknown;
   eleveId: string | null;
   politique: PolitiqueCanal;
 }
 
-interface LignePolitique {
+interface LignePolitique extends Record<string, unknown> {
   politique: string;
 }
 
