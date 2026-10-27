@@ -73,6 +73,7 @@ const s = StyleSheet.create({
   ligneEntete: { flexDirection: "row", backgroundColor: "#d9d9d9", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
   cel: { paddingVertical: 3.4, paddingHorizontal: 2, borderRightWidth: 0.4, borderRightColor: "#111111" },
   celEntete: { paddingVertical: 5.0, paddingHorizontal: 2 },
+  celLigneRenforcee: { paddingVertical: 6.2 },
   celFin: { borderRightWidth: 0 },
   gras: { fontFamily: "Times-Bold" },
   centre: { textAlign: "center" },
@@ -85,15 +86,15 @@ const s = StyleSheet.create({
   cCoeff: { width: "8%" },
   cPoints: { width: "13%" },
   cAppreciation: { width: "16%" },
-  ligneGroupe: { flexDirection: "row", backgroundColor: "#d9d9d9", borderTopWidth: 0.7, borderTopColor: "#111111", borderBottomWidth: 0.7, borderBottomColor: "#111111", paddingVertical: 6.2 },
-  ligneTotal: { flexDirection: "row", backgroundColor: "#ffffff", borderTopWidth: 0.9, borderTopColor: "#111111", paddingVertical: 6.2 },
+  ligneGroupe: { flexDirection: "row", backgroundColor: "#d9d9d9", borderTopWidth: 0.7, borderTopColor: "#111111", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
+  ligneTotal: { flexDirection: "row", backgroundColor: "#ffffff", borderTopWidth: 0.9, borderTopColor: "#111111" },
   bas: { flexDirection: "row", marginTop: 18, gap: 0 },
   conseil: { width: "51%", borderWidth: 0.7, borderColor: "#111111" },
   conseilTitreFusion: { width: "100%", height: 48, justifyContent: "center", borderBottomWidth: 0.7, borderBottomColor: "#111111", backgroundColor: "#e2efda", paddingHorizontal: 4 },
   conseilTitreTexte: { fontSize: 9.0, fontFamily: "Times-Bold", color: "#111111" },
-  conseilLigne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111", paddingVertical: 6.5, paddingHorizontal: 0 },
-  conseilLibelle: { width: "47%", color: "#111111", paddingHorizontal: 5, justifyContent: "center" },
-  conseilValeurZone: { width: "53%", paddingHorizontal: 3, justifyContent: "center", alignItems: "center", borderLeftWidth: 0.4, borderLeftColor: "#111111" },
+  conseilLigne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111", paddingHorizontal: 0 },
+  conseilLibelle: { width: "47%", color: "#111111", paddingHorizontal: 5, paddingVertical: 6.5, justifyContent: "center" },
+  conseilValeurZone: { width: "53%", paddingHorizontal: 3, paddingVertical: 6.5, justifyContent: "center", alignItems: "center", borderLeftWidth: 0.4, borderLeftColor: "#111111" },
   conseilValeur: { fontFamily: "Times-Bold", textAlign: "center", fontSize: 8.7 },
   conseilCommentaire: { fontFamily: "Times-Italic", textAlign: "center", fontSize: 6.4, lineHeight: 1.12, marginTop: 1.5 },
   historique: { width: "49%", borderWidth: 0.7, borderColor: "#111111" },
@@ -244,8 +245,8 @@ function Cellule({
             </View>
           </View>
           <View style={s.identiteRangee}>
-            <View style={[s.identiteCase, { width: "24%", borderRightWidth: 0, paddingRight: 10 }]}>
-              <Text style={[s.identiteLibelle, { textAlign: "right" }]}>Matricule :</Text>
+            <View style={[s.identiteCase, { width: "24%", borderRightWidth: 0 }]}>
+              <Text style={[s.identiteLibelle, s.identiteCentre]}>Matricule :</Text>
             </View>
             <View style={[s.identiteCase, { width: "12%", paddingHorizontal: 0, alignItems: "stretch", justifyContent: "center", overflow: "hidden" }]}>
               <Text style={[s.identiteValeur, { textAlign: "center", fontSize: 9.2, width: "100%" }]}>{identite.matricule}</Text>
@@ -304,19 +305,19 @@ function Cellule({
                 additionner.
               */}
               <View style={s.ligneGroupe}>
-                <Cellule largeur={s.cTitreBloc} style={s.gras}>{bloc.titre}</Cellule>
-                <Cellule largeur={s.cCoeff} style={[s.centre, s.gras]}>{bloc.totalCoefficients}</Cellule>
-                <Cellule largeur={s.cPoints} style={[s.centre, s.gras]}>{n2(bloc.moyenne)}</Cellule>
-                <Cellule largeur={s.cAppreciation} fin>{" "}</Cellule>
+                <Cellule largeur={s.cTitreBloc} cellStyle={s.celLigneRenforcee} style={s.gras}>{bloc.titre}</Cellule>
+                <Cellule largeur={s.cCoeff} cellStyle={s.celLigneRenforcee} style={[s.centre, s.gras]}>{bloc.totalCoefficients}</Cellule>
+                <Cellule largeur={s.cPoints} cellStyle={s.celLigneRenforcee} style={[s.centre, s.gras]}>{n2(bloc.moyenne)}</Cellule>
+                <Cellule largeur={s.cAppreciation} cellStyle={s.celLigneRenforcee} fin>{" "}</Cellule>
               </View>
             </View>
           ))}
 
           <View style={s.ligneTotal}>
-            <Cellule largeur={s.cTitreBloc} style={s.gras}>Total</Cellule>
-            <Cellule largeur={s.cCoeff} style={[s.centre, s.gras]}>{d.totalCoefficients}</Cellule>
-            <Cellule largeur={s.cPoints} style={[s.centre, s.gras]}>{n2(d.totalPoints)}</Cellule>
-            <Cellule largeur={s.cAppreciation} fin>{" "}</Cellule>
+            <Cellule largeur={s.cTitreBloc} cellStyle={s.celLigneRenforcee} style={s.gras}>Total</Cellule>
+            <Cellule largeur={s.cCoeff} cellStyle={s.celLigneRenforcee} style={[s.centre, s.gras]}>{d.totalCoefficients}</Cellule>
+            <Cellule largeur={s.cPoints} cellStyle={s.celLigneRenforcee} style={[s.centre, s.gras]}>{n2(d.totalPoints)}</Cellule>
+            <Cellule largeur={s.cAppreciation} cellStyle={s.celLigneRenforcee} fin>{" "}</Cellule>
           </View>
         </View>
 
