@@ -77,6 +77,9 @@ const s = StyleSheet.create({
   celEntete: { paddingVertical: 5.0, paddingHorizontal: 2 },
   celLigneRenforcee: { paddingVertical: 6.2 },
   celSansBordureVerticale: { borderRightWidth: 0 },
+  celMoyenneGroupe: { borderRightWidth: 0, alignItems: "center" },
+  celTotalSansBordure: { paddingVertical: 6.2, borderRightWidth: 0 },
+  celTotalMoyenne: { paddingVertical: 6.2, borderRightWidth: 0, alignItems: "center" },
   totalFort: { fontSize: 14, fontFamily: "Times-Bold" },
   celFin: { borderRightWidth: 0 },
   gras: { fontFamily: "Times-Bold" },
@@ -314,16 +317,16 @@ function Cellule({
                 <Cellule largeur={s.cTitreBloc} cellStyle={s.celSansBordureVerticale} style={s.gras}>{bloc.titre}</Cellule>
                 <Cellule largeur={s.cCoeff} cellStyle={s.celSansBordureVerticale} style={[s.centre, s.gras]}>{bloc.totalCoefficients}</Cellule>
                 <Cellule largeur={s.cPoints} cellStyle={s.celSansBordureVerticale}>{" "}</Cellule>
-                <Cellule largeur={s.cAppreciation} cellStyle={s.celSansBordureVerticale} style={[s.centre, s.gras]} fin>{n2(bloc.moyenne)}</Cellule>
+                <Cellule largeur={s.cAppreciation} cellStyle={s.celMoyenneGroupe} style={[s.centre, s.gras]} fin>{n2(bloc.moyenne)}</Cellule>
               </View>
             </View>
           ))}
 
           <View style={s.ligneTotal}>
-            <Cellule largeur={s.cTitreBloc} cellStyle={s.celLigneRenforcee} style={s.totalFort}>Total</Cellule>
-            <Cellule largeur={s.cCoeff} cellStyle={s.celLigneRenforcee} style={[s.centre, s.gras]}>{d.totalCoefficients}</Cellule>
-            <Cellule largeur={s.cPoints} cellStyle={s.celLigneRenforcee} style={[s.centre, s.gras]}>{n2(d.totalPoints)}</Cellule>
-            <Cellule largeur={s.cAppreciation} cellStyle={s.celLigneRenforcee} style={[s.centre, s.totalFort]} fin>{n2(d.moyenneGenerale)}</Cellule>
+            <Cellule largeur={s.cTitreBloc} cellStyle={s.celTotalSansBordure} style={s.totalFort}>Total</Cellule>
+            <Cellule largeur={s.cCoeff} cellStyle={s.celTotalSansBordure} style={[s.centre, s.gras]}>{d.totalCoefficients}</Cellule>
+            <Cellule largeur={s.cPoints} cellStyle={s.celTotalSansBordure} style={[s.centre, s.gras]}>{n2(d.totalPoints)}</Cellule>
+            <Cellule largeur={s.cAppreciation} cellStyle={s.celTotalMoyenne} style={[s.centre, s.totalFort]} fin>{n2(d.moyenneGenerale)}</Cellule>
           </View>
         </View>
 
