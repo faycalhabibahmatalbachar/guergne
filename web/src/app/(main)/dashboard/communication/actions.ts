@@ -233,9 +233,6 @@ export async function publierAnnonce(donnees: unknown): Promise<Resultat> {
         `);
         plan = await planifierAnnonce(audienceAnnonce(v), tx);
         erreurConfirmation = validerConfirmation(v, plan.resume);
-        if (!erreurConfirmation && plan.resume.total === 0) {
-          erreurConfirmation = "Aucun destinataire joignable par la politique actuelle. Vérifiez les comptes, consentements et canaux.";
-        }
         if (erreurConfirmation) return;
       }
 
