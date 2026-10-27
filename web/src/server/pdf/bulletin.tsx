@@ -360,7 +360,7 @@ function Cellule({
                 <View style={[s.historiqueCell, { width: "33%", borderRightWidth: 0 }]}><Text style={s.centre}>{p.donnees?.rang ?? ""}</Text></View>
               </View>
             ))}
-            <View style={[s.historiqueLigne, { borderBottomWidth: 0 }]}>
+            <View style={[s.historiqueLigne, { borderBottomWidth: 0.4, borderBottomColor: "#111111" }]}>
               <View style={[s.historiqueCell, { width: "40%" }]}><Text style={s.gras}>Annuelle</Text></View>
               <View style={[s.historiqueCell, { width: "27%" }]}><Text style={[s.centre, s.gras]}>{n2(d.moyenneAnnuelle)}</Text></View>
               <View style={[s.historiqueCell, { width: "33%", borderRightWidth: 0 }]}><Text style={[s.centre, s.gras]}>{d.rangAnnuel ?? ""}</Text></View>
