@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { EvenementCalendaireDate, JourCalendrier } from "@/server/domain/calendrier-scolaire";
+import { GestionEvenements } from "./gestion-evenements";
 
 interface EvenementAffiche extends EvenementCalendaireDate {
   description: string | null;
@@ -66,17 +67,21 @@ function moisLibelle(annee: number, mois: number): string {
 }
 
 export function VueCalendrierAnnuel({
+  anneeId,
   anneeLibelle,
   dateDebut,
   dateFin,
   jours,
   evenements,
+  peutGerer,
 }: {
+  anneeId: string;
   anneeLibelle: string;
   dateDebut: string;
   dateFin: string;
   jours: JourCalendrier[];
   evenements: EvenementAffiche[];
+  peutGerer: boolean;
 }) {
   const moisMap = new Map<string, MoisCalendrier>();
 
@@ -162,47 +167,7 @@ export function VueCalendrierAnnuel({
           })}
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Événements de l’année</CardTitle>
-          <CardDescription>{evenements.length} événement(s) enregistrés, tous états de validation confondus sauf annulation.</CardDescription>
-        </CardHeader>
-        <CardContent className="divide-y p-0">
-          {evenements.length === 0 ? (
-            <p className="p-5 text-sm text-muted-foreground">Aucun événement enregistré pour cette année scolaire.</p>
-          ) : (
-            evenements.map((evenement) => (
-              <article key={evenement.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="text-sm font-semibold">{evenement.titre}</h4>
-                    <Badge variant="outline">{TYPES[evenement.type] ?? evenement.type}</Badge>
-                    <Badge variant="outline">{statutLibelle(evenement.statutValidation)}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Du {evenement.dateDebut} au {evenement.dateFin}
-                    {" · "}
-                    {evenement.impactCours === "SUSPENDRE_COURS"
-                      ? "Suspend les cours lorsque validé"
-                      : evenement.impactCours === "ORGANISATION_SPECIALE"
-                        ? "Nécessite une organisation spécifique"
-                        : "Informatif"}
-                    {" · "}
-                    {evenement.visibleParents ? "Visible aux parents" : "Interne"}
-                  </p>
-                  {evenement.description ? <p className="whitespace-pre-wrap text-sm">{evenement.description}</p> : null}
-                  {evenement.sourceOfficielle ? (
-                    <p className="break-all text-xs text-muted-foreground">
-                      Source : {evenement.sourceOfficielle}
-                      {evenement.sourceVerifieeLe ? ` · vérifiée le ${evenement.sourceVerifieeLe}` : ""}
-                    </p>
-                  ) : null}
-                </div>
-              </article>
-            ))
-          )}
-        </CardContent>
-      </Card>
+      <GestionEvenements anneeId={anneeId} evenements={evenements} peutGerer={peutGerer} />
     </div>
   );
 }
