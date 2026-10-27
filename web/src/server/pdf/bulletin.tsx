@@ -46,34 +46,35 @@ import type { Etablissement } from "./gabarit";
  */
 
 const s = StyleSheet.create({
-  page: { paddingTop: 25, paddingBottom: 54, paddingHorizontal: 36.8, fontSize: 9.1, fontFamily: "Times-Roman", color: "#111111" },
+  page: { paddingTop: 25, paddingBottom: 54, paddingHorizontal: 36.8, fontSize: 12, fontFamily: "Times-Roman", color: "#111111" },
   entete: { flexDirection: "row", height: 70.5, alignItems: "center", justifyContent: "flex-start", marginBottom: 0 },
   enteteInstitution: { width: "43%", justifyContent: "center", alignItems: "flex-start" },
-  enteteLigne: { fontSize: 7.5, lineHeight: 1.18, color: "#111111" },
-  enteteLigneGrasse: { fontSize: 7.5, fontFamily: "Times-Bold", lineHeight: 1.18, color: "#111111" },
+  enteteLigne: { fontSize: 12, lineHeight: 1.18, color: "#111111" },
+  enteteLigneGrasse: { fontSize: 12, fontFamily: "Times-Bold", lineHeight: 1.18, color: "#111111" },
   enteteLogoZone: { width: "14%", alignItems: "center", justifyContent: "center" },
   logo: { width: 43, height: 43, objectFit: "contain" },
-  enteteDevise: { fontSize: 8.1, fontFamily: "Times-Bold", textAlign: "center", marginBottom: 4 },
-  enteteAnneeValeur: { fontSize: 10.2, fontFamily: "Times-Bold", textAlign: "center", lineHeight: 1.25, marginBottom: 1 },
-  enteteAnnee: { fontSize: 7.8, textAlign: "center", lineHeight: 1.35 },
-  enteteMotto: { fontSize: 5.8, fontFamily: "Times-Bold", textAlign: "center", color: "#1b5e20", marginTop: 1 },
+  enteteDevise: { fontSize: 12, fontFamily: "Times-Bold", textAlign: "center", marginBottom: 4 },
+  enteteAnneeValeur: { fontSize: 12, fontFamily: "Times-Bold", textAlign: "center", lineHeight: 1.25, marginBottom: 1 },
+  enteteAnnee: { fontSize: 12, textAlign: "center", lineHeight: 1.35 },
+  enteteMotto: { fontSize: 12, fontFamily: "Times-Bold", textAlign: "center", color: "#1b5e20", marginTop: 1 },
   enteteDroite: { width: "43%", alignItems: "center", justifyContent: "center" },
   titreConteneur: { height: 42, justifyContent: "center", alignItems: "stretch" },
-  titre: { fontSize: 11.1, fontFamily: "Times-Bold", textAlign: "center" },
+  titre: { fontSize: 12, fontFamily: "Times-Bold", textAlign: "center" },
   identite: { borderWidth: 0.7, borderColor: "#111111", marginBottom: 18 },
   identiteRangee: { flexDirection: "row", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
   identiteCase: { paddingVertical: 8.5, paddingHorizontal: 3, borderRightWidth: 0.7, borderRightColor: "#111111", justifyContent: "center", alignItems: "stretch" },
   identiteCentre: { textAlign: "center" },
   identiteCaseFin: { borderRightWidth: 0 },
-  identiteLibelle: { fontSize: 10, color: "#111111" },
-  identiteValeur: { fontSize: 10.5, fontFamily: "Times-Bold" },
-  identiteNom: { fontSize: 12.7, fontFamily: "Times-BoldItalic", textAlign: "center" },
+  identiteLibelle: { fontSize: 12, color: "#111111" },
+  identiteValeur: { fontSize: 12, fontFamily: "Times-Bold" },
+  identiteNom: { fontSize: 12, fontFamily: "Times-BoldItalic", textAlign: "center" },
   table: { borderWidth: 0.7, borderColor: "#111111" },
   ligne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111" },
   ligneEntete: { flexDirection: "row", backgroundColor: "#d9d9d9", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
   cel: { paddingVertical: 3.4, paddingHorizontal: 2, borderRightWidth: 0.4, borderRightColor: "#111111" },
   celEntete: { paddingVertical: 5.0, paddingHorizontal: 2 },
   celLigneRenforcee: { paddingVertical: 6.2 },
+  totalFort: { fontSize: 14, fontFamily: "Times-Bold" },
   celFin: { borderRightWidth: 0 },
   gras: { fontFamily: "Times-Bold" },
   centre: { textAlign: "center" },
@@ -91,21 +92,21 @@ const s = StyleSheet.create({
   bas: { flexDirection: "row", marginTop: 18, gap: 0 },
   conseil: { width: "51%", borderWidth: 0.7, borderColor: "#111111" },
   conseilTitreFusion: { width: "100%", height: 48, justifyContent: "center", borderBottomWidth: 0.7, borderBottomColor: "#111111", backgroundColor: "#e2efda", paddingHorizontal: 4 },
-  conseilTitreTexte: { fontSize: 9.0, fontFamily: "Times-Bold", color: "#111111" },
+  conseilTitreTexte: { fontSize: 12, fontFamily: "Times-Bold", color: "#111111" },
   conseilLigne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111", paddingHorizontal: 0 },
   conseilLibelle: { width: "47%", color: "#111111", paddingHorizontal: 5, paddingVertical: 6.5, justifyContent: "center" },
   conseilValeurZone: { width: "53%", paddingHorizontal: 3, paddingVertical: 6.5, justifyContent: "center", alignItems: "center", borderLeftWidth: 0.4, borderLeftColor: "#111111" },
-  conseilValeur: { fontFamily: "Times-Bold", textAlign: "center", fontSize: 8.7 },
-  conseilCommentaire: { fontFamily: "Times-Italic", textAlign: "center", fontSize: 6.4, lineHeight: 1.12, marginTop: 1.5 },
+  conseilValeur: { fontFamily: "Times-Bold", textAlign: "center", fontSize: 12 },
+  conseilCommentaire: { fontFamily: "Times-Italic", textAlign: "center", fontSize: 12, lineHeight: 1.12, marginTop: 1.5 },
   historique: { width: "49%", borderWidth: 0.7, borderColor: "#111111" },
   historiqueCell: { paddingHorizontal: 3, paddingVertical: 6.5, justifyContent: "center", borderRightWidth: 0.4, borderRightColor: "#111111" },
   historiqueEntete: { backgroundColor: "#e2efda" },
   historiqueLigne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111" },
   historiqueAnnuelle: { flexGrow: 1, flexDirection: "row", borderBottomWidth: 0 },
   orientationRow: { height: 17.25, justifyContent: "center" },
-  orientation: { fontSize: 8.5, fontFamily: "Times-Bold", color: "#111111" },
+  orientation: { fontSize: 12, fontFamily: "Times-Bold", color: "#111111" },
   signature: { flexDirection: "row", height: 18, justifyContent: "space-between", alignItems: "center", marginTop: 0, paddingHorizontal: 0 },
-  pied: { position: "absolute", bottom: 19, left: 36.8, right: 36.8, flexDirection: "row", justifyContent: "space-between", alignItems: "center", fontSize: 6.6, color: "#111111" },
+  pied: { position: "absolute", bottom: 19, left: 36.8, right: 36.8, flexDirection: "row", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "#111111" },
 });
 
 export interface LigneMatiere {
@@ -247,7 +248,7 @@ function Cellule({
           </View>
           <View style={s.identiteRangee}>
             <View style={[s.identiteCase, { width: "36%", alignItems: "stretch" }]}>
-              <Text style={[s.identiteCentre, { fontSize: 10 }]}>
+              <Text style={[s.identiteCentre, { fontSize: 12 }]}>
                 <Text style={s.identiteLibelle}>Matricule : </Text>
                 <Text style={s.identiteValeur}>{identite.matricule}</Text>
               </Text>
@@ -315,9 +316,9 @@ function Cellule({
           ))}
 
           <View style={s.ligneTotal}>
-            <Cellule largeur={s.cTitreBloc} cellStyle={s.celLigneRenforcee} style={s.gras}>Total</Cellule>
+            <Cellule largeur={s.cTitreBloc} cellStyle={s.celLigneRenforcee} style={s.totalFort}>Total</Cellule>
             <Cellule largeur={s.cCoeff} cellStyle={s.celLigneRenforcee} style={[s.centre, s.gras]}>{d.totalCoefficients}</Cellule>
-            <Cellule largeur={s.cPoints} cellStyle={s.celLigneRenforcee} style={[s.centre, s.gras]}>{n2(d.totalPoints)}</Cellule>
+            <Cellule largeur={s.cPoints} cellStyle={s.celLigneRenforcee} style={[s.centre, s.totalFort]}>{n2(d.totalPoints)}</Cellule>
             <Cellule largeur={s.cAppreciation} cellStyle={s.celLigneRenforcee} fin>{" "}</Cellule>
           </View>
         </View>
@@ -373,10 +374,10 @@ function Cellule({
         <View style={{ height: 18 }} />
         <View style={s.signature}>
           <View style={{ width: "60%", flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Text style={[s.gras, { fontSize: 9.0 }]}>N’Djamena, le</Text>
-            <Text style={{ fontSize: 9.0 }}>{d.dateEdition}</Text>
+            <Text style={[s.gras, { fontSize: 12 }]}>N’Djamena, le</Text>
+            <Text style={{ fontSize: 12 }}>{d.dateEdition}</Text>
           </View>
-          <Text style={[s.gras, { minWidth: 130, textAlign: "center", fontSize: 9.0 }]}>Le Proviseur</Text>
+          <Text style={[s.gras, { minWidth: 130, textAlign: "center", fontSize: 12 }]}>Le Proviseur</Text>
         </View>
         <View style={s.pied} fixed>
           <Text>LGR</Text>
