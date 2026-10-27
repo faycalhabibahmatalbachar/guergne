@@ -165,8 +165,13 @@ function NavItem({ item, isItemActive, isSubItemActive, isSubmenuOpen }: NavItem
 function NavLinkItem({ item, isActive, showIconFallback }: NavLinkItemProps) {
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild aria-disabled={item.disabled} tooltip={item.title} isActive={isActive}
-        >
+      <SidebarMenuButton
+        asChild
+        aria-disabled={item.disabled}
+        tooltip={item.title}
+        isActive={isActive}
+        className="data-[active=true]:!bg-[#2563eb] data-[active=true]:!font-semibold data-[active=true]:!text-white data-[active=true]:hover:!bg-[#2563eb] data-[active=true]:[&_svg]:!text-white"
+      >
         <Link
           prefetch={false}
           href={item.url}
@@ -203,8 +208,12 @@ function NavDropdownItem({ item, isActive, isSubItemActive }: NavDropdownItemPro
     <SidebarMenuItem>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <SidebarMenuButton tooltip={item.title} isActive={isActive} disabled={item.disabled}
-            >
+          <SidebarMenuButton
+            tooltip={item.title}
+            isActive={isActive}
+            disabled={item.disabled}
+            className="data-[active=true]:!bg-[#2563eb] data-[active=true]:!font-semibold data-[active=true]:!text-white data-[active=true]:hover:!bg-[#2563eb] data-[active=true]:[&_svg]:!text-white"
+          >
             {Icon ? <Icon /> : <CollapsedIconFallback title={item.title} />}
             <span>{item.title}</span>
           </SidebarMenuButton>
@@ -245,8 +254,12 @@ function NavCollapsibleItem({ item, isActive, defaultOpen, isSubItemActive }: Na
     <Collapsible asChild defaultOpen={defaultOpen} className="group/collapsible">
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton tooltip={item.title} isActive={isActive} disabled={item.disabled}
-            >
+          <SidebarMenuButton
+            tooltip={item.title}
+            isActive={isActive}
+            disabled={item.disabled}
+            className="data-[active=true]:!bg-[#2563eb] data-[active=true]:!font-semibold data-[active=true]:!text-white data-[active=true]:hover:!bg-[#2563eb] data-[active=true]:[&_svg]:!text-white"
+          >
             {Icon && <Icon />}
             <span>{item.title}</span>
             <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -265,7 +278,7 @@ function NavCollapsibleItem({ item, isActive, defaultOpen, isSubItemActive }: Na
                     asChild
                     aria-disabled={subItem.disabled}
                     isActive={isSubItemActive(subItem.url)}
-                    
+                    className="data-[active=true]:!bg-[#2563eb] data-[active=true]:!font-semibold data-[active=true]:!text-white data-[active=true]:hover:!bg-[#2563eb] data-[active=true]:[&_svg]:!text-white"
                   >
                     <Link
                       prefetch={false}
