@@ -40,7 +40,6 @@ const schemaEvenement = z
     impactCours: z.enum(IMPACTS),
     sourceOfficielle: z.string().trim().max(1000).optional().default(""),
     sourceVerifieeLe: z.string().optional().default(""),
-    visibleParents: z.boolean().default(false),
   })
   .superRefine((v, ctx) => {
     try {
@@ -116,7 +115,7 @@ export async function creerEvenementCalendrier(donnees: unknown): Promise<Result
       VALUES
         (${v.anneeId}::uuid, ${v.type}::type_evenement, ${v.titre},
          ${v.description || null}, ${v.dateDebut}::date, ${v.dateFin}::date,
-         ${v.visibleParents}, ${v.impactCours}, 'BROUILLON',
+         FALSE, ${v.impactCours}, 'BROUILLON',
          ${v.sourceOfficielle || null}, ${v.sourceVerifieeLe || null}::date,
          ${acteur.id}::uuid, now())
       RETURNING id
@@ -283,7 +282,7 @@ export async function validerEvenementCalendrier(id: string): Promise<ResultatEv
   }
 }
 
-export async function publierEvenementCalendrier(id: string): Promise<ResultatEvenementCalendrier> {
+export async function publierEvenementCalendrier(id: string, visibleParents: boolean): Promise<ResultatEvenementCalendrier> {
   try {
     const acteur = await requirePermission("emploi_du_temps:gerer");
     const [event] = (
@@ -302,6 +301,7 @@ export async function publierEvenementCalendrier(id: string): Promise<ResultatEv
     await db.execute(sql`
       UPDATE evenements_calendrier
          SET statut_validation = 'PUBLIE',
+             visible_parents = ${visibleParents},
              modifie_par = ${acteur.id}::uuid,
              modifie_le = now()
        WHERE id = ${id}::uuid
@@ -312,12 +312,12 @@ export async function publierEvenementCalendrier(id: string): Promise<ResultatEv
       entite: "evenements_calendrier",
       entiteId: id,
       avant: { statutValidation: event.statut_validation, visibleParents: event.visible_parents },
-      apres: { statutValidation: "PUBLIE", visibleParents: event.visible_parents },
+      apres: { statutValidation: "PUBLIE", visibleParents },
     });
 
     revalidatePath("/dashboard/emploi-du-temps/calendrier");
     revalidatePath("/dashboard/emploi-du-temps");
-    return { ok: true, message: event.visible_parents ? "Événement publié pour les familles." : "Événement publié en interne." };
+    return { ok: true, message: visibleParents ? "Événement publié pour les familles." : "Événement publié en interne." };
   } catch (erreur) {
     return echec(erreur);
   }
