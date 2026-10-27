@@ -19,7 +19,7 @@ test("email Gmail possède un lien, le logo, et des alternatives HTML et texte",
   assert.match(message, /Content-Type: text\/html; charset=UTF-8/);
   assert.ok(contenu.texte.includes(lien));
   assert.ok(contenu.html.includes('href="' + lien + '"'));
-  assert.ok(contenu.html.includes("logo-officiel.webp"));
+  assert.ok(contenu.html.includes("logo-officiel.png"));
   assert.ok(contenu.html.includes("20 minutes"));
   assert.ok(message.includes(Buffer.from(contenu.texte).toString("base64").slice(0,30)));
   assert.ok(message.includes(Buffer.from(contenu.html).toString("base64").slice(0,30)));
