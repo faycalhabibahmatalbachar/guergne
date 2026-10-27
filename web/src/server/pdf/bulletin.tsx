@@ -58,7 +58,7 @@ const s = StyleSheet.create({
   enteteDevise: { fontSize: 12, fontFamily: "Times-Bold", textAlign: "center", marginBottom: 4 },
   enteteAnneeValeur: { fontSize: 12, fontFamily: "Times-Bold", textAlign: "center", lineHeight: 1.25, marginBottom: 1 },
   enteteAnnee: { fontSize: 12, textAlign: "center", lineHeight: 1.35 },
-  enteteMotto: { fontSize: 12, fontFamily: "Times-Bold", textAlign: "center", color: "#1b5e20", marginTop: 1 },
+  enteteMotto: { fontSize: 5.8, fontFamily: "Times-Bold", textAlign: "center", color: "#1b5e20", marginTop: 1 },
   enteteDroite: { width: "43%", alignItems: "center", justifyContent: "center" },
   titreConteneur: { height: 42, justifyContent: "center", alignItems: "stretch" },
   titre: { fontSize: 12, fontFamily: "Times-Bold", textAlign: "center" },
@@ -75,6 +75,9 @@ const s = StyleSheet.create({
   ligneEntete: { flexDirection: "row", backgroundColor: "#d9d9d9", borderBottomWidth: 0.7, borderBottomColor: "#111111" },
   cel: { paddingVertical: 3.4, paddingHorizontal: 2, borderRightWidth: 0.4, borderRightColor: "#111111" },
   celEntete: { paddingVertical: 5.0, paddingHorizontal: 2 },
+  celCoefficient: { borderLeftWidth: 0.4, borderLeftColor: "#111111", borderRightWidth: 0.4, borderRightColor: "#111111" },
+  celCoefficientEntete: { paddingVertical: 5.0, paddingHorizontal: 2, borderLeftWidth: 0.4, borderLeftColor: "#111111", borderRightWidth: 0.4, borderRightColor: "#111111" },
+  celCoefficientTotal: { paddingVertical: 6.2, borderLeftWidth: 0.4, borderLeftColor: "#111111", borderRightWidth: 0.4, borderRightColor: "#111111" },
   celLigneRenforcee: { paddingVertical: 6.2 },
   celSansBordureVerticale: { borderRightWidth: 0 },
   celMoyenneGroupe: { borderRightWidth: 0, alignItems: "center" },
@@ -287,7 +290,7 @@ function Cellule({
             <Cellule largeur={s.cDevoirs} cellStyle={s.celEntete} style={[s.gras, s.centre]}>Moyennes Devoirs</Cellule>
             <Cellule largeur={s.cCompos} cellStyle={s.celEntete} style={[s.gras, s.centre]}>Notes Compositions</Cellule>
             <Cellule largeur={s.cMoyenne} cellStyle={s.celEntete} style={[s.gras, s.centre]}>Moyenne Générale</Cellule>
-            <Cellule largeur={s.cCoeff} cellStyle={s.celEntete} style={[s.gras, s.centre]}>Coeff.</Cellule>
+            <Cellule largeur={s.cCoeff} cellStyle={s.celCoefficientEntete} style={[s.gras, s.centre]}>Coeff.</Cellule>
             <Cellule largeur={s.cPoints} cellStyle={s.celEntete} style={[s.gras, s.centre]}>Moyenne Coefficient</Cellule>
             <Cellule largeur={s.cAppreciation} cellStyle={s.celEntete} style={s.gras} fin>Appréciations</Cellule>
           </View>
@@ -300,7 +303,7 @@ function Cellule({
                   <Cellule largeur={s.cDevoirs} style={s.centre}>{n2(m.moyenneDevoirs)}</Cellule>
                   <Cellule largeur={s.cCompos} style={s.centre}>{n2(m.noteComposition)}</Cellule>
                   <Cellule largeur={s.cMoyenne} style={[s.centre, s.gras]}>{n2(m.moyenne)}</Cellule>
-                  <Cellule largeur={s.cCoeff} style={s.centre}>{m.coefficient ?? ""}</Cellule>
+                  <Cellule largeur={s.cCoeff} cellStyle={s.celCoefficient} style={s.centre}>{m.coefficient ?? ""}</Cellule>
                   <Cellule largeur={s.cPoints} style={s.centre}>{n2(m.points)}</Cellule>
                   <Cellule largeur={s.cAppreciation} fin>{m.appreciation}</Cellule>
                 </View>
@@ -315,7 +318,7 @@ function Cellule({
               */}
               <View style={s.ligneGroupe}>
                 <Cellule largeur={s.cTitreBloc} cellStyle={s.celSansBordureVerticale} style={s.gras}>{bloc.titre}</Cellule>
-                <Cellule largeur={s.cCoeff} cellStyle={s.celSansBordureVerticale} style={[s.centre, s.gras]}>{bloc.totalCoefficients}</Cellule>
+                <Cellule largeur={s.cCoeff} cellStyle={s.celCoefficient} style={[s.centre, s.gras]}>{bloc.totalCoefficients}</Cellule>
                 <Cellule largeur={s.cPoints} cellStyle={s.celSansBordureVerticale}>{" "}</Cellule>
                 <Cellule largeur={s.cAppreciation} cellStyle={s.celMoyenneGroupe} style={[s.centre, s.gras]} fin>{n2(bloc.moyenne)}</Cellule>
               </View>
@@ -324,7 +327,7 @@ function Cellule({
 
           <View style={s.ligneTotal}>
             <Cellule largeur={s.cTitreBloc} cellStyle={s.celTotalSansBordure} style={s.totalFort}>Total</Cellule>
-            <Cellule largeur={s.cCoeff} cellStyle={s.celTotalSansBordure} style={[s.centre, s.gras]}>{d.totalCoefficients}</Cellule>
+            <Cellule largeur={s.cCoeff} cellStyle={s.celCoefficientTotal} style={[s.centre, s.gras]}>{d.totalCoefficients}</Cellule>
             <Cellule largeur={s.cPoints} cellStyle={s.celTotalSansBordure} style={[s.centre, s.gras]}>{n2(d.totalPoints)}</Cellule>
             <Cellule largeur={s.cAppreciation} cellStyle={s.celTotalMoyenne} style={[s.centre, s.totalFort]} fin>{n2(d.moyenneGenerale)}</Cellule>
           </View>
