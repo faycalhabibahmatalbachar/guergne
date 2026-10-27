@@ -1,0 +1,25 @@
+/* Styles adaptés depuis les sources officielles Gentelella v4.2.0 (MIT). */
+@scope (.gentelella-v4) {
+  .communication-page { color:var(--text); font-family:var(--font); }
+  .communication-kpi { display:flex; min-width:0; align-items:flex-start; gap:12px; padding:18px; border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--bg-surface); box-shadow:var(--shadow); }
+  .communication-kpi-icon { display:inline-flex; width:38px; height:38px; flex:0 0 auto; align-items:center; justify-content:center; border-radius:var(--radius); background:var(--primary-lt); color:var(--primary-dk); }
+  .communication-kpi-label { color:var(--text-muted); font-size:12px; line-height:1.4; }
+  .communication-kpi-value { margin-top:3px; color:var(--text); font-size:25px; font-weight:var(--font-weight-bold); line-height:1.15; font-variant-numeric:tabular-nums; }
+  .communication-panel { overflow:hidden; border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--bg-surface); box-shadow:var(--shadow); }
+  .communication-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border-color-light); }
+  .communication-toolbar-group { display:flex; min-width:0; flex:1 1 340px; flex-wrap:wrap; align-items:center; gap:8px; }
+  .communication-data-table { min-width:760px; }
+  .communication-data-table thead th { background:var(--bg-surface-secondary); color:var(--text-muted); font-size:11px; font-weight:var(--font-weight-bold); letter-spacing:.035em; text-transform:uppercase; }
+  .communication-data-table tbody td { border-bottom:1px solid var(--border-color-light); padding-block:13px; vertical-align:middle; }
+  .communication-data-table tbody tr:last-child td { border-bottom:0; }
+  .communication-secondary { color:var(--text-muted); font-size:12px; line-height:1.5; }
+  .communication-empty { display:flex; min-height:210px; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:28px; color:var(--text-muted); text-align:center; }
+  .communication-empty-icon { display:inline-flex; width:42px; height:42px; align-items:center; justify-content:center; border-radius:50%; background:var(--bg-surface-secondary); color:var(--text-disabled); }
+  .communication-pagination { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border-top:1px solid var(--border-color-light); color:var(--text-muted); font-size:12px; }
+  .communication-tabs-list { display:inline-flex; max-width:100%; flex-wrap:wrap; gap:4px; padding:4px; border:1px solid var(--border-color); border-radius:var(--radius); background:var(--bg-surface-secondary); }
+  .communication-tab-trigger { border-radius:var(--radius-sm); color:var(--text-secondary); }
+  .communication-tab-trigger[data-state="active"] { background:var(--bg-surface); color:var(--text); box-shadow:var(--shadow-card); }
+  .communication-page .form-control { min-width:0; }
+  .communication-page .dt-paging-button:disabled { cursor:not-allowed; opacity:.45; }
+  @media (max-width:640px) { .communication-kpi{padding:14px}.communication-kpi-value{font-size:22px}.communication-toolbar,.communication-pagination{padding:12px}.communication-pagination{align-items:flex-start} }
+}

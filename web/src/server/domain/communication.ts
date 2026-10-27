@@ -1,17 +1,22 @@
 import "server-only";
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import {
   annonces,
   classes,
   eleves,
+  eleveTuteur,
+  inscriptions,
   messages,
   niveaux,
   notifications,
   utilisateurs,
 } from "@/server/db/schema";
+
+import { COUT_SMS_FCFA } from "@/lib/tarifs";
+import { segmentsSms, signatureSms } from "@/server/notifications/sms";
 
 /** Lectures du module Communication. */
 
@@ -113,37 +118,36 @@ export interface EtatFile {
   echouees: number;
   pushEnAttente: number;
   smsEnAttente: number;
+  smsSegmentsEstimes: number;
   coutSmsEstime: number;
 }
 
-/**
- * État de la file d'expédition.
- *
- * Le coût SMS est estimé à 25 F par message : c'est le seul poste de dépense
- * variable du projet, la direction doit pouvoir le voir avant d'activer le
- * canal.
- */
+/** L’estimation tient compte de l’alphabet et du nombre de segments SMS. */
 export async function etatFileNotifications(): Promise<EtatFile> {
-  const r = await db.execute<Record<string, unknown>>(sql`
-    SELECT
-      count(*) FILTER (WHERE statut = 'EN_ATTENTE')                      AS en_attente,
-      count(*) FILTER (WHERE statut = 'ENVOYE')                          AS envoyees,
-      count(*) FILTER (WHERE statut = 'ECHOUE')                          AS echouees,
-      count(*) FILTER (WHERE statut = 'EN_ATTENTE' AND canal = 'PUSH')   AS push_attente,
-      count(*) FILTER (WHERE statut = 'EN_ATTENTE' AND canal = 'SMS')    AS sms_attente
-      FROM notifications
-  `);
-
-  const l = r.rows[0] ?? {};
-  const smsEnAttente = Number(l.sms_attente ?? 0);
-
+  const [enAttente, envoyees, echouees, pushEnAttente, smsLignes] = await Promise.all([
+    db.select({ n: count() }).from(notifications).where(eq(notifications.statut, "EN_ATTENTE")),
+    db.select({ n: count() }).from(notifications).where(eq(notifications.statut, "ENVOYE")),
+    db.select({ n: count() }).from(notifications).where(eq(notifications.statut, "ECHOUE")),
+    db.select({ n: count() }).from(notifications).where(and(
+      eq(notifications.statut, "EN_ATTENTE"), eq(notifications.canal, "PUSH"),
+    )),
+    db.select({ titre: notifications.titre, corps: notifications.corps }).from(notifications).where(and(
+      eq(notifications.statut, "EN_ATTENTE"), eq(notifications.canal, "SMS"),
+    )),
+  ]);
+  const signature = signatureSms();
+  const smsSegmentsEstimes = smsLignes.reduce((total, ligne) => {
+    const texte = ligne.titre + "\n" + ligne.corps;
+    return total + segmentsSms(texte.startsWith(signature) ? texte : signature + texte);
+  }, 0);
   return {
-    enAttente: Number(l.en_attente ?? 0),
-    envoyees: Number(l.envoyees ?? 0),
-    echouees: Number(l.echouees ?? 0),
-    pushEnAttente: Number(l.push_attente ?? 0),
-    smsEnAttente,
-    coutSmsEstime: smsEnAttente * 25,
+    enAttente: Number(enAttente[0]?.n ?? 0),
+    envoyees: Number(envoyees[0]?.n ?? 0),
+    echouees: Number(echouees[0]?.n ?? 0),
+    pushEnAttente: Number(pushEnAttente[0]?.n ?? 0),
+    smsEnAttente: smsLignes.length,
+    smsSegmentsEstimes,
+    coutSmsEstime: smsSegmentsEstimes * COUT_SMS_FCFA,
   };
 }
 
@@ -156,29 +160,29 @@ export interface LigneNotification {
   statut: string;
   telephone: string | null;
   tentatives: number;
-  erreur: string | null;
   creeLe: string;
   envoyeLe: string | null;
 }
 
-export async function listerNotifications(limite = 50): Promise<LigneNotification[]> {
-  return db
-    .select({
-      id: notifications.id,
-      type: notifications.type,
-      canal: notifications.canal,
-      titre: notifications.titre,
-      corps: notifications.corps,
-      statut: notifications.statut,
-      telephone: notifications.telephone,
-      tentatives: notifications.tentatives,
-      erreur: notifications.erreur,
-      creeLe: notifications.creeLe,
-      envoyeLe: notifications.envoyeLe,
-    })
-    .from(notifications)
+export async function listerNotifications(limite = 100): Promise<LigneNotification[]> {
+  const lignes = await db.select({
+    id: notifications.id,
+    type: notifications.type,
+    canal: notifications.canal,
+    titre: notifications.titre,
+    corps: notifications.corps,
+    statut: notifications.statut,
+    telephone: notifications.telephone,
+    tentatives: notifications.tentatives,
+    creeLe: notifications.creeLe,
+    envoyeLe: notifications.envoyeLe,
+  }).from(notifications)
     .orderBy(desc(notifications.creeLe))
     .limit(limite);
+  return lignes.map((ligne) => ({
+    ...ligne,
+    telephone: ligne.telephone ? "•••• " + ligne.telephone.replace(/[^0-9]/g, "").slice(-4) : null,
+  }));
 }
 
 /** Élèves pour le ciblage nominatif d'une annonce. */
@@ -188,23 +192,49 @@ export async function listerElevesActifs(anneeId: string) {
       FROM inscriptions i
       JOIN eleves e  ON e.id = i.eleve_id
       JOIN classes c ON c.id = i.classe_id
-     WHERE i.active AND i.annee_id = ${anneeId}::uuid
+     WHERE i.active AND c.active AND i.annee_id = ${anneeId}::uuid
      ORDER BY e.nom, e.prenom
      LIMIT 500
   `);
 }
 
 /** Tuteurs disposant d'un compte, destinataires possibles d'un message. */
-export async function listerTuteursAvecCompte() {
-  return db
-    .select({
-      utilisateurId: utilisateurs.id,
-      nom: utilisateurs.nom,
-      prenom: utilisateurs.prenom,
-      telephone: utilisateurs.telephone,
-    })
-    .from(utilisateurs)
+export async function listerTuteursAvecCompte(anneeId: string) {
+  const parents = await db.select({
+    utilisateurId: utilisateurs.id, nom: utilisateurs.nom, prenom: utilisateurs.prenom, tuteurId: tuteurs.id,
+  }).from(utilisateurs)
+    .innerJoin(tuteurs, eq(tuteurs.utilisateurId, utilisateurs.id))
     .where(and(eq(utilisateurs.role, "PARENT"), eq(utilisateurs.actif, true)))
-    .orderBy(utilisateurs.nom)
-    .limit(500);
+    .orderBy(utilisateurs.nom, utilisateurs.prenom).limit(500);
+  if (parents.length === 0) return [];
+
+  const liaisons = await db.select({
+    utilisateurId: tuteurs.utilisateurId, eleveId: eleveTuteur.eleveId,
+  }).from(tuteurs)
+    .innerJoin(eleveTuteur, eq(eleveTuteur.tuteurId, tuteurs.id))
+    .innerJoin(inscriptions, and(
+      eq(inscriptions.eleveId, eleveTuteur.eleveId),
+      eq(inscriptions.anneeId, anneeId),
+      eq(inscriptions.active, true),
+    ))
+    .innerJoin(classes, and(
+      eq(classes.id, inscriptions.classeId),
+      eq(classes.anneeId, anneeId),
+      eq(classes.active, true),
+    ))
+    .where(inArray(tuteurs.utilisateurId, parents.map((parent) => parent.utilisateurId)));
+
+  const elevesParParent = new Map<string, Set<string>>();
+  for (const lien of liaisons) {
+    if (!lien.utilisateurId) continue;
+    const ids = elevesParParent.get(lien.utilisateurId) ?? new Set<string>();
+    ids.add(lien.eleveId);
+    elevesParParent.set(lien.utilisateurId, ids);
+  }
+  return parents.flatMap((parent) => {
+    const elevesIds = Array.from(elevesParParent.get(parent.utilisateurId) ?? []);
+    return elevesIds.length
+      ? [{ utilisateurId: parent.utilisateurId, nom: parent.nom, prenom: parent.prenom, elevesIds }]
+      : [];
+  });
 }
