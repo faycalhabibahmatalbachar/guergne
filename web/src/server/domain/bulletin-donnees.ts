@@ -536,10 +536,10 @@ export async function chargerBulletin(
     })),
     // Le modèle Excel laisse la ligne annuelle vide tant que le conseil de fin
     // d'année n'a pas statué ; ne pas afficher la moyenne T1 comme une annuelle.
-    moyenneAnnuelle: ctx.est_derniere_periode ? moyenneAnnuelle : null,
+    moyenneAnnuelle,
     // Le rang annuel n'est affiché qu'à la dernière période. Il est calculé
     // à partir des moyennes annuelles de la classe, avec ex æquo au même rang.
-    rangAnnuel: ctx.est_derniere_periode ? rangAnnuelCalcule : null,
+    rangAnnuel: rangAnnuelCalcule,
 
     // Les valeurs écrites par l'administration restent prioritaires ; les
     // cellules non saisies suivent les formules du classeur Excel.

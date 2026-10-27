@@ -101,8 +101,7 @@ const s = StyleSheet.create({
   historiqueCell: { paddingHorizontal: 3, paddingVertical: 6.5, justifyContent: "center", borderRightWidth: 0.4, borderRightColor: "#111111" },
   historiqueEntete: { backgroundColor: "#e2efda" },
   historiqueLigne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111" },
-  historiqueAnnuelle: { position: "relative", flexDirection: "row", borderBottomWidth: 0 },
-  historiqueSeparateurAnnuel: { position: "absolute", top: -0.4, bottom: -0.7, width: 0.4, backgroundColor: "#111111" },
+  historiqueAnnuelle: { flexGrow: 1, flexDirection: "row", borderBottomWidth: 0 },
   orientationRow: { height: 17.25, justifyContent: "center" },
   orientation: { fontSize: 8.5, fontFamily: "Times-Bold", color: "#111111" },
   signature: { flexDirection: "row", height: 18, justifyContent: "space-between", alignItems: "center", marginTop: 0, paddingHorizontal: 0 },
@@ -363,11 +362,9 @@ function Cellule({
               </View>
             ))}
             <View style={s.historiqueAnnuelle}>
-              <View style={[s.historiqueCell, { width: "40%", borderRightWidth: 0 }]}><Text style={s.gras}>Annuelle</Text></View>
-              <View style={[s.historiqueCell, { width: "27%", borderRightWidth: 0 }]}><Text style={[s.centre, s.gras]}>{n2(d.moyenneAnnuelle)}</Text></View>
+              <View style={[s.historiqueCell, { width: "40%" }]}><Text style={s.gras}>Annuelle</Text></View>
+              <View style={[s.historiqueCell, { width: "27%" }]}><Text style={[s.centre, s.gras]}>{n2(d.moyenneAnnuelle)}</Text></View>
               <View style={[s.historiqueCell, { width: "33%", borderRightWidth: 0 }]}><Text style={[s.centre, s.gras]}>{d.rangAnnuel ?? ""}</Text></View>
-              <View style={[s.historiqueSeparateurAnnuel, { left: "40%" }]} />
-              <View style={[s.historiqueSeparateurAnnuel, { left: "67%" }]} />
             </View>
           </View>
         </View>
