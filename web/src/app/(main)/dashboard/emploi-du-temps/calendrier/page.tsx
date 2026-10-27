@@ -17,6 +17,7 @@ export const metadata: Metadata = { title: "Calendrier scolaire annuel" };
 export const dynamic = "force-dynamic";
 
 interface AnneeLigne {
+  [key: string]: unknown;
   id: string;
   libelle: string;
   date_debut: string;
@@ -25,6 +26,7 @@ interface AnneeLigne {
 }
 
 interface EvenementLigne {
+  [key: string]: unknown;
   id: string;
   type: string;
   titre: string;
