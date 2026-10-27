@@ -248,7 +248,7 @@ function Cellule({
             <View style={[s.identiteCase, { width: "24%", borderRightWidth: 0 }]}>
               <Text style={[s.identiteLibelle, s.identiteCentre]}>Matricule :</Text>
             </View>
-            <View style={[s.identiteCase, { width: "12%", paddingHorizontal: 0, alignItems: "stretch", justifyContent: "center", overflow: "hidden" }]}>
+            <View style={[s.identiteCase, { width: "12%", paddingHorizontal: 0, paddingRight: 4, alignItems: "stretch", justifyContent: "center", overflow: "hidden" }]}>
               <Text style={[s.identiteValeur, { textAlign: "center", fontSize: 9.2, width: "100%" }]}>{identite.matricule}</Text>
             </View>
             <View style={[s.identiteCase, { width: "35%" }]}>
