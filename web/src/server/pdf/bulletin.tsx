@@ -9,7 +9,7 @@ import { join } from "node:path";
 type Style = ReturnType<typeof StyleSheet.create>[string];
 
 const LOGO_ETABLISSEMENT = join(process.cwd(), "public", "logo-officiel.png");
-const FOND_BULLETIN = join(process.cwd(), "public", "filigrane-gr.jpg");
+const FOND_BULLETIN = LOGO_ETABLISSEMENT;
 
 import type { Etablissement } from "./gabarit";
 
@@ -48,7 +48,7 @@ import type { Etablissement } from "./gabarit";
 
 const s = StyleSheet.create({
   page: { paddingTop: 25, paddingBottom: 54, paddingHorizontal: 36.8, fontSize: 12, fontFamily: "Times-Roman", color: "#111111" },
-  fondBulletin: { position: "absolute", top: 245, left: 92, width: 410, height: 346 },
+  fondBulletin: { position: "absolute", top: 245, left: 92, width: 410, height: 346, opacity: 0.12 },
   entete: { flexDirection: "row", height: 70.5, alignItems: "center", justifyContent: "flex-start", marginBottom: 0 },
   enteteInstitution: { width: "43%", justifyContent: "center", alignItems: "flex-start" },
   enteteLigne: { fontSize: 12, lineHeight: 1.18, color: "#111111" },
