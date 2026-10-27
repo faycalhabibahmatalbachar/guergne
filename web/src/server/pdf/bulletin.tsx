@@ -329,16 +329,15 @@ function Cellule({
               <Text style={s.conseilTitreTexte}>Appréciation du Conseil de classe</Text>
             </View>
             {[
-              { libelle: "Travail", valeur: d.appreciationTravail, detail: d.appreciationGenerale },
-              { libelle: "Discipline", valeur: d.appreciationDiscipline, detail: null },
-              { libelle: "Décision du Conseil", valeur: d.decisionConseil, detail: null },
+              { libelle: "Travail", valeur: d.appreciationTravail },
+              { libelle: "Discipline", valeur: d.appreciationDiscipline },
+              { libelle: "Décision du Conseil", valeur: d.decisionConseil },
             ].map((l) => (
               <View key={l.libelle} style={s.conseilLigne}>
                 <View style={s.conseilLibelle}><Text>{l.libelle}</Text></View>
                 <View style={s.conseilValeurZone}>
                   <View style={{ width: "100%", alignItems: "center" }}>
                     <Text style={s.conseilValeur}>{l.valeur ?? ""}</Text>
-                    {l.detail ? <Text style={s.conseilCommentaire}>{l.detail}</Text> : null}
                   </View>
                 </View>
               </View>
