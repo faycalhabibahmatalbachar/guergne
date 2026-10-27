@@ -147,7 +147,6 @@ function CarteApercu(p: {
   setConfirmerDiffusion: (v: boolean) => void;
   confirmerCout: boolean;
   setConfirmerCout: (v: boolean) => void;
-  identifiant: string;
 }) {
   const a = p.apercu;
   return <section className="communication-preview" aria-label="Aperçu de la diffusion">
@@ -227,7 +226,7 @@ export function Communication(p: {
     (x) => x.lu ? "LU" : "NON_LU");
   const n = useListe(p.notifications,
     (x) => [x.titre, x.corps, x.telephone ?? "", TYPE_NOTIFICATION[x.type] ?? x.type, x.canal].join(" "),
-    (x) => x.statut);
+    (x) => x.canal === "IN_APP" && x.statut === "EN_ATTENTE" ? "DANS_APPLICATION" : x.statut);
 
   const parentChoisi = p.tuteurs.find((x) => x.utilisateurId === destinataireId);
   const elevesDuParent = parentChoisi ? p.eleves.filter((x) => parentChoisi.elevesIds.includes(x.id)) : [];
@@ -244,6 +243,7 @@ export function Communication(p: {
   const filtresN = [
     { value: "TOUS", label: "Tous les états" },
     { value: "EN_ATTENTE", label: "En attente d’envoi" },
+    { value: "DANS_APPLICATION", label: "Dans l’application" },
     { value: "ENVOYE", label: "Envoyées" },
     { value: "ECHOUE", label: "En échec" },
     { value: "LU", label: "Lues" },
@@ -658,7 +658,7 @@ export function Communication(p: {
               <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="envoyerPush" defaultChecked className="mt-0.5 size-4 accent-primary" /><span>Notifier les familles selon la politique actuelle (push, SMS ou application)</span></label>
               <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="epinglee" className="mt-0.5 size-4 accent-primary" /><span>Épingler l’annonce en tête de liste</span></label>
             </div>
-            {apercuAnnonce ? <CarteApercu apercu={apercuAnnonce} confirmerDiffusion={confirmerAnnonce} setConfirmerDiffusion={setConfirmerAnnonce} confirmerCout={confirmerCoutAnnonce} setConfirmerCout={setConfirmerCoutAnnonce} identifiant="annonce" /> : null}
+            {apercuAnnonce ? <CarteApercu apercu={apercuAnnonce} confirmerDiffusion={confirmerAnnonce} setConfirmerDiffusion={setConfirmerAnnonce} confirmerCout={confirmerCoutAnnonce} setConfirmerCout={setConfirmerCoutAnnonce} /> : null}
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-row">
             <Button type="button" variant="outline" disabled={enCours} className="rounded-lg" onClick={calculerApercuAnnonce}><RefreshCw aria-hidden /> Calculer audience et coût</Button>
@@ -694,7 +694,7 @@ export function Communication(p: {
             </div>
             <div className="grid gap-2"><Label htmlFor="objet">Objet *</Label><Input id="objet" name="objet" maxLength={180} minLength={3} required />{erreursMessage.objet ? <p className="text-destructive text-sm">{erreursMessage.objet}</p> : null}</div>
             <div className="grid gap-2"><Label htmlFor="contenu-msg">Message *</Label><Textarea id="contenu-msg" name="contenu" rows={5} maxLength={5000} minLength={5} required /><p className="communication-secondary">5 à 5 000 caractères maximum.</p>{erreursMessage.contenu ? <p className="text-destructive text-sm">{erreursMessage.contenu}</p> : null}</div>
-            {apercuMessage ? <CarteApercu apercu={apercuMessage} confirmerDiffusion={confirmerMessage} setConfirmerDiffusion={setConfirmerMessage} confirmerCout={confirmerCoutMessage} setConfirmerCout={setConfirmerCoutMessage} identifiant="message" /> : null}
+            {apercuMessage ? <CarteApercu apercu={apercuMessage} confirmerDiffusion={confirmerMessage} setConfirmerDiffusion={setConfirmerMessage} confirmerCout={confirmerCoutMessage} setConfirmerCout={setConfirmerCoutMessage} /> : null}
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-row">
             <Button type="button" variant="outline" disabled={enCours || p.tuteurs.length === 0 || (p.messageRequiresStudent && !eleveMessageId)} className="rounded-lg" onClick={calculerApercuMessage}><RefreshCw aria-hidden /> Calculer canal et coût</Button>
