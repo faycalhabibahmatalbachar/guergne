@@ -9,6 +9,37 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Navigation latérale : reprendre sur toutes les pages le thème bleu nuit
+   de la page Classes, avec les mêmes onglets actifs en bleu vif. */
+body {
+  --sidebar: #0b1e3a;
+  --sidebar-foreground: #edf3ff;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e50d7;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, .09);
+  --sidebar-ring: #7aa4ff;
+}
+
+body [data-sidebar="sidebar"] {
+  background: linear-gradient(175deg, #0b1d37 0%, #091a33 65%, #0d2548 100%);
+  color: #f5f8ff;
+}
+
+body [data-sidebar="sidebar"] [data-sidebar="group-label"],
+body [data-sidebar="sidebar"] .text-muted-foreground {
+  color: #b1bfd3;
+}
+
+body [data-sidebar="sidebar"] [data-active="true"] {
+  background: #2563eb;
+  color: #ffffff;
+  border-radius: .7rem;
+  font-weight: 600;
+}
+
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
