@@ -630,7 +630,7 @@ export function Communication(p: {
     {p.peutPublierAnnonce ? <Dialog open={dialogue === "annonce"} onOpenChange={(v) => { if (!v) { setDialogue(null); effacerApercuAnnonce(); } }}>
       <DialogContent className="max-h-[90dvh] w-[calc(100vw-2rem)] overflow-y-auto rounded-xl sm:max-w-2xl">
         <form ref={formulaireAnnonce} onSubmit={soumettreAnnonce} onChange={(event) => {
-          const champ = (event.target as HTMLInputElement).name;
+          const champ = (event.target as unknown as HTMLInputElement).name;
           if (["titre", "contenu", "niveauId", "classeId", "expireLe", "envoyerPush"].includes(champ)) effacerApercuAnnonce();
         }}>
           <DialogHeader><DialogTitle>Nouvelle annonce</DialogTitle><DialogDescription>Vérifiez l’audience et les éventuels coûts de canal avant de publier. Aucun envoi ne part pendant l’aperçu.</DialogDescription></DialogHeader>
@@ -671,7 +671,7 @@ export function Communication(p: {
     {p.peutEnvoyerMessage ? <Dialog open={dialogue === "message"} onOpenChange={(v) => { if (!v) { setDialogue(null); effacerApercuMessage(); } }}>
       <DialogContent className="max-h-[90dvh] w-[calc(100vw-2rem)] overflow-y-auto rounded-xl sm:max-w-2xl">
         <form ref={formulaireMessage} onSubmit={soumettreMessage} onChange={(event) => {
-          const champ = (event.target as HTMLInputElement).name;
+          const champ = (event.target as unknown as HTMLInputElement).name;
           if (["destinataireId", "eleveId", "objet", "contenu"].includes(champ)) effacerApercuMessage();
         }}>
           <DialogHeader><DialogTitle>Message ciblé</DialogTitle><DialogDescription>Le message est enregistré dans la messagerie du parent. L’aperçu vérifie aussi l’alerte éventuelle et le coût avant confirmation.</DialogDescription></DialogHeader>
