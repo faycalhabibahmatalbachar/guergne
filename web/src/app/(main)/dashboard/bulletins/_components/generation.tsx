@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Download, Eye, EyeOff, ExternalLink, FileText, Maximize2, Minimize2, Play, Printer, Search, Send,
+  Archive, Download, Eye, EyeOff, ExternalLink, FileText, Maximize2, Minimize2, Play, Printer, Search, Send,
   Clock3, CheckCircle2, TrendingUp, UserRound, Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +20,128 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { genererPourClasse, type ResultatGeneration } from "../actions";
 import { depublierClasse, publierClasse } from "../actions-conseil";
 import { AvisConseil } from "./avis-conseil";
+
+
+type FichierArchive = { nom: string; contenu: Uint8Array };
+
+const tableCrc32 = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let valeur = n;
+    for (let bit = 0; bit < 8; bit++) {
+      valeur = valeur & 1 ? 0xedb88320 ^ (valeur >>> 1) : valeur >>> 1;
+    }
+    table[n] = valeur >>> 0;
+  }
+  return table;
+})();
+
+function calculerCrc32(donnees: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const octet of donnees) {
+    const index = (crc ^ octet) & 0xff;
+    crc = (tableCrc32[index] ?? 0) ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function nomFichierSecurise(valeur: string): string {
+  return valeur
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "bulletin";
+}
+
+/** Crée une archive ZIP sans dépendance externe ; les PDF sont déjà compressés. */
+function creerArchiveZip(fichiers: FichierArchive[]): Uint8Array {
+  if (fichiers.length > 0xffff) {
+    throw new Error("Trop de bulletins pour créer une seule archive ZIP.");
+  }
+
+  const encodeur = new TextEncoder();
+  const morceaux: Uint8Array[] = [];
+  const entrees: Array<{ nom: Uint8Array; crc: number; taille: number; decalage: number }> = [];
+  const maintenant = new Date();
+  const heureDos = (maintenant.getHours() << 11) | (maintenant.getMinutes() << 5) | Math.floor(maintenant.getSeconds() / 2);
+  const dateDos = ((Math.max(1980, maintenant.getFullYear()) - 1980) << 9) | ((maintenant.getMonth() + 1) << 5) | maintenant.getDate();
+  let decalage = 0;
+
+  for (const fichier of fichiers) {
+    const nom = encodeur.encode(fichier.nom);
+    if (nom.byteLength > 0xffff || fichier.contenu.byteLength > 0xffffffff) {
+      throw new Error("Un fichier est trop volumineux pour être ajouté à l’archive ZIP.");
+    }
+    const crc = calculerCrc32(fichier.contenu);
+    const entete = new Uint8Array(30 + nom.byteLength);
+    const vue = new DataView(entete.buffer);
+    vue.setUint32(0, 0x04034b50, true);
+    vue.setUint16(4, 20, true);
+    vue.setUint16(6, 0x0800, true);
+    vue.setUint16(8, 0, true);
+    vue.setUint16(10, heureDos, true);
+    vue.setUint16(12, dateDos, true);
+    vue.setUint32(14, crc, true);
+    vue.setUint32(18, fichier.contenu.byteLength, true);
+    vue.setUint32(22, fichier.contenu.byteLength, true);
+    vue.setUint16(26, nom.byteLength, true);
+    vue.setUint16(28, 0, true);
+    entete.set(nom, 30);
+
+    morceaux.push(entete, fichier.contenu);
+    entrees.push({ nom, crc, taille: fichier.contenu.byteLength, decalage });
+    decalage += entete.byteLength + fichier.contenu.byteLength;
+  }
+
+  const decalageCentral = decalage;
+  for (const entree of entrees) {
+    const entete = new Uint8Array(46 + entree.nom.byteLength);
+    const vue = new DataView(entete.buffer);
+    vue.setUint32(0, 0x02014b50, true);
+    vue.setUint16(4, 20, true);
+    vue.setUint16(6, 20, true);
+    vue.setUint16(8, 0x0800, true);
+    vue.setUint16(10, 0, true);
+    vue.setUint16(12, heureDos, true);
+    vue.setUint16(14, dateDos, true);
+    vue.setUint32(16, entree.crc, true);
+    vue.setUint32(20, entree.taille, true);
+    vue.setUint32(24, entree.taille, true);
+    vue.setUint16(28, entree.nom.byteLength, true);
+    vue.setUint16(30, 0, true);
+    vue.setUint16(32, 0, true);
+    vue.setUint16(34, 0, true);
+    vue.setUint16(36, 0, true);
+    vue.setUint32(38, 0, true);
+    vue.setUint32(42, entree.decalage, true);
+    entete.set(entree.nom, 46);
+    morceaux.push(entete);
+    decalage += entete.byteLength;
+  }
+
+  const fin = new Uint8Array(22);
+  const vueFin = new DataView(fin.buffer);
+  vueFin.setUint32(0, 0x06054b50, true);
+  vueFin.setUint16(4, 0, true);
+  vueFin.setUint16(6, 0, true);
+  vueFin.setUint16(8, entrees.length, true);
+  vueFin.setUint16(10, entrees.length, true);
+  vueFin.setUint32(12, decalage - decalageCentral, true);
+  vueFin.setUint32(16, decalageCentral, true);
+  vueFin.setUint16(20, 0, true);
+  morceaux.push(fin);
+
+  const tailleTotale = morceaux.reduce((total, morceau) => total + morceau.byteLength, 0);
+  const archive = new Uint8Array(tailleTotale);
+  let position = 0;
+  for (const morceau of morceaux) {
+    archive.set(morceau, position);
+    position += morceau.byteLength;
+  }
+  return archive;
+}
+
 
 export interface BulletinListe {
   inscriptionId: string;
@@ -57,6 +179,7 @@ export function GenerationBulletins({
   const [enCours, demarrer] = useTransition();
   const [rapport, setRapport] = useState<ResultatGeneration["rapport"] | null>(null);
   const [recherche, setRecherche] = useState("");
+  const [telechargementEnCours, setTelechargementEnCours] = useState(false);
   const [bulletinApercu, setBulletinApercu] = useState<BulletinListe | null>(null);
   const [apercuPleinEcran, setApercuPleinEcran] = useState(false);
   const [filtreClasse, setFiltreClasse] = useState(classeChoisie);
@@ -136,6 +259,57 @@ export function GenerationBulletins({
     URL.revokeObjectURL(url);
   }
 
+
+  async function telechargerBulletins() {
+    if (filtres.length === 0 || telechargementEnCours) return;
+
+    setTelechargementEnCours(true);
+    const idNotification = toast.loading("Préparation de " + filtres.length + " bulletin(s)…");
+    try {
+      const fichiers: FichierArchive[] = [];
+      const tailleGroupe = 4;
+
+      for (let index = 0; index < filtres.length; index += tailleGroupe) {
+        const groupe = filtres.slice(index, index + tailleGroupe);
+        const telecharges = await Promise.all(groupe.map(async (bulletin) => {
+          const reponse = await fetch(
+            "/api/bulletins/" + encodeURIComponent(bulletin.inscriptionId) + "/" + encodeURIComponent(bulletin.periodeId) + "?telecharger=1",
+            { credentials: "same-origin" },
+          );
+          if (!reponse.ok) {
+            throw new Error("Le bulletin de " + bulletin.eleve + " n’a pas pu être téléchargé (HTTP " + reponse.status + ").");
+          }
+
+          return {
+            nom: nomFichierSecurise(bulletin.classe) + "-" + nomFichierSecurise(bulletin.eleve) + "-" + nomFichierSecurise(bulletin.periode) + "-" + nomFichierSecurise(bulletin.matricule) + ".pdf",
+            contenu: new Uint8Array(await reponse.arrayBuffer()),
+          };
+        }));
+
+        fichiers.push(...telecharges);
+        const progression = Math.min(index + groupe.length, filtres.length);
+        toast.loading("Téléchargement des PDF : " + progression + "/" + filtres.length, { id: idNotification });
+      }
+
+      const archive = creerArchiveZip(fichiers);
+      const contenuZip = archive.buffer.slice(archive.byteOffset, archive.byteOffset + archive.byteLength) as ArrayBuffer;
+      const url = URL.createObjectURL(new Blob([contenuZip], { type: "application/zip" }));
+      const lien = document.createElement("a");
+      lien.href = url;
+      lien.download = "bulletins-scolaires-" + new Date().toISOString().slice(0, 10) + ".zip";
+      document.body.appendChild(lien);
+      lien.click();
+      lien.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success(fichiers.length + " bulletin(s) regroupé(s) dans une archive ZIP.", { id: idNotification });
+    } catch (erreur) {
+      toast.error(erreur instanceof Error ? erreur.message : "Impossible de télécharger les bulletins.", { id: idNotification });
+    } finally {
+      setTelechargementEnCours(false);
+    }
+  }
+
+
   return (
     <div className="space-y-6 pb-6">
       <Card className="rounded-2xl border-border/70 shadow-sm">
@@ -179,9 +353,19 @@ export function GenerationBulletins({
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
             <p className="text-slate-600 dark:text-slate-300 text-sm">{filtres.length} bulletin(s) trouvé(s)</p>
-            <Button variant="outline" onClick={exporter} disabled={filtres.length === 0}>
-              <Download aria-hidden /> Exporter en CSV
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" onClick={exporter} disabled={filtres.length === 0}>
+                <Download aria-hidden /> Exporter en CSV
+              </Button>
+              <Button
+                onClick={telechargerBulletins}
+                disabled={filtres.length === 0 || telechargementEnCours}
+                className="bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500"
+              >
+                <Archive aria-hidden />
+                {telechargementEnCours ? "Préparation du ZIP…" : "Télécharger les bulletins"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
