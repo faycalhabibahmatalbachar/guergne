@@ -219,7 +219,11 @@ export function Grille({
                 <tr key={cr.id}>
                   <td className="border-b p-2 text-muted-foreground text-xs tabular-nums">
                     <div className="font-medium">{cr.ordre <= 5 ? `Séance ${cr.ordre}` : `Créneau ${cr.ordre}`}</div>
-                  {cr.ordre > 5 ? <div className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">Horaire à confirmer</div> : null}
+                    {cr.ordre > 5 ? (
+                      <div className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">
+                        Horaire à confirmer
+                      </div>
+                    ) : null}
                   </td>
                   {JOURS.map((j) => {
                     const plage = plageDuJour(j.numero, cr.ordre);
@@ -255,7 +259,9 @@ export function Grille({
                             }`}
                             style={{ backgroundColor: `${c.matiereCouleur ?? "#64748b"}18` }}
                           >
-                            <p className="mb-1 text-[10px] font-medium tabular-nums text-muted-foreground">{horaireAffiche}{!plage ? " · à confirmer" : ""}</p>
+                            <p className="mb-1 text-[10px] font-medium tabular-nums text-muted-foreground">
+                              {horaireAffiche}{!plage ? " · à confirmer" : ""}
+                            </p>
                             <div className="flex items-start justify-between gap-1">
                               <span className="font-medium leading-tight">{c.matiereLibelle}</span>
                               <Button
@@ -317,9 +323,15 @@ export function Grille({
                         }}
                       >
                         <div className="space-y-1 px-1 pt-1">
-                          <div className="text-center text-[10px] font-medium tabular-nums text-muted-foreground">{horaireAffiche}</div>
-                          {!plage ? <div className="text-center text-[9px] text-amber-700 dark:text-amber-300">À confirmer</div> : null}
-                        <button
+                          <div className="text-center text-[10px] font-medium tabular-nums text-muted-foreground">
+                            {horaireAffiche}
+                          </div>
+                          {!plage ? (
+                            <div className="text-center text-[9px] text-amber-700 dark:text-amber-300">
+                              À confirmer
+                            </div>
+                          ) : null}
+                          <button
                           type="button"
                           onClick={() => setAjout({ jour: j.numero, creneauId: cr.id })}
                           className={`flex h-8 w-full items-center justify-center rounded-md transition-colors ${
@@ -330,7 +342,7 @@ export function Grille({
                           aria-label={`Ajouter un cours ${j.libelle} à ${horaireAffiche}${!plage ? " (horaire à confirmer)" : ""}`}
                         >
                           <Plus className="size-4" aria-hidden />
-                        </button>
+                          </button>
                         </div>
                       </td>
                     );
