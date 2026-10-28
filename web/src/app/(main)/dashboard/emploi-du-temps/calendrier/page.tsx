@@ -10,6 +10,7 @@ import { sessionCourante } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { genererDatesCalendrier } from "@/server/domain/calendrier-scolaire";
 import { exigerPage, peut } from "@/server/guard";
+import { chargerPlagesHorairesScolaires } from "@/server/domain/horaires-scolaires";
 
 import { VueCalendrierAnnuel } from "./vue";
 
@@ -94,6 +95,7 @@ export default async function PageCalendrierAnnuel({
      ORDER BY date_debut, date_fin, titre
   `);
 
+  const plagesHoraires = await chargerPlagesHorairesScolaires(annee.id);
   const jours = genererDatesCalendrier(annee.date_debut, annee.date_fin);
   const evenements = evenementsResultat.rows.map((ligne) => ({
     id: ligne.id,
@@ -171,6 +173,7 @@ export default async function PageCalendrierAnnuel({
         dateFin={annee.date_fin}
         jours={jours}
         evenements={evenements}
+        plagesHoraires={plagesHoraires}
       />
     </div>
   );

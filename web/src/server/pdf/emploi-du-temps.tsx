@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 
 import type { GrilleImpression } from "@/server/domain/emploi-du-temps";
@@ -28,6 +29,24 @@ import { EnTete, Pied } from "./gabarit";
  */
 
 const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+
+function heure(valeur: string): string {
+  return valeur.slice(0, 5);
+}
+
+function libelleHoraire(
+  plages: GrilleImpression["plagesHoraires"],
+  jour: number,
+  ordre: number,
+  fallback: string,
+): { libelle: string; confirme: boolean } {
+  const plage = plages.find(
+    (item) => item.jourSemaine === jour && item.nature === "COURS" && item.ordreCours === ordre,
+  );
+  return plage
+    ? { libelle: `${heure(plage.heureDebut)}–${heure(plage.heureFin)}`, confirme: true }
+    : { libelle: fallback, confirme: false };
+}
 
 const styles = StyleSheet.create({
   page: {
@@ -126,23 +145,34 @@ export function DocumentEmploiDuTemps({
           </View>
 
           {grille.creneaux.map((cr) => (
-            <View key={cr.id} style={styles.ligne} wrap={false}>
+            <Fragment key={cr.id}>
+            <View style={styles.ligne} wrap={false}>
               <View style={styles.celluleHoraire}>
-                <Text>{cr.libelle}</Text>
+                <Text>{cr.ordre <= 5 ? `Séance ${cr.ordre}` : `Créneau ${cr.ordre}`}</Text>
               </View>
 
               {JOURS.map((_, index) => {
                 const jour = index + 1;
+                const horaire = libelleHoraire(grille.plagesHoraires, jour, cr.ordre, cr.libelle);
                 const occupe = occupation.get(`${jour}|${cr.ordre}`);
 
                 if (!occupe) {
-                  return <View key={jour} style={styles.cellule} />;
+                  return (
+                    <View key={jour} style={styles.cellule}>
+                      <Text style={styles.detail}>{horaire.libelle}</Text>
+                      {!horaire.confirme ? <Text style={styles.detail}>À confirmer</Text> : null}
+                    </View>
+                  );
                 }
 
                 // La suite d'un cours double : la case reste teintée mais
                 // n'est pas réécrite, sinon le lecteur croit à deux cours.
                 if (!occupe.debut) {
-                  return <View key={jour} style={[styles.cellule, styles.celluleContinuee]} />;
+                  return (
+                    <View key={jour} style={[styles.cellule, styles.celluleContinuee]}>
+                      <Text style={styles.detail}>{horaire.libelle}</Text>
+                    </View>
+                  );
                 }
 
                 const c = occupe.c;
@@ -155,6 +185,7 @@ export function DocumentEmploiDuTemps({
 
                 return (
                   <View key={jour} style={[styles.cellule, styles.celluleOccupee]}>
+                    <Text style={styles.detail}>{horaire.libelle}{!horaire.confirme ? " · À confirmer" : ""}</Text>
                     <Text style={styles.matiere}>
                       {portee === "salle" ? c.classe : c.matiere}
                     </Text>
@@ -169,13 +200,35 @@ export function DocumentEmploiDuTemps({
                 );
               })}
             </View>
+            {cr.ordre === 3 ? (
+              <View key={`${cr.id}-recreation`} style={styles.ligne} wrap={false}>
+                <View style={[styles.celluleHoraire, { backgroundColor: "#e2e8f0" }]}>
+                  <Text>Récréation</Text>
+                </View>
+                {JOURS.map((_, index) => {
+                  const jour = index + 1;
+                  const pause = grille.plagesHoraires.find(
+                    (item) => item.jourSemaine === jour && item.nature === "PAUSE",
+                  );
+                  return (
+                    <View key={jour} style={[styles.cellule, { backgroundColor: "#f8fafc" }]}>
+                      <Text style={styles.detail}>
+                        {pause ? `${heure(pause.heureDebut)}–${heure(pause.heureFin)}` : "Non configurée"}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
+            </Fragment>
           ))}
         </View>
 
         <Text style={styles.legende}>
           Une case vide signifie qu&apos;aucun cours n&apos;est prévu sur ce créneau. Les cours
-          couvrant deux heures consécutives ne sont inscrits qu&apos;une fois, sur leur créneau de
-          début.
+          couvrant plusieurs créneaux ne sont inscrits qu&apos;une fois, sur leur créneau de début.
+          Les créneaux sans profil officiel, notamment le samedi et au-delà de la 5e séance, sont
+          signalés « À confirmer ».
         </Text>
 
         {/*
