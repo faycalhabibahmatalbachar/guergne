@@ -126,6 +126,8 @@ export default async function PageNotes({
         anneeId={stats.annee.id}
         periodeId={stats.periode.id}
         periodeLibelle={stats.periode.libelle}
+        dateDebutPeriode={stats.periode.dateDebut}
+        dateFinPeriode={stats.periode.dateFin}
         classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
         matieres={matieres.map((m) => ({ id: m.id, libelle: m.libelle }))}
         evaluations={evaluations}
