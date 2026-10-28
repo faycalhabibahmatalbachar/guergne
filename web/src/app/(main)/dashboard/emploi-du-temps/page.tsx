@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { CalendarClock, Printer } from "lucide-react";
+import { CalendarClock, CalendarDays, Printer } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -120,12 +120,20 @@ export default async function PageEmploiDuTemps({
           hebdomadaire sert à CONSTRUIRE l'emploi du temps, la journée à le
           faire tenir quand un professeur manque. Deux métiers, deux moments.
         */}
-        <Button asChild variant="outline" size="sm">
-          <Link href="/dashboard/emploi-du-temps/journee">
-            <CalendarClock aria-hidden />
-            Journée et remplacements
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/emploi-du-temps/calendrier">
+              <CalendarDays aria-hidden />
+              Calendrier annuel
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/emploi-du-temps/journee">
+              <CalendarClock aria-hidden />
+              Journée et remplacements
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/*
