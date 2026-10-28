@@ -102,11 +102,13 @@ export default async function PageNotes({
 
   // Vérifier directement l'évaluation : la liste affichée est plafonnée à 100 lignes.
   const grilleCandidate = params.evaluation ? await chargerGrilleSaisie(params.evaluation) : null;
-  const grilleCorrespondAuxFiltres =
-    grilleCandidate?.evaluation.periodeId === periodeChoisie.id &&
-    (!classeFiltreeId || grilleCandidate.evaluation.classeId === classeFiltreeId);
-  const evaluationChoisieId = grilleCorrespondAuxFiltres ? grilleCandidate.evaluation.id : null;
+  const grilleCorrespondAuxFiltres = Boolean(
+    grilleCandidate &&
+    grilleCandidate.evaluation.periodeId === periodeChoisie.id &&
+    (!classeFiltreeId || grilleCandidate.evaluation.classeId === classeFiltreeId),
+  );
   const grille = grilleCorrespondAuxFiltres ? grilleCandidate : null;
+  const evaluationChoisieId = grille?.evaluation.id ?? null;
   const statsEvaluation = evaluationChoisieId
     ? await statistiquesEvaluation(evaluationChoisieId)
     : null;
