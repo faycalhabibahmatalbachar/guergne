@@ -440,7 +440,7 @@ export function GenerationBulletins({
                 className="bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500"
               >
                 <Archive aria-hidden />
-                Télécharger les bulletins
+                {telechargementEnCours ? "Préparation du ZIP…" : "Télécharger les bulletins"}
               </Button>
               {telechargementEnCours ? (
                 <Button type="button" variant="destructive" onClick={annulerTelechargement}>
