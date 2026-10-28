@@ -202,7 +202,9 @@ function Cellule({
       <Text style={style}>{children}</Text>
     </View>
   );
-}export function PageBulletin({ d }: { d: DonneesBulletin }) {
+}
+
+export function PageBulletin({ d }: { d: DonneesBulletin }) {
   const identite = {
     nomComplet: d.eleve.nomComplet,
     classe: d.eleve.classe,
