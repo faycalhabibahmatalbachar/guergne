@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 
 import type { Etablissement } from "./../pdf/gabarit";
 import { db } from "./../db";
+import { chargerPlagesHorairesScolaires, type PlageHoraireScolaire } from "./horaires-scolaires";
 
 /**
  * Contrôle de couverture de l'emploi du temps (E-50).
@@ -181,6 +182,7 @@ export interface GrilleImpression {
   etablissement: Etablissement;
   annee: string;
   creneaux: Array<{ id: string; libelle: string; ordre: number }>;
+  plagesHoraires: PlageHoraireScolaire[];
   cases: CaseImpression[];
 }
 
@@ -195,7 +197,7 @@ export async function grilleImpression(
         ? sql`e.enseignant_id`
         : sql`e.salle_id`;
 
-  const [etab, annee, creneaux, cases] = await Promise.all([
+  const [etab, annee, creneaux, cases, plagesHoraires] = await Promise.all([
     db.execute<Etablissement & Record<string, unknown>>(sql`
       SELECT nom, sigle, adresse, ville, pays, telephone, email,
              ministere_tutelle AS "ministereTutelle",
@@ -210,6 +212,7 @@ export async function grilleImpression(
     db.execute<{ id: string; libelle: string; ordre: number }>(sql`
       SELECT id, libelle, ordre FROM creneaux_horaires ORDER BY ordre
     `),
+    chargerPlagesHorairesScolaires(anneeId),
     db.execute<{
       jour: number;
       ordre: number;
@@ -277,6 +280,7 @@ export async function grilleImpression(
     etablissement: e,
     annee: annee.rows[0].libelle,
     creneaux: creneaux.rows.map((c) => ({ ...c, ordre: Number(c.ordre) })),
+    plagesHoraires,
     cases: cases.rows.map((c) => ({
       jour: Number(c.jour),
       ordre: Number(c.ordre),
