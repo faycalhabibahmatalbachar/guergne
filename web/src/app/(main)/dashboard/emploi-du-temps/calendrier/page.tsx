@@ -10,6 +10,7 @@ import { sessionCourante } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { genererDatesCalendrier } from "@/server/domain/calendrier-scolaire";
 import { exigerPage, peut } from "@/server/guard";
+import { chargerPlagesHorairesScolaires } from "@/server/domain/horaires-scolaires";
 
 import { VueCalendrierAnnuel } from "./vue";
 
@@ -171,6 +172,7 @@ export default async function PageCalendrierAnnuel({
         dateFin={annee.date_fin}
         jours={jours}
         evenements={evenements}
+        plagesHoraires={await chargerPlagesHorairesScolaires(annee.id)}
       />
     </div>
   );
