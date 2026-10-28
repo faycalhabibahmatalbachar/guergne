@@ -8,7 +8,7 @@ import { z } from "zod";
 import { journaliser } from "@/server/audit";
 import { journaliserAtomiquement, preparerContexteAudit } from "@/server/audit-v2";
 import { db } from "@/server/db";
-import { evaluations, notes, inscriptions } from "@/server/db/schema";
+import { evaluations, notes, inscriptions, periodes } from "@/server/db/schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 
 export interface Resultat {
@@ -25,9 +25,17 @@ function echec(e: unknown, defaut: string): Resultat {
     return { ok: false, message: "Vous n'avez pas les droits pour cette opération." };
   }
   const m = e instanceof Error ? e.message : "";
-  // Messages métier des déclencheurs : barème dépassé, période verrouillée…
-  if (/barème|verrouillée|classe évaluée/.test(m)) {
+  // Messages métier connus des déclencheurs PostgreSQL.
+  // Les erreurs SQL techniques restent dans les logs serveur et ne sont pas
+  // exposées telles quelles dans l'interface.
+  if (/bar[eè]me|verrouill|p[eé]riode.*ferm|saisie.*ferm|date.*p[eé]riode|hors p[eé]riode|classe [^\n]*[eé]valu[eé]e/i.test(m)) {
     return { ok: false, message: m.replace(/^.*?ERROR:\s*/i, "").split("\n")[0] };
+  }
+  if (/affectation|mati[eè]re.*classe|classe.*mati[eè]re/i.test(m)) {
+    return {
+      ok: false,
+      message: "La classe ou la matière sélectionnée n'est pas valide pour cette évaluation. Vérifiez les affectations pédagogiques.",
+    };
   }
   console.error("[notes]", e);
   return { ok: false, message: defaut };
@@ -68,6 +76,35 @@ export async function creerEvaluation(donnees: unknown): Promise<Resultat> {
     if (!a.success) return { ok: false, erreurs: messages(a.error) };
 
     const v = a.data;
+
+    // Vérifier côté serveur la cohérence de la date et de la période scolaire.
+    // L'attribut min/max du formulaire ne suffit pas : une requête peut être
+    // envoyée hors navigateur ou avec des valeurs modifiées.
+    const [periode] = await db
+      .select({
+        anneeId: periodes.anneeId,
+        dateDebut: periodes.dateDebut,
+        dateFin: periodes.dateFin,
+      })
+      .from(periodes)
+      .where(eq(periodes.id, v.periodeId))
+      .limit(1);
+
+    if (!periode) {
+      return { ok: false, message: "La période scolaire sélectionnée est introuvable. Actualisez la page." };
+    }
+    if (periode.anneeId !== v.anneeId) {
+      return { ok: false, message: "La période sélectionnée ne correspond pas à l'année scolaire choisie. Actualisez la page." };
+    }
+    if (v.dateEvaluation < periode.dateDebut || v.dateEvaluation > periode.dateFin) {
+      return {
+        ok: false,
+        erreurs: {
+          dateEvaluation: `La date doit être comprise entre ${periode.dateDebut} et ${periode.dateFin} pour cette période scolaire.`,
+        },
+      };
+    }
+
     const acteur = await requirePermission("evaluation:creer", {
       classeId: v.classeId,
       matiereId: v.matiereId,
