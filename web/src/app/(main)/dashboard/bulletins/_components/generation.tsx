@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Archive, Download, Eye, EyeOff, ExternalLink, FileText, Maximize2, Minimize2, Play, Printer, Search, Send,
+  Archive, Download, Eye, EyeOff, ExternalLink, FileText, Maximize2, Minimize2, Play, Printer, Search, Send, X,
   Clock3, CheckCircle2, TrendingUp, UserRound, Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -180,6 +180,18 @@ export function GenerationBulletins({
   const [rapport, setRapport] = useState<ResultatGeneration["rapport"] | null>(null);
   const [recherche, setRecherche] = useState("");
   const [telechargementEnCours, setTelechargementEnCours] = useState(false);
+  const controleurTelechargement = useRef<AbortController | null>(null);
+  const [impressionEnCours, setImpressionEnCours] = useState(false);
+  const [apercuImpression, setApercuImpression] = useState<{ url: string; nombre: number } | null>(null);
+  const [apercuImpressionPret, setApercuImpressionPret] = useState(false);
+  const impressionIframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  useEffect(() => {
+    const url = apercuImpression?.url;
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [apercuImpression?.url]);
   const [bulletinApercu, setBulletinApercu] = useState<BulletinListe | null>(null);
   const [apercuPleinEcran, setApercuPleinEcran] = useState(false);
   const [filtreClasse, setFiltreClasse] = useState(classeChoisie);
@@ -263,18 +275,21 @@ export function GenerationBulletins({
   async function telechargerBulletins() {
     if (filtres.length === 0 || telechargementEnCours) return;
 
+    const controleur = new AbortController();
+    controleurTelechargement.current = controleur;
     setTelechargementEnCours(true);
-    const idNotification = toast.loading("Préparation de " + filtres.length + " bulletin(s)…");
+    const selection = filtres;
+    const idNotification = toast.loading("Préparation de " + selection.length + " bulletin(s)…");
     try {
       const fichiers: FichierArchive[] = [];
       const tailleGroupe = 4;
 
-      for (let index = 0; index < filtres.length; index += tailleGroupe) {
-        const groupe = filtres.slice(index, index + tailleGroupe);
+      for (let index = 0; index < selection.length; index += tailleGroupe) {
+        const groupe = selection.slice(index, index + tailleGroupe);
         const telecharges = await Promise.all(groupe.map(async (bulletin) => {
           const reponse = await fetch(
             "/api/bulletins/" + encodeURIComponent(bulletin.inscriptionId) + "/" + encodeURIComponent(bulletin.periodeId) + "?telecharger=1",
-            { credentials: "same-origin" },
+            { credentials: "same-origin", signal: controleur.signal },
           );
           if (!reponse.ok) {
             throw new Error("Le bulletin de " + bulletin.eleve + " n’a pas pu être téléchargé (HTTP " + reponse.status + ").");
@@ -286,11 +301,13 @@ export function GenerationBulletins({
           };
         }));
 
+        if (controleur.signal.aborted) throw new DOMException("Téléchargement annulé.", "AbortError");
         fichiers.push(...telecharges);
-        const progression = Math.min(index + groupe.length, filtres.length);
-        toast.loading("Téléchargement des PDF : " + progression + "/" + filtres.length, { id: idNotification });
+        const progression = Math.min(index + groupe.length, selection.length);
+        toast.loading("Téléchargement des PDF : " + progression + "/" + selection.length, { id: idNotification });
       }
 
+      if (controleur.signal.aborted) throw new DOMException("Téléchargement annulé.", "AbortError");
       const archive = creerArchiveZip(fichiers);
       const contenuZip = archive.buffer.slice(archive.byteOffset, archive.byteOffset + archive.byteLength) as ArrayBuffer;
       const url = URL.createObjectURL(new Blob([contenuZip], { type: "application/zip" }));
@@ -303,10 +320,70 @@ export function GenerationBulletins({
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast.success(fichiers.length + " bulletin(s) regroupé(s) dans une archive ZIP.", { id: idNotification });
     } catch (erreur) {
-      toast.error(erreur instanceof Error ? erreur.message : "Impossible de télécharger les bulletins.", { id: idNotification });
+      if (controleur.signal.aborted || (erreur instanceof DOMException && erreur.name === "AbortError")) {
+        toast.info("Téléchargement annulé.", { id: idNotification });
+      } else {
+        toast.error(erreur instanceof Error ? erreur.message : "Impossible de télécharger les bulletins.", { id: idNotification });
+      }
     } finally {
+      if (controleurTelechargement.current === controleur) controleurTelechargement.current = null;
       setTelechargementEnCours(false);
     }
+  }
+
+  function annulerTelechargement() {
+    if (!controleurTelechargement.current) return;
+    controleurTelechargement.current.abort();
+  }
+
+  async function preparerImpressionBulletins() {
+    if (filtres.length === 0 || impressionEnCours) return;
+
+    const selection = filtres.map((bulletin) => ({
+      inscriptionId: bulletin.inscriptionId,
+      periodeId: bulletin.periodeId,
+    }));
+    setImpressionEnCours(true);
+    setApercuImpressionPret(false);
+    const idNotification = toast.loading("Préparation de l’aperçu de " + selection.length + " bulletin(s)…");
+
+    try {
+      const reponse = await fetch("/api/bulletins/impression", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bulletins: selection }),
+      });
+
+      if (!reponse.ok) {
+        const detail = await reponse.text().catch(() => "");
+        throw new Error(detail || "Impossible de préparer les bulletins à imprimer.");
+      }
+
+      const pdf = await reponse.blob();
+      const url = URL.createObjectURL(pdf);
+      setApercuImpression({ url, nombre: selection.length });
+      toast.success("Aperçu prêt : " + selection.length + " bulletin(s). Vérifiez-les avant d’imprimer.", { id: idNotification });
+    } catch (erreur) {
+      toast.error(erreur instanceof Error ? erreur.message : "Impossible de préparer les bulletins à imprimer.", { id: idNotification });
+    } finally {
+      setImpressionEnCours(false);
+    }
+  }
+
+  function fermerApercuImpression() {
+    setApercuImpression(null);
+    setApercuImpressionPret(false);
+  }
+
+  function confirmerImpressionBulletins() {
+    const fenetre = impressionIframeRef.current?.contentWindow;
+    if (!fenetre || !apercuImpressionPret) {
+      toast.error("L’aperçu n’est pas encore prêt. Veuillez patienter.");
+      return;
+    }
+    fenetre.focus();
+    fenetre.print();
   }
 
 
@@ -363,7 +440,21 @@ export function GenerationBulletins({
                 className="bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500"
               >
                 <Archive aria-hidden />
-                {telechargementEnCours ? "Préparation du ZIP…" : "Télécharger les bulletins"}
+                Télécharger les bulletins
+              </Button>
+              {telechargementEnCours ? (
+                <Button type="button" variant="destructive" onClick={annulerTelechargement}>
+                  <X aria-hidden /> Annuler le téléchargement
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={preparerImpressionBulletins}
+                disabled={filtres.length === 0 || impressionEnCours}
+              >
+                <Printer aria-hidden />
+                {impressionEnCours ? "Préparation de l’aperçu…" : "Imprimer les bulletins"}
               </Button>
             </div>
           </div>
@@ -569,6 +660,48 @@ export function GenerationBulletins({
           </DialogContent>
         </Dialog>
       ) : null}
+      <Dialog
+        open={Boolean(apercuImpression)}
+        onOpenChange={(ouvert) => { if (!ouvert) fermerApercuImpression(); }}
+      >
+        <DialogContent className="flex h-[88vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
+          <DialogHeader className="shrink-0 border-b bg-card p-4 pr-12">
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Printer className="size-5 text-cyan-700 dark:text-cyan-300" aria-hidden />
+              Aperçu des bulletins avant impression
+            </DialogTitle>
+            <DialogDescription>
+              {apercuImpression?.nombre ?? 0} bulletin(s) correspondant à votre recherche et à vos filtres.
+              Vérifiez l’aperçu, puis cliquez sur « Imprimer » pour confirmer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 bg-slate-100 p-2 dark:bg-slate-950 sm:p-4">
+            {apercuImpression ? (
+              <iframe
+                key={apercuImpression.url}
+                ref={impressionIframeRef}
+                title="Aperçu PDF des bulletins filtrés"
+                src={apercuImpression.url}
+                onLoad={() => setApercuImpressionPret(true)}
+                className="h-full w-full rounded-lg border border-slate-300 bg-white shadow-sm dark:border-slate-700"
+              />
+            ) : null}
+          </div>
+          <DialogFooter className="shrink-0 flex-row flex-wrap justify-between gap-2 border-t bg-card px-4 py-3">
+            <Button type="button" variant="outline" onClick={fermerApercuImpression}>
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              onClick={confirmerImpressionBulletins}
+              disabled={!apercuImpressionPret}
+              className="gap-2 bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500"
+            >
+              <Printer aria-hidden /> Imprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
