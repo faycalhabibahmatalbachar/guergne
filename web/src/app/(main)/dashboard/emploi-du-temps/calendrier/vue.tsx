@@ -2,6 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { EvenementCalendaireDate, JourCalendrier } from "@/server/domain/calendrier-scolaire";
 import { GestionEvenements } from "./gestion-evenements";
+import { HorairesScolairesResume } from "../_components/horaires-scolaires-resume";
+import type { PlageHoraireScolaire } from "@/server/domain/horaires-scolaires";
 
 interface EvenementAffiche extends EvenementCalendaireDate {
   description: string | null;
@@ -73,6 +75,7 @@ export function VueCalendrierAnnuel({
   dateFin,
   jours,
   evenements,
+  plagesHoraires,
   peutGerer,
 }: {
   anneeId: string;
@@ -81,6 +84,7 @@ export function VueCalendrierAnnuel({
   dateFin: string;
   jours: JourCalendrier[];
   evenements: EvenementAffiche[];
+  plagesHoraires: PlageHoraireScolaire[];
   peutGerer: boolean;
 }) {
   const moisMap = new Map<string, MoisCalendrier>();
@@ -100,6 +104,8 @@ export function VueCalendrierAnnuel({
 
   return (
     <div className="space-y-5">
+      <HorairesScolairesResume plages={plagesHoraires} />
+
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <Badge variant="outline" className="border-red-500/40 bg-red-50 text-red-950 dark:bg-red-950/40 dark:text-red-100">Cours suspendus</Badge>
         <Badge variant="outline" className="border-violet-500/40 bg-violet-50 text-violet-950 dark:bg-violet-950/40 dark:text-violet-100">Organisation spéciale</Badge>
