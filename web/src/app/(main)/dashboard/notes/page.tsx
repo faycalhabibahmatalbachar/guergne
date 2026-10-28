@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { asc, eq } from "drizzle-orm";
 
-import { ArrowUpRight, BookOpenText, CalendarDays, MessageSquareText } from "lucide-react";
+import { ArrowUpRight, BookOpenText, CalendarDays, Filter, MessageSquareText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import {
   chargerGrilleSaisie,
@@ -12,6 +14,8 @@ import {
 } from "@/server/domain/evaluations";
 import { listerClassesEtMatieres } from "@/server/domain/personnel";
 import { chargerStatistiques } from "@/server/domain/tableau-de-bord";
+import { db } from "@/server/db";
+import { periodes } from "@/server/db/schema";
 import { exigerPage } from "@/server/guard";
 
 import { type EtapeManquante, Prerequis } from "../_components/prerequis";
@@ -31,7 +35,7 @@ export const dynamic = "force-dynamic";
 export default async function PageNotes({
   searchParams,
 }: {
-  searchParams: Promise<{ evaluation?: string }>;
+  searchParams: Promise<{ evaluation?: string; classe?: string; periode?: string }>;
 }) {
   await exigerPage("note:lire");
 
@@ -71,7 +75,30 @@ export default async function PageNotes({
   }
 
   const { classes, matieres } = await listerClassesEtMatieres(stats.annee.id);
-  const evaluations = await listerEvaluations({ periodeId: stats.periode.id });
+  const periodesDisponibles = await db
+    .select({
+      id: periodes.id,
+      libelle: periodes.libelle,
+      numero: periodes.numero,
+      dateDebut: periodes.dateDebut,
+      dateFin: periodes.dateFin,
+      estVerrouillee: periodes.estVerrouillee,
+      saisieOuverte: periodes.saisieOuverte,
+    })
+    .from(periodes)
+    .where(eq(periodes.anneeId, stats.annee.id))
+    .orderBy(asc(periodes.numero));
+
+  const periodeChoisie =
+    periodesDisponibles.find((periode) => periode.id === params.periode) ?? stats.periode;
+  const classeFiltreeId = classes.some((classe) => classe.id === params.classe)
+    ? params.classe!
+    : "";
+
+  const evaluations = await listerEvaluations({
+    periodeId: periodeChoisie.id,
+    ...(classeFiltreeId ? { classeId: classeFiltreeId } : {}),
+  });
 
   const [grille, statsEvaluation] = await Promise.all([
     params.evaluation ? chargerGrilleSaisie(params.evaluation) : Promise.resolve(null),
@@ -90,11 +117,31 @@ export default async function PageNotes({
             </div>
             <div className="space-y-1.5">
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Saisie des notes</h1>
-              <p className="text-sm text-slate-600 dark:text-slate-300">Année scolaire <span className="font-medium text-foreground">{stats.annee.libelle}</span> <span className="px-1 text-slate-600 dark:text-slate-300">/</span> Période <span className="font-medium text-foreground">{stats.periode.libelle}</span></p>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Année scolaire <span className="font-medium text-foreground">{stats.annee.libelle}</span> <span className="px-1 text-slate-600 dark:text-slate-300">/</span> Période <span className="font-medium text-foreground">{periodeChoisie.libelle}</span></p>
               <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">Saisissez les résultats, suivez l’avancement des évaluations et préparez les moyennes de vos élèves.</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 xl:justify-end">
+          <div className="flex flex-wrap items-center gap-2 xl:max-w-[760px] xl:justify-end">
+            <form action="/dashboard/notes" method="get" className="flex flex-wrap items-end gap-2 rounded-xl border border-border/70 bg-muted/20 p-2">
+              <div className="grid gap-1">
+                <label htmlFor="filtre-classe-notes" className="px-1 text-xs font-medium text-slate-600 dark:text-slate-300">Classe</label>
+                <NativeSelect id="filtre-classe-notes" name="classe" defaultValue={classeFiltreeId} className="w-36">
+                  <option value="">Toutes les classes</option>
+                  {classes.map((classe) => <option key={classe.id} value={classe.id}>{classe.libelle}</option>)}
+                </NativeSelect>
+              </div>
+              <div className="grid gap-1">
+                <label htmlFor="filtre-periode-notes" className="px-1 text-xs font-medium text-slate-600 dark:text-slate-300">Trimestre / période</label>
+                <NativeSelect id="filtre-periode-notes" name="periode" defaultValue={periodeChoisie.id} className="w-40">
+                  {periodesDisponibles.map((periode) => (
+                    <option key={periode.id} value={periode.id}>{periode.libelle}</option>
+                  ))}
+                </NativeSelect>
+              </div>
+              <Button type="submit" variant="outline" size="sm" className="h-10 gap-2 border-cyan-700/40 text-cyan-800 hover:bg-cyan-50 dark:text-cyan-200 dark:hover:bg-cyan-950/50">
+                <Filter className="size-4" aria-hidden /> Filtrer
+              </Button>
+            </form>
             <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
               <Link href="/dashboard/notes/calendrier" style={{ color: "#0f172a", backgroundColor: "#ffffff", borderColor: "#cbd5e1" }}><CalendarDays className="size-4 shrink-0" aria-hidden /><span style={{ color: "#0f172a" }}>Calendrier</span></Link>
             </Button>
@@ -124,10 +171,11 @@ export default async function PageNotes({
 
       <Notes
         anneeId={stats.annee.id}
-        periodeId={stats.periode.id}
-        periodeLibelle={stats.periode.libelle}
-        dateDebutPeriode={stats.periode.dateDebut}
-        dateFinPeriode={stats.periode.dateFin}
+        periodeId={periodeChoisie.id}
+        periodeLibelle={periodeChoisie.libelle}
+        dateDebutPeriode={periodeChoisie.dateDebut}
+        dateFinPeriode={periodeChoisie.dateFin}
+        classeFiltreeId={classeFiltreeId}
         classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
         matieres={matieres.map((m) => ({ id: m.id, libelle: m.libelle }))}
         evaluations={evaluations}
