@@ -100,9 +100,15 @@ export default async function PageNotes({
     ...(classeFiltreeId ? { classeId: classeFiltreeId } : {}),
   });
 
+  // N'ouvrir une grille que si l'évaluation correspond aux filtres actifs.
+  const evaluationChoisieId =
+    params.evaluation && evaluations.some((evaluation) => evaluation.id === params.evaluation)
+      ? params.evaluation
+      : null;
+
   const [grille, statsEvaluation] = await Promise.all([
-    params.evaluation ? chargerGrilleSaisie(params.evaluation) : Promise.resolve(null),
-    params.evaluation ? statistiquesEvaluation(params.evaluation) : Promise.resolve(null),
+    evaluationChoisieId ? chargerGrilleSaisie(evaluationChoisieId) : Promise.resolve(null),
+    evaluationChoisieId ? statistiquesEvaluation(evaluationChoisieId) : Promise.resolve(null),
   ]);
 
   return (
@@ -122,6 +128,15 @@ export default async function PageNotes({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 xl:max-w-[760px] xl:justify-end">
+            <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
+              <Link href="/dashboard/notes/calendrier" style={{ color: "#0f172a", backgroundColor: "#ffffff", borderColor: "#cbd5e1" }}><CalendarDays className="size-4 shrink-0" aria-hidden /><span style={{ color: "#0f172a" }}>Calendrier</span></Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
+              <Link href="/dashboard/notes/appreciations" style={{ color: "#0f172a", backgroundColor: "#ffffff", borderColor: "#cbd5e1" }}><MessageSquareText className="size-4 shrink-0" aria-hidden /><span style={{ color: "#0f172a" }}>Appréciations par matière</span></Link>
+            </Button>
+            <Button asChild size="sm" className="h-10 gap-2 whitespace-nowrap bg-cyan-700 px-4 text-white shadow-sm hover:bg-cyan-800 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:bg-cyan-600 dark:hover:bg-cyan-500">
+              <Link href="/dashboard/bulletins" style={{ color: "#ffffff", backgroundColor: "#0e7490", borderColor: "#0e7490" }}><span style={{ color: "#ffffff" }}>Consulter les bulletins</span><ArrowUpRight className="size-4 shrink-0" aria-hidden /></Link>
+            </Button>
             <form action="/dashboard/notes" method="get" className="flex flex-wrap items-end gap-2 rounded-xl border border-border/70 bg-muted/20 p-2">
               <div className="grid gap-1">
                 <label htmlFor="filtre-classe-notes" className="px-1 text-xs font-medium text-slate-600 dark:text-slate-300">Classe</label>
@@ -142,15 +157,6 @@ export default async function PageNotes({
                 <Filter className="size-4" aria-hidden /> Filtrer
               </Button>
             </form>
-            <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
-              <Link href="/dashboard/notes/calendrier" style={{ color: "#0f172a", backgroundColor: "#ffffff", borderColor: "#cbd5e1" }}><CalendarDays className="size-4 shrink-0" aria-hidden /><span style={{ color: "#0f172a" }}>Calendrier</span></Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="h-10 gap-2 whitespace-nowrap border-slate-300 bg-white px-4 text-slate-900 shadow-sm hover:border-cyan-700 hover:bg-cyan-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-cyan-500 dark:hover:bg-slate-800 dark:hover:text-white">
-              <Link href="/dashboard/notes/appreciations" style={{ color: "#0f172a", backgroundColor: "#ffffff", borderColor: "#cbd5e1" }}><MessageSquareText className="size-4 shrink-0" aria-hidden /><span style={{ color: "#0f172a" }}>Appréciations par matière</span></Link>
-            </Button>
-            <Button asChild size="sm" className="h-10 gap-2 whitespace-nowrap bg-cyan-700 px-4 text-white shadow-sm hover:bg-cyan-800 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:bg-cyan-600 dark:hover:bg-cyan-500">
-              <Link href="/dashboard/bulletins" style={{ color: "#ffffff", backgroundColor: "#0e7490", borderColor: "#0e7490" }}><span style={{ color: "#ffffff" }}>Consulter les bulletins</span><ArrowUpRight className="size-4 shrink-0" aria-hidden /></Link>
-            </Button>
           </div>
         </div>
       </section>
@@ -179,7 +185,7 @@ export default async function PageNotes({
         classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
         matieres={matieres.map((m) => ({ id: m.id, libelle: m.libelle }))}
         evaluations={evaluations}
-        evaluationId={params.evaluation ?? null}
+        evaluationId={evaluationChoisieId}
         grille={
           grille
             ? {
