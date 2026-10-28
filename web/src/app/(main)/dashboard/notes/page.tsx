@@ -100,16 +100,16 @@ export default async function PageNotes({
     ...(classeFiltreeId ? { classeId: classeFiltreeId } : {}),
   });
 
-  // N'ouvrir une grille que si l'évaluation correspond aux filtres actifs.
-  const evaluationChoisieId =
-    params.evaluation && evaluations.some((evaluation) => evaluation.id === params.evaluation)
-      ? params.evaluation
-      : null;
-
-  const [grille, statsEvaluation] = await Promise.all([
-    evaluationChoisieId ? chargerGrilleSaisie(evaluationChoisieId) : Promise.resolve(null),
-    evaluationChoisieId ? statistiquesEvaluation(evaluationChoisieId) : Promise.resolve(null),
-  ]);
+  // Vérifier directement l'évaluation : la liste affichée est plafonnée à 100 lignes.
+  const grilleCandidate = params.evaluation ? await chargerGrilleSaisie(params.evaluation) : null;
+  const grilleCorrespondAuxFiltres =
+    grilleCandidate?.evaluation.periodeId === periodeChoisie.id &&
+    (!classeFiltreeId || grilleCandidate.evaluation.classeId === classeFiltreeId);
+  const evaluationChoisieId = grilleCorrespondAuxFiltres ? grilleCandidate.evaluation.id : null;
+  const grille = grilleCorrespondAuxFiltres ? grilleCandidate : null;
+  const statsEvaluation = evaluationChoisieId
+    ? await statistiquesEvaluation(evaluationChoisieId)
+    : null;
 
   return (
     <div className="space-y-6">
