@@ -197,7 +197,7 @@ export async function grilleImpression(
         ? sql`e.enseignant_id`
         : sql`e.salle_id`;
 
-  const [etab, annee, creneaux, cases, plagesHoraires] = await Promise.all([
+  const [etab, annee, creneaux, plagesHoraires, cases] = await Promise.all([
     db.execute<Etablissement & Record<string, unknown>>(sql`
       SELECT nom, sigle, adresse, ville, pays, telephone, email,
              ministere_tutelle AS "ministereTutelle",
