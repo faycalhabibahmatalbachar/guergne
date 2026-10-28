@@ -64,6 +64,7 @@ export function Notes({
   anneeId,
   periodeId,
   periodeLibelle,
+  classeFiltreeId,
   dateDebutPeriode,
   dateFinPeriode,
   classes,
@@ -75,6 +76,7 @@ export function Notes({
   anneeId: string;
   periodeId: string;
   periodeLibelle: string;
+  classeFiltreeId: string;
   dateDebutPeriode: string;
   dateFinPeriode: string;
   classes: Option[];
@@ -106,11 +108,12 @@ export function Notes({
 
   function soumettreEvaluation(f: FormData) {
     setErreurs({});
+    const classeSelectionnee = String(f.get("classeId") ?? classeFiltreeId);
     demarrer(async () => {
       const r = await creerEvaluation({
         anneeId,
         periodeId,
-        classeId: String(f.get("classeId") ?? ""),
+        classeId: classeSelectionnee,
         matiereId: String(f.get("matiereId") ?? ""),
         type: String(f.get("type") ?? "DEVOIR"),
         titre: String(f.get("titre") ?? ""),
@@ -123,7 +126,9 @@ export function Notes({
       if (r.ok && r.id) {
         toast.success("Évaluation créée.");
         setOuvert(false);
-        routeur.push(`/dashboard/notes?evaluation=${r.id}`);
+        const params = new URLSearchParams({ evaluation: r.id, periode: periodeId });
+        if (classeSelectionnee) params.set("classe", classeSelectionnee);
+        routeur.push(`/dashboard/notes?${params.toString()}`);
       } else {
         setErreurs(r.erreurs ?? {});
         if (r.message) toast.error(r.message);
@@ -329,7 +334,7 @@ export function Notes({
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="classeId">Classe *</Label>
-                  <NativeSelect id="classeId" name="classeId" required>
+                  <NativeSelect id="classeId" name="classeId" defaultValue={classeFiltreeId} required>
                     <option value="">Choisir…</option>
                     {classes.map((c) => (
                       <option key={c.id} value={c.id}>
