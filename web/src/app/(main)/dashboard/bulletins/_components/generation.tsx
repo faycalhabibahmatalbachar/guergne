@@ -184,6 +184,7 @@ export function GenerationBulletins({
   const [impressionEnCours, setImpressionEnCours] = useState(false);
   const [apercuImpression, setApercuImpression] = useState<{ url: string; nombre: number } | null>(null);
   const [apercuImpressionPret, setApercuImpressionPret] = useState(false);
+  const [apercuImpressionPleinEcran, setApercuImpressionPleinEcran] = useState(false);
   const impressionIframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
@@ -374,6 +375,7 @@ export function GenerationBulletins({
   function fermerApercuImpression() {
     setApercuImpression(null);
     setApercuImpressionPret(false);
+    setApercuImpressionPleinEcran(false);
   }
 
   function confirmerImpressionBulletins() {
@@ -664,16 +666,29 @@ export function GenerationBulletins({
         open={Boolean(apercuImpression)}
         onOpenChange={(ouvert) => { if (!ouvert) fermerApercuImpression(); }}
       >
-        <DialogContent className="flex h-[88vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
-          <DialogHeader className="shrink-0 border-b bg-card p-4 pr-12">
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <Printer className="size-5 text-cyan-700 dark:text-cyan-300" aria-hidden />
-              Aperçu des bulletins avant impression
-            </DialogTitle>
-            <DialogDescription>
-              {apercuImpression?.nombre ?? 0} bulletin(s) correspondant à votre recherche et à vos filtres.
-              Vérifiez l’aperçu, puis cliquez sur « Imprimer » pour confirmer.
-            </DialogDescription>
+        <DialogContent className={apercuImpressionPleinEcran ? "fixed inset-0 left-0 top-0 z-50 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-none sm:rounded-none" : "flex h-[88vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl"}>
+          <DialogHeader className="relative shrink-0 flex-row items-start justify-between gap-3 border-b bg-card p-4 pr-24">
+            <div className="min-w-0">
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <Printer className="size-5 text-cyan-700 dark:text-cyan-300" aria-hidden />
+                Aperçu des bulletins avant impression
+              </DialogTitle>
+              <DialogDescription className="mt-1">
+                {apercuImpression?.nombre ?? 0} bulletin(s) correspondant à votre recherche et à vos filtres.
+                Vérifiez l’aperçu, puis cliquez sur « Imprimer » pour confirmer.
+              </DialogDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              className="absolute right-12 top-2 border-cyan-700/30 text-cyan-800 hover:bg-cyan-50 dark:border-cyan-400/30 dark:text-cyan-200 dark:hover:bg-cyan-950/50"
+              onClick={() => setApercuImpressionPleinEcran((plein) => !plein)}
+              aria-label={apercuImpressionPleinEcran ? "Quitter le plein écran de l’aperçu d’impression" : "Agrandir l’aperçu des bulletins en plein écran"}
+              title={apercuImpressionPleinEcran ? "Réduire" : "Plein écran"}
+            >
+              {apercuImpressionPleinEcran ? <Minimize2 className="size-4" aria-hidden /> : <Maximize2 className="size-4" aria-hidden />}
+            </Button>
           </DialogHeader>
           <div className="min-h-0 flex-1 bg-slate-100 p-2 dark:bg-slate-950 sm:p-4">
             {apercuImpression ? (
