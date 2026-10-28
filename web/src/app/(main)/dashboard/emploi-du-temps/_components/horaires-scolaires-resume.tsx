@@ -1,5 +1,3 @@
-"use client";
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PlageHoraireScolaire } from "@/server/domain/horaires-scolaires";
 
