@@ -64,6 +64,8 @@ export function Notes({
   anneeId,
   periodeId,
   periodeLibelle,
+  dateDebutPeriode,
+  dateFinPeriode,
   classes,
   matieres,
   evaluations,
@@ -73,6 +75,8 @@ export function Notes({
   anneeId: string;
   periodeId: string;
   periodeLibelle: string;
+  dateDebutPeriode: string;
+  dateFinPeriode: string;
   classes: Option[];
   matieres: Option[];
   evaluations: LigneEvaluation[];
@@ -83,6 +87,13 @@ export function Notes({
   const [enCours, demarrer] = useTransition();
   const [ouvert, setOuvert] = useState(false);
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
+  const maintenant = new Date();
+  const aujourdHui = `${maintenant.getFullYear()}-${String(maintenant.getMonth() + 1).padStart(2, "0")}-${String(maintenant.getDate()).padStart(2, "0")}`;
+  // La date par défaut doit appartenir à la période choisie, même pendant les vacances.
+  const dateEvaluationParDefaut =
+    aujourdHui < dateDebutPeriode ? dateDebutPeriode
+    : aujourdHui > dateFinPeriode ? dateFinPeriode
+    : aujourdHui;
 
   const erreur = (c: string) =>
     erreurs[c] ? <p className="text-destructive text-sm">{erreurs[c]}</p> : null;
@@ -365,9 +376,15 @@ export function Notes({
                     id="dateEvaluation"
                     name="dateEvaluation"
                     type="date"
-                    defaultValue={new Date().toISOString().slice(0, 10)}
+                    min={dateDebutPeriode}
+                    max={dateFinPeriode}
+                    defaultValue={dateEvaluationParDefaut}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Période autorisée : {dateFr(dateDebutPeriode)} au {dateFr(dateFinPeriode)}.
+                  </p>
+                  {erreur("dateEvaluation")}
                 </div>
               </div>
 
