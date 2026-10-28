@@ -202,7 +202,7 @@ function Cellule({
       <Text style={style}>{children}</Text>
     </View>
   );
-}export function Bulletin({ d }: { d: DonneesBulletin }) {
+}export function PageBulletin({ d }: { d: DonneesBulletin }) {
   const identite = {
     nomComplet: d.eleve.nomComplet,
     classe: d.eleve.classe,
@@ -215,10 +215,6 @@ function Cellule({
   };
 
   return (
-    <Document
-      title={`Bulletin ${d.periodeLibelle} — ${d.eleve.nomComplet}`}
-      author={d.etablissement.nom}
-    >
       <Page size="A4" style={s.page} wrap={false}>
         <Image src={FOND_BULLETIN} style={s.fondBulletin} />
         <View style={s.entete}>
@@ -395,6 +391,16 @@ function Cellule({
           <Text>{new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</Text>
         </View>
       </Page>
+  );
+}
+
+export function Bulletin({ d }: { d: DonneesBulletin }) {
+  return (
+    <Document
+      title={`Bulletin ${d.periodeLibelle} — ${d.eleve.nomComplet}`}
+      author={d.etablissement.nom}
+    >
+      <PageBulletin d={d} />
     </Document>
   );
 }
