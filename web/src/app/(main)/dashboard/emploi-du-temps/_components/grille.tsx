@@ -20,6 +20,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { CoursEdt, Creneau } from "@/server/domain/personnel";
+import type { PlageHoraireScolaire } from "@/server/domain/horaires-scolaires";
 
 import { poserCours, publierEmploiDuTemps, retirerCours } from "../../personnel/actions";
 import { deplacerCours } from "../actions-deplacement";
@@ -53,6 +54,7 @@ export function Grille({
   cibleId,
   cours,
   creneaux,
+  plagesHoraires,
   classes,
   matieres,
   enseignants,
@@ -64,6 +66,7 @@ export function Grille({
   cibleId: string;
   cours: CoursEdt[];
   creneaux: Creneau[];
+  plagesHoraires: PlageHoraireScolaire[];
   classes: Option[];
   matieres: Option[];
   enseignants: Option[];
@@ -86,6 +89,23 @@ export function Grille({
   */
   const [glisse, setGlisse] = useState<string | null>(null);
   const [survol, setSurvol] = useState<string | null>(null);
+
+  function plageDuJour(jour: number, ordre: number): PlageHoraireScolaire | undefined {
+    return plagesHoraires.find(
+      (plage) => plage.jourSemaine === jour && plage.nature === "COURS" && plage.ordreCours === ordre,
+    );
+  }
+
+  function formatHeure(valeur: string): string {
+    return valeur.slice(0, 5);
+  }
+
+  function libelleHoraire(jour: number, creneau: Creneau): string {
+    const plage = plageDuJour(jour, creneau.ordre);
+    return plage
+      ? `${formatHeure(plage.heureDebut)}–${formatHeure(plage.heureFin)}`
+      : creneau.libelle;
+  }
 
   function deposer(jour: number, creneauId: string) {
     const coursId = glisse;
@@ -185,7 +205,7 @@ export function Grille({
             <thead>
               <tr>
                 <th className="w-32 border-b bg-muted/40 p-2 text-left font-medium text-muted-foreground text-xs">
-                  Horaire
+                  Séance / créneau
                 </th>
                 {JOURS.map((j) => (
                   <th key={j.numero} className="border-b bg-muted/40 p-2 text-center font-medium">
@@ -198,9 +218,12 @@ export function Grille({
               {creneaux.map((cr) => (
                 <tr key={cr.id}>
                   <td className="border-b p-2 text-muted-foreground text-xs tabular-nums">
-                    {cr.libelle}
+                    <div className="font-medium">{cr.ordre <= 5 ? `Séance ${cr.ordre}` : `Créneau ${cr.ordre}`}</div>
+                  {cr.ordre > 5 ? <div className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">Horaire à confirmer</div> : null}
                   </td>
                   {JOURS.map((j) => {
+                    const plage = plageDuJour(j.numero, cr.ordre);
+                    const horaireAffiche = libelleHoraire(j.numero, cr);
                     const occupe = coursDe(j.numero, cr.ordre);
 
                     // Case couverte par une séance longue : on ne réaffiche rien,
@@ -232,6 +255,7 @@ export function Grille({
                             }`}
                             style={{ backgroundColor: `${c.matiereCouleur ?? "#64748b"}18` }}
                           >
+                            <p className="mb-1 text-[10px] font-medium tabular-nums text-muted-foreground">{horaireAffiche}{!plage ? " · à confirmer" : ""}</p>
                             <div className="flex items-start justify-between gap-1">
                               <span className="font-medium leading-tight">{c.matiereLibelle}</span>
                               <Button
@@ -292,18 +316,22 @@ export function Grille({
                           deposer(j.numero, cr.id);
                         }}
                       >
+                        <div className="space-y-1 px-1 pt-1">
+                          <div className="text-center text-[10px] font-medium tabular-nums text-muted-foreground">{horaireAffiche}</div>
+                          {!plage ? <div className="text-center text-[9px] text-amber-700 dark:text-amber-300">À confirmer</div> : null}
                         <button
                           type="button"
                           onClick={() => setAjout({ jour: j.numero, creneauId: cr.id })}
-                          className={`flex h-12 w-full items-center justify-center rounded-md transition-colors ${
+                          className={`flex h-8 w-full items-center justify-center rounded-md transition-colors ${
                             survol === `${j.numero}-${cr.id}`
                               ? "bg-primary/15 text-foreground ring-primary/40 ring-2"
                               : "text-muted-foreground/40 hover:bg-muted hover:text-foreground"
                           }`}
-                          aria-label={`Ajouter un cours ${j.libelle} à ${cr.libelle}`}
+                          aria-label={`Ajouter un cours ${j.libelle} à ${horaireAffiche}${!plage ? " (horaire à confirmer)" : ""}`}
                         >
                           <Plus className="size-4" aria-hidden />
                         </button>
+                        </div>
                       </td>
                     );
                   })}
@@ -322,7 +350,12 @@ export function Grille({
               <DialogDescription>
                 {ajout
                   ? `${JOURS.find((j) => j.numero === ajout.jour)?.libelle} — ${
-                      creneaux.find((c) => c.id === ajout.creneauId)?.libelle
+                      (() => {
+                        const creneau = creneaux.find((c) => c.id === ajout.creneauId);
+                        if (!creneau) return "";
+                        const plage = plageDuJour(ajout.jour, creneau.ordre);
+                        return `${libelleHoraire(ajout.jour, creneau)}${plage ? "" : " (horaire à confirmer)"}`;
+                      })()
                     }`
                   : ""}
                 . Les conflits de professeur, de classe et de salle sont vérifiés à l&apos;enregistrement.
