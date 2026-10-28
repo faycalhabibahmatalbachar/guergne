@@ -18,6 +18,8 @@ import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
 import { exigerPage } from "@/server/guard";
 
 import { Prerequis } from "../_components/prerequis";
+import { HorairesScolairesResume } from "./_components/horaires-scolaires-resume";
+import { chargerPlagesHorairesScolaires } from "@/server/domain/horaires-scolaires";
 import { ControleHoraire } from "./_components/controle-horaire";
 import { Grille } from "./_components/grille";
 import { SelecteurCible } from "./_components/selecteur-cible";
@@ -53,11 +55,12 @@ export default async function PageEmploiDuTemps({
     );
   }
 
-  const [{ classes, matieres }, enseignants, salles, creneaux] = await Promise.all([
+  const [{ classes, matieres }, enseignants, salles, creneaux, plagesHoraires] = await Promise.all([
     listerClassesEtMatieres(annee.id),
     listerEnseignants(annee.id),
     listerSalles(),
     listerCreneaux(),
+    chargerPlagesHorairesScolaires(annee.id),
   ]);
 
   const enseignantsActifs = enseignants.filter((e) => e.actif);
@@ -143,6 +146,8 @@ export default async function PageEmploiDuTemps({
       */}
       {manquants.length === 0 && cibleId ? <ControleHoraire couverture={couverture} /> : null}
 
+      <HorairesScolairesResume plages={plagesHoraires} />
+
       {manquants.length > 0 || !cibleId ? (
         <Prerequis
           titre="L'emploi du temps ne peut pas encore être construit"
@@ -176,6 +181,7 @@ export default async function PageEmploiDuTemps({
             cibleId={cibleId}
             cours={cours}
             creneaux={creneaux}
+            plagesHoraires={plagesHoraires}
             classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
             matieres={matieres.map((m) => ({ id: m.id, libelle: m.libelle }))}
             enseignants={enseignantsActifs.map((e) => ({
