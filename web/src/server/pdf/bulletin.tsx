@@ -225,7 +225,7 @@ export function PageBulletin({ d }: { d: DonneesBulletin }) {
             <Text style={s.enteteLigne}>Lycée Guergné : la Renaissance</Text>
             <Text style={s.enteteLigne}>N’Djari - N’Djamena - Tchad</Text>
             <Text style={s.enteteLigne}>Tél. : 66.42.74.32 &amp; 99.92.15.25</Text>
-            <Text style={s.enteteLigne}>Email : guergne_renaissance@yahoo.fr</Text>
+            <Text style={s.enteteLigne}>Email : guergnelarenaissance@gmail.com</Text>
           </View>
           <View style={s.enteteLogoZone}>
             <Image src={LOGO_ETABLISSEMENT} style={s.logo} />
