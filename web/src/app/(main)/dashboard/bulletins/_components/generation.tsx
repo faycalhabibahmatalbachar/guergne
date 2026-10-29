@@ -614,6 +614,33 @@ export function GenerationBulletins({
         </CardContent>
       </Card>
 
+      {recherche.trim() && filtres.length > 0 ? (
+        <Card className="overflow-hidden rounded-xl border-slate-200 shadow-sm dark:border-border">
+          <CardHeader className="border-b bg-slate-50/70 py-3 dark:bg-muted/20">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <UserRound className="size-4 text-cyan-700 dark:text-cyan-300" aria-hidden />
+              Aperçu de la recherche d’élève
+            </CardTitle>
+            <CardDescription>Premier résultat correspondant à votre recherche, comme dans l’onglet Élèves.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="truncate text-base font-bold text-slate-900 dark:text-foreground">{filtres[0].eleve}</p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-muted-foreground">Matricule : {filtres[0].matricule} · Classe : {filtres[0].classe}</p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-muted-foreground">Période : {filtres[0].periode} · Moyenne générale : {filtres[0].moyenne !== null && filtres[0].moyenne !== "" ? Number(filtres[0].moyenne).toFixed(2).replace(".", ",") : "—"} · Rang : {filtres[0].rang ?? "—"}</p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button type="button" variant="outline" className="gap-2" onClick={() => { setApercuPleinEcran(false); setBulletinApercu(filtres[0]); }}>
+                <Eye className="size-4" aria-hidden /> Aperçu du bulletin
+              </Button>
+              <Button asChild className="gap-2 bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500">
+                <Link href={`/dashboard/eleves/${filtres[0].eleveId}`}>Ouvrir le dossier <ExternalLink className="size-4" aria-hidden /></Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {bulletinApercu ? (
         <Dialog open onOpenChange={(ouvert) => { if (!ouvert) { setBulletinApercu(null); setApercuPleinEcran(false); } }}>
           <DialogContent showCloseButton className={apercuPleinEcran ? "fixed inset-0 left-0 top-0 z-50 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-none sm:rounded-none" : "flex h-[88vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl"}>
