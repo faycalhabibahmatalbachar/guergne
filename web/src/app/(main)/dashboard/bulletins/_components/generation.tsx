@@ -198,7 +198,7 @@ export function GenerationBulletins({
   const [filtreClasse, setFiltreClasse] = useState(classeChoisie);
   const [filtrePeriode, setFiltrePeriode] = useState(periodeChoisie);
   const [page, setPage] = useState(1);
-  const parPage = 10;
+  const [parPage, setParPage] = useState(8);
 
   function naviguer(classe: string, periode: string) {
     const p = new URLSearchParams();
@@ -603,14 +603,39 @@ export function GenerationBulletins({
               </div>
             </div>
           )}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
-            <p className="text-slate-600 dark:text-slate-300 text-sm">Affichage de {filtres.length ? (pageCourante - 1) * parPage + 1 : 0} à {Math.min(pageCourante * parPage, filtres.length)} sur {filtres.length}</p>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled={pageCourante <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Précédent</Button>
-              <span className="text-slate-600 dark:text-slate-300 text-sm">{pageCourante} / {pages}</span>
-              <Button variant="outline" size="sm" disabled={pageCourante >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))}>Suivant</Button>
+          <footer aria-label="Pied du tableau des bulletins" className="border-t border-slate-200/80 bg-slate-50/60 px-4 py-3.5 text-sm dark:border-border dark:bg-muted/15 sm:px-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <p className="whitespace-nowrap text-slate-600 dark:text-muted-foreground" aria-live="polite">
+                  <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">{filtres.length ? (pageCourante - 1) * parPage + 1 : 0}–{Math.min(pageCourante * parPage, filtres.length)}</span> sur <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">{filtres.length.toLocaleString("fr-FR")}</span> bulletins
+                </p>
+                <span aria-hidden className="hidden h-5 w-px bg-slate-200 dark:bg-border sm:block" />
+                <label className="inline-flex items-center gap-2 whitespace-nowrap text-xs text-slate-600 dark:text-muted-foreground">
+                  Par page
+                  <select aria-label="Nombre de bulletins par page" className="h-9 min-w-16 rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-medium text-slate-800 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:border-border dark:bg-background dark:text-foreground" value={parPage} onChange={(e) => { setParPage(Number(e.target.value)); setPage(1); }}>
+                    {[8, 16, 25, 50, 100].map((nombre) => <option key={nombre} value={nombre}>{nombre}</option>)}
+                  </select>
+                </label>
+              </div>
+              <nav aria-label="Pagination des bulletins" className="flex items-center justify-between gap-3 sm:justify-end">
+                <span className="text-xs font-medium text-slate-600 tabular-nums dark:text-muted-foreground sm:hidden">Page {pageCourante} sur {pages}</span>
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="icon" className="hidden size-9 bg-white shadow-none sm:inline-flex dark:bg-card" disabled={pageCourante <= 1} onClick={() => setPage(1)} aria-label="Première page">«</Button>
+                  <Button variant="outline" size="icon" className="size-9 bg-white shadow-none dark:bg-card" disabled={pageCourante <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label="Page précédente">‹</Button>
+                  <div className="hidden items-center gap-1 sm:flex">
+                    {[...new Set([1, Math.max(1, pageCourante - 1), pageCourante, Math.min(pages, pageCourante + 1), pages])].filter((numero) => numero >= 1 && numero <= pages).map((numero, index, liste) => (
+                      <span key={numero} className="flex items-center gap-1">
+                        {index > 0 && numero - liste[index - 1] > 1 ? <span className="px-1 text-slate-400" aria-hidden>…</span> : null}
+                        <Button size="icon" variant={numero === pageCourante ? "default" : "outline"} className={numero === pageCourante ? "size-9 bg-emerald-700 text-white hover:bg-emerald-800" : "size-9 bg-white shadow-none dark:bg-card"} onClick={() => setPage(numero)} aria-label={"Page " + numero}>{numero}</Button>
+                      </span>
+                    ))}
+                  </div>
+                  <Button variant="outline" size="icon" className="size-9 bg-white shadow-none dark:bg-card" disabled={pageCourante >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))} aria-label="Page suivante">›</Button>
+                  <Button variant="outline" size="icon" className="hidden size-9 bg-white shadow-none sm:inline-flex dark:bg-card" disabled={pageCourante >= pages} onClick={() => setPage(pages)} aria-label="Dernière page">»</Button>
+                </div>
+              </nav>
             </div>
-          </div>
+          </footer>
         </CardContent>
       </Card>
 
