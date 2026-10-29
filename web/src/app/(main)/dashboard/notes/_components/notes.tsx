@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { CheckCircle2, ClipboardList, Eye, FilePenLine, Lock, LockKeyhole, LockOpen, Plus, Save } from "lucide-react";
+import { CheckCircle2, ClipboardList, Eye, FilePenLine, Lock, LockKeyhole, LockOpen, Plus, Save, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -506,7 +506,10 @@ function GrilleSaisie({
               <span className="mt-2 block max-w-64"><Progress value={tauxSaisie} /></span>
             </CardDescription>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" size="icon" aria-label="Fermer la grille de saisie" title="Fermer la grille de saisie" onClick={() => routeur.push("/dashboard/notes")}>
+              <X className="size-4" aria-hidden />
+            </Button>
             {/*
               L'import est à côté de l'enregistrement, pas dans un menu : un
               professeur qui a déjà sa grille dans un tableur doit le voir tout
