@@ -103,6 +103,7 @@ const s = StyleSheet.create({
   conseilTitreFusion: { width: "100%", height: 48, justifyContent: "center", borderBottomWidth: 0.7, borderBottomColor: "#111111", backgroundColor: "#e2efda", paddingHorizontal: 4 },
   conseilTitreTexte: { fontSize: 12, fontFamily: "Times-Bold", color: "#111111" },
   conseilLigne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111", paddingHorizontal: 0 },
+  conseilLigneFin: { borderBottomWidth: 0 },
   conseilLibelle: { width: "47%", color: "#111111", paddingHorizontal: 5, paddingVertical: 6.5, justifyContent: "center" },
   conseilValeurZone: { width: "53%", paddingHorizontal: 3, paddingVertical: 6.5, justifyContent: "center", alignItems: "center", borderLeftWidth: 0.4, borderLeftColor: "#111111" },
   conseilValeur: { fontFamily: "Times-Bold", textAlign: "center", fontSize: 12 },
@@ -342,7 +343,7 @@ export function PageBulletin({ d }: { d: DonneesBulletin }) {
               { libelle: "Discipline", valeur: d.appreciationDiscipline },
               { libelle: "Décision du Conseil", valeur: d.decisionConseil },
             ].map((l) => (
-              <View key={l.libelle} style={s.conseilLigne}>
+              <View key={l.libelle} style={[s.conseilLigne, l.libelle === "Décision du Conseil" ? s.conseilLigneFin : {}]}>
                 <View style={s.conseilLibelle}><Text>{l.libelle}</Text></View>
                 <View style={s.conseilValeurZone}>
                   <View style={{ width: "100%", alignItems: "center" }}>
