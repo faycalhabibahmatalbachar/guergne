@@ -299,7 +299,7 @@ export function PageBulletin({ d }: { d: DonneesBulletin }) {
             <View key={bloc.titre}>
               {bloc.matieres.map((m) => (
                 <View key={m.libelle} style={s.ligne} wrap={false}>
-                  <Cellule largeur={s.cDiscipline}>{/^(svt|sciences? de la vie et de la terre)$/i.test(m.libelle.trim()) ? "SVT" : m.libelle}</Cellule>
+                  <Cellule largeur={s.cDiscipline}>{/^(svt|sciences? de la vie et de la terre)$/i.test(m.libelle.trim()) ? "SVT" : /^(education civique et morale|éducation civique et morale|ecm)$/i.test(m.libelle.trim()) ? "ECM" : /^(education sportive|éducation sportive|eps)$/i.test(m.libelle.trim()) ? "EPS" : m.libelle}</Cellule>
                   <Cellule largeur={s.cDevoirs} style={s.centre}>{n2(m.moyenneDevoirs)}</Cellule>
                   <Cellule largeur={s.cCompos} style={s.centre}>{n2(m.noteComposition)}</Cellule>
                   <Cellule largeur={s.cMoyenne} style={[s.centre, s.gras]}>{n2(m.moyenne)}</Cellule>
