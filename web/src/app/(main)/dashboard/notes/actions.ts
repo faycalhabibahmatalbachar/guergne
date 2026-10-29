@@ -223,7 +223,7 @@ const schemaSaisie = z.object({
   lignes: z.array(
     z.object({
       inscriptionId: z.string().uuid(),
-      valeur: z.union([z.coerce.number().min(0), z.null()]),
+      valeur: z.preprocess((valeur) => valeur === null || valeur === "" ? null : Number(valeur), z.number().finite().min(0).nullable()),
       statut: z.enum(["NOTEE", "ABSENT", "ABSENT_ZERO", "DISPENSE", "NON_RENDU"]),
       appreciation: z.string().trim().optional(),
     }),
@@ -247,9 +247,17 @@ export async function enregistrerNotes(donnees: unknown): Promise<Resultat> {
     if (!a.success) return { ok:false, erreurs:messages(a.error) };
     const v = a.data;
     const [evaluation] = await db.select({
-      classeId:evaluations.classeId,matiereId:evaluations.matiereId,titre:evaluations.titre,
-    }).from(evaluations).where(eq(evaluations.id,v.evaluationId));
-    if(!evaluation)return {ok:false,message:"Évaluation introuvable."};
+      classeId: evaluations.classeId,
+      matiereId: evaluations.matiereId,
+      titre: evaluations.titre,
+      bareme: evaluations.bareme,
+      estVerrouillee: evaluations.estVerrouillee,
+    }).from(evaluations).where(eq(evaluations.id, v.evaluationId));
+    if (!evaluation) return { ok: false, message: "Évaluation introuvable." };
+    if (evaluation.estVerrouillee) return { ok: false, message: "Cette évaluation est verrouillée : les notes ne peuvent plus être modifiées." };
+    const bareme = Number(evaluation.bareme);
+    const horsBareme = v.lignes.find((ligne) => ligne.statut === "NOTEE" && ligne.valeur !== null && ligne.valeur > bareme);
+    if (horsBareme) return { ok: false, message: `Une note dépasse le barème de ${bareme}. Corrigez les notes signalées avant d’enregistrer.` };
     const acteur=await requirePermission("note:saisir",{
       classeId:evaluation.classeId,matiereId:evaluation.matiereId,
     });
