@@ -471,20 +471,41 @@ function GrilleSaisie({
     setValeurs((p) => ({ ...p, [id]: { ...p[id], [champ]: v } }));
 
   function enregistrer() {
+    // Bloquer localement les notes hors barème avant d'envoyer toute la grille.
+    const ligneInvalide = grille.lignes.find((ligne) => {
+      const saisie = valeurs[ligne.inscriptionId];
+      if (saisie.statut !== "NOTEE" || saisie.valeur.trim() === "") return false;
+      const note = Number(saisie.valeur);
+      return !Number.isFinite(note) || note < 0 || note > bareme;
+    });
+    if (ligneInvalide) {
+      toast.error(`Vérifiez la note de ${ligneInvalide.prenom} ${ligneInvalide.nom} : elle doit être comprise entre 0 et ${bareme}.`);
+      return;
+    }
+
     demarrer(async () => {
-      const r = await enregistrerNotes({
-        evaluationId: grille.evaluation.id,
-        lignes: grille.lignes.map((l) => {
-          const v = valeurs[l.inscriptionId];
-          return {
-            inscriptionId: l.inscriptionId,
-            valeur: v.statut === "NOTEE" && v.valeur !== "" ? Number(v.valeur) : null,
-            statut: v.statut,
-          };
-        }),
-      });
-      toast[r.ok ? "success" : "error"](r.message ?? (r.ok ? "Enregistré." : "Échec."));
-      if (r.ok) routeur.refresh();
+      try {
+        const r = await enregistrerNotes({
+          evaluationId: grille.evaluation.id,
+          lignes: grille.lignes.map((l) => {
+            const v = valeurs[l.inscriptionId];
+            return {
+              inscriptionId: l.inscriptionId,
+              valeur: v.statut === "NOTEE" && v.valeur.trim() !== "" ? Number(v.valeur) : null,
+              statut: v.statut,
+            };
+          }),
+        });
+        if (!r.ok) {
+          toast.error(r.message ?? "L'enregistrement a échoué. Vérifiez les notes et les droits de saisie.");
+          return;
+        }
+        toast.success(r.message ?? "Notes enregistrées.");
+        routeur.refresh();
+      } catch (erreur) {
+        console.error("[notes-ui] Échec de l'enregistrement", erreur);
+        toast.error("Impossible d'enregistrer les notes pour le moment. Réessayez et vérifiez votre connexion.");
+      }
     });
   }
 
