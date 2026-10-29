@@ -158,42 +158,30 @@ export default async function PageBulletins({
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
-        <div className="h-1.5 bg-gradient-to-r from-cyan-700 via-sky-600 to-indigo-600" />
-        <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)] lg:items-center">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-700/20 bg-cyan-700/[0.06] px-3 py-1.5 text-xs font-semibold tracking-wide text-cyan-800 dark:text-cyan-300">
-              <BookOpenCheck className="size-3.5" aria-hidden />
-              ESPACE PÉDAGOGIQUE
-            </div>
-            <div className="space-y-1.5">
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Gestion des bulletins scolaires</h1>
-              <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">Produisez, vérifiez et publiez les résultats scolaires depuis un espace unique.</p>
-            </div>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <span className="inline-flex items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm font-medium">{stats.annee?.libelle ?? "Année non configurée"}</span>
-              <span className="inline-flex items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm text-slate-600 dark:text-slate-300">{classes.rows.length} classes</span>
-              <span className="inline-flex items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm text-slate-600 dark:text-slate-300">{stats.effectifTotal} élèves</span>
-            </div>
+      <header aria-label="En-tête de la page Bulletins" className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 xl:flex-row xl:items-end xl:justify-between dark:border-border">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="flex items-center gap-2.5 text-[29px] font-bold leading-tight tracking-tight sm:text-[34px]">
+              <BookOpenCheck className="size-7 shrink-0 text-[#102448]" aria-hidden />
+              Gestion des bulletins scolaires
+            </h1>
+            <span className="inline-flex items-center rounded-lg border border-cyan-100 bg-cyan-50 px-2.5 py-1 text-sm font-semibold text-cyan-800 tabular-nums dark:border-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-300">
+              {bulletins.length} bulletins
+            </span>
           </div>
-          <div className="rounded-xl border border-border/80 bg-muted/20 p-4 sm:p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 dark:text-slate-300">Contexte de production</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              <div className="rounded-lg border bg-card px-3 py-3">
-                <p className="text-xs text-slate-600 dark:text-slate-300">Classe</p>
-                <p className="mt-1 truncate text-sm font-semibold">{classeLibelle}</p>
-              </div>
-              <div className="rounded-lg border bg-card px-3 py-3">
-                <p className="text-xs text-slate-600 dark:text-slate-300">Période</p>
-                <p className="mt-1 truncate text-sm font-semibold">{periodeLibelle}</p>
-              </div>
-            </div>
-            <Button asChild variant="outline" size="sm" className="mt-3 w-full justify-between">
-              <Link href="/dashboard/notes">Ouvrir la saisie des notes <ArrowUpRight className="size-4" aria-hidden /></Link>
-            </Button>
+          <p className="mt-2 text-sm text-slate-600 dark:text-muted-foreground">Produisez, vérifiez et publiez les résultats scolaires depuis un espace unique.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <span className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-slate-800 dark:border-border dark:bg-card dark:text-foreground">{stats.annee?.libelle ?? "Année non configurée"}</span>
+            <span className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-600 dark:border-border dark:bg-card dark:text-muted-foreground">{classes.rows.length} classes</span>
+            <span className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-600 dark:border-border dark:bg-card dark:text-muted-foreground">{stats.effectifTotal} élèves</span>
           </div>
         </div>
-      </section>
+        <div role="group" aria-label="Actions sur les bulletins" className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+          <Button asChild variant="outline" className="h-10 gap-2 rounded-lg border-slate-200 bg-white px-3.5 text-slate-700 shadow-none hover:bg-slate-50 dark:border-border dark:bg-card dark:text-foreground">
+            <Link href="/dashboard/notes">Ouvrir la saisie des notes <ArrowUpRight className="size-4" aria-hidden /></Link>
+          </Button>
+        </div>
+      </header>
 
       {classeChoisie && periodeChoisie ? (
         <>
