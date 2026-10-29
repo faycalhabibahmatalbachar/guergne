@@ -112,6 +112,7 @@ const s = StyleSheet.create({
   historiqueCell: { paddingHorizontal: 3, paddingVertical: 6.5, justifyContent: "center", borderRightWidth: 0.4, borderRightColor: "#111111" },
   historiqueEntete: { backgroundColor: "#e2efda" },
   historiqueLigne: { flexDirection: "row", borderBottomWidth: 0.4, borderBottomColor: "#111111" },
+  historiqueLigneFin: { borderBottomWidth: 0 },
   historiqueAnnuelle: { flexGrow: 1, flexDirection: "row", borderBottomWidth: 0 },
   orientationRow: { height: 17.25, justifyContent: "center" },
   orientation: { fontSize: 12, fontFamily: "Times-Bold", color: "#111111" },
@@ -364,7 +365,7 @@ export function PageBulletin({ d }: { d: DonneesBulletin }) {
               { libelle: "2ème trimestre", donnees: d.historique[1] },
               { libelle: "3ème trimestre", donnees: d.historique[2] },
             ].map((p) => (
-              <View key={p.libelle} style={s.historiqueLigne}>
+              <View key={p.libelle} style={[s.historiqueLigne, p.libelle === "3ème trimestre" ? s.historiqueLigneFin : {}]}>
                 <View style={[s.historiqueCell, { width: "40%" }]}><Text>{p.libelle}</Text></View>
                 <View style={[s.historiqueCell, { width: "27%" }]}><Text style={s.centre}>{p.donnees ? n2(p.donnees.moyenne) : ""}</Text></View>
                 <View style={[s.historiqueCell, { width: "33%", borderRightWidth: 0 }]}><Text style={s.centre}>{p.donnees?.rang ?? ""}</Text></View>
