@@ -9,7 +9,7 @@
  */
 export function libelleAppreciationTravail(moyenne: number | null): string | null {
   if (moyenne === null || !Number.isFinite(moyenne) || moyenne < 0 || moyenne > 20) return null;
-  if (moyenne >= 18) return "Excellent Travail";
+  if (moyenne >= 18) return "Excellent";
   if (moyenne >= 16) return "Très bien";
   if (moyenne >= 14) return "Bien";
   if (moyenne >= 12) return "Assez-bien";
