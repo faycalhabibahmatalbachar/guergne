@@ -391,45 +391,22 @@ export function GenerationBulletins({
 
   return (
     <div className="space-y-6 pb-6">
-      <Card className="rounded-2xl border-border/70 shadow-sm">
-        <CardHeader className="border-b bg-muted/20 pb-4">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-cyan-700/10 p-2.5 text-cyan-800 dark:text-cyan-300"><Search className="size-5" aria-hidden /></div>
-            <div><CardTitle className="text-base">Rechercher et filtrer les bulletins</CardTitle>
-              <CardDescription className="mt-1">Recherchez un élève par son nom, son prénom ou son matricule, puis choisissez une classe et une période.</CardDescription>
+      <Card className="gentelella-v4 grid grid-cols-1 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-sm dark:border-border dark:bg-card">
+        <div className="grid grid-cols-1 gap-2 border-b border-slate-100 pb-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,2fr)_minmax(170px,1fr)_minmax(170px,1fr)] dark:border-border">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" aria-hidden />
+              <input id="recherche-bulletins" value={recherche} onChange={(e) => { setRecherche(e.target.value); setPage(1); }}
+                placeholder="Rechercher un élève…" aria-label="Rechercher par nom, prénom ou matricule"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50/50 py-2 pl-10 pr-3 text-sm shadow-none outline-none placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-border dark:bg-background" />
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-[minmax(220px,1.5fr)_1fr_1fr_auto]">
-            <div className="space-y-1.5">
-              <Label htmlFor="recherche-bulletins">Recherche</Label>
-              <div className="relative">
-                <Search className="text-slate-600 dark:text-slate-300 absolute left-3 top-1/2 size-4 -translate-y-1/2" aria-hidden />
-                <input id="recherche-bulletins" value={recherche} onChange={(e) => { setRecherche(e.target.value); setPage(1); }}
-                  placeholder="Nom, prénom ou matricule…" className="border-input bg-background placeholder:text-slate-600 dark:text-slate-300 focus-visible:border-ring focus-visible:ring-ring/50 h-10 w-full rounded-md border py-2 pl-9 pr-3 text-sm shadow-xs outline-none focus-visible:ring-[3px]" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="filtre-classe">Classe</Label>
-              <NativeSelect id="filtre-classe" value={filtreClasse} onChange={(e) => { setFiltreClasse(e.target.value); setPage(1); }}>
-                <option value="">Toutes les classes</option>
-                {classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}
-              </NativeSelect>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="filtre-periode">Période</Label>
-              <NativeSelect id="filtre-periode" value={filtrePeriode} onChange={(e) => { setFiltrePeriode(e.target.value); setPage(1); }}>
-                <option value="">Toutes les périodes</option>
-                {periodes.map((p) => <option key={p.id} value={p.id}>{p.libelle}</option>)}
-              </NativeSelect>
-            </div>
-            <div className="flex items-end">
-              <Button onClick={appliquerFiltres} className="w-full bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500">
-                Appliquer
-              </Button>
-            </div>
-          </div>
+            <NativeSelect aria-label="Toutes les classes" value={filtreClasse} onChange={(e) => { setFiltreClasse(e.target.value); setPage(1); }} className="h-10 rounded-lg">
+              <option value="">Toutes les classes</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}
+            </NativeSelect>
+            <NativeSelect aria-label="Toutes les périodes" value={filtrePeriode} onChange={(e) => { setFiltrePeriode(e.target.value); setPage(1); }} className="h-10 rounded-lg">
+              <option value="">Toutes les périodes</option>
+              {periodes.map((p) => <option key={p.id} value={p.id}>{p.libelle}</option>)}
+            </NativeSelect>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
             <p className="text-slate-600 dark:text-slate-300 text-sm">{filtres.length} bulletin(s) trouvé(s)</p>
             <div className="flex flex-wrap items-center gap-2">
