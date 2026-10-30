@@ -21,14 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formaterFcfa } from "@/lib/finances-format";
 import type { BlocageEleve, ReglageBlocage } from "@/server/domain/caisse";
 
@@ -70,9 +63,9 @@ export function RetenueImpaye({
 
   if (lignes.length === 0) {
     return (
-      <Card className="border-emerald-500/40 bg-emerald-500/5">
+      <Card className="border-succes-trait bg-succes-doux">
         <CardContent className="flex items-center gap-3 py-4">
-          <CheckCircle2 aria-hidden className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <CheckCircle2 aria-hidden className="size-5 shrink-0 text-succes" />
           <p className="text-sm">
             Aucun élève de cette classe ne doit d&apos;argent
             {reglage.seuilFcfa > 0 ? ` au-delà de ${formaterFcfa(reglage.seuilFcfa)}` : ""}.
@@ -119,7 +112,7 @@ export function RetenueImpaye({
 
   return (
     <>
-      <Card className={reglage.actif ? "border-amber-500/40 bg-amber-500/5" : ""}>
+      <Card className={reglage.actif ? "border-alerte-trait bg-alerte-doux" : ""}>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Wallet aria-hidden className="size-5" />
@@ -130,13 +123,13 @@ export function RetenueImpaye({
           <CardDescription>
             {reglage.actif ? (
               <>
-                Ces bulletins ne partiront pas à la publication. Un bulletin déjà publié
-                n&apos;est jamais repris : un document remis est remis.
+                Ces bulletins ne partiront pas à la publication. Un bulletin déjà publié n&apos;est jamais repris : un
+                document remis est remis.
               </>
             ) : (
               <>
-                La retenue pour impayé est désactivée : ces bulletins seront publiés normalement.
-                La liste sert à savoir qui relancer au moment de la remise.
+                La retenue pour impayé est désactivée : ces bulletins seront publiés normalement. La liste sert à savoir
+                qui relancer au moment de la remise.
               </>
             )}
           </CardDescription>
@@ -149,17 +142,10 @@ export function RetenueImpaye({
           */}
           {peutConfigurer ? (
             <div className="flex items-center gap-3 pt-2">
-              <Switch
-                id="rb-actif"
-                checked={reglage.actif}
-                disabled={enCours}
-                onCheckedChange={basculerReglage}
-              />
+              <Switch id="rb-actif" checked={reglage.actif} disabled={enCours} onCheckedChange={basculerReglage} />
               <Label htmlFor="rb-actif" className="text-sm font-normal">
                 Retenir les bulletins des scolarités non réglées
-                {reglage.seuilFcfa > 0
-                  ? ` au-delà de ${formaterFcfa(reglage.seuilFcfa)}`
-                  : ""}
+                {reglage.seuilFcfa > 0 ? ` au-delà de ${formaterFcfa(reglage.seuilFcfa)}` : ""}
               </Label>
             </div>
           ) : null}
@@ -182,13 +168,9 @@ export function RetenueImpaye({
                   <TableRow key={l.inscriptionId}>
                     <TableCell>
                       {l.eleve}
-                      <span className="text-muted-foreground ml-2 font-mono text-xs">
-                        {l.matricule}
-                      </span>
+                      <span className="text-muted-foreground ml-2 font-mono text-xs">{l.matricule}</span>
                     </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {formaterFcfa(l.resteDu)}
-                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">{formaterFcfa(l.resteDu)}</TableCell>
                     <TableCell
                       className={`text-right tabular-nums ${
                         l.echeancesEnRetard > 0 ? "text-destructive" : "text-muted-foreground"
@@ -222,12 +204,7 @@ export function RetenueImpaye({
                     {peutLever ? (
                       <TableCell className="text-right">
                         {l.dejaPublie ? null : l.leveePar ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            disabled={enCours}
-                            onClick={() => retablir(l)}
-                          >
+                          <Button size="sm" variant="ghost" disabled={enCours} onClick={() => retablir(l)}>
                             Rétablir
                           </Button>
                         ) : (
@@ -257,9 +234,8 @@ export function RetenueImpaye({
           <DialogHeader>
             <DialogTitle>Lever la retenue — {cible?.eleve}</DialogTitle>
             <DialogDescription>
-              {cible ? formaterFcfa(cible.resteDu) : ""} restent dus. Le bulletin sera publié
-              malgré tout. La levée vaut pour CETTE période seulement : elle devra être redécidée
-              au trimestre suivant.
+              {cible ? formaterFcfa(cible.resteDu) : ""} restent dus. Le bulletin sera publié malgré tout. La levée vaut
+              pour CETTE période seulement : elle devra être redécidée au trimestre suivant.
             </DialogDescription>
           </DialogHeader>
 
@@ -274,8 +250,8 @@ export function RetenueImpaye({
               onChange={(e) => setMotif(e.target.value)}
             />
             <p className="text-muted-foreground text-xs">
-              Il sera relu par le proviseur et, le cas échéant, opposé à un parent qui, lui, a
-              payé. « Cas social » sans précision ne se défend pas.
+              Il sera relu par le proviseur et, le cas échéant, opposé à un parent qui, lui, a payé. « Cas social » sans
+              précision ne se défend pas.
             </p>
           </div>
 

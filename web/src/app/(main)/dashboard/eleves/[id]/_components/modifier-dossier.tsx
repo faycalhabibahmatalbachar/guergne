@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { LoaderCircle, Pencil } from "lucide-react";
@@ -80,12 +81,16 @@ export function ModifierDossier({
   const params = useSearchParams();
   const demandeOuverture = activerDepuisUrl && params.get("completer") === "1";
   const [ouvert, setOuvert] = useState(demandeOuverture);
-  useEffect(() => { if (demandeOuverture) setOuvert(true); }, [demandeOuverture]);
+  useEffect(() => {
+    if (demandeOuverture) setOuvert(true);
+  }, [demandeOuverture]);
   function nettoyerUrl() {
     if (!activerDepuisUrl || !params.has("completer")) return;
     const nouveaux = new URLSearchParams(params.toString());
     nouveaux.delete("completer");
-    router.replace("/dashboard/eleves/" + eleveId + (nouveaux.size ? "?" + nouveaux.toString() : ""), { scroll: false });
+    router.replace("/dashboard/eleves/" + eleveId + (nouveaux.size ? "?" + nouveaux.toString() : ""), {
+      scroll: false,
+    });
   }
   const [charge, setCharge] = useState<DossierModifiable | null>(null);
   const [chargement, setChargement] = useState(false);
@@ -93,7 +98,10 @@ export function ModifierDossier({
   const valeurs = dossier ?? charge;
   async function changerOuverture(next: boolean) {
     setOuvert(next);
-    if (!next) { nettoyerUrl(); return; }
+    if (!next) {
+      nettoyerUrl();
+      return;
+    }
     if (dossier) return;
     setCharge(null);
     setErreurChargement("");
@@ -133,11 +141,7 @@ export function ModifierDossier({
     });
   }
 
-  const champ = (
-    nom: keyof DossierModifiable,
-    libelle: string,
-    options?: { type?: string; requis?: boolean },
-  ) => (
+  const champ = (nom: keyof DossierModifiable, libelle: string, options?: { type?: string; requis?: boolean }) => (
     <div className="form-group space-y-1.5">
       <Label htmlFor={nom}>
         {libelle}
@@ -148,7 +152,7 @@ export function ModifierDossier({
         name={nom}
         type={options?.type ?? "text"}
         defaultValue={valeurs?.[nom] ?? ""}
-        className="form-control h-10 rounded-lg"
+        className="form-control rounded-lg"
         aria-invalid={Boolean(erreurs[nom])}
       />
       {erreur(nom)}
@@ -162,7 +166,11 @@ export function ModifierDossier({
           type="button"
           variant={declencheur === "icone" ? "outline" : "default"}
           size={declencheur === "icone" ? "icon" : "sm"}
-          className={declencheur === "icone" ? "size-8 rounded-lg border-slate-200 bg-white text-[#10234b] shadow-none hover:bg-emerald-50 dark:border-border dark:bg-card" : "h-9 gap-2 rounded-lg bg-emerald-700 px-4 font-semibold text-white shadow-sm hover:bg-emerald-800"}
+          className={
+            declencheur === "icone"
+              ? "size-8 rounded-lg border-border bg-card text-foreground shadow-none hover:bg-succes-doux/90"
+              : ""
+          }
           title={declencheur === "icone" ? "Modifier le dossier" : undefined}
           aria-label={declencheur === "icone" ? "Modifier le dossier de " + (nomEleve ?? "cet élève") : undefined}
         >
@@ -175,95 +183,120 @@ export function ModifierDossier({
         <DialogHeader>
           <DialogTitle>Corriger le dossier</DialogTitle>
           <DialogDescription>
-            Chaque modification est journalisée. Le matricule, la classe et le statut se
-            modifient depuis leurs actions dédiées.
+            Chaque modification est journalisée. Le matricule, la classe et le statut se modifient depuis leurs actions
+            dédiées.
           </DialogDescription>
         </DialogHeader>
 
-        {valeurs ? <p className="alert alert-info rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs leading-5 text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-200">
-          Utilisez les documents et déclarations des familles. Un champ vide ne signifie pas « néant », notamment pour la santé.
-        </p> : null}
-        {chargement ? <div className="flex min-h-36 items-center justify-center gap-3 text-sm text-muted-foreground"><LoaderCircle className="size-5 animate-spin" aria-hidden />Chargement des informations…</div> : erreurChargement ? <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-800">{erreurChargement}</p> : valeurs ? (
-        <form onSubmit={soumettre} className="space-y-6">
-          <section className="space-y-3">
-            <h3 className="font-semibold text-sm">État civil</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {champ("nom", "Nom", { requis: true })}
-              {champ("prenom", "Prénom", { requis: true })}
+        {valeurs ? (
+          <p className="alert alert-info rounded-lg border border-info-trait bg-info-doux px-3 py-2 text-xs leading-5 text-info">
+            Utilisez les documents et déclarations des familles. Un champ vide ne signifie pas « néant », notamment pour
+            la santé.
+          </p>
+        ) : null}
+        {chargement ? (
+          <div className="flex min-h-36 items-center justify-center gap-3 text-sm text-muted-foreground">
+            <LoaderCircle className="size-5 animate-spin" aria-hidden />
+            Chargement des informations…
+          </div>
+        ) : erreurChargement ? (
+          <p role="alert" className="rounded-lg bg-danger-doux p-4 text-sm text-danger">
+            {erreurChargement}
+          </p>
+        ) : valeurs ? (
+          <form onSubmit={soumettre} className="space-y-6">
+            <section className="space-y-3">
+              <h3 className="font-semibold text-sm">État civil</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {champ("nom", "Nom", { requis: true })}
+                {champ("prenom", "Prénom", { requis: true })}
 
-              <div className="space-y-1.5">
-                <Label htmlFor="sexe">
-                  Sexe<span className="text-destructive"> *</span>
-                </Label>
-                <NativeSelect id="sexe" name="sexe" className="form-control h-10 rounded-lg" defaultValue={valeurs.sexe}>
-                  <option value="M">Masculin</option>
-                  <option value="F">Féminin</option>
-                </NativeSelect>
-                {erreur("sexe")}
+                <div className="space-y-1.5">
+                  <Label htmlFor="sexe">
+                    Sexe<span className="text-destructive"> *</span>
+                  </Label>
+                  <NativeSelect id="sexe" name="sexe" className="form-control rounded-lg" defaultValue={valeurs.sexe}>
+                    <option value="M">Masculin</option>
+                    <option value="F">Féminin</option>
+                  </NativeSelect>
+                  {erreur("sexe")}
+                </div>
+
+                {champ("dateNaissance", "Date de naissance", { type: "date", requis: true })}
+                {champ("lieuNaissance", "Lieu de naissance")}
+                {champ("nationalite", "Nationalité")}
+                {champ("acteNaissanceNumero", "N° d'acte de naissance")}
+                {champ("ecoleOrigine", "École d'origine")}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="font-semibold text-sm">Coordonnées</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {champ("adresse", "Adresse")}
+                {champ("quartier", "Quartier")}
+                {champ("telephone", "Téléphone")}
+                {champ("email", "Adresse électronique", { type: "email" })}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="font-semibold text-sm">Santé et urgence</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {champ("groupeSanguin", "Groupe sanguin")}
+                {champ("urgenceNom", "Personne à prévenir")}
+                {champ("urgenceTelephone", "Téléphone d'urgence")}
+                {champ("urgenceLien", "Lien avec l'élève")}
               </div>
 
-              {champ("dateNaissance", "Date de naissance", { type: "date", requis: true })}
-              {champ("lieuNaissance", "Lieu de naissance")}
-              {champ("nationalite", "Nationalité")}
-              {champ("acteNaissanceNumero", "N° d'acte de naissance")}
-              {champ("ecoleOrigine", "École d'origine")}
-            </div>
-          </section>
+              <div className="space-y-1.5">
+                <Label htmlFor="allergies">Allergies</Label>
+                <Textarea
+                  id="allergies"
+                  name="allergies"
+                  className="form-control rounded-lg"
+                  rows={2}
+                  defaultValue={valeurs.allergies ?? ""}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="observationsMedicales">Observations médicales</Label>
+                <Textarea
+                  id="observationsMedicales"
+                  name="observationsMedicales"
+                  className="form-control rounded-lg"
+                  rows={2}
+                  defaultValue={valeurs.observationsMedicales ?? ""}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="situationParticuliere">Situation particulière</Label>
+                <Textarea
+                  id="situationParticuliere"
+                  name="situationParticuliere"
+                  className="form-control rounded-lg"
+                  rows={2}
+                  defaultValue={valeurs.situationParticuliere ?? ""}
+                />
+              </div>
+            </section>
 
-          <section className="space-y-3">
-            <h3 className="font-semibold text-sm">Coordonnées</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {champ("adresse", "Adresse")}
-              {champ("quartier", "Quartier")}
-              {champ("telephone", "Téléphone")}
-              {champ("email", "Adresse électronique", { type: "email" })}
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <h3 className="font-semibold text-sm">Santé et urgence</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {champ("groupeSanguin", "Groupe sanguin")}
-              {champ("urgenceNom", "Personne à prévenir")}
-              {champ("urgenceTelephone", "Téléphone d'urgence")}
-              {champ("urgenceLien", "Lien avec l'élève")}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="allergies">Allergies</Label>
-              <Textarea id="allergies" name="allergies" className="form-control rounded-lg" rows={2} defaultValue={valeurs.allergies ?? ""} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="observationsMedicales">Observations médicales</Label>
-              <Textarea
-                id="observationsMedicales"
-                name="observationsMedicales"
-                className="form-control rounded-lg"
-                rows={2}
-                defaultValue={valeurs.observationsMedicales ?? ""}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="situationParticuliere">Situation particulière</Label>
-              <Textarea
-                id="situationParticuliere"
-                name="situationParticuliere"
-                className="form-control rounded-lg"
-                rows={2}
-                defaultValue={valeurs.situationParticuliere ?? ""}
-              />
-            </div>
-          </section>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" className="h-10 rounded-lg" onClick={() => { setOuvert(false); nettoyerUrl(); }}>
-              Annuler
-            </Button>
-            <Button type="submit" className="h-10 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800" disabled={enCours}>
-              {enCours ? "Enregistrement…" : "Enregistrer"}
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setOuvert(false);
+                  nettoyerUrl();
+                }}
+              >
+                Annuler
+              </Button>
+              <Button type="submit" disabled={enCours}>
+                {enCours ? "Enregistrement…" : "Enregistrer"}
+              </Button>
+            </DialogFooter>
+          </form>
         ) : null}
       </DialogContent>
     </Dialog>

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -50,7 +51,10 @@ export interface ApercuNotificationParent {
 
 const idValide = z.string().uuid();
 
-async function lireContact(tuteurId: string, executor: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]): Promise<Contact | undefined> {
+async function lireContact(
+  tuteurId: string,
+  executor: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+): Promise<Contact | undefined> {
   const resultat = await executor.execute<Contact>(sql`
     SELECT t.id, t.utilisateur_id, u.actif AS compte_actif,
            t.telephone, t.accepte_sms,
@@ -102,27 +106,36 @@ function planifier(t: Contact, canal: CanalIndividuel): CanalReel[] {
 
 function devis(t: Contact, canal: CanalIndividuel, titre: string, corps: string): ApercuNotificationParent {
   const destinations = planifier(t, canal);
-  const parSms = destinations.filter(x => x === "SMS").length;
-  const parPush = destinations.filter(x => x === "PUSH").length;
-  const dansApplication = destinations.filter(x => x === "IN_APP").length;
+  const parSms = destinations.filter((x) => x === "SMS").length;
+  const parPush = destinations.filter((x) => x === "PUSH").length;
+  const dansApplication = destinations.filter((x) => x === "IN_APP").length;
   // Même signature que l'expéditeur réel, pour éviter un coût sous-estimé.
   const segments = segmentsSms(`${signatureSms()}${titre}\n${corps}`);
-  const avertissement = destinations.length === 0
-    ? "Ce parent n’est actuellement joignable par aucun canal sélectionné."
-    : parSms > 0 && t.telephone_partage
-      ? "Attention : ce numéro est partagé par plusieurs fiches. Vérifiez le destinataire avant d’envoyer un SMS."
-    : dansApplication > 0
-      ? "Le message sera disponible dans l’application, mais aucune alerte immédiate n’est garantie."
-      : null;
+  const avertissement =
+    destinations.length === 0
+      ? "Ce parent n’est actuellement joignable par aucun canal sélectionné."
+      : parSms > 0 && t.telephone_partage
+        ? "Attention : ce numéro est partagé par plusieurs fiches. Vérifiez le destinataire avant d’envoyer un SMS."
+        : dansApplication > 0
+          ? "Le message sera disponible dans l’application, mais aucune alerte immédiate n’est garantie."
+          : null;
   return {
-    total: destinations.length, parPush, parSms, dansApplication,
-    segments, coutFcfa: parSms * segments * COUT_SMS_FCFA, avertissement,
+    total: destinations.length,
+    parPush,
+    parSms,
+    dansApplication,
+    segments,
+    coutFcfa: parSms * segments * COUT_SMS_FCFA,
+    avertissement,
   };
 }
 
 /** Prévisualise exactement un parent, sans créer de notification. */
 export async function apercuNotificationParent(
-  tuteurId: string, titre: string, corps: string, canal: CanalIndividuel,
+  tuteurId: string,
+  titre: string,
+  corps: string,
+  canal: CanalIndividuel,
 ): Promise<ApercuNotificationParent> {
   await requirePermission("message:envoyer");
   if (!idValide.safeParse(tuteurId).success || !canalSchema.safeParse(canal).success) {
@@ -133,8 +146,13 @@ export async function apercuNotificationParent(
   return devis(contact, canal, titre, corps);
 }
 
-export async function envoyerNotificationParent(tuteurId: string, donnees: unknown): Promise<{
-  ok: boolean; message: string; posees?: number;
+export async function envoyerNotificationParent(
+  tuteurId: string,
+  donnees: unknown,
+): Promise<{
+  ok: boolean;
+  message: string;
+  posees?: number;
 }> {
   try {
     const acteur = await requirePermission("message:envoyer");
@@ -161,17 +179,19 @@ export async function envoyerNotificationParent(tuteurId: string, donnees: unkno
         return { ok: false, message: "Le coût ou le canal a changé. Vérifiez le devis avant l’envoi." };
       }
       const canaux = planifier(contact, canal);
-      await tx.insert(notifications).values(canaux.map(c => ({
-        destinataireId: c === "SMS" ? (contact.utilisateur_id ?? null) : contact.utilisateur_id,
-        telephone: c === "SMS" ? contact.telephone : null,
-        eleveId: null,
-        type: "ANNONCE" as const,
-        canal: c,
-        titre,
-        corps,
-        routeCible: null,
-        donnees: { origine: "page_parents", tuteurId, canalChoisi: canal, cleEnvoi },
-      })));
+      await tx.insert(notifications).values(
+        canaux.map((c) => ({
+          destinataireId: c === "SMS" ? (contact.utilisateur_id ?? null) : contact.utilisateur_id,
+          telephone: c === "SMS" ? contact.telephone : null,
+          eleveId: null,
+          type: "ANNONCE" as const,
+          canal: c,
+          titre,
+          corps,
+          routeCible: null,
+          donnees: { origine: "page_parents", tuteurId, canalChoisi: canal, cleEnvoi },
+        })),
+      );
       return { ok: true, posees: canaux.length, deja: false };
     });
 
@@ -182,14 +202,25 @@ export async function envoyerNotificationParent(tuteurId: string, donnees: unkno
     try {
       await journaliser(acteur, {
         action: "notification.parent_individuel",
-        entite: "tuteurs", entiteId: tuteurId,
+        entite: "tuteurs",
+        entiteId: tuteurId,
         apres: { titre, canal, notifications: depot.posees },
       });
-    } catch (erreur) { console.error("[parent-notif:audit]", erreur); }
-    try { reveillerFile(); } catch (erreur) { console.error("[parent-notif:reveil]", erreur); }
+    } catch (erreur) {
+      console.error("[parent-notif:audit]", erreur);
+    }
+    try {
+      reveillerFile();
+    } catch (erreur) {
+      console.error("[parent-notif:reveil]", erreur);
+    }
     revalidatePath("/dashboard/parents");
     revalidatePath(`/dashboard/parents/${tuteurId}`);
-    return { ok: true, message: `${depot.posees} notification(s) mise(s) en file pour ce parent.`, posees: depot.posees };
+    return {
+      ok: true,
+      message: `${depot.posees} notification(s) mise(s) en file pour ce parent.`,
+      posees: depot.posees,
+    };
   } catch (erreur) {
     if (erreur instanceof ErreurAutorisation) {
       return { ok: false, message: "Vous n’avez pas la permission d’envoyer des notifications." };

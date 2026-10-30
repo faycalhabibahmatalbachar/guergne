@@ -21,12 +21,11 @@ import type { SaisieManquante } from "@/server/domain/generation-bulletins";
 export function SaisiesManquantes({ lignes }: { lignes: SaisieManquante[] }) {
   if (lignes.length === 0) {
     return (
-      <Card className="border-emerald-500/40 bg-emerald-500/5">
+      <Card className="border-succes-trait bg-succes-doux">
         <CardContent className="flex items-center gap-3 py-4">
-          <CheckCircle2 aria-hidden className="size-5 text-emerald-600 dark:text-emerald-400" />
+          <CheckCircle2 aria-hidden className="size-5 text-succes" />
           <p className="text-sm">
-            Toutes les évaluations de cette classe sont saisies. Les bulletins peuvent être
-            produits.
+            Toutes les évaluations de cette classe sont saisies. Les bulletins peuvent être produits.
           </p>
         </CardContent>
       </Card>
@@ -37,15 +36,15 @@ export function SaisiesManquantes({ lignes }: { lignes: SaisieManquante[] }) {
   const matieres = new Set(lignes.map((l) => l.matiere)).size;
 
   return (
-    <Card className="border-amber-500/40 bg-amber-500/5">
+    <Card className="border-alerte-trait bg-alerte-doux">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <AlertTriangle aria-hidden className="size-5 text-amber-600 dark:text-amber-400" />
+          <AlertTriangle aria-hidden className="size-5 text-alerte" />
           {total} note(s) manquante(s) sur {matieres} matière(s)
         </CardTitle>
         <CardDescription>
-          Produire les bulletins maintenant calculerait des moyennes incomplètes — et un rang
-          faux pour TOUS les élèves, puisque le classement les compare entre eux.
+          Produire les bulletins maintenant calculerait des moyennes incomplètes — et un rang faux pour TOUS les élèves,
+          puisque le classement les compare entre eux.
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0">
@@ -67,9 +66,7 @@ export function SaisiesManquantes({ lignes }: { lignes: SaisieManquante[] }) {
                   {l.evaluation}
                   <span className="text-muted-foreground ml-2 text-xs">
                     {l.type.toLowerCase()}
-                    {l.dateEvaluation
-                      ? ` · ${new Date(l.dateEvaluation).toLocaleDateString("fr-FR")}`
-                      : ""}
+                    {l.dateEvaluation ? ` · ${new Date(l.dateEvaluation).toLocaleDateString("fr-FR")}` : ""}
                   </span>
                   {l.verrouillee ? (
                     <Badge variant="outline" className="ml-2 gap-1">
@@ -83,16 +80,12 @@ export function SaisiesManquantes({ lignes }: { lignes: SaisieManquante[] }) {
                     Sans enseignant affecté, personne n'est responsable de la
                     saisie — et c'est souvent la vraie cause du retard.
                   */}
-                  {l.enseignant ?? (
-                    <span className="text-destructive">aucun enseignant affecté</span>
-                  )}
+                  {l.enseignant ?? <span className="text-destructive">aucun enseignant affecté</span>}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {l.saisies} / {l.attendues}
                 </TableCell>
-                <TableCell className="text-right font-semibold tabular-nums text-amber-700 dark:text-amber-400">
-                  {l.manquantes}
-                </TableCell>
+                <TableCell className="text-right font-semibold tabular-nums text-alerte">{l.manquantes}</TableCell>
               </TableRow>
             ))}
           </TableBody>

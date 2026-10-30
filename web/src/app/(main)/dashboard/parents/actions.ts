@@ -1,7 +1,5 @@
 "use server";
 
-import { createHash, randomInt } from "node:crypto";
-
 import { revalidatePath } from "next/cache";
 
 import { eq, sql } from "drizzle-orm";
@@ -10,10 +8,12 @@ import { z } from "zod";
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
 import { codesActivation, tuteurs, utilisateurs } from "@/server/db/schema";
-import { numeroTuteurDejaUtilise, telephoneDisponible } from "@/server/domain/parents";
 import { dureeInvitationJours } from "@/server/domain/parametres";
+import { numeroTuteurDejaUtilise, telephoneDisponible } from "@/server/domain/parents";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 import { normaliserNumero } from "@/server/notifications/sms";
+
+import { createHash, randomInt } from "node:crypto";
 
 export interface Resultat {
   ok: boolean;
@@ -36,7 +36,6 @@ function echec(e: unknown, defaut: string): Resultat {
   console.error("[parents]", e);
   return { ok: false, message: defaut };
 }
-
 
 /**
  * Génère un code d'activation à six chiffres.
@@ -83,14 +82,16 @@ export async function inviterTuteur(tuteurId: string): Promise<Resultat> {
 
     const numero = normaliserNumero(tuteur.telephone);
     if (await numeroTuteurDejaUtilise(numero, tuteurId)) {
-      return { ok: false, message: "Numéro partagé entre plusieurs fiches. Vérifiez les responsables avant de délivrer un code d'accès." };
+      return {
+        ok: false,
+        message: "Numéro partagé entre plusieurs fiches. Vérifiez les responsables avant de délivrer un code d'accès.",
+      };
     }
 
     if (!(await telephoneDisponible(numero, tuteurId))) {
       return {
         ok: false,
-        message:
-          "Ce numéro est déjà rattaché à un autre compte parent. Vérifiez qu'il ne s'agit pas d'un doublon.",
+        message: "Ce numéro est déjà rattaché à un autre compte parent. Vérifiez qu'il ne s'agit pas d'un doublon.",
       };
     }
 
@@ -122,10 +123,7 @@ export async function inviterTuteur(tuteurId: string): Promise<Resultat> {
 
       // Les codes précédents sont invalidés : un seul code vivant à la fois,
       // sinon un ancien code communiqué par erreur resterait utilisable.
-      await tx
-        .update(codesActivation)
-        .set({ consomme: true })
-        .where(eq(codesActivation.telephone, numero));
+      await tx.update(codesActivation).set({ consomme: true }).where(eq(codesActivation.telephone, numero));
 
       await tx.insert(codesActivation).values({
         telephone: numero,
@@ -181,7 +179,11 @@ export async function inviterTuteur(tuteurId: string): Promise<Resultat> {
  */
 export async function inviterClasse(_classeId: string): Promise<Resultat> {
   await requirePermission("tuteur:inviter");
-  return { ok: false, message: "Utilisez le module d'invitation par classe avec prévisualisation, sélection des destinataires et confirmation du coût SMS." };
+  return {
+    ok: false,
+    message:
+      "Utilisez le module d'invitation par classe avec prévisualisation, sélection des destinataires et confirmation du coût SMS.",
+  };
 }
 
 /** Renvoie un nouveau code — le précédent est invalidé. */
@@ -222,9 +224,7 @@ export async function revoquerAcces(tuteurId: string, motif: string): Promise<Re
       await tx.execute(
         sql`UPDATE jetons_rafraichissement SET revoque = TRUE WHERE utilisateur_id = ${tuteur.utilisateurId}::uuid`,
       );
-      await tx.execute(
-        sql`UPDATE appareils SET actif = FALSE WHERE utilisateur_id = ${tuteur.utilisateurId}::uuid`,
-      );
+      await tx.execute(sql`UPDATE appareils SET actif = FALSE WHERE utilisateur_id = ${tuteur.utilisateurId}::uuid`);
       await tx.update(tuteurs).set({ appActivee: false }).where(eq(tuteurs.id, tuteurId));
     });
 
@@ -243,7 +243,10 @@ export async function revoquerAcces(tuteurId: string, motif: string): Promise<Re
 }
 
 const schemaCoordonnees = z.object({
-  telephone: z.string().trim().regex(/^\+?[0-9\s.-]{8,20}$/, "Numéro invalide"),
+  telephone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9\s.-]{8,20}$/, "Numéro invalide"),
   email: z.string().trim().email("Adresse invalide").optional().or(z.literal("")),
   accepteSms: z.boolean().default(true),
 });
@@ -276,10 +279,12 @@ export async function modifierCoordonnees(tuteurId: string, donnees: unknown): P
       .from(tuteurs)
       .where(eq(tuteurs.id, tuteurId));
     if (!avant) return { ok: false, message: "Tuteur introuvable." };
-    if (numero !== avant.telephone && await numeroTuteurDejaUtilise(numero, tuteurId)) {
-      return { ok: false, erreurs: { telephone: "Numéro déjà présent sur une autre fiche parent. Vérification nécessaire." } };
+    if (numero !== avant.telephone && (await numeroTuteurDejaUtilise(numero, tuteurId))) {
+      return {
+        ok: false,
+        erreurs: { telephone: "Numéro déjà présent sur une autre fiche parent. Vérification nécessaire." },
+      };
     }
-
 
     await db.transaction(async (tx) => {
       await tx
@@ -319,8 +324,16 @@ const schemaProfilTuteur = z.object({
   nom: z.string().trim().min(2, "Nom requis").max(120),
   prenom: z.string().trim().min(2, "Prénom requis").max(120),
   sexe: z.union([z.enum(["M", "F"]), z.literal("")]).optional(),
-  telephone: z.string().trim().regex(/^\+?[0-9\s.-]{8,20}$/, "Numéro invalide"),
-  telephoneSecondaire: z.string().trim().regex(/^\+?[0-9\s.-]{8,20}$/, "Numéro secondaire invalide").or(z.literal("")).optional(),
+  telephone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9\s.-]{8,20}$/, "Numéro invalide"),
+  telephoneSecondaire: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9\s.-]{8,20}$/, "Numéro secondaire invalide")
+    .or(z.literal(""))
+    .optional(),
   email: z.string().trim().email("Adresse invalide").or(z.literal("")).optional(),
   profession: z.string().trim().max(150).optional(),
   employeur: z.string().trim().max(150).optional(),
@@ -346,18 +359,23 @@ export async function modifierProfilTuteur(tuteurId: string, donnees: unknown): 
     const [avant] = await db.select().from(tuteurs).where(eq(tuteurs.id, tuteurId)).limit(1);
     if (!avant) return { ok: false, message: "Tuteur introuvable." };
     if (numero !== avant.telephone) {
-      if (await numeroTuteurDejaUtilise(numero, tuteurId) || !(await telephoneDisponible(numero, tuteurId))) {
+      if ((await numeroTuteurDejaUtilise(numero, tuteurId)) || !(await telephoneDisponible(numero, tuteurId))) {
         return { ok: false, erreurs: { telephone: "Numéro déjà utilisé par un autre tuteur ou compte." } };
       }
     }
 
     const maj = {
-      nom: v.nom, prenom: v.prenom,
+      nom: v.nom,
+      prenom: v.prenom,
       sexe: v.sexe ? v.sexe : null,
-      telephone: numero, telephoneSecondaire: secondaire,
-      email: v.email || null, profession: v.profession || null,
-      employeur: v.employeur || null, adresse: v.adresse || null,
-      quartier: v.quartier || null, accepteSms: v.accepteSms,
+      telephone: numero,
+      telephoneSecondaire: secondaire,
+      email: v.email || null,
+      profession: v.profession || null,
+      employeur: v.employeur || null,
+      adresse: v.adresse || null,
+      quartier: v.quartier || null,
+      accepteSms: v.accepteSms,
     } as const;
     const changements: Record<string, { avant: unknown; apres: unknown }> = {};
     for (const [champ, valeur] of Object.entries(maj)) {
@@ -369,22 +387,34 @@ export async function modifierProfilTuteur(tuteurId: string, donnees: unknown): 
     if (!Object.keys(changements).length) return { ok: true, message: "Aucune modification." };
 
     await db.transaction(async (tx) => {
-      await tx.update(tuteurs).set({ ...maj, modifieLe: new Date().toISOString() }).where(eq(tuteurs.id, tuteurId));
+      await tx
+        .update(tuteurs)
+        .set({ ...maj, modifieLe: new Date().toISOString() })
+        .where(eq(tuteurs.id, tuteurId));
       if (avant.utilisateurId) {
-        await tx.update(utilisateurs).set({
-          telephone: numero, email: v.email || null, nom: v.nom, prenom: v.prenom,
-          modifieLe: new Date().toISOString(),
-        }).where(eq(utilisateurs.id, avant.utilisateurId));
+        await tx
+          .update(utilisateurs)
+          .set({
+            telephone: numero,
+            email: v.email || null,
+            nom: v.nom,
+            prenom: v.prenom,
+            modifieLe: new Date().toISOString(),
+          })
+          .where(eq(utilisateurs.id, avant.utilisateurId));
         if (avant.telephone !== numero) {
           await tx.execute(sql`DELETE FROM sessions WHERE utilisateur_id = ${avant.utilisateurId}::uuid`);
-          await tx.execute(sql`UPDATE jetons_rafraichissement SET revoque = TRUE WHERE utilisateur_id = ${avant.utilisateurId}::uuid`);
+          await tx.execute(
+            sql`UPDATE jetons_rafraichissement SET revoque = TRUE WHERE utilisateur_id = ${avant.utilisateurId}::uuid`,
+          );
         }
       }
     });
 
     await journaliser(acteur, {
       action: "tuteur.profil_modifie",
-      entite: "tuteurs", entiteId: tuteurId,
+      entite: "tuteurs",
+      entiteId: tuteurId,
       avant: Object.fromEntries(Object.entries(changements).map(([c, x]) => [c, x.avant])),
       apres: Object.fromEntries(Object.entries(changements).map(([c, x]) => [c, x.apres])),
     });
@@ -425,14 +455,22 @@ export async function supprimerTuteurOrphelin(
       if (confirmation.trim() !== ligne.prenom + " " + ligne.nom) {
         return { ok: false as const, message: "Saisissez exactement le nom et le prénom pour confirmer." };
       }
-      if (ligne.bloque) return { ok: false as const, message: "Suppression impossible : un compte, des enfants ou un historique de notification est lié à ce tuteur. Vous pouvez révoquer l’accès au lieu de supprimer." };
+      if (ligne.bloque)
+        return {
+          ok: false as const,
+          message:
+            "Suppression impossible : un compte, des enfants ou un historique de notification est lié à ce tuteur. Vous pouvez révoquer l’accès au lieu de supprimer.",
+        };
       await tx.delete(tuteurs).where(eq(tuteurs.id, tuteurId));
       return { ok: true as const, nom: ligne.prenom + " " + ligne.nom };
     });
     if (!suppression.ok) return suppression;
     await journaliser(acteur, {
-      action: "tuteur.fiche_orpheline_supprimee", entite: "tuteurs", entiteId: tuteurId,
-      motif: motif.trim(), avant: { nom: suppression.nom },
+      action: "tuteur.fiche_orpheline_supprimee",
+      entite: "tuteurs",
+      entiteId: tuteurId,
+      motif: motif.trim(),
+      avant: { nom: suppression.nom },
     });
     revalidatePath("/dashboard/parents");
     return { ok: true, message: "Fiche orpheline supprimée. Aucun lien d’élève ni compte n’a été touché." };

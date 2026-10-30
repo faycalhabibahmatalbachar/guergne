@@ -29,18 +29,14 @@ export function ClassementClasses({ lignes }: { lignes: RangClasse[] }) {
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Classement des classes</CardTitle>
         <CardDescription>
-          Toutes les classes sur une même échelle, du meilleur au moins bon. L&apos;écart à la
-          moyenne de l&apos;établissement dit ce que le rang ne dit pas.
-          {sansNote > 0
-            ? ` ${sansNote} classe(s) sans note : la saisie n'est pas terminée.`
-            : ""}
+          Toutes les classes sur une même échelle, du meilleur au moins bon. L&apos;écart à la moyenne de
+          l&apos;établissement dit ce que le rang ne dit pas.
+          {sansNote > 0 ? ` ${sansNote} classe(s) sans note : la saisie n'est pas terminée.` : ""}
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0">
         {lignes.length === 0 ? (
-          <p className="text-muted-foreground py-10 text-center text-sm">
-            Aucune classe pour cette année.
-          </p>
+          <p className="text-muted-foreground py-10 text-center text-sm">Aucune classe pour cette année.</p>
         ) : (
           <div className="overflow-x-auto">
             <Table>
@@ -59,9 +55,7 @@ export function ClassementClasses({ lignes }: { lignes: RangClasse[] }) {
               <TableBody>
                 {lignes.map((l) => (
                   <TableRow key={l.classe} className={l.moyenne === null ? "opacity-60" : undefined}>
-                    <TableCell className="font-semibold tabular-nums">
-                      {l.rang > 0 ? l.rang : "—"}
-                    </TableCell>
+                    <TableCell className="font-semibold tabular-nums">{l.rang > 0 ? l.rang : "—"}</TableCell>
                     <TableCell>
                       {l.classe}
                       <span className="text-muted-foreground ml-2 text-xs">{l.niveau}</span>
@@ -73,32 +67,14 @@ export function ClassementClasses({ lignes }: { lignes: RangClasse[] }) {
                         saisie incomplète : la moyenne affichée ne vaut alors
                         pas grand-chose, et il faut le voir.
                       */}
-                      <span
-                        className={
-                          l.notes > 0 && l.notes < l.effectif
-                            ? "text-amber-600 dark:text-amber-400"
-                            : undefined
-                        }
-                      >
-                        {l.notes}
-                      </span>
+                      <span className={l.notes > 0 && l.notes < l.effectif ? "text-alerte" : undefined}>{l.notes}</span>
                     </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {n2(l.moyenne)}
-                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">{n2(l.moyenne)}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {l.ecart === null ? (
                         "—"
                       ) : (
-                        <Badge
-                          variant={
-                            l.ecart >= 0.5
-                              ? "default"
-                              : l.ecart <= -0.5
-                                ? "destructive"
-                                : "secondary"
-                          }
-                        >
+                        <Badge variant={l.ecart >= 0.5 ? "default" : l.ecart <= -0.5 ? "destructive" : "secondary"}>
                           {l.ecart > 0 ? "+" : ""}
                           {n2(l.ecart)}
                         </Badge>

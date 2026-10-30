@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+
+import { useRouter } from "next/navigation";
 
 import { Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,8 +20,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import type { CoursEdt, Creneau } from "@/server/domain/personnel";
 import type { PlageHoraireScolaire } from "@/server/domain/horaires-scolaires";
+import type { CoursEdt, Creneau } from "@/server/domain/personnel";
 
 import { poserCours, publierEmploiDuTemps, retirerCours } from "../../personnel/actions";
 import { deplacerCours } from "../actions-deplacement";
@@ -102,9 +103,7 @@ export function Grille({
 
   function libelleHoraire(jour: number, creneau: Creneau): string {
     const plage = plageDuJour(jour, creneau.ordre);
-    return plage
-      ? `${formatHeure(plage.heureDebut)}–${formatHeure(plage.heureFin)}`
-      : creneau.libelle;
+    return plage ? `${formatHeure(plage.heureDebut)}–${formatHeure(plage.heureFin)}` : creneau.libelle;
   }
 
   function deposer(jour: number, creneauId: string) {
@@ -142,8 +141,7 @@ export function Grille({
         anneeId,
         classeId: portee === "classe" ? cibleId : String(formulaire.get("classeId") ?? ""),
         matiereId: String(formulaire.get("matiereId") ?? ""),
-        enseignantId:
-          portee === "enseignant" ? cibleId : String(formulaire.get("enseignantId") ?? "") || null,
+        enseignantId: portee === "enseignant" ? cibleId : String(formulaire.get("enseignantId") ?? "") || null,
         salleId: portee === "salle" ? cibleId : String(formulaire.get("salleId") ?? "") || null,
         jourSemaine: ajout.jour,
         creneauId: ajout.creneauId,
@@ -168,9 +166,7 @@ export function Grille({
           Année {anneeLibelle} — {cours.length} créneau{cours.length > 1 ? "x" : ""} placé
           {cours.length > 1 ? "s" : ""}
           {cours.length > 0 ? (
-            <span className="ml-2">
-              · Faites glisser un cours pour le déplacer ; les conflits sont refusés.
-            </span>
+            <span className="ml-2">· Faites glisser un cours pour le déplacer ; les conflits sont refusés.</span>
           ) : null}
         </p>
 
@@ -219,11 +215,7 @@ export function Grille({
                 <tr key={cr.id}>
                   <td className="border-b p-2 text-muted-foreground text-xs tabular-nums">
                     <div className="font-medium">{cr.ordre <= 5 ? `Séance ${cr.ordre}` : `Créneau ${cr.ordre}`}</div>
-                    {cr.ordre > 5 ? (
-                      <div className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">
-                        Horaire à confirmer
-                      </div>
-                    ) : null}
+                    {cr.ordre > 5 ? <div className="mt-1 text-xs text-alerte">Horaire à confirmer</div> : null}
                   </td>
                   {JOURS.map((j) => {
                     const plage = plageDuJour(j.numero, cr.ordre);
@@ -237,11 +229,7 @@ export function Grille({
                     if (occupe) {
                       const c = occupe.cours;
                       return (
-                        <td
-                          key={j.numero}
-                          rowSpan={c.nbCreneaux}
-                          className="border-b border-l p-1 align-top"
-                        >
+                        <td key={j.numero} rowSpan={c.nbCreneaux} className="border-b border-l p-1 align-top">
                           <div
                             draggable={!enCours}
                             onDragStart={(e) => {
@@ -257,10 +245,11 @@ export function Grille({
                             className={`group h-full cursor-grab rounded-md p-2 active:cursor-grabbing ${
                               glisse === c.id ? "opacity-40" : ""
                             }`}
-                            style={{ backgroundColor: `${c.matiereCouleur ?? "#64748b"}18` }}
+                            style={{ backgroundColor: `${c.matiereCouleur ?? "var(--muted-foreground)"}18` }}
                           >
-                            <p className="mb-1 text-[10px] font-medium tabular-nums text-muted-foreground">
-                              {horaireAffiche}{!plage ? " · à confirmer" : ""}
+                            <p className="mb-1 text-xs font-medium tabular-nums text-muted-foreground">
+                              {horaireAffiche}
+                              {!plage ? " · à confirmer" : ""}
                             </p>
                             <div className="flex items-start justify-between gap-1">
                               <span className="font-medium leading-tight">{c.matiereLibelle}</span>
@@ -273,9 +262,7 @@ export function Grille({
                                   if (!window.confirm("Retirer ce cours de l'emploi du temps ?")) return;
                                   demarrer(async () => {
                                     const r = await retirerCours(c.id);
-                                    toast[r.ok ? "success" : "error"](
-                                      r.ok ? "Cours retiré." : (r.message ?? "Échec."),
-                                    );
+                                    toast[r.ok ? "success" : "error"](r.ok ? "Cours retiré." : (r.message ?? "Échec."));
                                     routeur.refresh();
                                   });
                                 }}
@@ -285,18 +272,16 @@ export function Grille({
                               </Button>
                             </div>
                             <p className="mt-0.5 text-muted-foreground text-xs leading-tight">
-                              {portee === "classe"
-                                ? (c.enseignantNom ?? "Sans professeur")
-                                : c.classeLibelle}
+                              {portee === "classe" ? (c.enseignantNom ?? "Sans professeur") : c.classeLibelle}
                             </p>
                             <div className="mt-1 flex flex-wrap gap-1">
                               {c.salleCode && portee !== "salle" ? (
-                                <Badge variant="outline" className="text-[10px]">
+                                <Badge variant="outline" className="text-xs">
                                   {c.salleCode}
                                 </Badge>
                               ) : null}
                               {c.semaineType ? (
-                                <Badge variant="secondary" className="text-[10px]">
+                                <Badge variant="secondary" className="text-xs">
                                   Sem. {c.semaineType}
                                 </Badge>
                               ) : null}
@@ -323,25 +308,21 @@ export function Grille({
                         }}
                       >
                         <div className="space-y-1 px-1 pt-1">
-                          <div className="text-center text-[10px] font-medium tabular-nums text-muted-foreground">
+                          <div className="text-center text-xs font-medium tabular-nums text-muted-foreground">
                             {horaireAffiche}
                           </div>
-                          {!plage ? (
-                            <div className="text-center text-[9px] text-amber-700 dark:text-amber-300">
-                              À confirmer
-                            </div>
-                          ) : null}
+                          {!plage ? <div className="text-center text-xs text-alerte">À confirmer</div> : null}
                           <button
-                          type="button"
-                          onClick={() => setAjout({ jour: j.numero, creneauId: cr.id })}
-                          className={`flex h-8 w-full items-center justify-center rounded-md transition-colors ${
-                            survol === `${j.numero}-${cr.id}`
-                              ? "bg-primary/15 text-foreground ring-primary/40 ring-2"
-                              : "text-muted-foreground/40 hover:bg-muted hover:text-foreground"
-                          }`}
-                          aria-label={`Ajouter un cours ${j.libelle} à ${horaireAffiche}${!plage ? " (horaire à confirmer)" : ""}`}
-                        >
-                          <Plus className="size-4" aria-hidden />
+                            type="button"
+                            onClick={() => setAjout({ jour: j.numero, creneauId: cr.id })}
+                            className={`flex h-8 w-full items-center justify-center rounded-md transition-colors ${
+                              survol === `${j.numero}-${cr.id}`
+                                ? "bg-primary/15 text-foreground ring-primary/40 ring-2"
+                                : "text-muted-foreground/40 hover:bg-muted/90 hover:text-foreground"
+                            }`}
+                            aria-label={`Ajouter un cours ${j.libelle} à ${horaireAffiche}${!plage ? " (horaire à confirmer)" : ""}`}
+                          >
+                            <Plus className="size-4" aria-hidden />
                           </button>
                         </div>
                       </td>
@@ -361,14 +342,12 @@ export function Grille({
               <DialogTitle>Ajouter un cours</DialogTitle>
               <DialogDescription>
                 {ajout
-                  ? `${JOURS.find((j) => j.numero === ajout.jour)?.libelle} — ${
-                      (() => {
-                        const creneau = creneaux.find((c) => c.id === ajout.creneauId);
-                        if (!creneau) return "";
-                        const plage = plageDuJour(ajout.jour, creneau.ordre);
-                        return `${libelleHoraire(ajout.jour, creneau)}${plage ? "" : " (horaire à confirmer)"}`;
-                      })()
-                    }`
+                  ? `${JOURS.find((j) => j.numero === ajout.jour)?.libelle} — ${(() => {
+                      const creneau = creneaux.find((c) => c.id === ajout.creneauId);
+                      if (!creneau) return "";
+                      const plage = plageDuJour(ajout.jour, creneau.ordre);
+                      return `${libelleHoraire(ajout.jour, creneau)}${plage ? "" : " (horaire à confirmer)"}`;
+                    })()}`
                   : ""}
                 . Les conflits de professeur, de classe et de salle sont vérifiés à l&apos;enregistrement.
               </DialogDescription>

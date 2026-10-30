@@ -92,8 +92,8 @@ export function JustificationLot() {
           <DialogHeader>
             <DialogTitle>Justifier {ids.length} absence(s)</DialogTitle>
             <DialogDescription>
-              Le même motif est appliqué à toutes : c&apos;est le cas réel, un certificat couvre
-              plusieurs cours. Il sera relu en cas de litige avec la famille.
+              Le même motif est appliqué à toutes : c&apos;est le cas réel, un certificat couvre plusieurs cours. Il
+              sera relu en cas de litige avec la famille.
             </DialogDescription>
           </DialogHeader>
 
@@ -116,7 +116,7 @@ export function JustificationLot() {
                   key={m}
                   type="button"
                   onClick={() => setMotif(m)}
-                  className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-full border px-2.5 py-0.5 text-xs transition-colors"
+                  className="text-muted-foreground hover:bg-muted/90 hover:text-foreground rounded-full border px-2.5 py-0.5 text-xs transition-colors"
                 >
                   {m}
                 </button>
@@ -142,10 +142,7 @@ export function JustificationLot() {
               <Button variant="ghost" onClick={() => setOuvert(false)}>
                 Annuler
               </Button>
-              <Button
-                onClick={() => justifier("JUSTIFIEE")}
-                disabled={enCours || motif.trim().length < 3}
-              >
+              <Button onClick={() => justifier("JUSTIFIEE")} disabled={enCours || motif.trim().length < 3}>
                 {enCours ? "Enregistrement…" : `Justifier ${ids.length}`}
               </Button>
             </div>

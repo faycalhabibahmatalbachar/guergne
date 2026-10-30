@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -89,7 +90,8 @@ export async function rattacherEnfantParent(input: unknown): Promise<Resultat> {
       RETURNING id
     `);
     const rattachementId = rattachement.rows[0]?.id;
-    if (!rattachementId) return { ok: false, message: "Ce responsable est déjà rattaché à cet élève, ou sa fiche est introuvable." };
+    if (!rattachementId)
+      return { ok: false, message: "Ce responsable est déjà rattaché à cet élève, ou sa fiche est introuvable." };
     await journaliser(acteur, {
       action: "tuteur.enfant_rattache",
       entite: "eleve_tuteur",
@@ -99,13 +101,19 @@ export async function rattacherEnfantParent(input: unknown): Promise<Resultat> {
     });
     revalidatePath("/dashboard/parents/" + v.tuteurId);
     revalidatePath("/dashboard/eleves/" + enfant.id);
-    return { ok: true, message: enfant.prenom + " " + enfant.nom + " a été rattaché. Les autres responsabilités restent à définir dans le dossier élève." };
+    return {
+      ok: true,
+      message:
+        enfant.prenom +
+        " " +
+        enfant.nom +
+        " a été rattaché. Les autres responsabilités restent à définir dans le dossier élève.",
+    };
   } catch (e) {
     if (!(e instanceof ErreurAutorisation)) console.error("[parent:rattachement]", e);
     return { ok: false, message: "Le rattachement n'a pas pu être effectué." };
   }
 }
-
 
 const rolesFamiliauxSchema = z.object({
   tuteurId: z.string().uuid(),
@@ -128,13 +136,18 @@ export async function mettreAJourRolesFamiliaux(input: unknown): Promise<Resulta
     const acteur = await requirePermission("tuteur:gerer");
     await requirePermission("eleve:modifier");
     const p = rolesFamiliauxSchema.safeParse(input);
-    if (!p.success) return { ok: false, message: "Vérifiez les rôles, le motif et la confirmation des pièces justificatives." };
+    if (!p.success)
+      return { ok: false, message: "Vérifiez les rôles, le motif et la confirmation des pièces justificatives." };
     const d = p.data;
-    const precedent = await db.transaction(async tx => {
+    const precedent = await db.transaction(async (tx) => {
       const r = await tx.execute<{
-        id: string; lien: string; est_responsable_financier: boolean;
-        est_tuteur_legal: boolean; est_contact_urgence: boolean;
-        autorise_retrait: boolean; est_principal: boolean;
+        id: string;
+        lien: string;
+        est_responsable_financier: boolean;
+        est_tuteur_legal: boolean;
+        est_contact_urgence: boolean;
+        autorise_retrait: boolean;
+        est_principal: boolean;
       }>(sql`
         SELECT id::text, lien::text, est_principal,
                est_responsable_financier, est_tuteur_legal,
@@ -156,7 +169,8 @@ export async function mettreAJourRolesFamiliaux(input: unknown): Promise<Resulta
       `);
       return avant;
     });
-    if (!precedent) return { ok: false, message: "Ce responsable n'est plus rattaché à cet élève. Actualisez la fiche." };
+    if (!precedent)
+      return { ok: false, message: "Ce responsable n'est plus rattaché à cet élève. Actualisez la fiche." };
     await journaliser(acteur, {
       action: "tuteur.responsabilites_verifiees",
       entite: "eleve_tuteur",
@@ -171,18 +185,23 @@ export async function mettreAJourRolesFamiliaux(input: unknown): Promise<Resulta
         estPrincipal: precedent.est_principal,
       },
       apres: {
-        tuteurId: d.tuteurId, lien: d.lien,
+        tuteurId: d.tuteurId,
+        lien: d.lien,
         estResponsableFinancier: d.estResponsableFinancier,
         estTuteurLegal: d.estTuteurLegal,
         estContactUrgence: d.estContactUrgence,
         autoriseRetrait: d.autoriseRetrait,
-        motif: d.motif, piecesVerifiees: true,
+        motif: d.motif,
+        piecesVerifiees: true,
       },
     });
     revalidatePath("/dashboard/parents/" + d.tuteurId);
     revalidatePath("/dashboard/parents/familles");
     revalidatePath("/dashboard/eleves/" + d.eleveId);
-    return { ok: true, message: "Responsabilités actualisées et journalisées. Le responsable principal n'a pas été modifié." };
+    return {
+      ok: true,
+      message: "Responsabilités actualisées et journalisées. Le responsable principal n'a pas été modifié.",
+    };
   } catch (e) {
     if (!(e instanceof ErreurAutorisation)) console.error("[parent:roles]", e);
     return { ok: false, message: "Les responsabilités n'ont pas pu être modifiées." };

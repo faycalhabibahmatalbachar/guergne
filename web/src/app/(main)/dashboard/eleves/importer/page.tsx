@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 
 import { Button } from "@/components/ui/button";
 import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
@@ -24,10 +24,15 @@ export default async function PageImport() {
 
   return (
     <div className="gentelella-v4 space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 pb-5 dark:border-border">
-        <div><h1 className="text-[29px] font-bold tracking-tight sm:text-[34px]">Importer des élèves</h1></div>
-        <Button asChild variant="outline" className="h-10 gap-2 rounded-lg border-slate-200 bg-white px-3.5 shadow-none dark:border-border dark:bg-card">
-          <Link href="/dashboard/eleves"><ArrowLeft className="size-4" aria-hidden />Élèves</Link>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-5">
+        <div>
+          <h1 className="tracking-tight">Importer des élèves</h1>
+        </div>
+        <Button asChild variant="outline">
+          <Link href="/dashboard/eleves">
+            <ArrowLeft className="size-4" aria-hidden />
+            Élèves
+          </Link>
         </Button>
       </header>
 

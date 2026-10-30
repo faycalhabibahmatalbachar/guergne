@@ -4,14 +4,7 @@ import { AlertTriangle, CheckCircle2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { Anomalie, Couverture } from "@/server/domain/emploi-du-temps";
 
 /**
@@ -40,23 +33,22 @@ const ETIQUETTES: Record<Anomalie, { libelle: string; ton: string; explication: 
   },
   DEFICIT: {
     libelle: "heures manquantes",
-    ton: "border-amber-500/50 text-amber-700 dark:text-amber-400",
+    ton: "border-alerte-trait text-alerte",
     explication: "Moins d'heures placées que prévu par l'affectation.",
   },
   EXCEDENT: {
     libelle: "heures en trop",
-    ton: "border-amber-500/50 text-amber-700 dark:text-amber-400",
+    ton: "border-alerte-trait text-alerte",
     explication: "Plus d'heures placées que prévu — au détriment d'une autre matière.",
   },
   HORS_PROGRAMME: {
     libelle: "sans affectation",
     ton: "border-destructive/50 text-destructive",
-    explication:
-      "Des cours sont placés pour une matière qu'aucune affectation ne prévoit dans cette classe.",
+    explication: "Des cours sont placés pour une matière qu'aucune affectation ne prévoit dans cette classe.",
   },
   SANS_ENSEIGNANT: {
     libelle: "sans professeur",
-    ton: "border-amber-500/50 text-amber-700 dark:text-amber-400",
+    ton: "border-alerte-trait text-alerte",
     explication: "Au moins un créneau n'a personne devant la classe.",
   },
 };
@@ -67,12 +59,11 @@ export function ControleHoraire({ couverture }: { couverture: Couverture }) {
 
   if (anomalies.length === 0 && couverture.classesVides.length === 0) {
     return (
-      <Card className="border-emerald-500/40 bg-emerald-500/5">
+      <Card className="border-succes-trait bg-succes-doux">
         <CardContent className="flex items-center gap-3 py-4">
-          <CheckCircle2 aria-hidden className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <CheckCircle2 aria-hidden className="size-5 shrink-0 text-succes" />
           <p className="text-sm">
-            Les {conformes} affectations de l&apos;année sont intégralement placées, avec le nombre
-            d&apos;heures prévu.
+            Les {conformes} affectations de l&apos;année sont intégralement placées, avec le nombre d&apos;heures prévu.
           </p>
         </CardContent>
       </Card>
@@ -84,26 +75,24 @@ export function ControleHoraire({ couverture }: { couverture: Couverture }) {
   const presents = [...new Set(anomalies.flatMap((l) => l.anomalies))];
 
   return (
-    <Card className="border-amber-500/40 bg-amber-500/5">
+    <Card className="border-alerte-trait bg-alerte-doux">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <AlertTriangle aria-hidden className="size-5 text-amber-600 dark:text-amber-400" />
+          <AlertTriangle aria-hidden className="size-5 text-alerte" />
           {anomalies.length} anomalie(s) de couverture
         </CardTitle>
         <CardDescription>
-          Sur {couverture.lignes.length} couples classe / matière. « Heure » signifie ici heure de
-          cours — un créneau —, l&apos;unité dans laquelle les affectations sont exprimées.
+          Sur {couverture.lignes.length} couples classe / matière. « Heure » signifie ici heure de cours — un créneau —,
+          l&apos;unité dans laquelle les affectations sont exprimées.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4 p-0">
         {couverture.classesVides.length > 0 ? (
           <p className="border-destructive/40 bg-destructive/5 mx-4 mt-4 rounded-md border px-3 py-2 text-sm">
-            <span className="font-medium">
-              {couverture.classesVides.length} classe(s) sans aucun cours :
-            </span>{" "}
-            {couverture.classesVides.map((c) => c.libelle).join(", ")}. Aucun emploi du temps
-            n&apos;a été construit pour elles.
+            <span className="font-medium">{couverture.classesVides.length} classe(s) sans aucun cours :</span>{" "}
+            {couverture.classesVides.map((c) => c.libelle).join(", ")}. Aucun emploi du temps n&apos;a été construit
+            pour elles.
           </p>
         ) : null}
 
@@ -152,8 +141,7 @@ export function ControleHoraire({ couverture }: { couverture: Couverture }) {
         <div className="text-muted-foreground space-y-1 border-t px-4 py-3 text-xs">
           {presents.map((a) => (
             <p key={a}>
-              <span className="font-medium">{ETIQUETTES[a].libelle}</span> —{" "}
-              {ETIQUETTES[a].explication}
+              <span className="font-medium">{ETIQUETTES[a].libelle}</span> — {ETIQUETTES[a].explication}
             </p>
           ))}
         </div>

@@ -27,7 +27,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { changerClasse, changerStatut, validerDossier, type StatutCible } from "../../actions";
+import { changerClasse, changerStatut, type StatutCible, validerDossier } from "../../actions";
 
 interface Props {
   eleveId: string;
@@ -39,7 +39,14 @@ interface Props {
 }
 
 type Dialogue =
-  | { type: "statut"; cible: StatutCible; titre: string; description: string; avecDates?: boolean; avecEtablissement?: boolean }
+  | {
+      type: "statut";
+      cible: StatutCible;
+      titre: string;
+      description: string;
+      avecDates?: boolean;
+      avecEtablissement?: boolean;
+    }
   | { type: "classe" }
   | { type: "dossier"; cible: "VALIDE" | "INCOMPLET" | "REFUSE" }
   | null;
@@ -53,14 +60,7 @@ const PARTI = ["TRANSFERE", "ABANDON", "EXCLU", "ARCHIVE"];
  * une suspension ou une exclusion se contestent, et l'établissement doit
  * pouvoir produire qui a décidé quoi, quand et pourquoi.
  */
-export function ActionsDossier({
-  eleveId,
-  statut,
-  inscriptionId,
-  classeActuelleId,
-  statutDossier,
-  classes,
-}: Props) {
+export function ActionsDossier({ eleveId, statut, inscriptionId, classeActuelleId, statutDossier, classes }: Props) {
   const [enCours, demarrer] = useTransition();
   const [dialogue, setDialogue] = useState<Dialogue>(null);
   const [motif, setMotif] = useState("");
@@ -117,11 +117,7 @@ export function ActionsDossier({
     <>
       <div className="flex flex-wrap gap-2">
         {inscriptionId && statutDossier !== "VALIDE" ? (
-          <Button
-            size="sm"
-            onClick={() => setDialogue({ type: "dossier", cible: "VALIDE" })}
-            disabled={enCours}
-          >
+          <Button size="sm" onClick={() => setDialogue({ type: "dossier", cible: "VALIDE" })} disabled={enCours}>
             <Check aria-hidden />
             Valider le dossier
           </Button>
@@ -129,7 +125,7 @@ export function ActionsDossier({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" disabled={enCours} className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 font-medium shadow-none dark:border-border dark:bg-card">
+            <Button variant="outline" size="sm" disabled={enCours} className="font-medium">
               <MoreHorizontal className="size-4" aria-hidden />
               Autres actions
             </Button>
@@ -137,10 +133,7 @@ export function ActionsDossier({
           <DropdownMenuContent align="end" className="w-64">
             <DropdownMenuLabel>Scolarité</DropdownMenuLabel>
 
-            <DropdownMenuItem
-              disabled={!inscriptionId || estParti}
-              onSelect={() => setDialogue({ type: "classe" })}
-            >
+            <DropdownMenuItem disabled={!inscriptionId || estParti} onSelect={() => setDialogue({ type: "classe" })}>
               <ArrowRightLeft aria-hidden />
               Changer de classe
             </DropdownMenuItem>
@@ -178,8 +171,7 @@ export function ActionsDossier({
                       type: "statut",
                       cible: "SUSPENDU_DISCIPLINE",
                       titre: "Suspendre pour motif disciplinaire",
-                      description:
-                        "Exclusion temporaire. L'élève reste inscrit et ses tuteurs sont notifiés.",
+                      description: "Exclusion temporaire. L'élève reste inscrit et ses tuteurs sont notifiés.",
                       avecDates: true,
                     })
                   }
@@ -195,8 +187,7 @@ export function ActionsDossier({
                       type: "statut",
                       cible: "SUSPENDU_IMPAYE",
                       titre: "Suspendre pour impayés",
-                      description:
-                        "Suspension distincte de la sanction disciplinaire. À lever dès régularisation.",
+                      description: "Suspension distincte de la sanction disciplinaire. À lever dès régularisation.",
                       avecDates: true,
                     })
                   }
@@ -217,8 +208,7 @@ export function ActionsDossier({
                   type: "statut",
                   cible: "TRANSFERE",
                   titre: "Transférer vers un autre établissement",
-                  description:
-                    "L'inscription de l'année est close. Un certificat de transfert pourra être édité.",
+                  description: "L'inscription de l'année est close. Un certificat de transfert pourra être édité.",
                   avecEtablissement: true,
                 })
               }
@@ -321,30 +311,18 @@ export function ActionsDossier({
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="dateEffet">Date d&apos;effet</Label>
-                  <Input
-                    id="dateEffet"
-                    type="date"
-                    value={dateEffet}
-                    onChange={(e) => setDateEffet(e.target.value)}
-                  />
+                  <Input id="dateEffet" type="date" value={dateEffet} onChange={(e) => setDateEffet(e.target.value)} />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="dateFin">Retour prévu</Label>
-                  <Input
-                    id="dateFin"
-                    type="date"
-                    value={dateFin}
-                    onChange={(e) => setDateFin(e.target.value)}
-                  />
+                  <Input id="dateFin" type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} />
                 </div>
               </div>
             ) : null}
 
             <div className="grid gap-2">
               <Label htmlFor="motif">
-                {dialogue?.type === "dossier" && dialogue.cible === "VALIDE"
-                  ? "Observations (facultatif)"
-                  : "Motif *"}
+                {dialogue?.type === "dossier" && dialogue.cible === "VALIDE" ? "Observations (facultatif)" : "Motif *"}
               </Label>
               <Textarea
                 id="motif"

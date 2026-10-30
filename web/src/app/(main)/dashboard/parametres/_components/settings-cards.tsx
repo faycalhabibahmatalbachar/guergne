@@ -1,87 +1,100 @@
 import Link from "next/link";
+
 import {
-  ArrowRight, Bell, BookOpen, Calculator, CalendarDays,
-  ClipboardCheck, GraduationCap, KeyRound, School,
-  ScrollText, Wallet, type LucideIcon,
+  ArrowRight,
+  Bell,
+  BookOpen,
+  Calculator,
+  CalendarDays,
+  ClipboardCheck,
+  GraduationCap,
+  KeyRound,
+  type LucideIcon,
+  School,
+  ScrollText,
+  Wallet,
 } from "lucide-react";
 
 import type { SettingsCard } from "../settings-catalog";
 
-const STYLE: Record<string, {
-  icon: LucideIcon;
-  iconClass: string;
-  iconBg: string;
-  badge: string;
-  tag: string;
-}> = {
+const STYLE: Record<
+  string,
+  {
+    icon: LucideIcon;
+    iconClass: string;
+    iconBg: string;
+    badge: string;
+    tag: string;
+  }
+> = {
   identite: {
     icon: School,
-    iconClass: "text-blue-700 dark:text-blue-300",
-    iconBg: "bg-blue-100 dark:bg-blue-950/60",
-    badge: "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
+    iconClass: "text-info",
+    iconBg: "bg-info-doux",
+    badge: "bg-info-doux text-info",
     tag: "Configuration",
   },
   annees: {
     icon: CalendarDays,
-    iconClass: "text-emerald-700 dark:text-emerald-300",
-    iconBg: "bg-emerald-100 dark:bg-emerald-950/60",
-    badge: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
+    iconClass: "text-succes",
+    iconBg: "bg-succes-doux",
+    badge: "bg-succes-doux text-succes",
     tag: "Configuration",
   },
   matieres: {
     icon: BookOpen,
-    iconClass: "text-blue-700 dark:text-blue-300",
-    iconBg: "bg-blue-100 dark:bg-blue-950/60",
-    badge: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300",
+    iconClass: "text-info",
+    iconBg: "bg-info-doux",
+    badge: "bg-info-doux text-info",
     tag: "Pédagogie",
   },
   coefficients: {
     icon: Calculator,
-    iconClass: "text-blue-700 dark:text-blue-300",
-    iconBg: "bg-blue-100 dark:bg-blue-950/60",
-    badge: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300",
+    iconClass: "text-info",
+    iconBg: "bg-info-doux",
+    badge: "bg-info-doux text-info",
     tag: "Pédagogie",
   },
   classes: {
     icon: GraduationCap,
-    iconClass: "text-blue-700 dark:text-blue-300",
-    iconBg: "bg-blue-100 dark:bg-blue-950/60",
-    badge: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300",
+    iconClass: "text-info",
+    iconBg: "bg-info-doux",
+    badge: "bg-info-doux text-info",
     tag: "Pédagogie",
   },
   parents: {
     icon: KeyRound,
-    iconClass: "text-blue-700 dark:text-blue-300",
-    iconBg: "bg-blue-100 dark:bg-blue-950/60",
-    badge: "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
+    iconClass: "text-info",
+    iconBg: "bg-info-doux",
+    badge: "bg-info-doux text-info",
     tag: "Communication",
   },
   notifications: {
     icon: Bell,
-    iconClass: "text-blue-700 dark:text-blue-300",
-    iconBg: "bg-blue-100 dark:bg-blue-950/60",
-    badge: "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
+    iconClass: "text-info",
+    iconBg: "bg-info-doux",
+    badge: "bg-info-doux text-info",
     tag: "Communication",
   },
   finances: {
     icon: Wallet,
-    iconClass: "text-emerald-700 dark:text-emerald-300",
-    iconBg: "bg-emerald-100 dark:bg-emerald-950/60",
-    badge: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
+    iconClass: "text-succes",
+    iconBg: "bg-succes-doux",
+    badge: "bg-succes-doux text-succes",
     tag: "Finances",
   },
   diagnostic: {
     icon: ClipboardCheck,
-    iconClass: "text-amber-700 dark:text-amber-300",
-    iconBg: "bg-amber-100 dark:bg-amber-950/60",
-    badge: "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
+    iconClass: "text-alerte",
+    iconBg: "bg-alerte-doux",
+    badge: "bg-alerte-doux text-alerte",
     tag: "Contrôle",
   },
   audit: {
     icon: ScrollText,
-    iconClass: "text-violet-700 dark:text-violet-300",
-    iconBg: "bg-violet-100 dark:bg-violet-950/60",
-    badge: "bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300",
+    iconClass: "text-info",
+    iconBg: "bg-info-doux",
+    badge: "bg-info-doux text-info",
     tag: "Contrôle",
   },
 };
@@ -93,7 +106,7 @@ const GROUPS = [
     title: "Établissement",
     description: "Informations générales et organisation de votre lycée.",
     icon: School,
-    iconStyle: "text-blue-600",
+    iconStyle: "text-info",
     grid: "lg:grid-cols-2",
   },
   {
@@ -102,7 +115,7 @@ const GROUPS = [
     title: "Scolarité & pédagogie",
     description: "Configurez la structure pédagogique de votre établissement.",
     icon: GraduationCap,
-    iconStyle: "text-indigo-600",
+    iconStyle: "text-info",
     grid: "xl:grid-cols-3",
   },
   {
@@ -111,7 +124,7 @@ const GROUPS = [
     title: "Communication",
     description: "Définissez les règles de contact avec les responsables d'élèves.",
     icon: Bell,
-    iconStyle: "text-blue-600",
+    iconStyle: "text-info",
     grid: "lg:grid-cols-2",
   },
   {
@@ -120,12 +133,25 @@ const GROUPS = [
     title: "Finances & contrôle",
     description: "Paramètres financiers, vérifications et traçabilité.",
     icon: Wallet,
-    iconStyle: "text-emerald-600",
+    iconStyle: "text-succes",
     grid: "lg:grid-cols-3",
   },
 ] as const;
 
-function CarteParametre({ item, featured }: { item: SettingsCard; featured: boolean }) {
+/**
+ * Carte d'un réglage.
+ *
+ * Trois choses ont disparu ici, qui en faisaient trois cartes différentes :
+ *
+ * - le fond bleu des deux premières. Rien ne les distinguait vraiment des
+ *   autres, et une teinte sans raison apprend à l'œil à ignorer la couleur ;
+ * - le badge « Configuration », « Pédagogie », « Communication ». Il répétait
+ *   mot pour mot le titre de la section posée trois lignes plus haut ;
+ * - le faux bouton. Toute la carte est déjà un lien : un `span` qui a l'air
+ *   d'un bouton à l'intérieur d'un lien promet une seconde action qui
+ *   n'existe pas.
+ */
+function CarteParametre({ item }: { item: SettingsCard }) {
   const meta = STYLE[item.id];
   if (!meta) return null;
   const Icon = meta.icon;
@@ -135,63 +161,33 @@ function CarteParametre({ item, featured }: { item: SettingsCard; featured: bool
       href={item.href}
       prefetch={false}
       aria-label={item.action + " : " + item.label}
-      className={
-        "group flex h-full min-h-[174px] min-w-0 flex-col rounded-xl border p-4 shadow-sm outline-none transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:p-5 dark:border-border dark:bg-card " +
-        (featured
-          ? "border-blue-100 bg-blue-50/20 dark:border-blue-900/40 dark:bg-card"
-          : "border-slate-200/80 bg-white")
-      }
+      className="group flex h-full min-w-0 flex-col gap-3 rounded-xl border bg-card p-4 shadow-carte outline-none transition-colors hover:border-ring/40 focus-visible:ring-3 focus-visible:ring-ring/50 sm:p-5"
     >
-      <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
-        {/* Each card has exactly one pictogram, in the same 48px slot. */}
-        <span
-          className={
-            "flex size-12 shrink-0 items-center justify-center rounded-xl " + meta.iconBg
-          }
-        >
-          <Icon className={"size-6 " + meta.iconClass} strokeWidth={2} aria-hidden />
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <span className={"flex size-9 shrink-0 items-center justify-center rounded-lg " + meta.iconBg}>
+          <Icon className={"size-5 " + meta.iconClass} aria-hidden />
         </span>
-
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-start gap-x-2 gap-y-1.5">
-            <h3 className="min-w-0 text-sm font-bold leading-5 text-slate-950 sm:text-[15px] dark:text-foreground">
-              {item.label}
-            </h3>
-            <span
-              className={
-                "inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-2 py-0.5 text-[10px] font-semibold leading-4 " +
-                meta.badge
-              }
-            >
-              {meta.tag}
-            </span>
-          </div>
-          <p className="mt-2 text-[12px] leading-relaxed text-slate-500 sm:text-[13px] dark:text-muted-foreground">
-            {item.description}
-          </p>
+          <h3 className="min-w-0 font-medium text-base leading-snug">{item.label}</h3>
+          <p className="mt-1.5 text-muted-foreground text-sm leading-relaxed">{item.description}</p>
         </div>
       </div>
 
-      <div className="mt-auto flex justify-end pt-5">
-        <span
-          className={
-            "inline-flex h-9 min-w-24 items-center justify-center gap-2 rounded-lg border px-3.5 text-xs font-semibold transition-colors " +
-            (featured
-              ? "border-blue-600 bg-blue-600 text-white group-hover:bg-blue-700"
-              : "border-slate-200 bg-white text-blue-700 group-hover:border-blue-200 group-hover:bg-blue-50 dark:border-border dark:bg-card dark:text-blue-300 dark:group-hover:bg-blue-950/30")
-          }
-        >
-          {item.action}
-          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
-        </span>
-      </div>
+      <span className="mt-auto inline-flex items-center gap-1.5 font-medium text-primary text-sm">
+        {item.action}
+        <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+      </span>
     </Link>
   );
 }
 
 export function SettingsCards({ items }: { items: SettingsCard[] }) {
   if (!items.length) {
-    return <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Aucun réglage accessible avec votre compte.</p>;
+    return (
+      <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
+        Aucun réglage accessible avec votre compte.
+      </p>
+    );
   }
 
   return (
@@ -208,21 +204,22 @@ export function SettingsCards({ items }: { items: SettingsCard[] }) {
             className="scroll-mt-24 space-y-3"
           >
             <div className="flex items-start gap-3">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-50/80 dark:bg-muted/30">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-info-doux dark:bg-muted/30">
                 <GroupIcon className={"size-5 " + group.iconStyle} aria-hidden />
               </span>
               <div className="min-w-0">
-                <h2 id={"titre-" + group.slug} className="text-base font-bold leading-tight tracking-tight text-slate-950 dark:text-foreground">
+                <h2
+                  id={"titre-" + group.slug}
+                  className="text-base font-bold leading-tight tracking-tight text-foreground"
+                >
                   {group.title}
                 </h2>
-                <p className="mt-1 text-xs text-slate-500 sm:text-[13px] dark:text-muted-foreground">
-                  {group.description}
-                </p>
+                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{group.description}</p>
               </div>
             </div>
             <div className={"grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 " + group.grid}>
               {groupCards.map((item) => (
-                <CarteParametre key={item.id} item={item} featured={group.slug === "etablissement"} />
+                <CarteParametre key={item.id} item={item} />
               ))}
             </div>
           </section>

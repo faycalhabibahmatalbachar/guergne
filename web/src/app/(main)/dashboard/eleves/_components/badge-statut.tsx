@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import { libelleStatut, tonStatut } from "@/lib/eleves-constantes";
+import { cn } from "@/lib/utils";
 
 /**
  * Badge de statut d'un élève.
@@ -10,9 +10,9 @@ import { libelleStatut, tonStatut } from "@/lib/eleves-constantes";
  * pas dépendre de cette perception.
  */
 const CLASSES: Record<"succes" | "alerte" | "danger" | "neutre", string> = {
-  succes: "border-emerald-600/30 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400",
-  alerte: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
-  danger: "border-red-600/30 bg-red-600/10 text-red-700 dark:text-red-400",
+  succes: "border-succes-trait bg-succes-doux text-succes",
+  alerte: "border-alerte-trait bg-alerte-doux text-alerte",
+  danger: "border-danger-trait bg-danger-doux text-danger",
   neutre: "border-border bg-muted text-muted-foreground",
 };
 

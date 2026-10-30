@@ -1,26 +1,50 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
 import {
-  Archive, Download, Eye, EyeOff, ExternalLink, FileText, Maximize2, Minimize2, Play, Printer, Search, Send, X,
-  Clock3, CheckCircle2, TrendingUp, UserRound, Users,
+  Archive,
+  CheckCircle2,
+  Clock3,
+  Download,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  FileText,
+  Maximize2,
+  Minimize2,
+  Play,
+  Printer,
+  Search,
+  Send,
+  TrendingUp,
+  UserRound,
+  Users,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import { genererPourClasse, type ResultatGeneration } from "../actions";
 import { depublierClasse, publierClasse } from "../actions-conseil";
 import { AvisConseil } from "./avis-conseil";
-
 
 type FichierArchive = { nom: string; contenu: Uint8Array };
 
@@ -46,12 +70,14 @@ function calculerCrc32(donnees: Uint8Array): number {
 }
 
 function nomFichierSecurise(valeur: string): string {
-  return valeur
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9_-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase() || "bulletin";
+  return (
+    valeur
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase() || "bulletin"
+  );
 }
 
 /** Crée une archive ZIP sans dépendance externe ; les PDF sont déjà compressés. */
@@ -64,8 +90,12 @@ function creerArchiveZip(fichiers: FichierArchive[]): Uint8Array {
   const morceaux: Uint8Array[] = [];
   const entrees: Array<{ nom: Uint8Array; crc: number; taille: number; decalage: number }> = [];
   const maintenant = new Date();
-  const heureDos = (maintenant.getHours() << 11) | (maintenant.getMinutes() << 5) | Math.floor(maintenant.getSeconds() / 2);
-  const dateDos = ((Math.max(1980, maintenant.getFullYear()) - 1980) << 9) | ((maintenant.getMonth() + 1) << 5) | maintenant.getDate();
+  const heureDos =
+    (maintenant.getHours() << 11) | (maintenant.getMinutes() << 5) | Math.floor(maintenant.getSeconds() / 2);
+  const dateDos =
+    ((Math.max(1980, maintenant.getFullYear()) - 1980) << 9) |
+    ((maintenant.getMonth() + 1) << 5) |
+    maintenant.getDate();
   let decalage = 0;
 
   for (const fichier of fichiers) {
@@ -141,7 +171,6 @@ function creerArchiveZip(fichiers: FichierArchive[]): Uint8Array {
   }
   return archive;
 }
-
 
 export interface BulletinListe {
   inscriptionId: string;
@@ -225,9 +254,7 @@ export function GenerationBulletins({
 
   const publies = bulletins.filter((b) => b.publie).length;
   const enAttente = bulletins.length - publies;
-  const bulletinsSelectionnes = bulletins.filter(
-    (b) => b.classeId === classeChoisie && b.periodeId === periodeChoisie,
-  );
+  const bulletinsSelectionnes = bulletins.filter((b) => b.classeId === classeChoisie && b.periodeId === periodeChoisie);
   const publiesSelectionnes = bulletinsSelectionnes.filter((b) => b.publie).length;
   const attenteSelectionnes = bulletinsSelectionnes.length - publiesSelectionnes;
   const tauxPublies = bulletins.length > 0 ? (publies / bulletins.length) * 100 : 0;
@@ -237,9 +264,11 @@ export function GenerationBulletins({
     const q = recherche.trim().toLocaleLowerCase("fr");
     return bulletins.filter((b) => {
       const texte = [b.eleve, b.matricule, b.classe, b.periode].join(" ").toLocaleLowerCase("fr");
-      return (!q || texte.includes(q))
-        && (!filtreClasse || b.classeId === filtreClasse)
-        && (!filtrePeriode || b.periodeId === filtrePeriode);
+      return (
+        (!q || texte.includes(q)) &&
+        (!filtreClasse || b.classeId === filtreClasse) &&
+        (!filtrePeriode || b.periodeId === filtrePeriode)
+      );
     });
   }, [bulletins, recherche, filtreClasse, filtrePeriode]);
 
@@ -257,13 +286,18 @@ export function GenerationBulletins({
     const lignes = [
       ["Élève", "Matricule", "Classe", "Période", "Moyenne générale", "Rang", "Mention", "Statut"],
       ...filtres.map((b) => [
-        b.eleve, b.matricule, b.classe, b.periode, b.moyenne ?? "",
-        b.rang?.toString() ?? "", b.mention ?? "", b.publie ? "Publié" : "En attente",
+        b.eleve,
+        b.matricule,
+        b.classe,
+        b.periode,
+        b.moyenne ?? "",
+        b.rang?.toString() ?? "",
+        b.mention ?? "",
+        b.publie ? "Publié" : "En attente",
       ]),
     ];
-    const csv = "\uFEFF" + lignes.map((ligne) =>
-      ligne.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";"),
-    ).join("\r\n");
+    const csv =
+      "\uFEFF" + lignes.map((ligne) => ligne.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     const lien = document.createElement("a");
     lien.href = url;
@@ -271,7 +305,6 @@ export function GenerationBulletins({
     lien.click();
     URL.revokeObjectURL(url);
   }
-
 
   async function telechargerBulletins() {
     if (filtres.length === 0 || telechargementEnCours) return;
@@ -287,20 +320,36 @@ export function GenerationBulletins({
 
       for (let index = 0; index < selection.length; index += tailleGroupe) {
         const groupe = selection.slice(index, index + tailleGroupe);
-        const telecharges = await Promise.all(groupe.map(async (bulletin) => {
-          const reponse = await fetch(
-            "/api/bulletins/" + encodeURIComponent(bulletin.inscriptionId) + "/" + encodeURIComponent(bulletin.periodeId) + "?telecharger=1",
-            { credentials: "same-origin", signal: controleur.signal },
-          );
-          if (!reponse.ok) {
-            throw new Error("Le bulletin de " + bulletin.eleve + " n’a pas pu être téléchargé (HTTP " + reponse.status + ").");
-          }
+        const telecharges = await Promise.all(
+          groupe.map(async (bulletin) => {
+            const reponse = await fetch(
+              "/api/bulletins/" +
+                encodeURIComponent(bulletin.inscriptionId) +
+                "/" +
+                encodeURIComponent(bulletin.periodeId) +
+                "?telecharger=1",
+              { credentials: "same-origin", signal: controleur.signal },
+            );
+            if (!reponse.ok) {
+              throw new Error(
+                "Le bulletin de " + bulletin.eleve + " n’a pas pu être téléchargé (HTTP " + reponse.status + ").",
+              );
+            }
 
-          return {
-            nom: nomFichierSecurise(bulletin.classe) + "-" + nomFichierSecurise(bulletin.eleve) + "-" + nomFichierSecurise(bulletin.periode) + "-" + nomFichierSecurise(bulletin.matricule) + ".pdf",
-            contenu: new Uint8Array(await reponse.arrayBuffer()),
-          };
-        }));
+            return {
+              nom:
+                nomFichierSecurise(bulletin.classe) +
+                "-" +
+                nomFichierSecurise(bulletin.eleve) +
+                "-" +
+                nomFichierSecurise(bulletin.periode) +
+                "-" +
+                nomFichierSecurise(bulletin.matricule) +
+                ".pdf",
+              contenu: new Uint8Array(await reponse.arrayBuffer()),
+            };
+          }),
+        );
 
         if (controleur.signal.aborted) throw new DOMException("Téléchargement annulé.", "AbortError");
         fichiers.push(...telecharges);
@@ -310,7 +359,10 @@ export function GenerationBulletins({
 
       if (controleur.signal.aborted) throw new DOMException("Téléchargement annulé.", "AbortError");
       const archive = creerArchiveZip(fichiers);
-      const contenuZip = archive.buffer.slice(archive.byteOffset, archive.byteOffset + archive.byteLength) as ArrayBuffer;
+      const contenuZip = archive.buffer.slice(
+        archive.byteOffset,
+        archive.byteOffset + archive.byteLength,
+      ) as ArrayBuffer;
       const url = URL.createObjectURL(new Blob([contenuZip], { type: "application/zip" }));
       const lien = document.createElement("a");
       lien.href = url;
@@ -324,7 +376,9 @@ export function GenerationBulletins({
       if (controleur.signal.aborted || (erreur instanceof DOMException && erreur.name === "AbortError")) {
         toast.info("Téléchargement annulé.", { id: idNotification });
       } else {
-        toast.error(erreur instanceof Error ? erreur.message : "Impossible de télécharger les bulletins.", { id: idNotification });
+        toast.error(erreur instanceof Error ? erreur.message : "Impossible de télécharger les bulletins.", {
+          id: idNotification,
+        });
       }
     } finally {
       if (controleurTelechargement.current === controleur) controleurTelechargement.current = null;
@@ -364,9 +418,13 @@ export function GenerationBulletins({
       const pdf = await reponse.blob();
       const url = URL.createObjectURL(pdf);
       setApercuImpression({ url, nombre: selection.length });
-      toast.success("Aperçu prêt : " + selection.length + " bulletin(s). Vérifiez-les avant d’imprimer.", { id: idNotification });
+      toast.success("Aperçu prêt : " + selection.length + " bulletin(s). Vérifiez-les avant d’imprimer.", {
+        id: idNotification,
+      });
     } catch (erreur) {
-      toast.error(erreur instanceof Error ? erreur.message : "Impossible de préparer les bulletins à imprimer.", { id: idNotification });
+      toast.error(erreur instanceof Error ? erreur.message : "Impossible de préparer les bulletins à imprimer.", {
+        id: idNotification,
+      });
     } finally {
       setImpressionEnCours(false);
     }
@@ -388,92 +446,156 @@ export function GenerationBulletins({
     fenetre.print();
   }
 
-
   return (
     <div className="space-y-6 pb-6">
-      <Card className="gentelella-v4 grid grid-cols-1 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-sm dark:border-border dark:bg-card">
-        <div className="grid grid-cols-1 gap-2 border-b border-slate-100 pb-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,2fr)_minmax(170px,1fr)_minmax(170px,1fr)] dark:border-border">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" aria-hidden />
-              <input id="recherche-bulletins" value={recherche} onChange={(e) => { setRecherche(e.target.value); setPage(1); }}
-                placeholder="Rechercher un élève…" aria-label="Rechercher par nom, prénom ou matricule"
-                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50/50 py-2 pl-10 pr-3 text-sm shadow-none outline-none placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-border dark:bg-background" />
-            </div>
-            <NativeSelect aria-label="Toutes les classes" value={filtreClasse} onChange={(e) => { setFiltreClasse(e.target.value); setPage(1); }} className="h-10 rounded-lg">
-              <option value="">Toutes les classes</option>
-              {classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}
-            </NativeSelect>
-            <NativeSelect aria-label="Toutes les périodes" value={filtrePeriode} onChange={(e) => { setFiltrePeriode(e.target.value); setPage(1); }} className="h-10 rounded-lg">
-              <option value="">Toutes les périodes</option>
-              {periodes.map((p) => <option key={p.id} value={p.id}>{p.libelle}</option>)}
-            </NativeSelect>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
-            <p className="text-slate-600 dark:text-slate-300 text-sm">{filtres.length} bulletin(s) trouvé(s)</p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" onClick={exporter} disabled={filtres.length === 0}>
-                <Download aria-hidden /> Exporter en CSV
-              </Button>
-              <Button
-                onClick={telechargerBulletins}
-                disabled={filtres.length === 0 || telechargementEnCours}
-                className="bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500"
-              >
-                <Archive aria-hidden />
-                {telechargementEnCours ? "Préparation du ZIP…" : "Télécharger les bulletins"}
-              </Button>
-              {telechargementEnCours ? (
-                <Button type="button" variant="destructive" onClick={annulerTelechargement}>
-                  <X aria-hidden /> Annuler le téléchargement
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={preparerImpressionBulletins}
-                disabled={filtres.length === 0 || impressionEnCours}
-              >
-                <Printer aria-hidden />
-                {impressionEnCours ? "Préparation de l’aperçu…" : "Imprimer les bulletins"}
-              </Button>
-            </div>
+      <Card className="gentelella-v4 grid grid-cols-1 border p-2.5">
+        <div className="grid grid-cols-1 gap-2 border-b border-border pb-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,2fr)_minmax(170px,1fr)_minmax(170px,1fr)]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <input
+              id="recherche-bulletins"
+              value={recherche}
+              onChange={(e) => {
+                setRecherche(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Rechercher un élève…"
+              aria-label="Rechercher par nom, prénom ou matricule"
+              className="h-10 w-full rounded-lg border border-border bg-muted/40 py-2 pl-10 pr-3 text-sm shadow-none outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring dark:bg-background"
+            />
           </div>
-        </CardContent>
+          <NativeSelect
+            aria-label="Toutes les classes"
+            value={filtreClasse}
+            onChange={(e) => {
+              setFiltreClasse(e.target.value);
+              setPage(1);
+            }}
+            className="h-10 rounded-lg"
+          >
+            <option value="">Toutes les classes</option>
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.libelle}
+              </option>
+            ))}
+          </NativeSelect>
+          <NativeSelect
+            aria-label="Toutes les périodes"
+            value={filtrePeriode}
+            onChange={(e) => {
+              setFiltrePeriode(e.target.value);
+              setPage(1);
+            }}
+            className="h-10 rounded-lg"
+          >
+            <option value="">Toutes les périodes</option>
+            {periodes.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.libelle}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+          <p className="text-muted-foreground text-sm">{filtres.length} bulletin(s) trouvé(s)</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={exporter} disabled={filtres.length === 0}>
+              <Download aria-hidden /> Exporter en CSV
+            </Button>
+            <Button
+              onClick={telechargerBulletins}
+              disabled={filtres.length === 0 || telechargementEnCours}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 dark:hover:bg-primary/90"
+            >
+              <Archive aria-hidden />
+              {telechargementEnCours ? "Préparation du ZIP…" : "Télécharger les bulletins"}
+            </Button>
+            {telechargementEnCours ? (
+              <Button type="button" variant="destructive" onClick={annulerTelechargement}>
+                <X aria-hidden /> Annuler le téléchargement
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={preparerImpressionBulletins}
+              disabled={filtres.length === 0 || impressionEnCours}
+            >
+              <Printer aria-hidden />
+              {impressionEnCours ? "Préparation de l’aperçu…" : "Imprimer les bulletins"}
+            </Button>
+          </div>
+        </div>
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <Card className="h-full">
           <CardContent className="flex items-center gap-4 p-5">
-            <div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-700 dark:text-cyan-300"><Users className="size-5" aria-hidden /></div>
-            <div><p className="text-slate-600 dark:text-slate-300 text-sm">Total des élèves</p><p className="text-2xl font-semibold tabular-nums">{effectifTotal}</p><p className="text-slate-600 dark:text-slate-300 text-xs">Inscrits dans l’année courante</p></div>
+            <div className="rounded-xl bg-info-doux p-3 text-info">
+              <Users className="size-5" aria-hidden />
+            </div>
+            <div>
+              <p className="text-muted-foreground text-sm">Total des élèves</p>
+              <p className="text-2xl font-semibold tabular-nums">{effectifTotal}</p>
+              <p className="text-muted-foreground text-xs">Inscrits dans l’année courante</p>
+            </div>
           </CardContent>
         </Card>
-        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <Card className="h-full">
           <CardContent className="flex items-center gap-4 p-5">
-            <div className="rounded-xl bg-indigo-500/10 p-3 text-indigo-600"><FileText className="size-5" aria-hidden /></div>
-            <div><p className="text-slate-600 dark:text-slate-300 text-sm">Bulletins générés</p><p className="text-2xl font-semibold tabular-nums">{bulletins.length}</p><p className="text-slate-600 dark:text-slate-300 text-xs">Pour l’année scolaire courante</p></div>
+            <div className="rounded-xl bg-info-doux p-3 text-info">
+              <FileText className="size-5" aria-hidden />
+            </div>
+            <div>
+              <p className="text-muted-foreground text-sm">Bulletins générés</p>
+              <p className="text-2xl font-semibold tabular-nums">{bulletins.length}</p>
+              <p className="text-muted-foreground text-xs">Pour l’année scolaire courante</p>
+            </div>
           </CardContent>
         </Card>
-        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <Card className="h-full">
           <CardContent className="flex items-center gap-4 p-5">
-            <div className="rounded-xl bg-amber-500/10 p-3 text-amber-600"><Clock3 className="size-5" aria-hidden /></div>
-            <div><p className="text-slate-600 dark:text-slate-300 text-sm">À publier</p><p className="text-2xl font-semibold tabular-nums">{enAttente}</p><p className="text-slate-600 dark:text-slate-300 text-xs">{tauxAttente.toFixed(1).replace(".", ",")}% des bulletins produits</p></div>
+            <div className="rounded-xl bg-alerte-doux p-3 text-alerte">
+              <Clock3 className="size-5" aria-hidden />
+            </div>
+            <div>
+              <p className="text-muted-foreground text-sm">À publier</p>
+              <p className="text-2xl font-semibold tabular-nums">{enAttente}</p>
+              <p className="text-muted-foreground text-xs">
+                {tauxAttente.toFixed(1).replace(".", ",")}% des bulletins produits
+              </p>
+            </div>
           </CardContent>
         </Card>
-        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <Card className="h-full">
           <CardContent className="flex items-center gap-4 p-5">
-            <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-600"><CheckCircle2 className="size-5" aria-hidden /></div>
-            <div><p className="text-slate-600 dark:text-slate-300 text-sm">Publiés</p><p className="text-2xl font-semibold tabular-nums">{publies}</p><p className="text-slate-600 dark:text-slate-300 text-xs">{tauxPublies.toFixed(1).replace(".", ",")}% des bulletins</p></div>
+            <div className="rounded-xl bg-succes-doux p-3 text-succes">
+              <CheckCircle2 className="size-5" aria-hidden />
+            </div>
+            <div>
+              <p className="text-muted-foreground text-sm">Publiés</p>
+              <p className="text-2xl font-semibold tabular-nums">{publies}</p>
+              <p className="text-muted-foreground text-xs">{tauxPublies.toFixed(1).replace(".", ",")}% des bulletins</p>
+            </div>
           </CardContent>
         </Card>
-        <Card className="h-full rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <Card className="h-full">
           <CardContent className="flex items-center gap-4 p-5">
-            <div className="rounded-xl bg-violet-500/10 p-3 text-violet-700 dark:text-violet-300"><TrendingUp className="size-5" aria-hidden /></div>
-            <div><p className="text-slate-600 dark:text-slate-300 text-sm">Moyenne affichée</p><p className="text-2xl font-semibold tabular-nums">{moyenne}</p><p className="text-slate-600 dark:text-slate-300 text-xs">Bulletins correspondant aux filtres</p></div>
+            <div className="rounded-xl bg-info-doux p-3 text-info">
+              <TrendingUp className="size-5" aria-hidden />
+            </div>
+            <div>
+              <p className="text-muted-foreground text-sm">Moyenne affichée</p>
+              <p className="text-2xl font-semibold tabular-nums">{moyenne}</p>
+              <p className="text-muted-foreground text-xs">Bulletins correspondant aux filtres</p>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
+      <Card className="overflow-hidden">
         <CardHeader className="border-b bg-muted/20 pb-4">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
@@ -481,134 +603,331 @@ export function GenerationBulletins({
               <CardDescription className="mt-1">{filtres.length} bulletin(s) correspondant aux filtres</CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
-              <NativeSelect aria-label="Classe à produire" value={classeChoisie} onChange={(e) => naviguer(e.target.value, periodeChoisie)} className="min-w-36">
+              <NativeSelect
+                aria-label="Classe à produire"
+                value={classeChoisie}
+                onChange={(e) => naviguer(e.target.value, periodeChoisie)}
+                className="min-w-36"
+              >
                 <option value="">Classe à produire</option>
-                {classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.libelle}
+                  </option>
+                ))}
               </NativeSelect>
-              <NativeSelect aria-label="Période à produire" value={periodeChoisie} onChange={(e) => naviguer(classeChoisie, e.target.value)} className="min-w-36">
+              <NativeSelect
+                aria-label="Période à produire"
+                value={periodeChoisie}
+                onChange={(e) => naviguer(classeChoisie, e.target.value)}
+                className="min-w-36"
+              >
                 <option value="">Période à produire</option>
-                {periodes.map((p) => <option key={p.id} value={p.id}>{p.libelle}</option>)}
+                {periodes.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.libelle}
+                  </option>
+                ))}
               </NativeSelect>
               {classeChoisie ? (
                 <Button asChild variant="outline">
-                  <a href={`/api/bulletins/conseil-orientation/${classeChoisie}`} target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={`/api/bulletins/conseil-orientation/${classeChoisie}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <FileText aria-hidden /> Conseil d’orientation
                   </a>
                 </Button>
               ) : null}
-              <Button onClick={generer} disabled={!classeChoisie || !periodeChoisie || enCours} className="bg-cyan-700 text-white shadow-sm hover:bg-cyan-800 focus-visible:ring-2 focus-visible:ring-cyan-700 dark:bg-cyan-600 dark:hover:bg-cyan-500">
+              <Button
+                onClick={generer}
+                disabled={!classeChoisie || !periodeChoisie || enCours}
+                className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring dark:hover:bg-primary/90"
+              >
                 <Play aria-hidden /> {enCours ? "Calcul…" : "Produire"}
               </Button>
             </div>
           </div>
         </CardHeader>
-        {rapport ? <div className="border-b bg-muted/30 p-4 text-sm">
-          <p><strong>{rapport.bulletinsEcrits}</strong> bulletin(s) produit(s) pour {rapport.classe} — {rapport.periode}, soit <strong>{rapport.moyennesEcrites}</strong> moyennes de matière.</p>
-          {rapport.ignores.length > 0 ? <p className="mt-2 text-amber-700 dark:text-amber-300">{rapport.sansNote} élève(s) ignoré(s) : {rapport.ignores.map((i) => `${i.nom} — ${i.raison}`).join("; ")}</p> : null}
-        </div> : null}
+        {rapport ? (
+          <div className="border-b bg-muted/30 p-4 text-sm">
+            <p>
+              <strong>{rapport.bulletinsEcrits}</strong> bulletin(s) produit(s) pour {rapport.classe} —{" "}
+              {rapport.periode}, soit <strong>{rapport.moyennesEcrites}</strong> moyennes de matière.
+            </p>
+            {rapport.ignores.length > 0 ? (
+              <p className="mt-2 text-alerte">
+                {rapport.sansNote} élève(s) ignoré(s) :{" "}
+                {rapport.ignores.map((i) => `${i.nom} — ${i.raison}`).join("; ")}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         {classeChoisie && periodeChoisie && (publiesSelectionnes > 0 || attenteSelectionnes > 0) ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/10 px-4 py-3">
-            <p className="text-slate-600 dark:text-slate-300 text-sm">{publiesSelectionnes} publié(s) · {attenteSelectionnes} en attente. La publication rend les bulletins visibles aux familles.</p>
+            <p className="text-muted-foreground text-sm">
+              {publiesSelectionnes} publié(s) · {attenteSelectionnes} en attente. La publication rend les bulletins
+              visibles aux familles.
+            </p>
             <div className="flex gap-2">
-              {attenteSelectionnes > 0 ? <Button size="sm" disabled={enCours} onClick={() => demarrer(async () => {
-                const r = await publierClasse(classeChoisie, periodeChoisie);
-                toast[r.ok ? "success" : "error"](r.message ?? "Terminé.");
-                routeur.refresh();
-              })}><Send aria-hidden /> Publier la classe</Button> : null}
-              {publiesSelectionnes > 0 ? <Button size="sm" variant="outline" disabled={enCours} onClick={() => {
-                if (!window.confirm("Retirer ces bulletins de la publication ? Les notifications déjà envoyées ne seront pas rappelées.")) return;
-                demarrer(async () => {
-                  const r = await depublierClasse(classeChoisie, periodeChoisie);
-                  toast[r.ok ? "success" : "error"](r.message ?? "Terminé.");
-                  routeur.refresh();
-                });
-              }}><EyeOff aria-hidden /> Dépublier</Button> : null}
+              {attenteSelectionnes > 0 ? (
+                <Button
+                  size="sm"
+                  disabled={enCours}
+                  onClick={() =>
+                    demarrer(async () => {
+                      const r = await publierClasse(classeChoisie, periodeChoisie);
+                      toast[r.ok ? "success" : "error"](r.message ?? "Terminé.");
+                      routeur.refresh();
+                    })
+                  }
+                >
+                  <Send aria-hidden /> Publier la classe
+                </Button>
+              ) : null}
+              {publiesSelectionnes > 0 ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={enCours}
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        "Retirer ces bulletins de la publication ? Les notifications déjà envoyées ne seront pas rappelées.",
+                      )
+                    )
+                      return;
+                    demarrer(async () => {
+                      const r = await depublierClasse(classeChoisie, periodeChoisie);
+                      toast[r.ok ? "success" : "error"](r.message ?? "Terminé.");
+                      routeur.refresh();
+                    });
+                  }}
+                >
+                  <EyeOff aria-hidden /> Dépublier
+                </Button>
+              ) : null}
             </div>
           </div>
         ) : null}
         <CardContent className="p-0">
           {visibles.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-4 py-14 text-center">
-              <FileText className="text-slate-600 dark:text-slate-300 size-8" aria-hidden />
+              <FileText className="text-muted-foreground size-8" aria-hidden />
               <p className="font-medium">Aucun bulletin trouvé</p>
-              <p className="text-slate-600 dark:text-slate-300 text-sm">Modifiez la recherche ou les filtres, ou produisez les bulletins d’une classe.</p>
+              <p className="text-muted-foreground text-sm">
+                Modifiez la recherche ou les filtres, ou produisez les bulletins d’une classe.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-muted/40 text-foreground">
-                  <TableRow>
-                    <TableHead>Élève</TableHead><TableHead>Matricule</TableHead><TableHead>Classe</TableHead>
-                    <TableHead className="text-right">Moyenne générale</TableHead><TableHead className="text-right">Rang</TableHead>
-                    <TableHead>Statut</TableHead><TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visibles.map((b) => (
-                    <TableRow key={b.inscriptionId + b.periodeId} className="transition-colors hover:bg-cyan-500/[0.04]">
-                      <TableCell className="min-w-44">
-                        <Link href={`/dashboard/eleves/${b.eleveId}`} className="group inline-flex max-w-full items-center gap-1.5 rounded-sm font-semibold text-slate-900 underline-offset-4 hover:text-cyan-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 dark:text-slate-100 dark:hover:text-cyan-300" aria-label={`Ouvrir le dossier de ${b.eleve}`}>
-                          <UserRound className="size-4 shrink-0 text-cyan-700 dark:text-cyan-300" aria-hidden />
-                          <span>{b.eleve}</span>
-                          <ExternalLink className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden />
-                        </Link>
-                        <div className="mt-1 text-slate-600 dark:text-slate-300 text-xs">{b.periode}</div>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">{b.matricule}</TableCell>
-                      <TableCell>{b.classe}</TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">{b.moyenne !== null && b.moyenne !== "" ? Number(b.moyenne).toFixed(2).replace(".", ",") : "—"}</TableCell>
-                      <TableCell className="text-right tabular-nums">{b.rang ?? "—"}</TableCell>
-                      <TableCell><Badge variant={b.publie ? "default" : "outline"}>{b.publie ? "Publié" : "En attente"}</Badge></TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <AvisConseil inscriptionId={b.inscriptionId} periodeId={b.periodeId} eleve={b.eleve} mention={b.mention} appreciation={b.appreciation} decision={b.decision} publie={b.publie} />
-                          <Button type="button" variant="outline" size="sm" onClick={() => { setApercuPleinEcran(false); setBulletinApercu(b); }} aria-label={`Prévisualiser le bulletin de ${b.eleve}`} title="Aperçu du bulletin" className="h-7 min-w-[5.75rem] justify-center gap-2 px-4 py-0 text-xs border-cyan-700/30 text-cyan-800 hover:bg-cyan-50 hover:text-cyan-950 dark:border-cyan-400/30 dark:text-cyan-200 dark:hover:bg-cyan-950/50">
-                            <Eye className="size-3.5 shrink-0" aria-hidden /> <span className="hidden md:inline">Aperçu</span>
-                          </Button>
-                          <Button asChild variant="ghost" size="sm">
-                            <a href={`/api/bulletins/${b.inscriptionId}/${b.periodeId}`} target="_blank" rel="noopener noreferrer" aria-label={`Ouvrir pour imprimer le bulletin de ${b.eleve}`} title="Ouvrir le PDF pour impression">
-                              <Printer aria-hidden /> <span className="hidden xl:inline">Imprimer</span>
-                            </a>
-                          </Button>
-                        </div>
-                      </TableCell>
+                <Table>
+                  <TableHeader className="bg-muted/40 text-foreground">
+                    <TableRow>
+                      <TableHead>Élève</TableHead>
+                      <TableHead>Matricule</TableHead>
+                      <TableHead>Classe</TableHead>
+                      <TableHead className="text-right">Moyenne générale</TableHead>
+                      <TableHead className="text-right">Rang</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {visibles.map((b) => (
+                      <TableRow
+                        key={b.inscriptionId + b.periodeId}
+                        className="transition-colors hover:bg-primary/[0.04]"
+                      >
+                        <TableCell className="min-w-44">
+                          <Link
+                            href={`/dashboard/eleves/${b.eleveId}`}
+                            className="group inline-flex max-w-full items-center gap-1.5 rounded-sm font-semibold text-foreground underline-offset-4 hover:text-info hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:text-info"
+                            aria-label={`Ouvrir le dossier de ${b.eleve}`}
+                          >
+                            <UserRound className="size-4 shrink-0 text-info" aria-hidden />
+                            <span>{b.eleve}</span>
+                            <ExternalLink
+                              className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                              aria-hidden
+                            />
+                          </Link>
+                          <div className="mt-1 text-muted-foreground text-xs">{b.periode}</div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{b.matricule}</TableCell>
+                        <TableCell>{b.classe}</TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">
+                          {b.moyenne !== null && b.moyenne !== ""
+                            ? Number(b.moyenne).toFixed(2).replace(".", ",")
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{b.rang ?? "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant={b.publie ? "default" : "outline"}>{b.publie ? "Publié" : "En attente"}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <AvisConseil
+                              inscriptionId={b.inscriptionId}
+                              periodeId={b.periodeId}
+                              eleve={b.eleve}
+                              mention={b.mention}
+                              appreciation={b.appreciation}
+                              decision={b.decision}
+                              publie={b.publie}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setApercuPleinEcran(false);
+                                setBulletinApercu(b);
+                              }}
+                              aria-label={`Prévisualiser le bulletin de ${b.eleve}`}
+                              title="Aperçu du bulletin"
+                              className="h-7 min-w-[5.75rem] justify-center gap-2 px-4 py-0 text-xs border-info-trait text-info hover:bg-info-doux/90 hover:text-info dark:hover:bg-info-doux/90"
+                            >
+                              <Eye className="size-3.5 shrink-0" aria-hidden />{" "}
+                              <span className="hidden md:inline">Aperçu</span>
+                            </Button>
+                            <Button asChild variant="ghost" size="sm">
+                              <a
+                                href={`/api/bulletins/${b.inscriptionId}/${b.periodeId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={`Ouvrir pour imprimer le bulletin de ${b.eleve}`}
+                                title="Ouvrir le PDF pour impression"
+                              >
+                                <Printer aria-hidden /> <span className="hidden xl:inline">Imprimer</span>
+                              </a>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </div>
           )}
-          <footer aria-label="Pied du tableau des bulletins" className="border-t border-slate-200/80 bg-slate-50/60 px-4 py-3.5 text-sm dark:border-border dark:bg-muted/15 sm:px-5">
+          <footer
+            aria-label="Pied du tableau des bulletins"
+            className="border-t border-border bg-muted/40 px-4 py-3.5 text-sm dark:bg-muted/15 sm:px-5"
+          >
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <p className="whitespace-nowrap text-slate-600 dark:text-muted-foreground" aria-live="polite">
-                  <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">{filtres.length ? (pageCourante - 1) * parPage + 1 : 0}–{Math.min(pageCourante * parPage, filtres.length)}</span> sur <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">{filtres.length.toLocaleString("fr-FR")}</span> bulletins
+                <p className="whitespace-nowrap text-muted-foreground" aria-live="polite">
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {filtres.length ? (pageCourante - 1) * parPage + 1 : 0}–
+                    {Math.min(pageCourante * parPage, filtres.length)}
+                  </span>{" "}
+                  sur{" "}
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {filtres.length.toLocaleString("fr-FR")}
+                  </span>{" "}
+                  bulletins
                 </p>
-                <span aria-hidden className="hidden h-5 w-px bg-slate-200 dark:bg-border sm:block" />
-                <label className="inline-flex items-center gap-2 whitespace-nowrap text-xs text-slate-600 dark:text-muted-foreground">
+                <span aria-hidden className="hidden h-5 w-px bg-muted dark:bg-border sm:block" />
+                <label className="inline-flex items-center gap-2 whitespace-nowrap text-xs text-muted-foreground">
                   Par page
-                  <select aria-label="Nombre de bulletins par page" className="h-9 min-w-16 rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-medium text-slate-800 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:border-border dark:bg-background dark:text-foreground" value={parPage} onChange={(e) => { setParPage(Number(e.target.value)); setPage(1); }}>
-                    {[8, 16, 25, 50, 100].map((nombre) => <option key={nombre} value={nombre}>{nombre}</option>)}
+                  <select
+                    aria-label="Nombre de bulletins par page"
+                    className="h-9 min-w-16 rounded-lg border border-border bg-card px-2.5 text-sm font-medium text-foreground shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:bg-background"
+                    value={parPage}
+                    onChange={(e) => {
+                      setParPage(Number(e.target.value));
+                      setPage(1);
+                    }}
+                  >
+                    {[8, 16, 25, 50, 100].map((nombre) => (
+                      <option key={nombre} value={nombre}>
+                        {nombre}
+                      </option>
+                    ))}
                   </select>
                 </label>
               </div>
-              <nav aria-label="Pagination des bulletins" className="flex items-center justify-between gap-3 sm:justify-end">
-                <span className="text-xs font-medium text-slate-600 tabular-nums dark:text-muted-foreground sm:hidden">Page {pageCourante} sur {pages}</span>
+              <nav
+                aria-label="Pagination des bulletins"
+                className="flex items-center justify-between gap-3 sm:justify-end"
+              >
+                <span className="text-xs font-medium text-muted-foreground tabular-nums sm:hidden">
+                  Page {pageCourante} sur {pages}
+                </span>
                 <div className="flex items-center gap-1">
-                  <Button variant="outline" size="icon" className="hidden size-9 bg-white shadow-none sm:inline-flex dark:bg-card" disabled={pageCourante <= 1} onClick={() => setPage(1)} aria-label="Première page">«</Button>
-                  <Button variant="outline" size="icon" className="size-9 bg-white shadow-none dark:bg-card" disabled={pageCourante <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label="Page précédente">‹</Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="hidden size-9 sm:inline-flex"
+                    disabled={pageCourante <= 1}
+                    onClick={() => setPage(1)}
+                    aria-label="Première page"
+                  >
+                    «
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-9"
+                    disabled={pageCourante <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    aria-label="Page précédente"
+                  >
+                    ‹
+                  </Button>
                   <div className="hidden items-center gap-1 sm:flex">
-                    {[...new Set([1, Math.max(1, pageCourante - 1), pageCourante, Math.min(pages, pageCourante + 1), pages])].filter((numero) => numero >= 1 && numero <= pages).map((numero, index, liste) => (
-                      <span key={numero} className="flex items-center gap-1">
-                        {index > 0 && numero - liste[index - 1] > 1 ? <span className="px-1 text-slate-400" aria-hidden>…</span> : null}
-                        <Button size="icon" variant={numero === pageCourante ? "default" : "outline"} className={numero === pageCourante ? "size-9 bg-emerald-700 text-white hover:bg-emerald-800" : "size-9 bg-white shadow-none dark:bg-card"} onClick={() => setPage(numero)} aria-label={"Page " + numero}>{numero}</Button>
-                      </span>
-                    ))}
+                    {[
+                      ...new Set([
+                        1,
+                        Math.max(1, pageCourante - 1),
+                        pageCourante,
+                        Math.min(pages, pageCourante + 1),
+                        pages,
+                      ]),
+                    ]
+                      .filter((numero) => numero >= 1 && numero <= pages)
+                      .map((numero, index, liste) => (
+                        <span key={numero} className="flex items-center gap-1">
+                          {index > 0 && numero - liste[index - 1] > 1 ? (
+                            <span className="px-1 text-muted-foreground" aria-hidden>
+                              …
+                            </span>
+                          ) : null}
+                          <Button
+                            size="icon"
+                            variant={numero === pageCourante ? "default" : "outline"}
+                            className={numero === pageCourante ? "size-9" : "size-9 bg-card shadow-none"}
+                            onClick={() => setPage(numero)}
+                            aria-label={"Page " + numero}
+                          >
+                            {numero}
+                          </Button>
+                        </span>
+                      ))}
                   </div>
-                  <Button variant="outline" size="icon" className="size-9 bg-white shadow-none dark:bg-card" disabled={pageCourante >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))} aria-label="Page suivante">›</Button>
-                  <Button variant="outline" size="icon" className="hidden size-9 bg-white shadow-none sm:inline-flex dark:bg-card" disabled={pageCourante >= pages} onClick={() => setPage(pages)} aria-label="Dernière page">»</Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-9"
+                    disabled={pageCourante >= pages}
+                    onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                    aria-label="Page suivante"
+                  >
+                    ›
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="hidden size-9 sm:inline-flex"
+                    disabled={pageCourante >= pages}
+                    onClick={() => setPage(pages)}
+                    aria-label="Dernière page"
+                  >
+                    »
+                  </Button>
                 </div>
               </nav>
             </div>
@@ -617,26 +936,48 @@ export function GenerationBulletins({
       </Card>
 
       {recherche.trim() && filtres.length > 0 ? (
-        <Card className="overflow-hidden rounded-xl border-slate-200 shadow-sm dark:border-border">
-          <CardHeader className="border-b bg-slate-50/70 py-3 dark:bg-muted/20">
+        <Card className="overflow-hidden">
+          <CardHeader className="border-b bg-muted/40 py-3 dark:bg-muted/20">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <UserRound className="size-4 text-cyan-700 dark:text-cyan-300" aria-hidden />
+              <UserRound className="size-4 text-info" aria-hidden />
               Aperçu de la recherche d’élève
             </CardTitle>
-            <CardDescription>Premier résultat correspondant à votre recherche, comme dans l’onglet Élèves.</CardDescription>
+            <CardDescription>
+              Premier résultat correspondant à votre recherche, comme dans l’onglet Élèves.
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="truncate text-base font-bold text-slate-900 dark:text-foreground">{filtres[0].eleve}</p>
-              <p className="mt-1 text-sm text-slate-600 dark:text-muted-foreground">Matricule : {filtres[0].matricule} · Classe : {filtres[0].classe}</p>
-              <p className="mt-1 text-sm text-slate-600 dark:text-muted-foreground">Période : {filtres[0].periode} · Moyenne générale : {filtres[0].moyenne !== null && filtres[0].moyenne !== "" ? Number(filtres[0].moyenne).toFixed(2).replace(".", ",") : "—"} · Rang : {filtres[0].rang ?? "—"}</p>
+              <p className="truncate text-base font-bold text-foreground">{filtres[0].eleve}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Matricule : {filtres[0].matricule} · Classe : {filtres[0].classe}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Période : {filtres[0].periode} · Moyenne générale :{" "}
+                {filtres[0].moyenne !== null && filtres[0].moyenne !== ""
+                  ? Number(filtres[0].moyenne).toFixed(2).replace(".", ",")
+                  : "—"}{" "}
+                · Rang : {filtres[0].rang ?? "—"}
+              </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
-              <Button type="button" variant="outline" className="gap-2" onClick={() => { setApercuPleinEcran(false); setBulletinApercu(filtres[0]); }}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setApercuPleinEcran(false);
+                  setBulletinApercu(filtres[0]);
+                }}
+              >
                 <Eye className="size-4" aria-hidden /> Aperçu du bulletin
               </Button>
-              <Button asChild className="gap-2 bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500">
-                <Link href={`/dashboard/eleves/${filtres[0].eleveId}`}>Ouvrir le dossier <ExternalLink className="size-4" aria-hidden /></Link>
+              <Button
+                asChild
+                className="bg-primary text-primary-foreground hover:bg-primary/90 dark:hover:bg-primary/90"
+              >
+                <Link href={`/dashboard/eleves/${filtres[0].eleveId}`}>
+                  Ouvrir le dossier <ExternalLink className="size-4" aria-hidden />
+                </Link>
               </Button>
             </div>
           </CardContent>
@@ -644,12 +985,27 @@ export function GenerationBulletins({
       ) : null}
 
       {bulletinApercu ? (
-        <Dialog open onOpenChange={(ouvert) => { if (!ouvert) { setBulletinApercu(null); setApercuPleinEcran(false); } }}>
-          <DialogContent showCloseButton className={apercuPleinEcran ? "fixed inset-0 left-0 top-0 z-50 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-none sm:rounded-none" : "flex h-[88vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl"}>
+        <Dialog
+          open
+          onOpenChange={(ouvert) => {
+            if (!ouvert) {
+              setBulletinApercu(null);
+              setApercuPleinEcran(false);
+            }
+          }}
+        >
+          <DialogContent
+            showCloseButton
+            className={
+              apercuPleinEcran
+                ? "fixed inset-0 left-0 top-0 z-50 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-none sm:rounded-none"
+                : "flex h-[88vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl"
+            }
+          >
             <DialogHeader className="shrink-0 flex-row items-start justify-between gap-3 border-b bg-card p-4 pr-24">
               <div className="min-w-0">
                 <DialogTitle className="flex items-center gap-2 text-lg">
-                  <FileText className="size-5 shrink-0 text-cyan-700 dark:text-cyan-300" aria-hidden />
+                  <FileText className="size-5 shrink-0 text-info" aria-hidden />
                   Aperçu du bulletin
                 </DialogTitle>
                 <DialogDescription className="mt-1">
@@ -660,30 +1016,46 @@ export function GenerationBulletins({
                 type="button"
                 variant="outline"
                 size="icon-sm"
-                className="absolute right-12 top-2 border-cyan-700/30 text-cyan-800 hover:bg-cyan-50 dark:border-cyan-400/30 dark:text-cyan-200 dark:hover:bg-cyan-950/50"
+                className="absolute right-12 top-2 border-info-trait text-info hover:bg-info-doux/90 dark:hover:bg-info-doux/90"
                 onClick={() => setApercuPleinEcran((plein) => !plein)}
                 aria-label={apercuPleinEcran ? "Quitter le plein écran" : "Agrandir le bulletin en plein écran"}
                 title={apercuPleinEcran ? "Réduire" : "Plein écran"}
               >
-                {apercuPleinEcran ? <Minimize2 className="size-4" aria-hidden /> : <Maximize2 className="size-4" aria-hidden />}
+                {apercuPleinEcran ? (
+                  <Minimize2 className="size-4" aria-hidden />
+                ) : (
+                  <Maximize2 className="size-4" aria-hidden />
+                )}
               </Button>
             </DialogHeader>
-            <div className="min-h-0 flex-1 bg-slate-100 p-2 dark:bg-slate-950 sm:p-4">
+            <div className="min-h-0 flex-1 bg-muted p-2 sm:p-4">
               <iframe
                 key={bulletinApercu.inscriptionId + bulletinApercu.periodeId}
                 title={"Aperçu PDF du bulletin de " + bulletinApercu.eleve}
                 src={"/api/bulletins/" + bulletinApercu.inscriptionId + "/" + bulletinApercu.periodeId}
-                className="h-full w-full rounded-lg border border-slate-300 bg-white shadow-sm dark:border-slate-700"
+                className="h-full w-full rounded-lg border border-border bg-card shadow-sm"
               />
             </div>
             <DialogFooter className="shrink-0 flex-row flex-wrap justify-between gap-2 border-t bg-card px-4 py-3">
-              <Button asChild variant="outline" className="gap-2">
-                <a href={"/api/bulletins/" + bulletinApercu.inscriptionId + "/" + bulletinApercu.periodeId + "?telecharger=1"} aria-label={"Télécharger le bulletin de " + bulletinApercu.eleve}>
+              <Button asChild variant="outline">
+                <a
+                  href={
+                    "/api/bulletins/" + bulletinApercu.inscriptionId + "/" + bulletinApercu.periodeId + "?telecharger=1"
+                  }
+                  aria-label={"Télécharger le bulletin de " + bulletinApercu.eleve}
+                >
                   <Download aria-hidden /> Télécharger PDF
                 </a>
               </Button>
-              <Button asChild className="gap-2 bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500">
-                <a href={"/api/bulletins/" + bulletinApercu.inscriptionId + "/" + bulletinApercu.periodeId} target="_blank" rel="noopener noreferrer">
+              <Button
+                asChild
+                className="bg-primary text-primary-foreground hover:bg-primary/90 dark:hover:bg-primary/90"
+              >
+                <a
+                  href={"/api/bulletins/" + bulletinApercu.inscriptionId + "/" + bulletinApercu.periodeId}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <Printer aria-hidden /> Ouvrir pour imprimer
                 </a>
               </Button>
@@ -693,33 +1065,49 @@ export function GenerationBulletins({
       ) : null}
       <Dialog
         open={Boolean(apercuImpression)}
-        onOpenChange={(ouvert) => { if (!ouvert) fermerApercuImpression(); }}
+        onOpenChange={(ouvert) => {
+          if (!ouvert) fermerApercuImpression();
+        }}
       >
-        <DialogContent className={apercuImpressionPleinEcran ? "fixed inset-0 left-0 top-0 z-50 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-none sm:rounded-none" : "flex h-[88vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl"}>
+        <DialogContent
+          className={
+            apercuImpressionPleinEcran
+              ? "fixed inset-0 left-0 top-0 z-50 flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-none sm:rounded-none"
+              : "flex h-[88vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl"
+          }
+        >
           <DialogHeader className="relative shrink-0 flex-row items-start justify-between gap-3 border-b bg-card p-4 pr-24">
             <div className="min-w-0">
               <DialogTitle className="flex items-center gap-2 text-lg">
-                <Printer className="size-5 text-cyan-700 dark:text-cyan-300" aria-hidden />
+                <Printer className="size-5 text-info" aria-hidden />
                 Aperçu des bulletins avant impression
               </DialogTitle>
               <DialogDescription className="mt-1">
-                {apercuImpression?.nombre ?? 0} bulletin(s) correspondant à votre recherche et à vos filtres.
-                Vérifiez l’aperçu, puis cliquez sur « Imprimer » pour confirmer.
+                {apercuImpression?.nombre ?? 0} bulletin(s) correspondant à votre recherche et à vos filtres. Vérifiez
+                l’aperçu, puis cliquez sur « Imprimer » pour confirmer.
               </DialogDescription>
             </div>
             <Button
               type="button"
               variant="outline"
               size="icon-sm"
-              className="absolute right-12 top-2 border-cyan-700/30 text-cyan-800 hover:bg-cyan-50 dark:border-cyan-400/30 dark:text-cyan-200 dark:hover:bg-cyan-950/50"
+              className="absolute right-12 top-2 border-info-trait text-info hover:bg-info-doux/90 dark:hover:bg-info-doux/90"
               onClick={() => setApercuImpressionPleinEcran((plein) => !plein)}
-              aria-label={apercuImpressionPleinEcran ? "Quitter le plein écran de l’aperçu d’impression" : "Agrandir l’aperçu des bulletins en plein écran"}
+              aria-label={
+                apercuImpressionPleinEcran
+                  ? "Quitter le plein écran de l’aperçu d’impression"
+                  : "Agrandir l’aperçu des bulletins en plein écran"
+              }
               title={apercuImpressionPleinEcran ? "Réduire" : "Plein écran"}
             >
-              {apercuImpressionPleinEcran ? <Minimize2 className="size-4" aria-hidden /> : <Maximize2 className="size-4" aria-hidden />}
+              {apercuImpressionPleinEcran ? (
+                <Minimize2 className="size-4" aria-hidden />
+              ) : (
+                <Maximize2 className="size-4" aria-hidden />
+              )}
             </Button>
           </DialogHeader>
-          <div className="min-h-0 flex-1 bg-slate-100 p-2 dark:bg-slate-950 sm:p-4">
+          <div className="min-h-0 flex-1 bg-muted p-2 sm:p-4">
             {apercuImpression ? (
               <iframe
                 key={apercuImpression.url}
@@ -727,7 +1115,7 @@ export function GenerationBulletins({
                 title="Aperçu PDF des bulletins filtrés"
                 src={apercuImpression.url}
                 onLoad={() => setApercuImpressionPret(true)}
-                className="h-full w-full rounded-lg border border-slate-300 bg-white shadow-sm dark:border-slate-700"
+                className="h-full w-full rounded-lg border border-border bg-card shadow-sm"
               />
             ) : null}
           </div>
@@ -739,7 +1127,7 @@ export function GenerationBulletins({
               type="button"
               onClick={confirmerImpressionBulletins}
               disabled={!apercuImpressionPret}
-              className="gap-2 bg-cyan-700 text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 dark:hover:bg-primary/90"
             >
               <Printer aria-hidden /> Imprimer
             </Button>

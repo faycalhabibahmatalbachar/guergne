@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 
-import { reinscrire, type PropositionReinscription } from "../../actions-reinscription";
+import { type PropositionReinscription, reinscrire } from "../../actions-reinscription";
 
 /**
  * Réinscription pour l'année suivante (E-36).
@@ -44,22 +44,12 @@ const LIBELLE_DECISION: Record<string, string> = {
   EN_ATTENTE: "En attente",
 };
 
-export function Reinscription({
-  eleveId,
-  proposition,
-}: {
-  eleveId: string;
-  proposition: PropositionReinscription;
-}) {
+export function Reinscription({ eleveId, proposition }: { eleveId: string; proposition: PropositionReinscription }) {
   const routeur = useRouter();
   const [enCours, demarrer] = useTransition();
 
-  const classesDuNiveau = (proposition.classes ?? []).filter(
-    (c) => c.niveauId === proposition.niveauProposeId,
-  );
-  const autresClasses = (proposition.classes ?? []).filter(
-    (c) => c.niveauId !== proposition.niveauProposeId,
-  );
+  const classesDuNiveau = (proposition.classes ?? []).filter((c) => c.niveauId === proposition.niveauProposeId);
+  const autresClasses = (proposition.classes ?? []).filter((c) => c.niveauId !== proposition.niveauProposeId);
 
   const [classeId, setClasseId] = useState(
     classesDuNiveau.find((c) => c.places > 0)?.id ?? classesDuNiveau[0]?.id ?? "",
@@ -114,7 +104,7 @@ export function Reinscription({
               conseil : {LIBELLE_DECISION[proposition.decision] ?? proposition.decision}
             </Badge>
           ) : (
-            <Badge variant="outline" className="text-amber-700 dark:text-amber-400">
+            <Badge variant="outline" className="text-alerte">
               aucune décision de fin d&apos;année
             </Badge>
           )}
@@ -123,20 +113,16 @@ export function Reinscription({
 
       <CardContent className="space-y-4">
         {!proposition.decision ? (
-          <p className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-sm">
-            Le conseil de classe ne s&apos;est pas prononcé sur cet élève. La classe proposée
-            découle du niveau actuel seulement — vérifiez-la avant de valider.
+          <p className="rounded-md border border-alerte-trait bg-alerte-doux px-3 py-2 text-sm">
+            Le conseil de classe ne s&apos;est pas prononcé sur cet élève. La classe proposée découle du niveau actuel
+            seulement — vérifiez-la avant de valider.
           </p>
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label htmlFor="ri-classe">Classe d&apos;affectation</Label>
-            <NativeSelect
-              id="ri-classe"
-              value={classeId}
-              onChange={(e) => setClasseId(e.target.value)}
-            >
+            <NativeSelect id="ri-classe" value={classeId} onChange={(e) => setClasseId(e.target.value)}>
               <option value="">Choisir…</option>
               {classesDuNiveau.length > 0 ? (
                 <optgroup label={`Niveau proposé — ${proposition.niveauProposeLibelle}`}>
@@ -158,25 +144,17 @@ export function Reinscription({
               ) : null}
             </NativeSelect>
             {choisie && choisie.places <= 0 ? (
-              <p className="text-destructive text-xs">
-                Cette classe est complète. L&apos;enregistrement sera refusé.
-              </p>
+              <p className="text-destructive text-xs">Cette classe est complète. L&apos;enregistrement sera refusé.</p>
             ) : null}
           </div>
 
           <div className="grid content-end gap-2">
             <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <Checkbox
-                checked={estRedoublant}
-                onCheckedChange={(v) => setEstRedoublant(v === true)}
-              />
+              <Checkbox checked={estRedoublant} onCheckedChange={(v) => setEstRedoublant(v === true)} />
               Redoublant
             </label>
             <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <Checkbox
-                checked={estBoursier}
-                onCheckedChange={(v) => setEstBoursier(v === true)}
-              />
+              <Checkbox checked={estBoursier} onCheckedChange={(v) => setEstBoursier(v === true)} />
               Boursier
             </label>
           </div>
@@ -187,9 +165,9 @@ export function Reinscription({
             {enCours ? "Enregistrement…" : "Réinscrire"}
           </Button>
           <p className="text-muted-foreground text-xs">
-            L&apos;échéancier n&apos;est pas créé ici : il dépend de la grille tarifaire de la
-            nouvelle année, qui n&apos;est pas forcément arrêtée. Le générer avec les tarifs de
-            l&apos;année écoulée produirait des montants faux, visibles des familles.
+            L&apos;échéancier n&apos;est pas créé ici : il dépend de la grille tarifaire de la nouvelle année, qui
+            n&apos;est pas forcément arrêtée. Le générer avec les tarifs de l&apos;année écoulée produirait des montants
+            faux, visibles des familles.
           </p>
         </div>
       </CardContent>

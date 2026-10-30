@@ -1,11 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 
 import Link from "next/link";
 
 import { AlertCircle, ArrowRight, LoaderCircle, LockKeyhole, UserRound } from "lucide-react";
+import { useFormStatus } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ function BoutonSoumettre() {
     <Button
       type="submit"
       disabled={pending}
-      className="mt-7 grid h-14 w-full grid-cols-[1fr_auto_1fr] items-center rounded-xl bg-neutral-950 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-neutral-800 focus-visible:ring-neutral-400 disabled:opacity-60"
+      className="mt-7 grid h-14 w-full grid-cols-[1fr_auto_1fr] items-center bg-primary px-5 text-base font-semibold text-primary-foreground shadow-carte transition-colors hover:bg-primary/90 focus-visible:ring-ring disabled:opacity-60"
       size="lg"
     >
       <span aria-hidden="true" />
@@ -53,7 +53,9 @@ export function FormulaireConnexion() {
 
       <div className={styles.formFields}>
         <div className={styles.formField}>
-          <Label htmlFor="identifiant" className={styles.formLabel}>Adresse e-mail ou téléphone</Label>
+          <Label htmlFor="identifiant" className={styles.formLabel}>
+            Adresse e-mail ou téléphone
+          </Label>
           <div className={styles.iconInput}>
             <UserRound className={styles.fieldIcon} size={19} aria-hidden="true" />
             <Input
@@ -70,12 +72,14 @@ export function FormulaireConnexion() {
               aria-invalid={Boolean(etat.erreur)}
               aria-describedby={etat.erreur ? "erreur-connexion" : undefined}
               placeholder="prenom.nom@lyceerenaissance.td"
-              className="h-14 rounded-xl border-neutral-200 bg-white pl-12 pr-4 text-base text-neutral-950 placeholder:text-neutral-400 focus-visible:border-neutral-400 focus-visible:ring-neutral-200"
+              className="h-14 rounded-xl border-border bg-card pl-12 pr-4 text-base text-foreground placeholder:text-muted-foreground focus-visible:border-border focus-visible:ring-border"
             />
           </div>
         </div>
         <div className={styles.formField}>
-          <Label htmlFor="motDePasse" className={styles.formLabel}>Mot de passe</Label>
+          <Label htmlFor="motDePasse" className={styles.formLabel}>
+            Mot de passe
+          </Label>
           <div className={styles.iconInput}>
             <LockKeyhole className={styles.fieldIcon} size={19} aria-hidden="true" />
             <ChampMotDePasse
@@ -86,11 +90,13 @@ export function FormulaireConnexion() {
               maxLength={256}
               aria-invalid={Boolean(etat.erreur)}
               aria-describedby={etat.erreur ? "erreur-connexion" : undefined}
-              className="h-14 rounded-xl border-neutral-200 bg-white pl-12 pr-12 text-base text-neutral-950 placeholder:text-neutral-400 focus-visible:border-neutral-400 focus-visible:ring-neutral-200"
+              className="h-14 rounded-xl border-border bg-card pl-12 pr-12 text-base text-foreground placeholder:text-muted-foreground focus-visible:border-border focus-visible:ring-border"
             />
           </div>
           <div className={styles.recoveryRow}>
-            <Link href="/auth/assistance" className={styles.recoveryLink}>Mot de passe oublié ?</Link>
+            <Link href="/auth/assistance" className={styles.recoveryLink}>
+              Mot de passe oublié ?
+            </Link>
           </div>
         </div>
       </div>

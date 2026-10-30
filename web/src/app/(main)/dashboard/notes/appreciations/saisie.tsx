@@ -12,10 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import type {
-  AvancementAppreciation,
-  LigneAppreciation,
-} from "@/server/domain/appreciations";
+import type { AvancementAppreciation, LigneAppreciation } from "@/server/domain/appreciations";
 
 import { enregistrerAppreciations } from "./actions";
 
@@ -95,10 +92,7 @@ export function SaisieAppreciations({
     routeur.push(`/dashboard/notes/appreciations?${p.toString()}`);
   }
 
-  const saisies = useMemo(
-    () => Object.values(valeurs).filter((v) => v.trim() !== "").length,
-    [valeurs],
-  );
+  const saisies = useMemo(() => Object.values(valeurs).filter((v) => v.trim() !== "").length, [valeurs]);
 
   function enregistrer() {
     demarrer(async () => {
@@ -120,8 +114,11 @@ export function SaisieAppreciations({
 
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
-        <CardHeader className="border-b bg-muted/20 pb-4"><CardTitle className="text-base">Choisir la classe, la matière et la période</CardTitle><CardDescription>Les appréciations sont enregistrées pour cette combinaison.</CardDescription></CardHeader>
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b bg-muted/20 pb-4">
+          <CardTitle className="text-base">Choisir la classe, la matière et la période</CardTitle>
+          <CardDescription>Les appréciations sont enregistrées pour cette combinaison.</CardDescription>
+        </CardHeader>
         <CardContent className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="grid gap-2">
             <Label htmlFor="a-classe">Classe</Label>
@@ -176,12 +173,12 @@ export function SaisieAppreciations({
       </Card>
 
       {avancement.length > 0 ? (
-        <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
+        <Card className="overflow-hidden">
           <CardHeader className="border-b bg-muted/20 pb-4">
             <CardTitle className="text-base">Avancement de la classe</CardTitle>
             <CardDescription>
-              Qui a rendu ses appréciations, et qui reste à relancer avant le conseil. Cliquez sur
-              une matière pour l&apos;ouvrir.
+              Qui a rendu ses appréciations, et qui reste à relancer avant le conseil. Cliquez sur une matière pour
+              l&apos;ouvrir.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -194,10 +191,10 @@ export function SaisieAppreciations({
                   type="button"
                   aria-pressed={a.matiereId === matiereId}
                   onClick={() => naviguer("matiere", a.matiereId)}
-                  className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-700 ${
+                  className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     a.matiereId === matiereId
-                      ? "border-cyan-800 bg-cyan-100 text-slate-950 ring-2 ring-cyan-800/30 dark:border-cyan-300 dark:bg-cyan-900 dark:text-white dark:ring-cyan-300/30"
-                      : "border-border bg-card text-foreground hover:border-cyan-700/50 hover:bg-muted/40"
+                      ? "border-info-trait bg-info-doux text-foreground ring-2 ring-info"
+                      : "border-border bg-card text-foreground hover:border-info-trait hover:bg-muted/40"
                   }`}
                 >
                   <span className="min-w-0">
@@ -208,11 +205,7 @@ export function SaisieAppreciations({
                   </span>
                   <span
                     className={`shrink-0 tabular-nums ${
-                      complet
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : vide
-                          ? "text-destructive"
-                          : "text-amber-600 dark:text-amber-400"
+                      complet ? "text-succes" : vide ? "text-destructive" : "text-alerte"
                     }`}
                   >
                     {a.saisies}/{a.attendues}
@@ -225,29 +218,33 @@ export function SaisieAppreciations({
       ) : null}
 
       {!pret ? (
-        <Card className="rounded-2xl border-border/70 shadow-sm">
-          <CardContent className="text-slate-600 dark:text-slate-300 py-12 text-center text-sm">
+        <Card>
+          <CardContent className="text-muted-foreground py-12 text-center text-sm">
             Choisissez une classe et une matière pour commencer la saisie.
           </CardContent>
         </Card>
       ) : lignes.length === 0 ? (
-        <Card className="rounded-2xl border-border/70 shadow-sm">
-          <CardContent className="text-slate-600 dark:text-slate-300 py-12 text-center text-sm">
+        <Card>
+          <CardContent className="text-muted-foreground py-12 text-center text-sm">
             Aucun élève inscrit dans cette classe.
           </CardContent>
         </Card>
       ) : (
-        <Card className="overflow-hidden rounded-2xl border-border/70 shadow-sm">
+        <Card className="overflow-hidden">
           <CardHeader className="border-b bg-muted/20 pb-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-base">Appréciations — {lignes.length} élèves</CardTitle>
                 <CardDescription>
-                  {saisies} / {lignes.length} rédigée(s). Sans appréciation, le bulletin imprime la
-                  mention déduite de la moyenne — qui ne fait que répéter le chiffre.
+                  {saisies} / {lignes.length} rédigée(s). Sans appréciation, le bulletin imprime la mention déduite de
+                  la moyenne — qui ne fait que répéter le chiffre.
                 </CardDescription>
               </div>
-              <Button onClick={enregistrer} disabled={enCours} className="bg-cyan-700 text-white shadow-sm hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500">
+              <Button
+                onClick={enregistrer}
+                disabled={enCours}
+                className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 dark:hover:bg-primary/90"
+              >
                 <Save aria-hidden />
                 {enCours ? "Enregistrement…" : "Enregistrer"}
               </Button>
@@ -256,21 +253,20 @@ export function SaisieAppreciations({
 
           <CardContent className="divide-y divide-border/70 p-0">
             {lignes.map((l) => (
-              <div key={l.inscriptionId} className="grid gap-3 px-4 py-4 odd:bg-muted/10 sm:grid-cols-[16rem_1fr] lg:gap-5">
+              <div
+                key={l.inscriptionId}
+                className="grid gap-3 px-4 py-4 odd:bg-muted/10 sm:grid-cols-[16rem_1fr] lg:gap-5"
+              >
                 <div className="text-sm">
                   <p className="font-medium">{l.eleve}</p>
-                  <p className="text-slate-600 dark:text-slate-300 text-xs tabular-nums">
+                  <p className="text-muted-foreground text-xs tabular-nums">
                     {l.moyenne === null ? (
-                      <span className="text-amber-600 dark:text-amber-400">
-                        pas encore de moyenne
-                      </span>
+                      <span className="text-alerte">pas encore de moyenne</span>
                     ) : (
                       <>
                         {l.moyenne.toFixed(2).replace(".", ",")}/20
                         {l.rangMatiere ? ` · ${l.rangMatiere}e` : ""}
-                        {l.moyenneClasse !== null
-                          ? ` · classe ${l.moyenneClasse.toFixed(2).replace(".", ",")}`
-                          : ""}
+                        {l.moyenneClasse !== null ? ` · classe ${l.moyenneClasse.toFixed(2).replace(".", ",")}` : ""}
                       </>
                     )}
                   </p>
@@ -281,9 +277,7 @@ export function SaisieAppreciations({
                     value={valeurs[l.inscriptionId] ?? ""}
                     maxLength={300}
                     placeholder="Appréciation du professeur…"
-                    onChange={(e) =>
-                      setValeurs((p) => ({ ...p, [l.inscriptionId]: e.target.value }))
-                    }
+                    onChange={(e) => setValeurs((p) => ({ ...p, [l.inscriptionId]: e.target.value }))}
                   />
                   {(valeurs[l.inscriptionId] ?? "") === "" ? (
                     <div className="flex flex-wrap gap-1.5">
@@ -292,7 +286,7 @@ export function SaisieAppreciations({
                           key={a}
                           type="button"
                           onClick={() => setValeurs((p) => ({ ...p, [l.inscriptionId]: a }))}
-                          className="text-slate-600 dark:text-slate-300 hover:bg-muted hover:text-foreground rounded-full border px-2.5 py-0.5 text-xs transition-colors"
+                          className="text-muted-foreground hover:bg-muted/90 hover:text-foreground rounded-full border px-2.5 py-0.5 text-xs transition-colors"
                         >
                           {a}
                         </button>
@@ -305,7 +299,11 @@ export function SaisieAppreciations({
           </CardContent>
 
           <CardContent className="border-t py-3">
-            <Button onClick={enregistrer} disabled={enCours} className="w-full bg-cyan-700 text-white shadow-sm hover:bg-cyan-800 sm:w-auto dark:bg-cyan-600 dark:hover:bg-cyan-500">
+            <Button
+              onClick={enregistrer}
+              disabled={enCours}
+              className="w-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:w-auto dark:hover:bg-primary/90"
+            >
               <Save aria-hidden />
               {enCours ? "Enregistrement…" : "Enregistrer les appréciations"}
             </Button>

@@ -99,8 +99,8 @@ export function SaisieConduite({
               <span className="text-muted-foreground ml-2 font-normal">{periodeLibelle}</span>
             </CardTitle>
             <CardDescription>
-              Sur 20, coefficient 2 au bulletin. Une conduite sous 8 fait basculer la mention en
-              avertissement, quels que soient les résultats. {saisies} / {lignes.length} noté(s).
+              Sur 20, coefficient 2 au bulletin. Une conduite sous 8 fait basculer la mention en avertissement, quels
+              que soient les résultats. {saisies} / {lignes.length} noté(s).
             </CardDescription>
           </div>
           <Button onClick={enregistrer} disabled={enCours}>
@@ -130,14 +130,10 @@ export function SaisieConduite({
                   <TableRow key={l.inscriptionId}>
                     <TableCell>
                       {l.eleve}
-                      <span className="text-muted-foreground ml-2 font-mono text-xs">
-                        {l.matricule}
-                      </span>
+                      <span className="text-muted-foreground ml-2 font-mono text-xs">{l.matricule}</span>
                     </TableCell>
                     <TableCell
-                      className={`text-right tabular-nums ${
-                        l.incidents > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
-                      }`}
+                      className={`text-right tabular-nums ${l.incidents > 0 ? "text-alerte" : "text-muted-foreground"}`}
                     >
                       {l.incidents || "—"}
                     </TableCell>
@@ -150,7 +146,7 @@ export function SaisieConduite({
                     </TableCell>
                     <TableCell
                       className={`text-right tabular-nums ${
-                        l.absencesNonJustifiees > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+                        l.absencesNonJustifiees > 0 ? "text-alerte" : "text-muted-foreground"
                       }`}
                     >
                       {l.absencesNonJustifiees || "—"}
@@ -164,11 +160,7 @@ export function SaisieConduite({
                         inputMode="decimal"
                         value={v.note}
                         onChange={(e) => maj(l.inscriptionId, "note", e.target.value)}
-                        className={
-                          note !== null && note < 8
-                            ? "border-destructive text-destructive"
-                            : undefined
-                        }
+                        className={note !== null && note < 8 ? "border-destructive text-destructive" : undefined}
                       />
                     </TableCell>
                     <TableCell>

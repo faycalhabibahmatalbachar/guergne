@@ -117,7 +117,7 @@ export function EventCalendarViews({
         ----------------------------------------------------------------------------------------- */
 
         blockEventClass={(info) => cn(
-          'group relative border-transparent print:border-(--fc-event-color) bg-(--fc-event-color) print:bg-white hover:bg-[color-mix(in_oklab,var(--fc-event-color)_92%,var(--fc-event-contrast-color))]',
+          'group relative border-transparent print:border-(--fc-event-color) bg-(--fc-event-color) print:bg-card hover:bg-[color-mix(in_oklab,var(--fc-event-color)_92%,var(--fc-event-contrast-color))]',
           info.isInteractive && 'active:bg-[color-mix(in_oklab,var(--fc-event-color)_85%,var(--fc-event-contrast-color))]',
           (info.isDragging && !info.isSelected) && 'opacity-75',
         )}
@@ -197,7 +197,7 @@ export function EventCalendarViews({
 
         moreLinkClass="focus-visible:outline-3 outline-ring/50"
         moreLinkInnerClass='whitespace-nowrap overflow-hidden'
-        columnMoreLinkClass="my-0.5 border border-transparent print:border-black rounded-md bg-[color-mix(in_oklab,var(--foreground)_10%,var(--background))] hover:bg-[color-mix(in_oklab,var(--foreground)_13%,var(--background))] print:bg-white ring ring-background"
+        columnMoreLinkClass="my-0.5 border border-transparent print:border-black rounded-md bg-[color-mix(in_oklab,var(--foreground)_10%,var(--background))] hover:bg-[color-mix(in_oklab,var(--foreground)_13%,var(--background))] print:bg-card ring ring-background"
         columnMoreLinkInnerClass={(info) => cn(
           info.isNarrow
             ? `p-0.5 ${xxsTextClass}`

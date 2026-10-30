@@ -94,9 +94,8 @@ export function BoutonDupliquer({
         <DialogHeader>
           <DialogTitle className="truncate">Reprendre « {titre} »</DialogTitle>
           <DialogDescription>
-            Type, titre, barème, poids et durée sont recopiés. Les notes ne le sont pas — ce sont
-            d&apos;autres élèves. Le professeur affecté à la classe d&apos;arrivée devient
-            responsable de la saisie.
+            Type, titre, barème, poids et durée sont recopiés. Les notes ne le sont pas — ce sont d&apos;autres élèves.
+            Le professeur affecté à la classe d&apos;arrivée devient responsable de la saisie.
           </DialogDescription>
         </DialogHeader>
 
@@ -107,31 +106,23 @@ export function BoutonDupliquer({
               {candidates.map((c) => (
                 <label
                   key={c.id}
-                  className="hover:bg-muted flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm"
+                  className="hover:bg-muted/90 flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm"
                 >
                   <Checkbox checked={choisies.has(c.id)} onCheckedChange={() => basculer(c.id)} />
                   {c.libelle}
                 </label>
               ))}
               {candidates.length === 0 ? (
-                <p className="text-muted-foreground px-2 py-1.5 text-sm">
-                  Aucune autre classe disponible.
-                </p>
+                <p className="text-muted-foreground px-2 py-1.5 text-sm">Aucune autre classe disponible.</p>
               ) : null}
             </div>
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="dup-date">Nouvelle date (facultatif)</Label>
-            <Input
-              id="dup-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+            <Input id="dup-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             <p className="text-muted-foreground text-xs">
-              Laissez vide pour garder la date d&apos;origine — le cas où les classes composent
-              ensemble.
+              Laissez vide pour garder la date d&apos;origine — le cas où les classes composent ensemble.
             </p>
           </div>
         </div>

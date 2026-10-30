@@ -6,11 +6,12 @@
  * Le même plan sert au devis et au dépôt dans la file d'envoi.
  */
 import { revalidatePath } from "next/cache";
-import { parametresUuid } from "@/lib/sql-uuid";
+
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { segmentsSms } from "@/lib/segments-sms";
+import { parametresUuid } from "@/lib/sql-uuid";
 import { COUT_SMS_FCFA } from "@/lib/tarifs";
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
@@ -60,7 +61,10 @@ export interface ApercuCanalClasse {
 
 const uuid = z.string().uuid();
 
-async function trouverTuteurs(executer: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0], classeId: string): Promise<LigneTuteur[]> {
+async function trouverTuteurs(
+  executer: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  classeId: string,
+): Promise<LigneTuteur[]> {
   const resultat = await executer.execute<LigneTuteur>(sql`
     SELECT i.eleve_id,
            t.id AS tuteur_id,
@@ -112,15 +116,14 @@ function planifier(lignes: LigneTuteur[], canal: CanalClasse): { depots: Depot[]
       ajouterSms = sms;
     } else if (politique !== "AUCUN") {
       ajouterPush = push && ["PUSH_SINON_SMS", "PUSH_ET_SMS", "PUSH_SEUL"].includes(politique);
-      ajouterSms = sms && (
-        ["SMS_SEUL", "PUSH_ET_SMS"].includes(politique) ||
-        (politique === "PUSH_SINON_SMS" && !push)
-      );
+      ajouterSms =
+        sms && (["SMS_SEUL", "PUSH_ET_SMS"].includes(politique) || (politique === "PUSH_SINON_SMS" && !push));
     } else {
       autoriserRepli = false;
     }
 
-    if (ajouterPush && compte) depots.push({ eleveId: l.eleve_id, destinataireId: compte, telephone: null, canal: "PUSH" });
+    if (ajouterPush && compte)
+      depots.push({ eleveId: l.eleve_id, destinataireId: compte, telephone: null, canal: "PUSH" });
     if (ajouterSms && telephone) depots.push({ eleveId: l.eleve_id, destinataireId: compte, telephone, canal: "SMS" });
     // Le repli IN_APP exige un compte ; jamais un SMS sans consentement.
     if (!ajouterPush && !ajouterSms && autoriserRepli && compte) {
@@ -139,7 +142,13 @@ function agreger(lignes: LigneTuteur[], titre: string, corps: string, canal: Can
   const parPush = depots.filter((d) => d.canal === "PUSH").length;
   const sansCanal = depots.filter((d) => d.canal === "IN_APP").length;
   return {
-    total: depots.length, parPush, parSms, sansCanal, exclus, tuteurs, segments,
+    total: depots.length,
+    parPush,
+    parSms,
+    sansCanal,
+    exclus,
+    tuteurs,
+    segments,
     coutFcfa: parSms * segments * COUT_SMS_FCFA,
   };
 }
@@ -157,8 +166,14 @@ export async function apercuClasseCanal(
   return agreger(lignes, titre, corps, canal);
 }
 
-export async function notifierClasseCanal(classeId: string, donnees: unknown): Promise<{
-  ok: boolean; message?: string; erreurs?: Record<string, string>; posees?: number;
+export async function notifierClasseCanal(
+  classeId: string,
+  donnees: unknown,
+): Promise<{
+  ok: boolean;
+  message?: string;
+  erreurs?: Record<string, string>;
+  posees?: number;
 }> {
   try {
     const acteur = await requirePermission("message:envoyer");
@@ -174,21 +189,26 @@ export async function notifierClasseCanal(classeId: string, donnees: unknown): P
       const devis = agreger(lignes, titre, corps, canal);
       if (devis.total === 0) return { ok: false, message: "Aucun destinataire joignable par le canal sélectionné." };
       if (devis.coutFcfa > plafondCoutFcfa || devis.total > plafondNotifications) {
-        return { ok: false, message: "Le nombre de notifications ou le coût a augmenté. Actualisez l’aperçu avant de confirmer l’envoi." };
+        return {
+          ok: false,
+          message: "Le nombre de notifications ou le coût a augmenté. Actualisez l’aperçu avant de confirmer l’envoi.",
+        };
       }
       const { depots } = planifier(lignes, canal);
       for (let index = 0; index < depots.length; index += 100) {
-        await tx.insert(notifications).values(depots.slice(index, index + 100).map((d) => ({
-          destinataireId: d.destinataireId,
-          telephone: d.telephone,
-          eleveId: d.eleveId,
-          type: "ANNONCE" as const,
-          canal: d.canal,
-          titre,
-          corps,
-          routeCible: `/eleves/${d.eleveId}`,
-          donnees: { origine: "page_classe", canalChoisi: canal },
-        })));
+        await tx.insert(notifications).values(
+          depots.slice(index, index + 100).map((d) => ({
+            destinataireId: d.destinataireId,
+            telephone: d.telephone,
+            eleveId: d.eleveId,
+            type: "ANNONCE" as const,
+            canal: d.canal,
+            titre,
+            corps,
+            routeCible: `/eleves/${d.eleveId}`,
+            donnees: { origine: "page_classe", canalChoisi: canal },
+          })),
+        );
       }
       return { ok: true, posees: depots.length, message: `${depots.length} notification(s) déposée(s) en file.` };
     });
@@ -207,7 +227,9 @@ export async function notifierClasseCanal(classeId: string, donnees: unknown): P
     } catch (erreurAudit) {
       console.error("[notifierClasseCanal:audit]", erreurAudit);
     }
-    try { reveillerFile(); } catch (erreurReveil) {
+    try {
+      reveillerFile();
+    } catch (erreurReveil) {
       console.error("[notifierClasseCanal:reveil]", erreurReveil);
     }
     revalidatePath("/dashboard/classes");
@@ -266,7 +288,12 @@ function verifierEleves(ids: string[]): string[] {
   return uniques;
 }
 
-export async function apercuElevesCanal(ids: string[], titre: string, corps: string, canal: CanalClasse): Promise<ApercuCanalClasse> {
+export async function apercuElevesCanal(
+  ids: string[],
+  titre: string,
+  corps: string,
+  canal: CanalClasse,
+): Promise<ApercuCanalClasse> {
   await requirePermission("message:envoyer");
   const selection = verifierEleves(ids);
   if (!modeSchema.safeParse(canal).success) throw new Error("Canal invalide");
@@ -276,12 +303,13 @@ export async function apercuElevesCanal(ids: string[], titre: string, corps: str
 export async function notifierElevesCanal(
   ids: string[],
   donnees: unknown,
-): Promise<{ok: boolean; message?: string; erreurs?: Record<string,string>; posees?: number}> {
+): Promise<{ ok: boolean; message?: string; erreurs?: Record<string, string>; posees?: number }> {
   try {
     const acteur = await requirePermission("message:envoyer");
     const selection = verifierEleves(ids);
     const validation = envoiSchema.safeParse(donnees);
-    if (!validation.success) return { ok: false, message: "Vérifiez le texte, le canal et l'estimation avant l'envoi." };
+    if (!validation.success)
+      return { ok: false, message: "Vérifiez le texte, le canal et l'estimation avant l'envoi." };
     const { titre, corps, canal, plafondCoutFcfa, plafondNotifications } = validation.data;
     const origine = selection.length === 1 ? "page_eleve" : "selection";
     const resultat = await db.transaction(async (tx) => {
@@ -293,16 +321,19 @@ export async function notifierElevesCanal(
       }
       const depots = planifier(lignes, canal).depots;
       for (let i = 0; i < depots.length; i += 100) {
-        await tx.insert(notifications).values(depots.slice(i, i + 100).map((d) => ({
-          destinataireId: d.destinataireId,
-          telephone: d.telephone,
-          eleveId: d.eleveId,
-          type: "ANNONCE" as const,
-          canal: d.canal,
-          titre, corps,
-          routeCible: `/eleves/${d.eleveId}`,
-          donnees: { origine, canalChoisi: canal },
-        })));
+        await tx.insert(notifications).values(
+          depots.slice(i, i + 100).map((d) => ({
+            destinataireId: d.destinataireId,
+            telephone: d.telephone,
+            eleveId: d.eleveId,
+            type: "ANNONCE" as const,
+            canal: d.canal,
+            titre,
+            corps,
+            routeCible: `/eleves/${d.eleveId}`,
+            donnees: { origine, canalChoisi: canal },
+          })),
+        );
       }
       return { ok: true, posees: depots.length, message: `${depots.length} notification(s) déposée(s) en file.` };
     });
@@ -318,13 +349,16 @@ export async function notifierElevesCanal(
     } catch (erreurAudit) {
       console.error("[notifierElevesCanal:audit]", erreurAudit);
     }
-    try { reveillerFile(); } catch (erreurReveil) {
+    try {
+      reveillerFile();
+    } catch (erreurReveil) {
       console.error("[notifierElevesCanal:reveil]", erreurReveil);
     }
     revalidatePath("/dashboard/eleves");
     return resultat;
   } catch (erreur) {
-    if (erreur instanceof ErreurAutorisation) return { ok: false, message: "Vous n'avez pas les droits pour prévenir les parents." };
+    if (erreur instanceof ErreurAutorisation)
+      return { ok: false, message: "Vous n'avez pas les droits pour prévenir les parents." };
     console.error("[notifierElevesCanal]", erreur);
     return { ok: false, message: "L'envoi n'a pas été confirmé." };
   }

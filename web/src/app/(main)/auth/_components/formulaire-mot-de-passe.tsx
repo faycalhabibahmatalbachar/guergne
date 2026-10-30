@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 
 import { ArrowRight, CircleAlert, KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
+import { useFormStatus } from "react-dom";
 
 import { Label } from "@/components/ui/label";
 
@@ -17,13 +17,21 @@ function BoutonSoumettre() {
     <button type="submit" disabled={pending} className={styles.recoverySubmit}>
       <span aria-hidden="true" />
       <span>{pending ? "Enregistrement…" : "Enregistrer le mot de passe"}</span>
-      {pending ? <LoaderCircle className="size-5 animate-spin justify-self-end" aria-hidden /> : <ArrowRight className="size-5 justify-self-end" aria-hidden />}
+      {pending ? (
+        <LoaderCircle className="size-5 animate-spin justify-self-end" aria-hidden />
+      ) : (
+        <ArrowRight className="size-5 justify-self-end" aria-hidden />
+      )}
     </button>
   );
 }
 
 function Champ({
-  id, libelle, nom, completion, description,
+  id,
+  libelle,
+  nom,
+  completion,
+  description,
 }: {
   id: string;
   libelle: string;
@@ -33,7 +41,9 @@ function Champ({
 }) {
   return (
     <div className={styles.formField}>
-      <Label htmlFor={id} className={styles.formLabel}>{libelle}</Label>
+      <Label htmlFor={id} className={styles.formLabel}>
+        {libelle}
+      </Label>
       <div className={styles.iconInput}>
         <KeyRound className={styles.fieldIcon} size={19} aria-hidden />
         <ChampMotDePasse
@@ -43,7 +53,7 @@ function Champ({
           required
           minLength={completion === "new-password" ? 10 : undefined}
           maxLength={128}
-          className="h-14 rounded-xl border-neutral-200 bg-white pl-12 pr-12 text-base text-neutral-950 focus-visible:ring-neutral-200"
+          className="h-14 rounded-xl border-border bg-card pl-12 pr-12 text-base text-foreground focus-visible:ring-border"
         />
       </div>
       {description ? <p className="text-muted-foreground text-xs leading-relaxed">{description}</p> : null}

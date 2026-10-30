@@ -32,9 +32,7 @@ import { NavUser } from "./nav-user";
  */
 function actionVisible(action: string | readonly string[] | undefined, autorisees: Set<string>): boolean {
   if (!action) return true;
-  return Array.isArray(action)
-    ? action.some((droit) => autorisees.has(droit))
-    : autorisees.has(action as string);
+  return Array.isArray(action) ? action.some((droit) => autorisees.has(droit)) : autorisees.has(action as string);
 }
 
 function filtrerMenu(groupes: NavGroup[], autorisees: Set<string>): NavGroup[] {
@@ -71,10 +69,7 @@ export function AppSidebar({ utilisateur, actionsAutorisees, ...props }: Props) 
   const variant = isSynced ? sidebarVariant : props.variant;
   const collapsible = isSynced ? sidebarCollapsible : props.collapsible;
 
-  const menu = useMemo(
-    () => filtrerMenu(sidebarItems, new Set(actionsAutorisees)),
-    [actionsAutorisees],
-  );
+  const menu = useMemo(() => filtrerMenu(sidebarItems, new Set(actionsAutorisees)), [actionsAutorisees]);
 
   return (
     <Sidebar {...props} variant={variant} collapsible={collapsible}>
@@ -90,16 +85,9 @@ export function AppSidebar({ utilisateur, actionsAutorisees, ...props }: Props) 
                   Fond blanc imposé — la couronne est verte et disparaîtrait
                   sur le bleu institutionnel.
                 */}
-                <div className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg border bg-white">
+                <div className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg border bg-card">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={APP_CONFIG.logoUrl}
-                    alt=""
-                    width={32}
-                    height={32}
-                    className="size-7"
-                    aria-hidden
-                  />
+                  <img src={APP_CONFIG.logoUrl} alt="" width={32} height={32} className="size-7" aria-hidden />
                 </div>
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate font-semibold text-sm">{APP_CONFIG.name}</span>

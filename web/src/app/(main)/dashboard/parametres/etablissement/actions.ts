@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
 import { and, eq, sql } from "drizzle-orm";
 
 import { journaliser } from "@/server/audit";
@@ -10,8 +11,7 @@ import { chargerIdentiteLycee } from "@/server/domain/identite-lycee";
 import { schemaIdentiteLycee } from "@/server/domain/identite-lycee-schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 
-type Resultat = { ok: true; message: string } |
-  { ok: false; message: string; erreurs?: Record<string, string> };
+type Resultat = { ok: true; message: string } | { ok: false; message: string; erreurs?: Record<string, string> };
 
 export async function enregistrerIdentiteLycee(saisie: unknown): Promise<Resultat> {
   try {
@@ -33,16 +33,18 @@ export async function enregistrerIdentiteLycee(saisie: unknown): Promise<Resulta
     }
 
     const { version, ...modifications } = analyse.data;
-    const maj = await db.update(etablissement)
+    const maj = await db
+      .update(etablissement)
       .set({ ...modifications, modifieLe: sql`now()` })
-      .where(and(
-        eq(etablissement.id, true),
-        sql`${etablissement.modifieLe}::text = ${version}`,
-      ))
+      .where(and(eq(etablissement.id, true), sql`${etablissement.modifieLe}::text = ${version}`))
       .returning({ id: etablissement.id });
 
     if (maj.length !== 1) {
-      return { ok: false, message: "Cette fiche a été modifiée par quelqu'un d'autre. Rechargez la page et vérifiez les nouvelles valeurs avant de réessayer." };
+      return {
+        ok: false,
+        message:
+          "Cette fiche a été modifiée par quelqu'un d'autre. Rechargez la page et vérifiez les nouvelles valeurs avant de réessayer.",
+      };
     }
 
     await journaliser(acteur, {

@@ -8,6 +8,12 @@ import { usePreferencesStore } from "@/stores/preferences/preferences-provider";
 
 const THEME_CYCLE = ["light", "dark", "system"] as const;
 
+const LIBELLES_MODE: Record<string, string> = {
+  light: "clair",
+  dark: "sombre",
+  system: "suivant le système",
+};
+
 export function ThemeSwitcher() {
   const { themeMode, setPreference } = usePreferencesStore(
     useShallow((state) => ({
@@ -24,7 +30,14 @@ export function ThemeSwitcher() {
   };
 
   return (
-    <Button size="icon" onClick={cycleTheme} aria-label={`Current theme: ${themeMode}. Click to cycle themes`}>
+    // Fantôme, comme les autres commandes de l'en-tête : en plein, ce bouton
+    // devenait un aplat de couleur primaire isolé à côté de la recherche.
+    <Button
+      size="icon"
+      variant="ghost"
+      onClick={cycleTheme}
+      aria-label={`Apparence : ${LIBELLES_MODE[themeMode] ?? themeMode}. Cliquer pour changer.`}
+    >
       {/* SYSTEM */}
       <Monitor className="hidden [html[data-theme-mode=system]_&]:block" />
 

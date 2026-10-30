@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+
+import { useRouter } from "next/navigation";
 
 import { Check, ChevronRight, ClipboardCheck, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -14,13 +15,13 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import { messageTelephoneInscription } from "@/lib/telephone";
+import { cn } from "@/lib/utils";
 
-import { inscrireEleve } from "../../actions";
 import { definirPhotoEleve } from "../../[id]/photo-actions";
-import { RechercherTuteur } from "./rechercher-tuteur";
+import { inscrireEleve } from "../../actions";
 import { PhotoInscription } from "./photo-inscription";
+import { RechercherTuteur } from "./rechercher-tuteur";
 
 interface ClasseOption {
   id: string;
@@ -89,7 +90,13 @@ function tuteurVide(cle: number, premier: boolean): Tuteur {
   };
 }
 
-const ETAPES = ["Identité & photo", "Coordonnées & santé", "Scolarité", "Parents & responsables", "Vérification"] as const;
+const ETAPES = [
+  "Identité & photo",
+  "Coordonnées & santé",
+  "Scolarité",
+  "Parents & responsables",
+  "Vérification",
+] as const;
 
 /**
  * Formulaire d'inscription.
@@ -101,7 +108,15 @@ const ETAPES = ["Identité & photo", "Coordonnées & santé", "Scolarité", "Par
  * Les données ne sont envoyées qu'à la dernière étape, en une seule
  * transaction : un dossier à moitié créé serait pire que pas de dossier.
  */
-export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto = true }: { classes: ClasseOption[]; modeFenetre?: boolean; peutPhoto?: boolean }) {
+export function FormulaireInscription({
+  classes,
+  modeFenetre = false,
+  peutPhoto = true,
+}: {
+  classes: ClasseOption[];
+  modeFenetre?: boolean;
+  peutPhoto?: boolean;
+}) {
   const routeur = useRouter();
   const [enCours, demarrer] = useTransition();
   const [etape, setEtape] = useState(0);
@@ -198,13 +213,15 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
       if (!["M", "F"].includes(eleve.sexe)) erreursLocales.sexe = "Sexe requis.";
       const d = new Date(eleve.dateNaissance);
       const age = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
-      if (!eleve.dateNaissance || !Number.isFinite(age) || age < 8 || age > 30) erreursLocales.dateNaissance = "Indiquez une date valide (âge 8 à 30 ans).";
+      if (!eleve.dateNaissance || !Number.isFinite(age) || age < 8 || age > 30)
+        erreursLocales.dateNaissance = "Indiquez une date valide (âge 8 à 30 ans).";
     }
     if (etape === 2 && !classes.some((cl) => cl.id === eleve.classeId && cl.effectif < cl.capaciteMax)) {
       erreursLocales.classeId = "Choisissez une classe ayant des places disponibles.";
     }
     if (etape === 3) {
-      if (tuteurs.filter((t) => t.estPrincipal).length !== 1) erreursLocales.tuteurs = "Désignez exactement un responsable principal.";
+      if (tuteurs.filter((t) => t.estPrincipal).length !== 1)
+        erreursLocales.tuteurs = "Désignez exactement un responsable principal.";
       tuteurs.forEach((t, i) => {
         if (t.nom.trim().length < 2) erreursLocales[`tuteurs.${i}.nom`] = "Nom requis.";
         if (t.prenom.trim().length < 2) erreursLocales[`tuteurs.${i}.prenom`] = "Prénom requis.";
@@ -227,7 +244,13 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
   return (
     <div className={cn("space-y-6", modeFenetre && "min-h-full space-y-4")}>
       {/* Fil d'étapes */}
-      <nav aria-label="Étapes de l'inscription" className={cn(modeFenetre && "sticky top-0 z-10 -mx-3 border-b border-slate-100 bg-white/95 px-3 py-3 backdrop-blur dark:border-border dark:bg-card/95")}>
+      <nav
+        aria-label="Étapes de l'inscription"
+        className={cn(
+          modeFenetre &&
+            "sticky top-0 z-10 -mx-3 border-b border-border bg-white/95 px-3 py-3 backdrop-blur dark:bg-card/95",
+        )}
+      >
         <ol className="flex flex-wrap gap-2">
           {ETAPES.map((titre, index) => (
             <li key={titre}>
@@ -239,9 +262,9 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                 className={cn(
                   "flex min-h-9 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm",
                   index === etape
-                    ? "border-blue-600 bg-blue-600 text-white"
+                    ? "border-info-trait bg-primary text-primary-foreground"
                     : index < etape
-                      ? "border-blue-200 bg-blue-50 text-blue-700"
+                      ? "border-info-trait bg-info-doux text-info"
                       : "text-muted-foreground",
                 )}
               >
@@ -263,13 +286,19 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
           <CardHeader>
             <CardTitle className="text-base">État civil</CardTitle>
             <CardDescription>
-              Ces informations figureront sur le bulletin et sur les documents officiels : saisissez-les
-              telles qu&apos;elles apparaissent sur l&apos;acte de naissance.
+              Ces informations figureront sur le bulletin et sur les documents officiels : saisissez-les telles
+              qu&apos;elles apparaissent sur l&apos;acte de naissance.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              {peutPhoto ? <PhotoInscription photo={photo} onChange={setPhoto} /> : <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-500">Un agent autorisé pourra ajouter la photo depuis le dossier.</p>}
+              {peutPhoto ? (
+                <PhotoInscription photo={photo} onChange={setPhoto} />
+              ) : (
+                <p className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Un agent autorisé pourra ajouter la photo depuis le dossier.
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="nom">Nom *</Label>
@@ -353,19 +382,11 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2 sm:col-span-2">
                 <Label htmlFor="adresse">Adresse</Label>
-                <Input
-                  id="adresse"
-                  value={eleve.adresse}
-                  onChange={(e) => majEleve("adresse", e.target.value)}
-                />
+                <Input id="adresse" value={eleve.adresse} onChange={(e) => majEleve("adresse", e.target.value)} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="quartier">Quartier</Label>
-                <Input
-                  id="quartier"
-                  value={eleve.quartier}
-                  onChange={(e) => majEleve("quartier", e.target.value)}
-                />
+                <Input id="quartier" value={eleve.quartier} onChange={(e) => majEleve("quartier", e.target.value)} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="telephone">Téléphone de l&apos;élève</Label>
@@ -394,8 +415,8 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
             <CardHeader>
               <CardTitle className="text-base">Santé et situation</CardTitle>
               <CardDescription>
-                Informations sensibles, visibles uniquement de la direction et de la vie scolaire.
-                Ne saisissez que ce qui est nécessaire à la sécurité de l&apos;élève.
+                Informations sensibles, visibles uniquement de la direction et de la vie scolaire. Ne saisissez que ce
+                qui est nécessaire à la sécurité de l&apos;élève.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -411,11 +432,7 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="allergies">Allergies</Label>
-                <Input
-                  id="allergies"
-                  value={eleve.allergies}
-                  onChange={(e) => majEleve("allergies", e.target.value)}
-                />
+                <Input id="allergies" value={eleve.allergies} onChange={(e) => majEleve("allergies", e.target.value)} />
               </div>
               <div className="grid gap-2 sm:col-span-2">
                 <Label htmlFor="observationsMedicales">Observations médicales</Label>
@@ -444,8 +461,8 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
             <CardHeader>
               <CardTitle className="text-base">Personne à contacter en urgence</CardTitle>
               <CardDescription>
-                Si elle diffère du tuteur principal. En cas d&apos;accident, c&apos;est ce numéro qui
-                sera composé en premier.
+                Si elle diffère du tuteur principal. En cas d&apos;accident, c&apos;est ce numéro qui sera composé en
+                premier.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-3">
@@ -509,11 +526,7 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
 
             <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="classeId">Classe d&apos;affectation *</Label>
-              <NativeSelect
-                id="classeId"
-                value={eleve.classeId}
-                onChange={(e) => majEleve("classeId", e.target.value)}
-              >
+              <NativeSelect id="classeId" value={eleve.classeId} onChange={(e) => majEleve("classeId", e.target.value)}>
                 <option value="">Choisir une classe…</option>
                 {classes.map((c) => {
                   const complete = c.effectif >= c.capaciteMax;
@@ -527,7 +540,7 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
               </NativeSelect>
               {erreur("classeId")}
               {classes.length === 0 ? (
-                <p className="text-amber-600 text-sm dark:text-amber-400">
+                <p className="text-alerte text-sm">
                   Aucune classe n&apos;existe pour l&apos;année en cours. Créez-les dans Paramètres.
                 </p>
               ) : null}
@@ -600,27 +613,66 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                 <RechercherTuteur
                   champId={`recherche-tuteur-${t.cle}`}
                   nomSelectionne={t.existantId ? t.prenom + " " + t.nom : null}
-                  onSelection={(p) => setTuteurs((liste) => liste.map((x) => x.cle === t.cle ? ({
-                    ...x, existantId: p.id, nom: p.nom, prenom: p.prenom,
-                    telephone: p.telephone, telephoneSecondaire: p.telephoneSecondaire ?? "",
-                    email: p.email ?? "", profession: p.profession ?? "", employeur: p.employeur ?? "",
-                    adresse: p.adresse ?? "", quartier: p.quartier ?? "", pieceIdentite: p.pieceIdentite ?? "",
-                    sexe: p.sexe ?? null, accepteSms: p.accepteSms,
-                  }) : x))}
-                  onEffacer={() => setTuteurs((liste) => liste.map((x) => x.cle === t.cle ? ({
-                    ...tuteurVide(x.cle, x.estPrincipal),
-                    lien: x.lien, estPrincipal: x.estPrincipal,
-                    estTuteurLegal: x.estTuteurLegal, estResponsableFinancier: x.estResponsableFinancier,
-                    estContactUrgence: x.estContactUrgence, autoriseRetrait: x.autoriseRetrait,
-                  }) : x))}
+                  onSelection={(p) =>
+                    setTuteurs((liste) =>
+                      liste.map((x) =>
+                        x.cle === t.cle
+                          ? {
+                              ...x,
+                              existantId: p.id,
+                              nom: p.nom,
+                              prenom: p.prenom,
+                              telephone: p.telephone,
+                              telephoneSecondaire: p.telephoneSecondaire ?? "",
+                              email: p.email ?? "",
+                              profession: p.profession ?? "",
+                              employeur: p.employeur ?? "",
+                              adresse: p.adresse ?? "",
+                              quartier: p.quartier ?? "",
+                              pieceIdentite: p.pieceIdentite ?? "",
+                              sexe: p.sexe ?? null,
+                              accepteSms: p.accepteSms,
+                            }
+                          : x,
+                      ),
+                    )
+                  }
+                  onEffacer={() =>
+                    setTuteurs((liste) =>
+                      liste.map((x) =>
+                        x.cle === t.cle
+                          ? {
+                              ...tuteurVide(x.cle, x.estPrincipal),
+                              lien: x.lien,
+                              estPrincipal: x.estPrincipal,
+                              estTuteurLegal: x.estTuteurLegal,
+                              estResponsableFinancier: x.estResponsableFinancier,
+                              estContactUrgence: x.estContactUrgence,
+                              autoriseRetrait: x.autoriseRetrait,
+                            }
+                          : x,
+                      ),
+                    )
+                  }
                 />
-                {t.existantId && <p className="text-xs text-blue-700">Parent existant sélectionné. Ses coordonnées sont conservées : pour les modifier, ouvrez sa fiche dans Comptes parents.</p>}
+                {t.existantId && (
+                  <p className="text-xs text-info">
+                    Parent existant sélectionné. Ses coordonnées sont conservées : pour les modifier, ouvrez sa fiche
+                    dans Comptes parents.
+                  </p>
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor={`t-sexe-${t.cle}`}>Sexe</Label>
-                    <NativeSelect id={`t-sexe-${t.cle}`} value={t.sexe ?? ""} disabled={Boolean(t.existantId)}
-                      onChange={e => majTuteur(t.cle, "sexe", e.target.value === "" ? null : e.target.value)}>
-                      <option value="">Non renseigné</option><option value="M">Masculin</option><option value="F">Féminin</option>
+                    <NativeSelect
+                      id={`t-sexe-${t.cle}`}
+                      value={t.sexe ?? ""}
+                      disabled={Boolean(t.existantId)}
+                      onChange={(e) => majTuteur(t.cle, "sexe", e.target.value === "" ? null : e.target.value)}
+                    >
+                      <option value="">Non renseigné</option>
+                      <option value="M">Masculin</option>
+                      <option value="F">Féminin</option>
                     </NativeSelect>
                   </div>
                   <div className="grid gap-2">
@@ -668,7 +720,8 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                     />
                     {erreur(`tuteurs.${index}.telephone`)}
                     <p className="text-muted-foreground text-xs">
-                      8 chiffres au Tchad (3, 6, 8 ou 9), avec ou sans +235. Pour un parent à l’étranger, saisissez son indicatif (+33, +225…).
+                      8 chiffres au Tchad (3, 6, 8 ou 9), avec ou sans +235. Pour un parent à l’étranger, saisissez son
+                      indicatif (+33, +225…).
                     </p>
                   </div>
                   <div className="grid gap-2">
@@ -711,18 +764,30 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor={`t-employeur-${t.cle}`}>Employeur</Label>
-                    <Input id={`t-employeur-${t.cle}`} value={t.employeur} disabled={Boolean(t.existantId)}
-                      onChange={e => majTuteur(t.cle, "employeur", e.target.value)} />
+                    <Input
+                      id={`t-employeur-${t.cle}`}
+                      value={t.employeur}
+                      disabled={Boolean(t.existantId)}
+                      onChange={(e) => majTuteur(t.cle, "employeur", e.target.value)}
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor={`t-quartier-${t.cle}`}>Quartier</Label>
-                    <Input id={`t-quartier-${t.cle}`} value={t.quartier} disabled={Boolean(t.existantId)}
-                      onChange={e => majTuteur(t.cle, "quartier", e.target.value)} />
+                    <Input
+                      id={`t-quartier-${t.cle}`}
+                      value={t.quartier}
+                      disabled={Boolean(t.existantId)}
+                      onChange={(e) => majTuteur(t.cle, "quartier", e.target.value)}
+                    />
                   </div>
                   <div className="grid gap-2 sm:col-span-2">
                     <Label htmlFor={`t-piece-${t.cle}`}>Numéro de pièce d'identité</Label>
-                    <Input id={`t-piece-${t.cle}`} value={t.pieceIdentite} disabled={Boolean(t.existantId)}
-                      onChange={e => majTuteur(t.cle, "pieceIdentite", e.target.value)} />
+                    <Input
+                      id={`t-piece-${t.cle}`}
+                      value={t.pieceIdentite}
+                      disabled={Boolean(t.existantId)}
+                      onChange={(e) => majTuteur(t.cle, "pieceIdentite", e.target.value)}
+                    />
                   </div>
                 </div>
 
@@ -749,9 +814,14 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
                     </label>
                   ))}
                 </div>
-                <label className="flex items-center gap-2 border-t border-slate-100 pt-3 text-xs dark:border-border">
-                  <input type="checkbox" checked={t.accepteSms} disabled={Boolean(t.existantId)}
-                    onChange={e => majTuteur(t.cle, "accepteSms", e.target.checked)} className="size-4 accent-blue-600" />
+                <label className="flex items-center gap-2 border-t border-border pt-3 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={t.accepteSms}
+                    disabled={Boolean(t.existantId)}
+                    onChange={(e) => majTuteur(t.cle, "accepteSms", e.target.checked)}
+                    className="size-4 accent-blue-600"
+                  />
                   Consentement du responsable à recevoir des SMS du lycée
                 </label>
               </CardContent>
@@ -769,36 +839,76 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
         </div>
       ) : null}
 
-      {etape === 4 ? <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base"><ClipboardCheck className="size-5 text-blue-600" aria-hidden />Vérification du dossier</CardTitle>
-          <CardDescription>Contrôlez les informations avant leur enregistrement. Le matricule et le numéro d’inscription sont attribués automatiquement.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-border dark:bg-muted/20">
-              <p className="text-xs text-slate-500">Identité</p><p className="mt-1 font-semibold">{eleve.prenom} {eleve.nom.toUpperCase()}</p><p className="mt-1 text-xs text-slate-500">{eleve.dateNaissance} · {eleve.sexe === "F" ? "Fille" : "Garçon"}</p>
+      {etape === 4 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ClipboardCheck className="size-5 text-info" aria-hidden />
+              Vérification du dossier
+            </CardTitle>
+            <CardDescription>
+              Contrôlez les informations avant leur enregistrement. Le matricule et le numéro d’inscription sont
+              attribués automatiquement.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-lg border border-border bg-muted/40 p-3 dark:bg-muted/20">
+                <p className="text-xs text-muted-foreground">Identité</p>
+                <p className="mt-1 font-semibold">
+                  {eleve.prenom} {eleve.nom.toUpperCase()}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {eleve.dateNaissance} · {eleve.sexe === "F" ? "Fille" : "Garçon"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/40 p-3 dark:bg-muted/20">
+                <p className="text-xs text-muted-foreground">Scolarité</p>
+                <p className="mt-1 font-semibold">
+                  {classes.find((cl) => cl.id === eleve.classeId)?.libelle ?? "Non affecté"}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{eleve.type.replaceAll("_", " ")}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/40 p-3 dark:bg-muted/20">
+                <p className="text-xs text-muted-foreground">Photo d’identité</p>
+                <p className="mt-1 font-semibold">{photo ? "Préparée" : "Aucune photo"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Ajout possible depuis le dossier après inscription</p>
+              </div>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-border dark:bg-muted/20">
-              <p className="text-xs text-slate-500">Scolarité</p><p className="mt-1 font-semibold">{classes.find((cl) => cl.id === eleve.classeId)?.libelle ?? "Non affecté"}</p><p className="mt-1 text-xs text-slate-500">{eleve.type.replaceAll("_", " ")}</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-border dark:bg-muted/20">
-              <p className="text-xs text-slate-500">Photo d’identité</p><p className="mt-1 font-semibold">{photo ? "Préparée" : "Aucune photo"}</p><p className="mt-1 text-xs text-slate-500">Ajout possible depuis le dossier après inscription</p>
-            </div>
-          </div>
-          <section className="rounded-lg border border-slate-200 p-3 dark:border-border">
-            <h3 className="text-sm font-bold">Parents et responsables ({tuteurs.length})</h3>
-            <div className="mt-2 divide-y divide-slate-100 dark:divide-border">{tuteurs.map((t) => <div key={t.cle} className="flex flex-wrap justify-between gap-2 py-2 text-xs">
-              <span><strong>{t.prenom} {t.nom}</strong> · {LIENS.find((l) => l.valeur === t.lien)?.libelle ?? t.lien}{t.estPrincipal ? " · Principal" : ""}{t.existantId ? " · Compte existant" : ""}</span>
-              <span className="tabular-nums text-slate-500">{t.telephone}</span>
-            </div>)}</div>
-          </section>
-          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200">L’élève, sa classe et ses rattachements sont enregistrés ensemble. Une photo sélectionnée est transférée ensuite. Aucun SMS n’est envoyé automatiquement.</p>
-        </CardContent>
-      </Card> : null}
+            <section className="rounded-lg border border-border p-3">
+              <h3 className="text-sm font-bold">Parents et responsables ({tuteurs.length})</h3>
+              <div className="mt-2 divide-y divide-border">
+                {tuteurs.map((t) => (
+                  <div key={t.cle} className="flex flex-wrap justify-between gap-2 py-2 text-xs">
+                    <span>
+                      <strong>
+                        {t.prenom} {t.nom}
+                      </strong>{" "}
+                      · {LIENS.find((l) => l.valeur === t.lien)?.libelle ?? t.lien}
+                      {t.estPrincipal ? " · Principal" : ""}
+                      {t.existantId ? " · Compte existant" : ""}
+                    </span>
+                    <span className="tabular-nums text-muted-foreground">{t.telephone}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <p className="rounded-lg border border-alerte-trait bg-alerte-doux p-3 text-xs leading-5 text-alerte">
+              L’élève, sa classe et ses rattachements sont enregistrés ensemble. Une photo sélectionnée est transférée
+              ensuite. Aucun SMS n’est envoyé automatiquement.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Navigation */}
-      <div className={cn("flex items-center justify-between gap-3", modeFenetre && "sticky bottom-0 z-10 -mx-3 border-t border-slate-100 bg-white/95 px-3 py-3 backdrop-blur dark:border-border dark:bg-card/95")}>
+      <div
+        className={cn(
+          "flex items-center justify-between gap-3",
+          modeFenetre &&
+            "sticky bottom-0 z-10 -mx-3 border-t border-border bg-white/95 px-3 py-3 backdrop-blur dark:bg-card/95",
+        )}
+      >
         <Button
           type="button"
           variant="outline"
@@ -809,11 +919,20 @@ export function FormulaireInscription({ classes, modeFenetre = false, peutPhoto 
         </Button>
 
         {etape < ETAPES.length - 1 ? (
-          <Button type="button" className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700" onClick={avancer}>
+          <Button
+            type="button"
+            className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+            onClick={avancer}
+          >
             Suivant <ChevronRight className="size-4" aria-hidden />
           </Button>
         ) : (
-          <Button type="button" className="gap-2 bg-blue-600 text-white hover:bg-blue-700" onClick={soumettre} disabled={enCours}>
+          <Button
+            type="button"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            onClick={soumettre}
+            disabled={enCours}
+          >
             <UserPlus aria-hidden />
             {enCours ? "Inscription…" : "Inscrire l'élève"}
           </Button>

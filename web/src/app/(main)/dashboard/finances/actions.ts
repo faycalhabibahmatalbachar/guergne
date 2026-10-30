@@ -8,14 +8,7 @@ import { z } from "zod";
 import { journaliser } from "@/server/audit";
 import { journaliserAtomiquement, preparerContexteAudit } from "@/server/audit-v2";
 import { db } from "@/server/db";
-import {
-  echeances,
-  exonerations,
-  grillesTarifaires,
-  inscriptions,
-  paiements,
-  tranches,
-} from "@/server/db/schema";
+import { echeances, exonerations, grillesTarifaires, inscriptions, paiements, tranches } from "@/server/db/schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 import { reveillerFile } from "@/server/notifications/reveil";
 
@@ -60,8 +53,16 @@ const schemaTarif = z.object({
   anneeId: z.string().uuid(),
   niveauId: z.string().uuid("Sélectionnez un niveau"),
   nature: z.enum([
-    "INSCRIPTION", "REINSCRIPTION", "SCOLARITE", "APE", "TENUE",
-    "EXAMEN", "FOURNITURES", "TRANSPORT", "CANTINE", "AUTRE",
+    "INSCRIPTION",
+    "REINSCRIPTION",
+    "SCOLARITE",
+    "APE",
+    "TENUE",
+    "EXAMEN",
+    "FOURNITURES",
+    "TRANSPORT",
+    "CANTINE",
+    "AUTRE",
   ]),
   libelle: z.string().trim().min(3, "Libellé requis"),
   montantFcfa: z.coerce.number().int().min(0).max(10_000_000),
@@ -249,9 +250,7 @@ export async function genererEcheanciers(anneeId: string, classeId?: string): Pr
             ),
           );
 
-        const applicables = tarifs.filter((t) =>
-          estNouveau ? t.applicableNouveaux : t.applicableAnciens,
-        );
+        const applicables = tarifs.filter((t) => (estNouveau ? t.applicableNouveaux : t.applicableAnciens));
         if (applicables.length === 0) continue;
 
         const total = applicables.reduce((s, t) => s + Number(t.montantFcfa), 0);
@@ -261,9 +260,7 @@ export async function genererEcheanciers(anneeId: string, classeId?: string): Pr
         const lignes = listeTranches.map((t, index) => {
           const dernier = index === listeTranches.length - 1;
           // Le reliquat d'arrondi va sur la dernière tranche.
-          const montant = dernier
-            ? total - cumul
-            : Math.round((total * Number(t.pourcentage)) / 100);
+          const montant = dernier ? total - cumul : Math.round((total * Number(t.pourcentage)) / 100);
           cumul += montant;
 
           return {
@@ -333,34 +330,39 @@ export async function encaisser(donnees: unknown): Promise<Resultat & { numeroRe
         sql`SELECT prochain_numero('RECU', ${anneeCivile}::smallint) AS numero`,
       );
       const numeroRecu = res.rows[0].numero;
-      const [paiement] = await tx.insert(paiements).values({
-        inscriptionId: v.inscriptionId,
-        echeanceId: v.echeanceId,
-        numeroRecu,
-        montantFcfa: v.montantFcfa,
-        mode: v.mode,
-        referenceExterne: v.referenceExterne || null,
-        nomPayeur: v.nomPayeur || null,
-        datePaiement: v.datePaiement,
-        observations: v.observations || null,
-        encaissePar: acteur.id,
-      }).returning({id:paiements.id});
-      const [insc] = await tx.select({eleveId:inscriptions.eleveId})
-        .from(inscriptions).where(eq(inscriptions.id,v.inscriptionId));
+      const [paiement] = await tx
+        .insert(paiements)
+        .values({
+          inscriptionId: v.inscriptionId,
+          echeanceId: v.echeanceId,
+          numeroRecu,
+          montantFcfa: v.montantFcfa,
+          mode: v.mode,
+          referenceExterne: v.referenceExterne || null,
+          nomPayeur: v.nomPayeur || null,
+          datePaiement: v.datePaiement,
+          observations: v.observations || null,
+          encaissePar: acteur.id,
+        })
+        .returning({ id: paiements.id });
+      const [insc] = await tx
+        .select({ eleveId: inscriptions.eleveId })
+        .from(inscriptions)
+        .where(eq(inscriptions.id, v.inscriptionId));
 
       await journaliserAtomiquement(tx, acteur, contexte, {
         action: "paiement.encaisse",
         entite: "paiements",
         entiteId: paiement.id,
         eleveId: insc?.eleveId ?? null,
-        apres: { numeroRecu, montantFcfa:v.montantFcfa, mode:v.mode, datePaiement:v.datePaiement },
+        apres: { numeroRecu, montantFcfa: v.montantFcfa, mode: v.mode, datePaiement: v.datePaiement },
       });
       return numeroRecu;
     });
 
     reveillerFile();
     revalidatePath("/dashboard/finances");
-    return { ok:true, numeroRecu:resultat, message:`Reçu ${resultat} enregistré.` };
+    return { ok: true, numeroRecu: resultat, message: `Reçu ${resultat} enregistré.` };
   } catch (e) {
     return echec(e, "L'encaissement a échoué.");
   }
@@ -469,11 +471,7 @@ export async function exonerer(donnees: unknown): Promise<Resultat> {
       const cibles = await tx
         .select({ id: echeances.id, du: echeances.montantDuFcfa, exo: echeances.montantExonereFcfa })
         .from(echeances)
-        .where(
-          v.echeanceId
-            ? eq(echeances.id, v.echeanceId)
-            : eq(echeances.inscriptionId, v.inscriptionId),
-        );
+        .where(v.echeanceId ? eq(echeances.id, v.echeanceId) : eq(echeances.inscriptionId, v.inscriptionId));
 
       for (const cible of cibles) {
         const du = Number(cible.du);
@@ -484,10 +482,7 @@ export async function exonerer(donnees: unknown): Promise<Resultat> {
             : Math.min(v.montantFcfa ?? 0, du - dejaExonere);
 
         const nouveau = Math.min(du, dejaExonere + remise);
-        await tx
-          .update(echeances)
-          .set({ montantExonereFcfa: nouveau })
-          .where(eq(echeances.id, cible.id));
+        await tx.update(echeances).set({ montantExonereFcfa: nouveau }).where(eq(echeances.id, cible.id));
 
         // Une exonération ciblée ne s'applique qu'une fois.
         if (v.montantFcfa != null) break;

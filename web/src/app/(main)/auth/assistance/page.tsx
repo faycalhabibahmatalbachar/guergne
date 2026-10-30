@@ -1,7 +1,7 @@
 import Link from "next/link";
-import type { Metadata } from "next";
 
 import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 
 import { DemandeReinitialisation } from "../_components/demande-reinitialisation";
 import { HabillageAuthentification } from "../_components/habillage-authentification";
@@ -19,8 +19,8 @@ export default function PageAssistanceConnexion() {
         <header className={styles.formHeading}>
           <h1>Mot de passe oublié ?</h1>
           <p>
-            Saisissez votre adresse e-mail professionnelle. Nous vous enverrons les
-            instructions pour définir un nouveau mot de passe.
+            Saisissez votre adresse e-mail professionnelle. Nous vous enverrons les instructions pour définir un nouveau
+            mot de passe.
           </p>
         </header>
 

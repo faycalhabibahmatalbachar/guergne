@@ -61,10 +61,7 @@ export async function deplacerCours(donnees: unknown): Promise<ResultatDeplaceme
     if (!avant.rows[0]) return { ok: false, message: "Cours introuvable." };
 
     // Rien à faire : on le dit plutôt que d'écrire une ligne d'audit vide.
-    if (
-      Number(avant.rows[0].jour) === v.jourSemaine &&
-      avant.rows[0].creneau_id === v.creneauId
-    ) {
+    if (Number(avant.rows[0].jour) === v.jourSemaine && avant.rows[0].creneau_id === v.creneauId) {
       return { ok: true, message: "Le cours est déjà à cet emplacement." };
     }
 

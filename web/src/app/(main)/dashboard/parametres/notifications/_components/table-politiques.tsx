@@ -82,13 +82,7 @@ function Canal({ politique }: { politique: string }) {
  * bascule les devoirs en « Application ET SMS » doit voir, à l'écran, que cela
  * représente soixante messages par famille et par semaine.
  */
-export function TablePolitiques({
-  lignes,
-  seuilIncident,
-}: {
-  lignes: LignePolitique[];
-  seuilIncident: string;
-}) {
+export function TablePolitiques({ lignes, seuilIncident }: { lignes: LignePolitique[]; seuilIncident: string }) {
   const routeur = useRouter();
   const [enCours, demarrer] = useTransition();
 
@@ -100,9 +94,7 @@ export function TablePolitiques({
     });
   }
 
-  const factures = lignes.filter((l) =>
-    ["PUSH_ET_SMS", "SMS_SEUL", "PUSH_SINON_SMS"].includes(l.politique),
-  ).length;
+  const factures = lignes.filter((l) => ["PUSH_ET_SMS", "SMS_SEUL", "PUSH_SINON_SMS"].includes(l.politique)).length;
 
   return (
     <div className="space-y-6">
@@ -110,10 +102,9 @@ export function TablePolitiques({
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Canal par type d&apos;événement</CardTitle>
           <CardDescription>
-            Le SMS est le seul poste de dépense variable de l&apos;établissement. Les
-            notifications de l&apos;application sont gratuites, mais n&apos;atteignent que les
-            parents qui l&apos;ont installée. {factures} type(s) sur {lignes.length} peuvent
-            engendrer un SMS.
+            Le SMS est le seul poste de dépense variable de l&apos;établissement. Les notifications de
+            l&apos;application sont gratuites, mais n&apos;atteignent que les parents qui l&apos;ont installée.{" "}
+            {factures} type(s) sur {lignes.length} peuvent engendrer un SMS.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -133,13 +124,9 @@ export function TablePolitiques({
                   <TableRow key={l.type}>
                     <TableCell>
                       <p className="font-medium">{l.libelle}</p>
-                      {l.description ? (
-                        <p className="text-muted-foreground max-w-md text-xs">{l.description}</p>
-                      ) : null}
+                      {l.description ? <p className="text-muted-foreground max-w-md text-xs">{l.description}</p> : null}
                       {l.volumeAttendu ? (
-                        <p className="text-muted-foreground mt-0.5 text-xs italic">
-                          {l.volumeAttendu}
-                        </p>
+                        <p className="text-muted-foreground mt-0.5 text-xs italic">{l.volumeAttendu}</p>
                       ) : null}
                     </TableCell>
 
@@ -181,9 +168,8 @@ export function TablePolitiques({
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Seuil de signalement des incidents</CardTitle>
           <CardDescription>
-            Ce réglage ne choisit pas un canal mais ce qui mérite d&apos;être signalé. Un
-            bavardage en classe ne justifie pas de faire sonner le téléphone d&apos;un parent au
-            travail.
+            Ce réglage ne choisit pas un canal mais ce qui mérite d&apos;être signalé. Un bavardage en classe ne
+            justifie pas de faire sonner le téléphone d&apos;un parent au travail.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -1,10 +1,11 @@
-import type { StatistiquesParents } from "@/server/domain/parents";
 import type { EtatFile } from "@/server/domain/communication";
+import type { StatistiquesParents } from "@/server/domain/parents";
+
 import type { SettingsCard } from "../settings-catalog";
-import type { AccesModule } from "./settings-category-panel";
-import type { ApercuPolitique } from "./communication-policies";
 import type { InvitationOverview, NotificationOverview } from "./communication-operations";
+import type { ApercuPolitique } from "./communication-policies";
 import { CommunicationWorkspace } from "./communication-workspace";
+import type { AccesModule } from "./settings-category-panel";
 
 /** Adaptateur serveur : ne transmet que des données sérialisables au module interactif. */
 export interface CouvertureFamilles {
@@ -14,7 +15,17 @@ export interface CouvertureFamilles {
 }
 
 export function CommunicationSettingsPanel({
-  items, accesModules, joursInvitations, graviteIncident, parents, couverture, file, echecs30Jours, politiques, invitations, suiviNotifications,
+  items,
+  accesModules,
+  joursInvitations,
+  graviteIncident,
+  parents,
+  couverture,
+  file,
+  echecs30Jours,
+  politiques,
+  invitations,
+  suiviNotifications,
 }: {
   items: SettingsCard[];
   accesModules: AccesModule[];

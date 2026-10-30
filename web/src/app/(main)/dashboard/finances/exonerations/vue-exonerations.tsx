@@ -7,14 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formaterFcfa } from "@/lib/finances-format";
 import type { LigneExoneration } from "@/server/domain/caisse";
 
@@ -116,9 +109,7 @@ export function VueExonerations({
             <CardTitle className="text-sm font-medium">Total renoncé</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-semibold text-2xl tabular-nums">
-              {formaterFcfa(historique.total)}
-            </p>
+            <p className="font-semibold text-2xl tabular-nums">{formaterFcfa(historique.total)}</p>
             <p className="text-muted-foreground mt-1 text-xs">
               {historique.lignes.length} exonération(s), pourcentages convertis en francs.
             </p>
@@ -128,9 +119,7 @@ export function VueExonerations({
         {historique.parMotif.slice(0, 3).map((m) => (
           <Card key={m.motif}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
-                {LIBELLE_MOTIF[m.motif] ?? m.motif}
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">{LIBELLE_MOTIF[m.motif] ?? m.motif}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="font-semibold text-2xl tabular-nums">{formaterFcfa(m.total)}</p>
@@ -144,16 +133,13 @@ export function VueExonerations({
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Détail</CardTitle>
           <CardDescription>
-            De la plus récente à la plus ancienne. La justification est écrite en toutes lettres :
-            c&apos;est elle qu&apos;on relit quand un parent demande pourquoi son voisin paie
-            moins.
+            De la plus récente à la plus ancienne. La justification est écrite en toutes lettres : c&apos;est elle
+            qu&apos;on relit quand un parent demande pourquoi son voisin paie moins.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {historique.lignes.length === 0 ? (
-            <p className="text-muted-foreground py-12 text-center text-sm">
-              Aucune exonération avec ces critères.
-            </p>
+            <p className="text-muted-foreground py-12 text-center text-sm">Aucune exonération avec ces critères.</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -175,26 +161,17 @@ export function VueExonerations({
                         {new Date(`${l.dateAccord}T00:00:00`).toLocaleDateString("fr-FR")}
                       </TableCell>
                       <TableCell>
-                        <Link
-                          href={`/dashboard/eleves/${l.eleveId}`}
-                          className="font-medium hover:underline"
-                        >
+                        <Link href={`/dashboard/eleves/${l.eleveId}`} className="font-medium hover:underline">
                           {l.eleve}
                         </Link>
-                        <span className="text-muted-foreground ml-2 font-mono text-xs">
-                          {l.matricule}
-                        </span>
+                        <span className="text-muted-foreground ml-2 font-mono text-xs">{l.matricule}</span>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{l.classe}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{LIBELLE_MOTIF[l.motif] ?? l.motif}</Badge>
                       </TableCell>
-                      <TableCell className="max-w-72 text-muted-foreground text-sm">
-                        {l.justification}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {l.accordePar ?? "—"}
-                      </TableCell>
+                      <TableCell className="max-w-72 text-muted-foreground text-sm">{l.justification}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{l.accordePar ?? "—"}</TableCell>
                       <TableCell className="text-right font-medium tabular-nums">
                         {formaterFcfa(l.montantEffectif)}
                         {l.pourcentage !== null ? (

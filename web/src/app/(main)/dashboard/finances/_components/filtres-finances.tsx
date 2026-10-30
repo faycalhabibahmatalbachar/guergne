@@ -21,11 +21,7 @@ import { NativeSelect } from "@/components/ui/native-select";
  * Les deux filtres sont donc distincts, et libellés pour qu'on ne les prenne
  * pas l'un pour l'autre.
  */
-export function FiltresFinances({
-  classes,
-}: {
-  classes: Array<{ id: string; libelle: string }>;
-}) {
+export function FiltresFinances({ classes }: { classes: Array<{ id: string; libelle: string }> }) {
   const routeur = useRouter();
   const params = useSearchParams();
 
@@ -46,10 +42,7 @@ export function FiltresFinances({
       <div className="grid gap-2">
         <Label htmlFor="f-recherche">Élève</Label>
         <div className="relative w-56">
-          <Search
-            aria-hidden
-            className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 size-4"
-          />
+          <Search aria-hidden className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 size-4" />
           <Input
             id="f-recherche"
             className="pl-8"

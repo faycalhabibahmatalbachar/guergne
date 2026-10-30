@@ -145,9 +145,7 @@ export function AvisConseil({
                 defaultValue={appreciation ?? ""}
                 placeholder="Élève sérieux, en progrès constant. Doit consolider les mathématiques."
               />
-              <p className="text-muted-foreground text-xs">
-                Elle figure sur le bulletin remis à la famille.
-              </p>
+              <p className="text-muted-foreground text-xs">Elle figure sur le bulletin remis à la famille.</p>
             </div>
 
             <div className="space-y-1.5">
@@ -160,8 +158,7 @@ export function AvisConseil({
                 ))}
               </NativeSelect>
               <p className="text-muted-foreground text-xs">
-                N&apos;apparaît sur le bulletin qu&apos;à la dernière période, et conditionne sa
-                publication.
+                N&apos;apparaît sur le bulletin qu&apos;à la dernière période, et conditionne sa publication.
               </p>
             </div>
           </fieldset>

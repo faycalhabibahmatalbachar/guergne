@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+
+import { useRouter } from "next/navigation";
 
 import { Check, Copy, KeyRound, Plus, Search, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -77,8 +78,7 @@ export function CreerParent() {
     code?: string;
   } | null>(null);
 
-  const erreur = (c: string) =>
-    erreurs[c] ? <p className="text-destructive text-sm">{erreurs[c]}</p> : null;
+  const erreur = (c: string) => (erreurs[c] ? <p className="text-destructive text-sm">{erreurs[c]}</p> : null);
 
   function chercher(terme: string) {
     setRecherche(terme);
@@ -112,9 +112,7 @@ export function CreerParent() {
   }
 
   const majRattachement = (id: string, champ: keyof Rattachement, valeur: unknown) =>
-    setRattachements((liste) =>
-      liste.map((r) => (r.id === id ? { ...r, [champ]: valeur } : r)),
-    );
+    setRattachements((liste) => liste.map((r) => (r.id === id ? { ...r, [champ]: valeur } : r)));
 
   function soumettre(f: FormData) {
     setErreurs({});
@@ -167,7 +165,11 @@ export function CreerParent() {
 
   return (
     <>
-      <Button size="sm" className="h-10 gap-2 rounded-lg bg-emerald-700 px-4 font-semibold text-white shadow-sm hover:bg-emerald-800" onClick={() => setOuvert(true)}>
+      <Button
+        size="sm"
+        className="bg-succes font-semibold text-primary-foreground shadow-sm hover:bg-succes/90"
+        onClick={() => setOuvert(true)}
+      >
         <UserPlus aria-hidden />
         Nouveau compte parent
       </Button>
@@ -178,8 +180,8 @@ export function CreerParent() {
             <DialogHeader>
               <DialogTitle>Nouveau compte parent</DialogTitle>
               <DialogDescription>
-                Le mot de passe est généré automatiquement et affiché une seule fois. Le parent
-                devra en choisir un autre à sa première connexion.
+                Le mot de passe est généré automatiquement et affiché une seule fois. Le parent devra en choisir un
+                autre à sa première connexion.
               </DialogDescription>
             </DialogHeader>
 
@@ -219,9 +221,7 @@ export function CreerParent() {
                     <Label htmlFor="telephone">Téléphone *</Label>
                     <Input id="telephone" name="telephone" placeholder="66 00 00 00" required />
                     {erreur("telephone")}
-                    <p className="text-muted-foreground text-xs">
-                      C&apos;est son identifiant de connexion.
-                    </p>
+                    <p className="text-muted-foreground text-xs">C&apos;est son identifiant de connexion.</p>
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="telephoneSecondaire">Second numéro</Label>
@@ -291,7 +291,7 @@ export function CreerParent() {
                           key={e.id}
                           type="button"
                           onClick={() => rattacher(e)}
-                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted/90"
                         >
                           <span>
                             {e.prenom} {e.nom}
@@ -339,9 +339,7 @@ export function CreerParent() {
                               size="icon"
                               variant="ghost"
                               className="size-8"
-                              onClick={() =>
-                                setRattachements((liste) => liste.filter((x) => x.id !== r.id))
-                              }
+                              onClick={() => setRattachements((liste) => liste.filter((x) => x.id !== r.id))}
                             >
                               <Trash2 className="size-3.5" aria-hidden />
                               <span className="sr-only">Retirer</span>
@@ -391,12 +389,7 @@ export function CreerParent() {
                   Ouvrir un accès (mot de passe généré + code d&apos;activation)
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="accepteSms"
-                    defaultChecked
-                    className="size-4 accent-primary"
-                  />
+                  <input type="checkbox" name="accepteSms" defaultChecked className="size-4 accent-primary" />
                   Envoyer les identifiants par SMS
                 </label>
               </section>
@@ -421,9 +414,8 @@ export function CreerParent() {
               Identifiants de {identifiants?.nom}
             </DialogTitle>
             <DialogDescription>
-              Notez-les ou remettez-les au parent maintenant. Ils ne seront plus affichés : le mot
-              de passe est stocké chiffré, le code sous forme d&apos;empreinte — personne ne peut
-              les relire, pas même un administrateur.
+              Notez-les ou remettez-les au parent maintenant. Ils ne seront plus affichés : le mot de passe est stocké
+              chiffré, le code sous forme d&apos;empreinte — personne ne peut les relire, pas même un administrateur.
             </DialogDescription>
           </DialogHeader>
 

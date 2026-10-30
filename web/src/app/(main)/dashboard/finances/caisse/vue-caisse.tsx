@@ -9,14 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formaterFcfa } from "@/lib/finances-format";
 import type { JournalCaisse } from "@/server/domain/caisse";
 
@@ -99,12 +92,9 @@ export function VueCaisse({ journal }: { journal: JournalCaisse }) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-semibold text-2xl tabular-nums">
-              {formaterFcfa(journal.especesNet)}
-            </p>
+            <p className="font-semibold text-2xl tabular-nums">{formaterFcfa(journal.especesNet)}</p>
             <p className="text-muted-foreground mt-1 text-xs">
-              Espèces uniquement, annulations déduites. C&apos;est ce qui doit se compter dans le
-              tiroir.
+              Espèces uniquement, annulations déduites. C&apos;est ce qui doit se compter dans le tiroir.
             </p>
           </CardContent>
         </Card>
@@ -156,16 +146,13 @@ export function VueCaisse({ journal }: { journal: JournalCaisse }) {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Écritures du jour</CardTitle>
           <CardDescription>
-            Dans l&apos;ordre d&apos;encaissement. Les annulations apparaissent en négatif et ne
-            sont jamais retirées — une caisse dont on efface les erreurs n&apos;est plus
-            vérifiable.
+            Dans l&apos;ordre d&apos;encaissement. Les annulations apparaissent en négatif et ne sont jamais retirées —
+            une caisse dont on efface les erreurs n&apos;est plus vérifiable.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {journal.lignes.length === 0 ? (
-            <p className="text-muted-foreground py-12 text-center text-sm">
-              Aucun encaissement ce jour-là.
-            </p>
+            <p className="text-muted-foreground py-12 text-center text-sm">Aucun encaissement ce jour-là.</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -195,31 +182,21 @@ export function VueCaisse({ journal }: { journal: JournalCaisse }) {
                       </TableCell>
                       <TableCell>
                         {l.eleve}
-                        <span className="text-muted-foreground ml-2 font-mono text-xs">
-                          {l.matricule}
-                        </span>
+                        <span className="text-muted-foreground ml-2 font-mono text-xs">{l.matricule}</span>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{l.classe}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {LIBELLES[l.mode] ?? l.mode}
-                        {l.reference ? (
-                          <span className="ml-1.5 font-mono text-xs">{l.reference}</span>
-                        ) : null}
+                        {l.reference ? <span className="ml-1.5 font-mono text-xs">{l.reference}</span> : null}
                       </TableCell>
                       <TableCell className="text-muted-foreground">{l.payeur ?? "—"}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {l.encaissePar ?? "—"}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{l.encaissePar ?? "—"}</TableCell>
                       <TableCell
-                        className={`text-right font-medium tabular-nums ${
-                          l.montant < 0 ? "text-destructive" : ""
-                        }`}
+                        className={`text-right font-medium tabular-nums ${l.montant < 0 ? "text-destructive" : ""}`}
                       >
                         {formaterFcfa(l.montant)}
                         {l.motifAnnulation ? (
-                          <span className="text-muted-foreground block text-xs font-normal">
-                            {l.motifAnnulation}
-                          </span>
+                          <span className="text-muted-foreground block text-xs font-normal">{l.motifAnnulation}</span>
                         ) : null}
                       </TableCell>
                     </TableRow>

@@ -15,10 +15,19 @@ const badgeVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
         outline:
-          "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
+          "border-border text-foreground [a]:hover:bg-muted/90 [a]:hover:text-muted-foreground",
         ghost:
-          "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
+          "hover:bg-muted/90 hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
+
+        // Variantes d'etat. Elles portent un sens metier precis et ne servent
+        // jamais de decoration. Un badge d'etat porte toujours un libelle en
+        // plus de sa couleur : 8 % des hommes ne distinguent pas vert et rouge.
+        succes: "border-succes-trait bg-succes-doux text-succes",
+        alerte: "border-alerte-trait bg-alerte-doux text-alerte",
+        danger: "border-danger-trait bg-danger-doux text-danger",
+        info: "border-info-trait bg-info-doux text-info",
+        neutre: "border-neutre-trait bg-neutre-doux text-neutre",
       },
     },
     defaultVariants: {

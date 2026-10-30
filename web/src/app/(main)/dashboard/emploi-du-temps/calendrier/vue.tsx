@@ -1,9 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { EvenementCalendaireDate, JourCalendrier } from "@/server/domain/calendrier-scolaire";
-import { GestionEvenements } from "./gestion-evenements";
-import { HorairesScolairesResume } from "../_components/horaires-scolaires-resume";
 import type { PlageHoraireScolaire } from "@/server/domain/horaires-scolaires";
+
+import { HorairesScolairesResume } from "../_components/horaires-scolaires-resume";
+import { GestionEvenements } from "./gestion-evenements";
 
 interface EvenementAffiche extends EvenementCalendaireDate {
   description: string | null;
@@ -35,18 +36,18 @@ const TYPES: Record<string, string> = {
 
 function classeEvenement(evenement: EvenementAffiche): string {
   if (evenement.statutValidation === "A_VERIFIER") {
-    return "border-amber-500/40 bg-amber-50 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100";
+    return "border-alerte-trait bg-alerte-doux text-alerte";
   }
   if (evenement.statutValidation === "BROUILLON") {
     return "border-border bg-muted/70 text-foreground";
   }
   if (evenement.impactCours === "SUSPENDRE_COURS") {
-    return "border-red-500/40 bg-red-50 text-red-950 dark:bg-red-950/40 dark:text-red-100";
+    return "border-danger-trait bg-danger-doux text-danger";
   }
   if (evenement.impactCours === "ORGANISATION_SPECIALE") {
-    return "border-violet-500/40 bg-violet-50 text-violet-950 dark:bg-violet-950/40 dark:text-violet-100";
+    return "border-info-trait bg-info-doux text-info";
   }
-  return "border-sky-500/30 bg-sky-50 text-sky-950 dark:bg-sky-950/30 dark:text-sky-100";
+  return "border-info-trait bg-info-doux text-info";
 }
 
 function statutLibelle(statut: string): string {
@@ -107,19 +108,26 @@ export function VueCalendrierAnnuel({
       <HorairesScolairesResume plages={plagesHoraires} />
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <Badge variant="outline" className="border-red-500/40 bg-red-50 text-red-950 dark:bg-red-950/40 dark:text-red-100">Cours suspendus</Badge>
-        <Badge variant="outline" className="border-violet-500/40 bg-violet-50 text-violet-950 dark:bg-violet-950/40 dark:text-violet-100">Organisation spéciale</Badge>
-        <Badge variant="outline" className="border-sky-500/30 bg-sky-50 text-sky-950 dark:bg-sky-950/30 dark:text-sky-100">Information</Badge>
-        <Badge variant="outline" className="border-amber-500/40 bg-amber-50 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">À vérifier</Badge>
+        <Badge variant="outline" className="border-danger-trait bg-danger-doux text-danger">
+          Cours suspendus
+        </Badge>
+        <Badge variant="outline" className="border-info-trait bg-info-doux text-info">
+          Organisation spéciale
+        </Badge>
+        <Badge variant="outline" className="border-info-trait bg-info-doux text-info">
+          Information
+        </Badge>
+        <Badge variant="outline" className="border-alerte-trait bg-alerte-doux text-alerte">
+          À vérifier
+        </Badge>
       </div>
 
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Vue annuelle — {anneeLibelle}</CardTitle>
           <CardDescription>
-            Du {dateDebut} au {dateFin}. Les libellés sont répétés sur chaque date couverte par
-            un événement multi-jours. « À vérifier » indique qu’un événement n’est pas encore
-            confirmé pour piloter les cours.
+            Du {dateDebut} au {dateFin}. Les libellés sont répétés sur chaque date couverte par un événement
+            multi-jours. « À vérifier » indique qu’un événement n’est pas encore confirmé pour piloter les cours.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 p-3 sm:p-4 md:grid-cols-2 xl:grid-cols-3">
@@ -127,41 +135,42 @@ export function VueCalendrierAnnuel({
             const joursAvant = (mois.jours[0]?.jourSemaineISO ?? 1) - 1;
             return (
               <section key={mois.cle} className="min-w-0 rounded-lg border">
-                <h3 className="border-b bg-muted/30 px-3 py-2 text-sm font-semibold capitalize">
-                  {mois.libelle}
-                </h3>
+                <h3 className="border-b bg-muted/30 px-3 py-2 text-sm font-semibold capitalize">{mois.libelle}</h3>
                 <div className="grid grid-cols-7 border-b bg-muted/20">
                   {JOURS.map((jour) => (
-                    <div key={jour} className="py-1.5 text-center text-[10px] font-medium text-muted-foreground">
+                    <div key={jour} className="py-1.5 text-center text-xs font-medium text-muted-foreground">
                       {jour}
                     </div>
                   ))}
                 </div>
                 <div className="grid grid-cols-7">
                   {Array.from({ length: joursAvant }, (_, i) => (
-                    <div key={`vide-${mois.cle}-${i}`} className="min-h-16 border-b border-r bg-muted/10 sm:min-h-[5.25rem]" />
+                    <div
+                      key={`vide-${mois.cle}-${i}`}
+                      className="min-h-16 border-b border-r bg-muted/10 sm:min-h-[5.25rem]"
+                    />
                   ))}
                   {mois.jours.map((jour) => {
                     const liste = evenementsPourJour(jour.date);
                     return (
                       <div
                         key={jour.date}
-                        className={`min-w-0 border-b border-r p-1 ${liste.some((e) => e.impactCours === "SUSPENDRE_COURS" && e.statutValidation === "VALIDE") ? "bg-red-50/60 dark:bg-red-950/10" : ""}`}
+                        className={`min-w-0 border-b border-r p-1 ${liste.some((e) => e.impactCours === "SUSPENDRE_COURS" && e.statutValidation === "VALIDE") ? "bg-danger-doux" : ""}`}
                         title={`${jour.date} · ${liste.map((e) => e.titre).join(", ")}`}
                       >
-                        <div className="mb-1 text-[11px] font-semibold tabular-nums">{jour.jourDuMois}</div>
+                        <div className="mb-1 text-xs font-semibold tabular-nums">{jour.jourDuMois}</div>
                         <div className="space-y-1">
                           {liste.slice(0, 2).map((evenement) => (
                             <div
                               key={evenement.id}
-                              className={`overflow-hidden rounded border px-1 py-0.5 text-[9px] leading-tight ${classeEvenement(evenement)}`}
+                              className={`overflow-hidden rounded border px-1 py-0.5 text-xs leading-tight ${classeEvenement(evenement)}`}
                               title={`${TYPES[evenement.type] ?? evenement.type} : ${evenement.titre} · ${statutLibelle(evenement.statutValidation)}`}
                             >
                               <span className="block truncate font-semibold">{evenement.titre}</span>
                             </div>
                           ))}
                           {liste.length > 2 ? (
-                            <div className="text-[9px] text-muted-foreground">+{liste.length - 2} autres</div>
+                            <div className="text-xs text-muted-foreground">+{liste.length - 2} autres</div>
                           ) : null}
                         </div>
                       </div>

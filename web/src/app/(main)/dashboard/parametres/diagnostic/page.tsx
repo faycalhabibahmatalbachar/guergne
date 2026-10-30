@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
 import Link from "next/link";
+
 import { ArrowUpRight, CheckCircle2, CircleAlert, ClipboardCheck } from "lucide-react";
+import type { Metadata } from "next";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,11 +30,7 @@ type Controle = {
 export default async function PageDiagnosticParametres() {
   await exigerPage("parametre:modifier");
 
-  const [identite, annees, matieres] = await Promise.all([
-    chargerIdentiteLycee(),
-    listerAnnees(),
-    listerMatieres(),
-  ]);
+  const [identite, annees, matieres] = await Promise.all([chargerIdentiteLycee(), listerAnnees(), listerMatieres()]);
 
   const annee = annees.find((a) => a.estCourante) ?? null;
   const [periodes, classes, nbCoefficients] = await Promise.all([
@@ -42,7 +39,8 @@ export default async function PageDiagnosticParametres() {
     annee ? compterCoefficients(annee.id) : Promise.resolve(0),
   ]);
 
-  const periodesValides = Boolean(annee) &&
+  const periodesValides =
+    Boolean(annee) &&
     periodes.length === (annee?.typePeriode === "TRIMESTRE" ? 3 : 2) &&
     periodes.every((p, index) => {
       if (!annee || p.dateDebut < annee.dateDebut || p.dateFin > annee.dateFin || p.dateFin < p.dateDebut) {
@@ -55,27 +53,24 @@ export default async function PageDiagnosticParametres() {
   const controles: Controle[] = [
     {
       titre: "Fiche institutionnelle",
-      detail: identite
-        ? "La fiche unique du lycée existe dans la base."
-        : "La fiche officielle du lycée est absente.",
+      detail: identite ? "La fiche unique du lycée existe dans la base." : "La fiche officielle du lycée est absente.",
       valide: Boolean(identite?.nom && identite?.sigle),
       url: "/dashboard/parametres/etablissement",
       correction: "Voir la fiche",
     },
     {
       titre: "Coordonnées de contact",
-      detail: identite?.telephone || identite?.email
-        ? "Au moins un moyen de contact administratif est renseigné."
-        : "Renseignez un numéro ou une adresse e-mail pour les communications officielles.",
+      detail:
+        identite?.telephone || identite?.email
+          ? "Au moins un moyen de contact administratif est renseigné."
+          : "Renseignez un numéro ou une adresse e-mail pour les communications officielles.",
       valide: Boolean(identite?.telephone || identite?.email),
       url: "/dashboard/parametres/etablissement",
       correction: "Compléter les coordonnées",
     },
     {
       titre: "Année scolaire courante",
-      detail: annee
-        ? `Année active : ${annee.libelle}.`
-        : "Aucune année n'est désignée comme courante.",
+      detail: annee ? `Année active : ${annee.libelle}.` : "Aucune année n'est désignée comme courante.",
       valide: Boolean(annee),
       url: "/dashboard/parametres?onglet=annees",
       correction: "Gérer les années",
@@ -132,13 +127,13 @@ export default async function PageDiagnosticParametres() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 pb-8">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+        <h1 className="flex items-center gap-2 font-semibold tracking-tight">
           <ClipboardCheck className="size-6 text-primary" aria-hidden />
           Diagnostic de configuration
         </h1>
         <p className="mt-2 max-w-3xl text-muted-foreground text-sm">
-          Contrôles en lecture seule calculés à partir des données réelles de La Renaissance.
-          Aucun élève, paiement ou bulletin n'est modifié par cette vérification.
+          Contrôles en lecture seule calculés à partir des données réelles de La Renaissance. Aucun élève, paiement ou
+          bulletin n'est modifié par cette vérification.
         </p>
       </div>
 
@@ -159,9 +154,11 @@ export default async function PageDiagnosticParametres() {
             {controles.map((controle) => (
               <div key={controle.titre} className="flex flex-col justify-between gap-3 rounded-lg border p-4">
                 <div className="flex items-start gap-3">
-                  {controle.valide
-                    ? <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-label="Contrôle satisfait" />
-                    : <CircleAlert className="mt-0.5 size-5 shrink-0 text-amber-600" aria-label="À examiner" />}
+                  {controle.valide ? (
+                    <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-succes" aria-label="Contrôle satisfait" />
+                  ) : (
+                    <CircleAlert className="mt-0.5 size-5 shrink-0 text-alerte" aria-label="À examiner" />
+                  )}
                   <div className="min-w-0 space-y-1">
                     <h2 className="font-medium text-sm">{controle.titre}</h2>
                     <p className="text-muted-foreground text-xs">{controle.detail}</p>
@@ -170,7 +167,10 @@ export default async function PageDiagnosticParametres() {
                     ) : null}
                   </div>
                 </div>
-                <Link href={controle.url} className="inline-flex items-center gap-1 self-start text-primary text-xs font-medium hover:underline">
+                <Link
+                  href={controle.url}
+                  className="inline-flex items-center gap-1 self-start text-primary text-xs font-medium hover:underline"
+                >
                   {controle.correction}
                   <ArrowUpRight className="size-3" aria-hidden />
                 </Link>
@@ -180,8 +180,8 @@ export default async function PageDiagnosticParametres() {
         </CardContent>
       </Card>
       <p className="text-muted-foreground text-xs">
-        Une coche confirme uniquement la condition décrite. Ce diagnostic ne remplace pas la
-        recette des permissions, des barèmes, des factures, des notifications ou des bulletins.
+        Une coche confirme uniquement la condition décrite. Ce diagnostic ne remplace pas la recette des permissions,
+        des barèmes, des factures, des notifications ou des bulletins.
       </p>
     </main>
   );

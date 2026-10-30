@@ -38,9 +38,7 @@ async function matieresActives() {
 }
 
 /** Lit et vérifie le fichier, sans rien écrire. */
-export async function analyserFichierEnseignants(
-  donnees: FormData,
-): Promise<ResultatImportEnseignants> {
+export async function analyserFichierEnseignants(donnees: FormData): Promise<ResultatImportEnseignants> {
   try {
     await requirePermission("utilisateur:creer");
 
@@ -72,9 +70,7 @@ export async function analyserFichierEnseignants(
  * Un enseignant par transaction — sa fiche et ses matières forment un tout,
  * mais l'échec de l'un ne doit pas emporter les autres.
  */
-export async function importerEnseignants(
-  donnees: FormData,
-): Promise<ResultatImportEnseignants> {
+export async function importerEnseignants(donnees: FormData): Promise<ResultatImportEnseignants> {
   try {
     const acteur = await requirePermission("utilisateur:creer");
 

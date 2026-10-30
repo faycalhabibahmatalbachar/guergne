@@ -115,9 +115,7 @@ export async function enregistrerAppreciations(donnees: unknown): Promise<Result
       ok: true,
       ecrites,
       supprimees,
-      message:
-        `${ecrites} appréciation(s) enregistrée(s)` +
-        (supprimees > 0 ? `, ${supprimees} retirée(s).` : "."),
+      message: `${ecrites} appréciation(s) enregistrée(s)` + (supprimees > 0 ? `, ${supprimees} retirée(s).` : "."),
     };
   } catch (erreur) {
     if (erreur instanceof ErreurAutorisation) {

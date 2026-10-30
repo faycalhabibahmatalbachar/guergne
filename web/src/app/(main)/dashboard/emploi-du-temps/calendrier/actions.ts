@@ -7,8 +7,8 @@ import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
-import { ErreurAutorisation, requirePermission } from "@/server/guard";
 import { parserDateISO } from "@/server/domain/calendrier-scolaire";
+import { ErreurAutorisation, requirePermission } from "@/server/guard";
 
 export interface ResultatEvenementCalendrier {
   ok: boolean;
@@ -145,10 +145,7 @@ export async function creerEvenementCalendrier(donnees: unknown): Promise<Result
   }
 }
 
-export async function modifierEvenementCalendrier(
-  id: string,
-  donnees: unknown,
-): Promise<ResultatEvenementCalendrier> {
+export async function modifierEvenementCalendrier(id: string, donnees: unknown): Promise<ResultatEvenementCalendrier> {
   try {
     const acteur = await requirePermission("emploi_du_temps:gerer");
     const parsed = schemaEvenement.safeParse(donnees);
@@ -246,13 +243,12 @@ export async function validerEvenementCalendrier(id: string): Promise<ResultatEv
       return { ok: false, message: "Un événement annulé ne peut pas être validé." };
     }
     const doitAvoirSource =
-      event.type === "FERIE" ||
-      event.type === "VACANCES" ||
-      event.impact_cours === "SUSPENDRE_COURS";
+      event.type === "FERIE" || event.type === "VACANCES" || event.impact_cours === "SUSPENDRE_COURS";
     if (doitAvoirSource && (!event.source_officielle?.trim() || !event.source_verifiee_le)) {
       return {
         ok: false,
-        message: "Ajoutez la référence de la décision officielle et sa date de vérification avant de valider cet événement.",
+        message:
+          "Ajoutez la référence de la décision officielle et sa date de vérification avant de valider cet événement.",
       };
     }
 
@@ -282,7 +278,10 @@ export async function validerEvenementCalendrier(id: string): Promise<ResultatEv
   }
 }
 
-export async function publierEvenementCalendrier(id: string, visibleParents: boolean): Promise<ResultatEvenementCalendrier> {
+export async function publierEvenementCalendrier(
+  id: string,
+  visibleParents: boolean,
+): Promise<ResultatEvenementCalendrier> {
   try {
     const acteur = await requirePermission("emploi_du_temps:gerer");
     const [event] = (
@@ -317,7 +316,10 @@ export async function publierEvenementCalendrier(id: string, visibleParents: boo
 
     revalidatePath("/dashboard/emploi-du-temps/calendrier");
     revalidatePath("/dashboard/emploi-du-temps");
-    return { ok: true, message: visibleParents ? "Événement publié pour les familles." : "Événement publié en interne." };
+    return {
+      ok: true,
+      message: visibleParents ? "Événement publié pour les familles." : "Événement publié en interne.",
+    };
   } catch (erreur) {
     return echec(erreur);
   }

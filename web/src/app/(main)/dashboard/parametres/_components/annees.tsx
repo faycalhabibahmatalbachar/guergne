@@ -29,24 +29,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-
-import {
-  basculerVerrouPeriode,
-  cloturerAnnee,
-  creerAnnee,
-  definirAnneeCourante,
-  modifierPeriode,
-} from "../actions";
 import type { LigneAnnee, LignePeriode } from "@/server/domain/parametres";
+
+import { basculerVerrouPeriode, cloturerAnnee, creerAnnee, definirAnneeCourante, modifierPeriode } from "../actions";
 
 const dateFr = (iso: string) =>
   new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
@@ -100,9 +87,7 @@ export function OngletAnnees({
   function rendreCourante(id: string, libelle: string) {
     demarrer(async () => {
       const r = await definirAnneeCourante(id);
-      toast[r.ok ? "success" : "error"](
-        r.ok ? `${libelle} est désormais l'année en cours.` : (r.message ?? "Échec."),
-      );
+      toast[r.ok ? "success" : "error"](r.ok ? `${libelle} est désormais l'année en cours.` : (r.message ?? "Échec."));
     });
   }
 
@@ -145,8 +130,8 @@ export function OngletAnnees({
               <DialogHeader>
                 <DialogTitle>Créer une année scolaire</DialogTitle>
                 <DialogDescription>
-                  Les périodes sont créées automatiquement et découpées à parts égales. Vous pourrez
-                  ensuite ajuster leurs dates au calendrier réel.
+                  Les périodes sont créées automatiquement et découpées à parts égales. Vous pourrez ensuite ajuster
+                  leurs dates au calendrier réel.
                 </DialogDescription>
               </DialogHeader>
 
@@ -160,9 +145,7 @@ export function OngletAnnees({
                     placeholder="2026-2027"
                     required
                   />
-                  {erreurs.libelle ? (
-                    <p className="text-destructive text-sm">{erreurs.libelle}</p>
-                  ) : null}
+                  {erreurs.libelle ? <p className="text-destructive text-sm">{erreurs.libelle}</p> : null}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -175,9 +158,7 @@ export function OngletAnnees({
                       defaultValue={`${debutProbable}-10-01`}
                       required
                     />
-                    {erreurs.dateDebut ? (
-                      <p className="text-destructive text-sm">{erreurs.dateDebut}</p>
-                    ) : null}
+                    {erreurs.dateDebut ? <p className="text-destructive text-sm">{erreurs.dateDebut}</p> : null}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="dateFin">Fin</Label>
@@ -188,9 +169,7 @@ export function OngletAnnees({
                       defaultValue={`${debutProbable + 1}-07-15`}
                       required
                     />
-                    {erreurs.dateFin ? (
-                      <p className="text-destructive text-sm">{erreurs.dateFin}</p>
-                    ) : null}
+                    {erreurs.dateFin ? <p className="text-destructive text-sm">{erreurs.dateFin}</p> : null}
                   </div>
                 </div>
 
@@ -229,8 +208,8 @@ export function OngletAnnees({
             <CalendarRange className="size-8 text-muted-foreground" aria-hidden />
             <p className="font-medium">Aucune année scolaire</p>
             <p className="max-w-md text-muted-foreground text-sm">
-              L&apos;année scolaire est le socle de tout le reste : classes, inscriptions, notes et
-              bulletins s&apos;y rattachent. Commencez par la créer.
+              L&apos;année scolaire est le socle de tout le reste : classes, inscriptions, notes et bulletins s&apos;y
+              rattachent. Commencez par la créer.
             </p>
           </CardContent>
         </Card>
@@ -250,8 +229,8 @@ export function OngletAnnees({
                         {annee.estCloturee ? <Badge variant="outline">Clôturée</Badge> : null}
                       </CardTitle>
                       <CardDescription>
-                        Du {dateFr(annee.dateDebut)} au {dateFr(annee.dateFin)} — {annee.nbClasses}{" "}
-                        classe{annee.nbClasses > 1 ? "s" : ""}, {annee.nbInscriptions} inscription
+                        Du {dateFr(annee.dateDebut)} au {dateFr(annee.dateFin)} — {annee.nbClasses} classe
+                        {annee.nbClasses > 1 ? "s" : ""}, {annee.nbInscriptions} inscription
                         {annee.nbInscriptions > 1 ? "s" : ""}
                       </CardDescription>
                     </div>
@@ -273,7 +252,10 @@ export function OngletAnnees({
                           variant="outline"
                           size="sm"
                           disabled={enCours}
-                          onClick={() => { setClotureCible(annee); setMotifCloture(""); }}
+                          onClick={() => {
+                            setClotureCible(annee);
+                            setMotifCloture("");
+                          }}
                         >
                           <Lock aria-hidden />
                           Clôturer
@@ -349,8 +331,8 @@ export function OngletAnnees({
           <AlertDialogHeader>
             <AlertDialogTitle>Clôturer l'année {clotureCible?.libelle} ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette opération verrouille toutes les périodes de l'année et empêche la modification
-              des notes. Elle ne peut pas être annulée depuis cette page.
+              Cette opération verrouille toutes les périodes de l'année et empêche la modification des notes. Elle ne
+              peut pas être annulée depuis cette page.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
@@ -466,18 +448,19 @@ function LignePeriodeEditable({
                 Modifier
               </Button>
             ) : null}
-            {((periode.estVerrouillee && peutDeverrouillerPeriodes)
-              || (!periode.estVerrouillee && peutGererPeriodes)) ? (
-              <Button size="sm" variant="outline" disabled={enCours}
-                onClick={() => onBasculer(!periode.estVerrouillee)}>
+            {(periode.estVerrouillee && peutDeverrouillerPeriodes) || (!periode.estVerrouillee && peutGererPeriodes) ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={enCours}
+                onClick={() => onBasculer(!periode.estVerrouillee)}
+              >
                 {periode.estVerrouillee ? "Déverrouiller" : "Verrouiller"}
               </Button>
             ) : null}
           </>
         ) : (
-          <span className="text-muted-foreground text-xs">
-            {anneeCloturee ? "Année clôturée" : "Lecture seule"}
-          </span>
+          <span className="text-muted-foreground text-xs">{anneeCloturee ? "Année clôturée" : "Lecture seule"}</span>
         )}
       </TableCell>
     </TableRow>

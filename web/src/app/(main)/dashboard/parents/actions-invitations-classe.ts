@@ -1,7 +1,7 @@
 "use server";
 
-import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
+
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -9,7 +9,9 @@ import { COUT_SMS_FCFA } from "@/lib/tarifs";
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
 import { requirePermission } from "@/server/guard";
+
 import { inviterTuteur } from "./actions";
+import { createHash } from "node:crypto";
 
 export interface CandidatInvitation {
   id: string;
@@ -39,8 +41,13 @@ const schemaClasse = z.string().uuid();
  */
 async function calculerApercu(classeId: string): Promise<ApercuInvitationsClasse> {
   const resultats = await db.execute<{
-    id: string; nom: string; prenom: string; telephone: string;
-    compte: string | null; accepte_sms: boolean; numero_partage: boolean;
+    id: string;
+    nom: string;
+    prenom: string;
+    telephone: string;
+    compte: string | null;
+    accepte_sms: boolean;
+    numero_partage: boolean;
   }>(sql`
     SELECT DISTINCT t.id::text, t.nom, t.prenom, t.telephone,
            t.utilisateur_id::text AS compte, t.accepte_sms,
@@ -58,17 +65,19 @@ async function calculerApercu(classeId: string): Promise<ApercuInvitationsClasse
   `);
   const parents = resultats.rows;
   const eligibles = parents
-    .filter(t => !t.compte && t.accepte_sms && !t.numero_partage)
-    .map(t => ({ id: t.id, nom: t.nom, prenom: t.prenom, telephone: t.telephone }));
+    .filter((t) => !t.compte && t.accepte_sms && !t.numero_partage)
+    .map((t) => ({ id: t.id, nom: t.nom, prenom: t.prenom, telephone: t.telephone }));
   // Empreinte d'une photographie des destinataires (et numéros) pour détecter
   // tout changement après la prévisualisation, avant une action facturable.
   const empreinte = createHash("sha256").update(JSON.stringify(eligibles)).digest("hex");
   return {
-    classeId, totalPrincipaux: parents.length,
-    dejaAvecCompte: parents.filter(t => Boolean(t.compte)).length,
-    sansConsentementSms: parents.filter(t => !t.compte && !t.accepte_sms).length,
-    numerosPartages: parents.filter(t => !t.compte && t.accepte_sms && t.numero_partage).length,
-    eligibles, coutMaxFcfa: eligibles.length * COUT_SMS_FCFA,
+    classeId,
+    totalPrincipaux: parents.length,
+    dejaAvecCompte: parents.filter((t) => Boolean(t.compte)).length,
+    sansConsentementSms: parents.filter((t) => !t.compte && !t.accepte_sms).length,
+    numerosPartages: parents.filter((t) => !t.compte && t.accepte_sms && t.numero_partage).length,
+    eligibles,
+    coutMaxFcfa: eligibles.length * COUT_SMS_FCFA,
     empreinte,
   };
 }
@@ -119,15 +128,19 @@ export async function confirmerInvitationsClasse(input: unknown): Promise<Repons
       entite: "tuteurs",
       entiteId: donnees.classeId,
       apres: {
-        canal: "SMS", portee: "PRINCIPAUX_SANS_COMPTE",
+        canal: "SMS",
+        portee: "PRINCIPAUX_SANS_COMPTE",
         totalApercu: apercu.eligibles.length,
-        invites, echecs, coutMaxFcfa: apercu.coutMaxFcfa,
+        invites,
+        echecs,
+        coutMaxFcfa: apercu.coutMaxFcfa,
       },
     });
     revalidatePath("/dashboard/parents");
     return {
       ok: invites > 0,
-      invites, echecs,
+      invites,
+      echecs,
       message: echecs
         ? `${invites} compte(s) créé(s), ${echecs} échec(s). Les SMS sont mis en file, sans garantie de réception immédiate.`
         : `${invites} compte(s) créé(s). Les SMS d'activation ont été mis en file d'envoi.`,

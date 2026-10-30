@@ -70,11 +70,7 @@ export function DocumentsEleve({
             <DropdownMenuLabel>Bulletins</DropdownMenuLabel>
             {bulletins.map((b) => (
               <DropdownMenuItem key={b.periodeId} asChild>
-                <a
-                  href={`/api/bulletins/${b.inscriptionId}/${b.periodeId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <a href={`/api/bulletins/${b.inscriptionId}/${b.periodeId}`} target="_blank" rel="noopener noreferrer">
                   <FileText aria-hidden />
                   {b.periodeLibelle}
                   {/*
@@ -82,9 +78,7 @@ export function DocumentsEleve({
                     — le conseil de classe travaille dessus avant de le rendre
                     visible aux familles — mais il doit être signalé comme tel.
                   */}
-                  {b.publie ? null : (
-                    <span className="text-muted-foreground ml-auto text-xs">brouillon</span>
-                  )}
+                  {b.publie ? null : <span className="text-muted-foreground ml-auto text-xs">brouillon</span>}
                 </a>
               </DropdownMenuItem>
             ))}

@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 
 import { BarChart3, Gavel } from "lucide-react";
+import type { Metadata } from "next";
 
+import { EnTetePage, Page } from "@/components/socle/en-tete-page";
 import { Button } from "@/components/ui/button";
-
 import { listerClassesEtMatieres } from "@/server/domain/personnel";
 import { chargerStatistiques } from "@/server/domain/tableau-de-bord";
 import {
@@ -16,9 +16,9 @@ import {
 import { exigerPage } from "@/server/guard";
 
 import { Prerequis } from "../_components/prerequis";
+import { Discipline } from "./_components/discipline";
 import { FiltresDiscipline } from "./_components/filtres-discipline";
 import { SaisieConduite } from "./_components/saisie-conduite";
-import { Discipline } from "./_components/discipline";
 
 export const metadata: Metadata = { title: "Discipline" };
 export const dynamic = "force-dynamic";
@@ -40,14 +40,14 @@ export default async function PageDiscipline({
 
   if (!annee || !periode) {
     return (
-      <div className="space-y-6">
-        <h1 className="font-semibold text-2xl tracking-tight">Discipline</h1>
+      <Page>
+        <EnTetePage titre="Discipline" />
         <Prerequis
           titre="Aucune période d'évaluation en cours"
           explication="Un incident se rattache à une période, ce qui permet de le reporter sur le bon bulletin et d'établir les statistiques du trimestre."
           manquants={[{ libelle: "Configurer l'année et ses trimestres", url: "/dashboard/parametres" }]}
         />
-      </div>
+      </Page>
     );
   }
 
@@ -77,36 +77,40 @@ export default async function PageDiscipline({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-semibold text-2xl tracking-tight">Discipline</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
-            Année {annee.libelle} — {periode.libelle}. Chaque décision est conservée avec son auteur
-            et son motif, sans possibilité de modification.
-          </p>
-        </div>
-        {/*
+    <Page>
+      <EnTetePage
+        titre="Discipline"
+        description={
+          <>
+            Année {annee.libelle} — {periode.libelle}. Chaque décision est conservée avec son auteur et son motif, sans
+            possibilité de modification.
+          </>
+        }
+        actions={
+          <>
+            {/*
           Deux écrans à part, et pas des onglets : le conseil de discipline se
           prépare sur plusieurs jours et se partage par lien, les statistiques
           se lisent en fin de trimestre. Aucun des deux n'appartient au geste
           quotidien de signaler un incident.
         */}
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/discipline/conseils">
-              <Gavel aria-hidden />
-              Conseils de discipline
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/discipline/statistiques">
-              <BarChart3 aria-hidden />
-              Statistiques
-            </Link>
-          </Button>
-        </div>
-      </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/discipline/conseils">
+                  <Gavel aria-hidden />
+                  Conseils de discipline
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/discipline/statistiques">
+                  <BarChart3 aria-hidden />
+                  Statistiques
+                </Link>
+              </Button>
+            </div>
+          </>
+        }
+      />
 
       {classes.length === 0 ? (
         <Prerequis
@@ -141,6 +145,6 @@ export default async function PageDiscipline({
           />
         </div>
       )}
-    </div>
+    </Page>
   );
 }

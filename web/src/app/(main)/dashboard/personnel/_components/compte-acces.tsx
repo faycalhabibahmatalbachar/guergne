@@ -20,11 +20,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 
-import {
-  basculerCompte,
-  creerCompteEnseignant,
-  reinitialiserMotDePasse,
-} from "../actions-compte";
+import { basculerCompte, creerCompteEnseignant, reinitialiserMotDePasse } from "../actions-compte";
 
 /**
  * Compte d'accès d'un enseignant (E-62).
@@ -44,7 +40,7 @@ import {
  */
 
 // Les dossiers enseignants ne confèrent que le rôle Enseignant.
- // Le personnel administratif a désormais son propre registre et ses permissions.
+// Le personnel administratif a désormais son propre registre et ses permissions.
 const ROLES: Array<[string, string]> = [["ENSEIGNANT", "Enseignant"]];
 
 const LIBELLE_ROLE = Object.fromEntries(ROLES);
@@ -154,9 +150,7 @@ export function CompteAcces({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {motDePasse ? "Mot de passe provisoire" : `Créer l'accès de ${nom}`}
-            </DialogTitle>
+            <DialogTitle>{motDePasse ? "Mot de passe provisoire" : `Créer l'accès de ${nom}`}</DialogTitle>
             <DialogDescription>
               {motDePasse
                 ? "Notez-le maintenant : il ne sera plus jamais affiché. Il devra être changé à la première connexion."
@@ -181,8 +175,8 @@ export function CompteAcces({
                 </Button>
               </div>
               <p className="text-muted-foreground text-xs">
-                Sans lettres ni chiffres ambigus — pas de O contre 0, pas de I contre 1 — pour
-                pouvoir être dicté au téléphone sans erreur.
+                Sans lettres ni chiffres ambigus — pas de O contre 0, pas de I contre 1 — pour pouvoir être dicté au
+                téléphone sans erreur.
               </p>
             </div>
           ) : (
@@ -196,7 +190,8 @@ export function CompteAcces({
                 ))}
               </NativeSelect>
               <p className="text-muted-foreground text-xs">
-                Le rôle Enseignant est réservé aux dossiers pédagogiques. Pour attribuer un rôle administratif, créez une fiche dans l’onglet Administratif.
+                Le rôle Enseignant est réservé aux dossiers pédagogiques. Pour attribuer un rôle administratif, créez
+                une fiche dans l’onglet Administratif.
               </p>
             </div>
           )}

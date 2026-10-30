@@ -15,11 +15,7 @@ function heure(valeur: string): string {
   return valeur.slice(0, 5);
 }
 
-export function HorairesScolairesResume({
-  plages,
-}: {
-  plages: PlageHoraireScolaire[];
-}) {
+export function HorairesScolairesResume({ plages }: { plages: PlageHoraireScolaire[] }) {
   const profils = new Map<string, { jours: Set<number>; plages: PlageHoraireScolaire[] }>();
 
   for (const plage of plages) {
@@ -45,8 +41,8 @@ export function HorairesScolairesResume({
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Horaires de l’établissement</CardTitle>
         <CardDescription>
-          Horaires configurés pour l’année sélectionnée. Les pauses sont affichées à part et ne
-          constituent pas des créneaux de cours.
+          Horaires configurés pour l’année sélectionnée. Les pauses sont affichées à part et ne constituent pas des
+          créneaux de cours.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -68,9 +64,7 @@ export function HorairesScolairesResume({
                     >
                       <span className="min-w-0">
                         <span className="font-medium">{plage.libelle}</span>
-                        {plage.nature === "PAUSE" ? (
-                          <span className="ml-2 text-xs">Pause</span>
-                        ) : null}
+                        {plage.nature === "PAUSE" ? <span className="ml-2 text-xs">Pause</span> : null}
                       </span>
                       <span className="shrink-0 font-mono text-xs tabular-nums">
                         {heure(plage.heureDebut)}–{heure(plage.heureFin)}
@@ -78,9 +72,8 @@ export function HorairesScolairesResume({
                     </li>
                   ))}
                 </ol>
-                <p className="mt-2 text-[11px] text-muted-foreground">
-                  Dates de configuration : {profil.plages[0]?.dateDebut} au{" "}
-                  {profil.plages[0]?.dateFin}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Dates de configuration : {profil.plages[0]?.dateDebut} au {profil.plages[0]?.dateFin}
                 </p>
               </section>
             ))}
@@ -91,9 +84,8 @@ export function HorairesScolairesResume({
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          Le samedi et les créneaux au-delà de la 5e séance (dont les horaires de l’après-midi)
-          ne sont pas configurés ici. Ils restent signalés comme à confirmer dans la grille : aucun
-          horaire n’est déduit automatiquement.
+          Le samedi et les créneaux au-delà de la 5e séance (dont les horaires de l’après-midi) ne sont pas configurés
+          ici. Ils restent signalés comme à confirmer dans la grille : aucun horaire n’est déduit automatiquement.
         </p>
       </CardContent>
     </Card>

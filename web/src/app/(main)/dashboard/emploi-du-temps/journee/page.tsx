@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 
 import { sql } from "drizzle-orm";
 import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 
+import { EnTetePage, Page } from "@/components/socle/en-tete-page";
 import { Button } from "@/components/ui/button";
 import { sessionCourante } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -43,16 +44,14 @@ export default async function PageJournee({
 
   if (!annee) {
     return (
-      <div className="space-y-6">
-        <h1 className="font-semibold text-2xl tracking-tight">Journée de cours</h1>
+      <Page>
+        <EnTetePage titre="Journée de cours" />
         <p className="text-muted-foreground text-sm">Aucune année scolaire n&apos;est configurée.</p>
-      </div>
+      </Page>
     );
   }
 
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(params.date ?? "")
-    ? params.date!
-    : new Date().toISOString().slice(0, 10);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(params.date ?? "") ? params.date! : new Date().toISOString().slice(0, 10);
 
   const [cours, classes, enseignants, peutGerer] = await Promise.all([
     coursDuJour(annee.id, date, {
@@ -77,29 +76,26 @@ export default async function PageJournee({
   // Uniquement pour le cours effectivement ouvert : la requête de disponibilité
   // coûte trois anti-jointures, et la lancer pour toute la journée ferait
   // quarante fois le travail pour un seul résultat utilisé.
-  const coursOuvert =
-    params.cours && cours.some((c) => c.emploiDuTempsId === params.cours) ? params.cours : null;
+  const coursOuvert = params.cours && cours.some((c) => c.emploiDuTempsId === params.cours) ? params.cours : null;
 
-  const disponibles = coursOuvert
-    ? await enseignantsDisponibles(annee.id, date, coursOuvert)
-    : [];
+  const disponibles = coursOuvert ? await enseignantsDisponibles(annee.id, date, coursOuvert) : [];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-semibold text-2xl tracking-tight">Journée de cours</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
-            Qui est où aujourd&apos;hui, et qui prend le cours d&apos;un professeur absent.
-          </p>
-        </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/dashboard/emploi-du-temps">
-            <ArrowLeft aria-hidden />
-            Grille hebdomadaire
-          </Link>
-        </Button>
-      </div>
+    <Page>
+      <EnTetePage
+        titre="Journée de cours"
+        description={<>Qui est où aujourd&apos;hui, et qui prend le cours d&apos;un professeur absent.</>}
+        actions={
+          <>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/emploi-du-temps">
+                <ArrowLeft aria-hidden />
+                Grille hebdomadaire
+              </Link>
+            </Button>
+          </>
+        }
+      />
 
       <VueJournee
         date={date}
@@ -112,6 +108,6 @@ export default async function PageJournee({
         disponibles={disponibles}
         coursOuvert={coursOuvert}
       />
-    </div>
+    </Page>
   );
 }

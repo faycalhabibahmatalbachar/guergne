@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DossierScolarite } from "@/server/domain/dossier-eleve";
+
 import { CourbeResultats } from "./courbe-resultats";
 
 const n2 = (v: number | null) => (v === null ? "—" : v.toFixed(2).replace(".", ","));
@@ -34,8 +35,8 @@ export function OngletNotes({ dossier }: { dossier: DossierScolarite }) {
         <CardHeader className="card-header pb-3">
           <CardTitle className="card-title text-base">Évolution sur l&apos;année</CardTitle>
           <CardDescription className="card-subtitle">
-            La moyenne de la classe est rappelée à côté : une baisse de 12 à 11 n&apos;a pas le
-            même sens si la classe a baissé autant.
+            La moyenne de la classe est rappelée à côté : une baisse de 12 à 11 n&apos;a pas le même sens si la classe a
+            baissé autant.
           </CardDescription>
         </CardHeader>
         <CardContent className="card-body table-responsive p-0">
@@ -52,14 +53,11 @@ export function OngletNotes({ dossier }: { dossier: DossierScolarite }) {
             </TableHeader>
             <TableBody>
               {evolution.map((p) => {
-                const ecart =
-                  p.moyenne !== null && p.moyenneClasse !== null ? p.moyenne - p.moyenneClasse : null;
+                const ecart = p.moyenne !== null && p.moyenneClasse !== null ? p.moyenne - p.moyenneClasse : null;
                 return (
                   <TableRow key={p.periode} className={p.moyenne === null ? "opacity-55" : undefined}>
                     <TableCell>{p.periode}</TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {n2(p.moyenne)}
-                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">{n2(p.moyenne)}</TableCell>
                     <TableCell className="text-muted-foreground text-right tabular-nums">
                       {n2(p.moyenneClasse)}
                     </TableCell>
@@ -88,9 +86,7 @@ export function OngletNotes({ dossier }: { dossier: DossierScolarite }) {
         <CardHeader className="card-header pb-3">
           <CardTitle className="card-title text-base">
             Relevé par matière
-            {periodeReleve ? (
-              <span className="text-muted-foreground ml-2 font-normal">{periodeReleve}</span>
-            ) : null}
+            {periodeReleve ? <span className="text-muted-foreground ml-2 font-normal">{periodeReleve}</span> : null}
           </CardTitle>
         </CardHeader>
         <CardContent className="card-body table-responsive p-0">
@@ -118,7 +114,7 @@ export function OngletNotes({ dossier }: { dossier: DossierScolarite }) {
                         m.moyenne !== null && m.moyenne < 10
                           ? "text-destructive"
                           : m.moyenne !== null && m.moyenne >= 14
-                            ? "text-emerald-600 dark:text-emerald-400"
+                            ? "text-succes"
                             : ""
                       }`}
                     >
@@ -128,18 +124,14 @@ export function OngletNotes({ dossier }: { dossier: DossierScolarite }) {
                       {n2(m.moyenneClasse)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{m.rang ?? "—"}</TableCell>
-                    <TableCell className="text-muted-foreground text-right tabular-nums">
-                      {m.nbEvaluations}
-                    </TableCell>
+                    <TableCell className="text-muted-foreground text-right tabular-nums">{m.nbEvaluations}</TableCell>
                   </TableRow>
                 ))}
                 {generale !== null ? (
                   <TableRow className="bg-muted/50">
                     <TableCell className="font-semibold">Moyenne générale</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">{coeffs}</TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
-                      {n2(generale)}
-                    </TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">{n2(generale)}</TableCell>
                     <TableCell colSpan={3} />
                   </TableRow>
                 ) : null}
@@ -168,9 +160,9 @@ export function OngletAssiduite({ dossier }: { dossier: DossierScolarite }) {
       <CardHeader className="card-header pb-3">
         <CardTitle className="card-title text-base">Assiduité</CardTitle>
         <CardDescription className="card-subtitle">
-          {absences.length} absence(s) dont {nonJustifiees} non justifiée(s), {retards.length}{" "}
-          retard(s). Absences et retards sont mêlés volontairement : dix retards et zéro absence
-          n&apos;est pas le même problème que l&apos;inverse.
+          {absences.length} absence(s) dont {nonJustifiees} non justifiée(s), {retards.length} retard(s). Absences et
+          retards sont mêlés volontairement : dix retards et zéro absence n&apos;est pas le même problème que
+          l&apos;inverse.
         </CardDescription>
       </CardHeader>
       <CardContent className="card-body table-responsive p-0">
@@ -202,19 +194,13 @@ export function OngletAssiduite({ dossier }: { dossier: DossierScolarite }) {
                   <TableCell>
                     <Badge
                       variant={
-                        l.statut === "JUSTIFIEE"
-                          ? "default"
-                          : l.statut === "EN_ATTENTE"
-                            ? "secondary"
-                            : "destructive"
+                        l.statut === "JUSTIFIEE" ? "default" : l.statut === "EN_ATTENTE" ? "secondary" : "destructive"
                       }
                     >
                       {l.statut.toLowerCase().replace(/_/g, " ")}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-muted-foreground max-w-xs truncate">
-                    {l.motif ?? "—"}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground max-w-xs truncate">{l.motif ?? "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -239,9 +225,7 @@ export function OngletDiscipline({ dossier }: { dossier: DossierScolarite }) {
         <CardTitle className="card-title text-base">Discipline</CardTitle>
         <CardDescription className="card-subtitle">
           Incidents et sanctions, du plus récent au plus ancien.
-          {aExecuter > 0
-            ? ` ${aExecuter} sanction(s) prononcée(s) mais pas encore exécutée(s).`
-            : ""}
+          {aExecuter > 0 ? ` ${aExecuter} sanction(s) prononcée(s) mais pas encore exécutée(s).` : ""}
         </CardDescription>
       </CardHeader>
       <CardContent className="card-body table-responsive p-0">
@@ -268,9 +252,7 @@ export function OngletDiscipline({ dossier }: { dossier: DossierScolarite }) {
                     </Badge>
                   </TableCell>
                   <TableCell className="capitalize">{l.libelle.toLowerCase()}</TableCell>
-                  <TableCell className="text-muted-foreground max-w-sm truncate">
-                    {l.detail ?? "—"}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground max-w-sm truncate">{l.detail ?? "—"}</TableCell>
                   <TableCell>
                     {l.gravite ? (
                       <Badge variant="outline">{l.gravite.toLowerCase().replace(/_/g, " ")}</Badge>
@@ -352,9 +334,7 @@ export function OngletFinances({ dossier }: { dossier: DossierScolarite }) {
                       {e.exonere > 0 ? fcfa(e.exonere) : "—"}
                     </TableCell>
                     <TableCell
-                      className={`text-right font-medium tabular-nums ${
-                        e.reste > 0 ? "text-destructive" : ""
-                      }`}
+                      className={`text-right font-medium tabular-nums ${e.reste > 0 ? "text-destructive" : ""}`}
                     >
                       {e.reste > 0 ? fcfa(e.reste) : "soldé"}
                     </TableCell>
@@ -365,15 +345,9 @@ export function OngletFinances({ dossier }: { dossier: DossierScolarite }) {
                     Total
                   </TableCell>
                   <TableCell className="text-right font-semibold tabular-nums">{fcfa(du)}</TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">
-                    {fcfa(paye)}
-                  </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">
-                    {fcfa(exonere)}
-                  </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">
-                    {fcfa(reste)}
-                  </TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums">{fcfa(paye)}</TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums">{fcfa(exonere)}</TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums">{fcfa(reste)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -404,9 +378,7 @@ export function OngletFinances({ dossier }: { dossier: DossierScolarite }) {
                 {paiements.map((p) => (
                   <TableRow key={p.id} className={p.annule ? "opacity-55" : undefined}>
                     <TableCell className="font-mono text-xs">{p.numeroRecu}</TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">
-                      {dateFr(p.date)}
-                    </TableCell>
+                    <TableCell className="whitespace-nowrap tabular-nums">{dateFr(p.date)}</TableCell>
                     <TableCell>{p.mode.toLowerCase().replace(/_/g, " ")}</TableCell>
                     <TableCell className="text-muted-foreground">{p.payeur ?? "—"}</TableCell>
                     <TableCell className="text-right tabular-nums">

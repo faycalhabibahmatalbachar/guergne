@@ -38,14 +38,7 @@ export interface Resultat {
   touches?: number;
 }
 
-const DECISIONS = [
-  "ADMIS",
-  "ADMIS_CONDITION",
-  "REDOUBLE",
-  "EXCLU",
-  "REORIENTE",
-  "EN_ATTENTE",
-] as const;
+const DECISIONS = ["ADMIS", "ADMIS_CONDITION", "REDOUBLE", "EXCLU", "REORIENTE", "EN_ATTENTE"] as const;
 
 const MENTIONS = [
   "FELICITATIONS",
@@ -79,11 +72,7 @@ function echec(erreur: unknown, defaut: string): Resultat {
  * accorder à un élève en progrès. La proposition sert à ne rien oublier, pas à
  * décider.
  */
-export async function enregistrerAvis(
-  inscriptionId: string,
-  periodeId: string,
-  donnees: unknown,
-): Promise<Resultat> {
+export async function enregistrerAvis(inscriptionId: string, periodeId: string, donnees: unknown): Promise<Resultat> {
   try {
     const acteur = await requirePermission("bulletin:generer");
 
@@ -154,10 +143,7 @@ export async function enregistrerAvis(
  * période : publier « passe en Première » sans l'avoir décidé serait pire que
  * de ne rien publier.
  */
-export async function publierClasse(
-  classeId: string,
-  periodeId: string,
-): Promise<Resultat> {
+export async function publierClasse(classeId: string, periodeId: string): Promise<Resultat> {
   try {
     const acteur = await requirePermission("bulletin:publier");
 
@@ -261,10 +247,7 @@ export async function publierClasse(
  * corriger une erreur avant que trop de familles n'aient consulté, et à rouvrir
  * l'avis du conseil.
  */
-export async function depublierClasse(
-  classeId: string,
-  periodeId: string,
-): Promise<Resultat> {
+export async function depublierClasse(classeId: string, periodeId: string): Promise<Resultat> {
   try {
     const acteur = await requirePermission("bulletin:publier");
 

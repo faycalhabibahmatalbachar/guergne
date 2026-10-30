@@ -136,8 +136,7 @@ export async function importerNotes(donnees: FormData): Promise<ResultatImportNo
     if (rapport.erreurs.length > 0 || rapport.doublonsFichier.length > 0) {
       return {
         ok: false,
-        message:
-          "Le fichier contient des erreurs. Rien n'a été écrit — corrigez-les puis redéposez.",
+        message: "Le fichier contient des erreurs. Rien n'a été écrit — corrigez-les puis redéposez.",
         rapport,
       };
     }

@@ -149,9 +149,7 @@ export async function preparerReinscription(eleveId: string): Promise<Propositio
     decision: x.decision,
     niveauActuel: x.niveau_libelle,
     niveauProposeId: niveauCible,
-    niveauProposeLibelle: redouble
-      ? x.niveau_libelle
-      : (x.niveau_suivant_libelle ?? x.niveau_libelle),
+    niveauProposeLibelle: redouble ? x.niveau_libelle : (x.niveau_suivant_libelle ?? x.niveau_libelle),
     redoublementPropose: redouble,
     classes: classes.rows.map((c) => ({
       id: c.id,

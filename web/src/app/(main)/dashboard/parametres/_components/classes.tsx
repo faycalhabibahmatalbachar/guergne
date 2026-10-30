@@ -20,14 +20,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { LigneAnnee, LigneClasseParametre, LigneNiveau, LigneSerie } from "@/server/domain/parametres";
 
 import { creerClasse, modifierClasse, supprimerClasse } from "../actions";
-import type {
-  LigneAnnee,
-  LigneClasseParametre,
-  LigneNiveau,
-  LigneSerie,
-} from "@/server/domain/parametres";
 
 export function OngletClasses({
   anneeCourante,
@@ -162,18 +157,12 @@ export function OngletClasses({
                         size="sm"
                         variant="ghost"
                         disabled={!peutModifier || enCours || c.effectif > 0}
-                        title={
-                          c.effectif > 0
-                            ? "Cette classe compte des élèves inscrits"
-                            : "Supprimer la classe"
-                        }
+                        title={c.effectif > 0 ? "Cette classe compte des élèves inscrits" : "Supprimer la classe"}
                         onClick={() => {
                           if (!window.confirm(`Supprimer définitivement ${c.libelle} ?`)) return;
                           demarrer(async () => {
                             const r = await supprimerClasse(c.id);
-                            toast[r.ok ? "success" : "error"](
-                              r.ok ? "Classe supprimée." : (r.message ?? "Échec."),
-                            );
+                            toast[r.ok ? "success" : "error"](r.ok ? "Classe supprimée." : (r.message ?? "Échec."));
                           });
                         }}
                       >
@@ -222,9 +211,7 @@ export function OngletClasses({
                     </option>
                   ))}
                 </NativeSelect>
-                {erreurs.niveauId ? (
-                  <p className="text-destructive text-sm">{erreurs.niveauId}</p>
-                ) : null}
+                {erreurs.niveauId ? <p className="text-destructive text-sm">{erreurs.niveauId}</p> : null}
               </div>
 
               <div className="grid gap-2">
@@ -236,9 +223,7 @@ export function OngletClasses({
                   disabled={!niveauChoisi?.seriesApplicables}
                 >
                   <option value="">
-                    {niveauChoisi?.seriesApplicables
-                      ? "Sans série (indifférenciée)"
-                      : "Sans objet au collège"}
+                    {niveauChoisi?.seriesApplicables ? "Sans série (indifférenciée)" : "Sans objet au collège"}
                   </option>
                   {niveauChoisi?.seriesApplicables
                     ? seriesActives.map((s) => (
@@ -260,9 +245,7 @@ export function OngletClasses({
                     placeholder="Terminale D1"
                     required
                   />
-                  {erreurs.libelle ? (
-                    <p className="text-destructive text-sm">{erreurs.libelle}</p>
-                  ) : null}
+                  {erreurs.libelle ? <p className="text-destructive text-sm">{erreurs.libelle}</p> : null}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="code">Code</Label>

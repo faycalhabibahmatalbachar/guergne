@@ -60,9 +60,7 @@ export function ImportEleves() {
 
   const rapport = resultat?.rapport;
   const problemes = rapport
-    ? [...rapport.erreurs, ...rapport.doublonsFichier, ...rapport.dejaInscrits].sort(
-        (a, b) => a.ligne - b.ligne,
-      )
+    ? [...rapport.erreurs, ...rapport.doublonsFichier, ...rapport.dejaInscrits].sort((a, b) => a.ligne - b.ligne)
     : [];
 
   return (
@@ -71,9 +69,8 @@ export function ImportEleves() {
         <CardHeader>
           <CardTitle className="text-base">1. Préparer le fichier</CardTitle>
           <CardDescription>
-            Le gabarit porte les colonnes attendues et, en seconde feuille, la liste exacte
-            des classes ouvertes. C&apos;est le libellé de classe qui fait échouer la plupart
-            des imports.
+            Le gabarit porte les colonnes attendues et, en seconde feuille, la liste exacte des classes ouvertes.
+            C&apos;est le libellé de classe qui fait échouer la plupart des imports.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -90,8 +87,8 @@ export function ImportEleves() {
         <CardHeader>
           <CardTitle className="text-base">2. Déposer le fichier rempli</CardTitle>
           <CardDescription>
-            Formats acceptés : .xlsx et .csv. Rien n&apos;est écrit à cette étape — le fichier
-            est seulement lu et vérifié ligne à ligne.
+            Formats acceptés : .xlsx et .csv. Rien n&apos;est écrit à cette étape — le fichier est seulement lu et
+            vérifié ligne à ligne.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -134,22 +131,25 @@ export function ImportEleves() {
           <CardContent className="space-y-5">
             {rapport.colonnesManquantes.length > 0 ? (
               <p className="text-destructive text-sm">
-                Colonnes absentes du fichier : <strong>{rapport.colonnesManquantes.join(", ")}</strong>.
-                Sans elles, l&apos;import ne peut pas se faire.
+                Colonnes absentes du fichier : <strong>{rapport.colonnesManquantes.join(", ")}</strong>. Sans elles,
+                l&apos;import ne peut pas se faire.
               </p>
             ) : null}
 
             {rapport.colonnesIgnorees.length > 0 ? (
-              <p className="text-sm text-amber-600 dark:text-amber-400">
-                Colonnes non reconnues, donc <strong>ignorées</strong> :{" "}
-                {rapport.colonnesIgnorees.join(", ")}. Vérifiez leur intitulé si elles
-                devaient être importées.
+              <p className="text-sm text-alerte">
+                Colonnes non reconnues, donc <strong>ignorées</strong> : {rapport.colonnesIgnorees.join(", ")}. Vérifiez
+                leur intitulé si elles devaient être importées.
               </p>
             ) : null}
 
             <div className="grid gap-4 sm:grid-cols-4">
               {[
-                { libelle: termine ? "Inscrits" : "Prêts à inscrire", valeur: resultat?.inscrits ?? rapport.valides.length, bon: true },
+                {
+                  libelle: termine ? "Inscrits" : "Prêts à inscrire",
+                  valeur: resultat?.inscrits ?? rapport.valides.length,
+                  bon: true,
+                },
                 { libelle: "Lignes en erreur", valeur: rapport.erreurs.length },
                 { libelle: "Doublons du fichier", valeur: rapport.doublonsFichier.length },
                 { libelle: "Déjà en base", valeur: rapport.dejaInscrits.length },
@@ -158,7 +158,7 @@ export function ImportEleves() {
                   <p className="text-muted-foreground text-xs">{k.libelle}</p>
                   <p
                     className={`mt-0.5 font-semibold text-xl tabular-nums ${
-                      k.bon ? "text-emerald-600 dark:text-emerald-400" : k.valeur > 0 ? "text-amber-600 dark:text-amber-400" : ""
+                      k.bon ? "text-succes" : k.valeur > 0 ? "text-alerte" : ""
                     }`}
                   >
                     {k.valeur}
@@ -238,7 +238,7 @@ export function ImportEleves() {
             ) : null}
 
             {rapport.valides.length === 0 && !termine && rapport.colonnesManquantes.length === 0 ? (
-              <p className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+              <p className="flex items-center gap-2 text-sm text-alerte">
                 <AlertTriangle aria-hidden className="size-4" />
                 Aucune ligne exploitable : corrigez le fichier puis redéposez-le.
               </p>

@@ -1,15 +1,15 @@
 "use client";
 
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 
 import { ArrowRight, CircleAlert, KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
+import { useFormStatus } from "react-dom";
 
 import { Label } from "@/components/ui/label";
 
 import styles from "../connexion/connexion.module.css";
-import { ChampMotDePasse } from "./champ-mot-de-passe";
 import { confirmerReinitialisation, type EtatReinitialisation } from "../reinitialisation/actions";
+import { ChampMotDePasse } from "./champ-mot-de-passe";
 
 function BoutonConfirmation() {
   const { pending } = useFormStatus();
@@ -53,7 +53,7 @@ export function ConfirmationReinitialisation({ jeton }: { jeton: string }) {
             minLength={10}
             maxLength={128}
             aria-describedby="recommandation-mot-de-passe"
-            className="h-14 rounded-xl border-neutral-200 bg-white pl-12 pr-12 text-base text-neutral-950 focus-visible:ring-neutral-200"
+            className="h-14 rounded-xl border-border bg-card pl-12 pr-12 text-base text-foreground focus-visible:ring-border"
           />
         </div>
         <p id="recommandation-mot-de-passe" className="text-muted-foreground text-xs leading-relaxed">
@@ -75,7 +75,7 @@ export function ConfirmationReinitialisation({ jeton }: { jeton: string }) {
               required
               minLength={10}
               maxLength={128}
-              className="h-14 rounded-xl border-neutral-200 bg-white pl-12 pr-12 text-base text-neutral-950 focus-visible:ring-neutral-200"
+              className="h-14 rounded-xl border-border bg-card pl-12 pr-12 text-base text-foreground focus-visible:ring-border"
             />
           </div>
         </div>

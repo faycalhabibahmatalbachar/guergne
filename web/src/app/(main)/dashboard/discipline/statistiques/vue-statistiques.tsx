@@ -7,14 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { StatistiquesDiscipline } from "@/server/domain/conseil-discipline";
 
 /**
@@ -171,9 +164,7 @@ export function VueStatistiques({
           .map((g) => (
             <Card key={g.gravite}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {LIBELLE_GRAVITE[g.gravite] ?? g.gravite}
-                </CardTitle>
+                <CardTitle className="text-sm font-medium">{LIBELLE_GRAVITE[g.gravite] ?? g.gravite}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-destructive font-semibold text-2xl tabular-nums">{g.nombre}</p>
@@ -187,19 +178,17 @@ export function VueStatistiques({
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Évolution mensuelle</CardTitle>
             <CardDescription>
-              La discipline se dégrade par vagues — avant les compositions, après une longue
-              absence de professeur. Un total annuel ne le montrerait pas.
+              La discipline se dégrade par vagues — avant les compositions, après une longue absence de professeur. Un
+              total annuel ne le montrerait pas.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-1.5">
             {stats.parMois.map((m) => (
               <div key={m.mois} className="flex items-center gap-3 text-sm">
-                <span className="text-muted-foreground w-16 shrink-0 text-xs">
-                  {moisFr(m.mois)}
-                </span>
+                <span className="text-muted-foreground w-16 shrink-0 text-xs">{moisFr(m.mois)}</span>
                 <div className="bg-muted flex h-5 flex-1 overflow-hidden rounded-sm">
                   <div
-                    className="bg-amber-500/70 h-full"
+                    className="bg-alerte-doux h-full"
                     style={{ width: `${(m.incidents / maxMois) * 100}%` }}
                     title={`${m.incidents} incident(s)`}
                   />
@@ -215,9 +204,8 @@ export function VueStatistiques({
               </div>
             ))}
             <p className="text-muted-foreground pt-2 text-xs">
-              <span className="bg-amber-500/70 mr-1 inline-block size-2 rounded-full" /> incidents
-              <span className="bg-destructive/70 mx-1 ml-3 inline-block size-2 rounded-full" />{" "}
-              sanctions
+              <span className="bg-alerte-doux mr-1 inline-block size-2 rounded-full" /> incidents
+              <span className="bg-destructive/70 mx-1 ml-3 inline-block size-2 rounded-full" /> sanctions
             </p>
           </CardContent>
         </Card>
@@ -265,9 +253,8 @@ export function VueStatistiques({
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Par classe</CardTitle>
           <CardDescription>
-            Classé au taux pour cent élèves : une classe de 45 produit mécaniquement plus
-            d&apos;incidents qu&apos;une classe de 20, et un classement brut désignerait toujours
-            les grosses classes.
+            Classé au taux pour cent élèves : une classe de 45 produit mécaniquement plus d&apos;incidents qu&apos;une
+            classe de 20, et un classement brut désignerait toujours les grosses classes.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -286,17 +273,13 @@ export function VueStatistiques({
                 {classement.map((c) => (
                   <TableRow key={c.classe}>
                     <TableCell className="font-medium">{c.classe}</TableCell>
-                    <TableCell className="text-muted-foreground text-right tabular-nums">
-                      {c.effectif}
-                    </TableCell>
+                    <TableCell className="text-muted-foreground text-right tabular-nums">{c.effectif}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.incidents}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.sanctions}</TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
                       {c.comparable ? Math.round(c.taux) : "—"}
                       {c.comparable ? null : (
-                        <span className="text-muted-foreground block text-xs font-normal">
-                          effectif trop faible
-                        </span>
+                        <span className="text-muted-foreground block text-xs font-normal">effectif trop faible</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -311,9 +294,8 @@ export function VueStatistiques({
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Élèves les plus signalés</CardTitle>
           <CardDescription>
-            Le seul tableau nominatif, et il est assumé : la vie scolaire existe pour repérer les
-            quelques élèves qui décrochent avant qu&apos;on ne les exclue. Un chiffre agrégé ne
-            permet d&apos;agir sur personne.
+            Le seul tableau nominatif, et il est assumé : la vie scolaire existe pour repérer les quelques élèves qui
+            décrochent avant qu&apos;on ne les exclue. Un chiffre agrégé ne permet d&apos;agir sur personne.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -337,10 +319,7 @@ export function VueStatistiques({
                   {stats.recidivistes.map((r) => (
                     <TableRow key={r.inscriptionId}>
                       <TableCell>
-                        <Link
-                          href={`/dashboard/eleves/${r.eleveId}`}
-                          className="font-medium hover:underline"
-                        >
+                        <Link href={`/dashboard/eleves/${r.eleveId}`} className="font-medium hover:underline">
                           {r.eleve}
                         </Link>
                       </TableCell>
@@ -349,7 +328,7 @@ export function VueStatistiques({
                       <TableCell className="text-right tabular-nums">{r.sanctions}</TableCell>
                       <TableCell>
                         {r.incidents >= 3 && r.sanctions === 0 ? (
-                          <Badge variant="outline" className="text-amber-700 dark:text-amber-400">
+                          <Badge variant="outline" className="text-alerte">
                             signalé, jamais sanctionné
                           </Badge>
                         ) : null}

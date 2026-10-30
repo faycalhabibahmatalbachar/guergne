@@ -1,11 +1,14 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 
 import { CalendarClock, CalendarDays, Printer } from "lucide-react";
+import type { Metadata } from "next";
 
+import { EnTetePage, Page } from "@/components/socle/en-tete-page";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { controleHoraire } from "@/server/domain/emploi-du-temps";
+import { chargerPlagesHorairesScolaires } from "@/server/domain/horaires-scolaires";
 import {
   chargerEmploiDuTemps,
   listerClassesEtMatieres,
@@ -13,15 +16,13 @@ import {
   listerEnseignants,
   listerSalles,
 } from "@/server/domain/personnel";
-import { controleHoraire } from "@/server/domain/emploi-du-temps";
 import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
 import { exigerPage } from "@/server/guard";
 
 import { Prerequis } from "../_components/prerequis";
-import { HorairesScolairesResume } from "./_components/horaires-scolaires-resume";
-import { chargerPlagesHorairesScolaires } from "@/server/domain/horaires-scolaires";
 import { ControleHoraire } from "./_components/controle-horaire";
 import { Grille } from "./_components/grille";
+import { HorairesScolairesResume } from "./_components/horaires-scolaires-resume";
 import { SelecteurCible } from "./_components/selecteur-cible";
 
 export const metadata: Metadata = { title: "Emploi du temps" };
@@ -44,14 +45,14 @@ export default async function PageEmploiDuTemps({
 
   if (!annee) {
     return (
-      <div className="space-y-6">
-        <h1 className="font-semibold text-2xl tracking-tight">Emploi du temps</h1>
+      <Page>
+        <EnTetePage titre="Emploi du temps" />
         <Prerequis
           titre="Aucune année scolaire n'est configurée"
           explication="L'emploi du temps est propre à une année scolaire."
           manquants={[{ libelle: "Configurer l'année scolaire", url: "/dashboard/parametres" }]}
         />
-      </div>
+      </Page>
     );
   }
 
@@ -94,14 +95,16 @@ export default async function PageEmploiDuTemps({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-semibold text-2xl tracking-tight">Emploi du temps</h1>
-        <p className="mt-1 text-muted-foreground text-sm">
-          Un professeur, une classe ou une salle ne peuvent pas être à deux endroits au même moment :
-          ces trois conflits sont refusés à l&apos;enregistrement.
-        </p>
-      </div>
+    <Page>
+      <EnTetePage
+        titre="Emploi du temps"
+        description={
+          <>
+            Un professeur, une classe ou une salle ne peuvent pas être à deux endroits au même moment : ces trois
+            conflits sont refusés à l&apos;enregistrement.
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs value={vue}>
@@ -192,6 +195,6 @@ export default async function PageEmploiDuTemps({
           />
         </>
       )}
-    </div>
+    </Page>
   );
 }

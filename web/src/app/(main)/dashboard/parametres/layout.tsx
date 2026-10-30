@@ -1,4 +1,5 @@
-import { Suspense, type ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
+
 import { redirect } from "next/navigation";
 
 import { APP_CONFIG } from "@/config/app-config";
@@ -14,14 +15,15 @@ export default async function LayoutParametres({ children }: { children: ReactNo
     peut(principal, "annonce:lire"),
   ]);
   const autorises = new Set(SETTINGS_PERMISSIONS.filter((_, i) => resultats[i]));
-  const items = SETTINGS_CARDS.filter((s) => s.droits.some((droit) => autorises.has(droit)))
-    .map(({ droits: _droits, description: _description, action: _action, ...item }) => item);
+  const items = SETTINGS_CARDS.filter((s) => s.droits.some((droit) => autorises.has(droit))).map(
+    ({ droits: _droits, description: _description, action: _action, ...item }) => item,
+  );
 
   if (!items.length) redirect("/unauthorized");
 
   return (
-    <div className="min-w-0 space-y-5 pb-8 text-slate-950 dark:text-foreground">
-      <Suspense fallback={<div className="h-[103px] border-b border-slate-200/80 dark:border-border" />}>
+    <div className="min-w-0 space-y-5 pb-8 text-foreground">
+      <Suspense fallback={<div className="h-[103px] border-b border-border" />}>
         <SettingsPageHeading
           items={items}
           lyceeName={APP_CONFIG.name}

@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { sql } from "drizzle-orm";
-import { paireCanonique, schemaExamenDoublon } from "@/lib/examen-doublon";
 
+import { sql } from "drizzle-orm";
+
+import { paireCanonique, schemaExamenDoublon } from "@/lib/examen-doublon";
 import { db } from "@/server/db";
 import { journalAudit } from "@/server/db/schema";
 import { requirePermission } from "@/server/guard";
@@ -19,7 +20,8 @@ export async function enregistrerExamenDoublon(input: unknown): Promise<Resultat
     const acteur = await requirePermission("tuteur:gerer");
     await requirePermission("audit:lire");
     const validation = schemaExamenDoublon.safeParse(input);
-    if (!validation.success) return { ok: false, message: "Deux dossiers distincts, motif détaillé et confirmation de vérification requis." };
+    if (!validation.success)
+      return { ok: false, message: "Deux dossiers distincts, motif détaillé et confirmation de vérification requis." };
     const d = validation.data;
     if (d.tuteurId === d.autreTuteurId) return { ok: false, message: "Comparez deux dossiers distincts." };
     const [premier, second] = paireCanonique(d.tuteurId, d.autreTuteurId);
@@ -52,9 +54,10 @@ export async function enregistrerExamenDoublon(input: unknown): Promise<Resultat
     revalidatePath("/dashboard/parents/familles/doublons/" + d.autreTuteurId);
     return {
       ok: true,
-      message: d.decision === "DISTINCTS"
-        ? "Deux personnes distinctes : examen journalisé. Le numéro partagé reste signalé."
-        : "Possible même personne : examen transmis pour rapprochement ultérieur. Aucune fiche fusionnée.",
+      message:
+        d.decision === "DISTINCTS"
+          ? "Deux personnes distinctes : examen journalisé. Le numéro partagé reste signalé."
+          : "Possible même personne : examen transmis pour rapprochement ultérieur. Aucune fiche fusionnée.",
     };
   } catch (e) {
     console.error("[parents:examen-doublon]", e);

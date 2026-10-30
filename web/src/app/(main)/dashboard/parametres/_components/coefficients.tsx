@@ -11,15 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { CoefficientSaisi, LigneAnnee, LigneMatiere, LigneNiveau, LigneSerie } from "@/server/domain/parametres";
 
 import { copierCoefficients, definirCoefficient } from "../actions";
-import type {
-  CoefficientSaisi,
-  LigneAnnee,
-  LigneMatiere,
-  LigneNiveau,
-  LigneSerie,
-} from "@/server/domain/parametres";
 
 /**
  * Grille des coefficients.
@@ -156,9 +150,7 @@ export function OngletCoefficients({
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-14 text-center">
             <Info className="size-7 text-muted-foreground" aria-hidden />
-            <p className="text-muted-foreground text-sm">
-              Choisissez un niveau pour saisir ses coefficients.
-            </p>
+            <p className="text-muted-foreground text-sm">Choisissez un niveau pour saisir ses coefficients.</p>
           </CardContent>
         </Card>
       ) : (
@@ -211,9 +203,8 @@ export function OngletCoefficients({
 
       {niveauId ? (
         <p className="text-muted-foreground text-sm">
-          Somme des coefficients :{" "}
-          <span className="font-medium text-foreground tabular-nums">{totalCoefficients}</span>. C&apos;est
-          le dénominateur de la moyenne générale à ce niveau.
+          Somme des coefficients : <span className="font-medium text-foreground tabular-nums">{totalCoefficients}</span>
+          . C&apos;est le dénominateur de la moyenne générale à ce niveau.
         </p>
       ) : null}
     </div>
@@ -257,7 +248,7 @@ function LigneCoefficient({
           <span
             aria-hidden
             className="size-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: matiere.couleur ?? "#64748b" }}
+            style={{ backgroundColor: matiere.couleur ?? "var(--muted-foreground)" }}
           />
           {matiere.libelle}
         </span>

@@ -9,36 +9,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Navigation latérale : reprendre sur toutes les pages le thème bleu nuit
-   de la page Classes, avec les mêmes onglets actifs en bleu vif. */
-body {
-  --sidebar: #0b1e3a;
-  --sidebar-foreground: #edf3ff;
-  --sidebar-primary: #2563eb;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e50d7;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgba(255, 255, 255, .09);
-  --sidebar-ring: #7aa4ff;
-}
+/*
+  SOCLE VISUEL UNIQUE
+  ===================
+  Trois primaires cohabitaient dans l'application : le turquoise #1ABB9C de la
+  peau Gentelella, le gris par défaut de shadcn, et le bleu #2563eb posé à la
+  main sur la barre latérale. Trois identités pour un seul logiciel.
 
-body [data-sidebar="sidebar"] {
-  background: linear-gradient(175deg, #0b1d37 0%, #091a33 65%, #0d2548 100%);
-  color: #f5f8ff;
-}
+  Tout dérive désormais d'ici. La barre latérale garde son bleu nuit — c'est un
+  choix déjà fait et il tient ; le reste s'aligne dessus.
 
-body [data-sidebar="sidebar"] [data-sidebar="group-label"],
-body [data-sidebar="sidebar"] .text-muted-foreground {
-  color: #b1bfd3;
-}
-
-body [data-sidebar="sidebar"] [data-active="true"] {
-  background: #2563eb;
-  color: #ffffff;
-  border-radius: .7rem;
-  font-weight: 600;
-}
-
+  Les gris ne sont pas neutres mais très légèrement bleutés (chroma 0,01 à 0,02
+  sur la teinte 256). Sur les dalles bon marché du secrétariat, un gris de
+  chroma nulle vire au vert ou au magenta selon l'écran.
+*/
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -79,83 +63,228 @@ body [data-sidebar="sidebar"] [data-active="true"] {
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /*
+    Jetons d'état. La couleur porte un sens et un seul : vert = présent, payé,
+    admis ; ambre = retard, en attente ; rouge = absence non justifiée, impayé,
+    sanction ; bleu = information ; gris = non renseigné.
+
+    Quatre déclinaisons par état :
+      --color-x            aplat, et couleur de texte sur fond clair
+      --color-x-foreground texte posé SUR cet aplat
+      --color-x-doux       fond teinté d'un badge ou d'un encart
+      --color-x-trait      bordure de ce fond teinté
+  */
+  --color-succes: var(--succes);
+  --color-succes-foreground: var(--succes-foreground);
+  --color-succes-doux: var(--succes-doux);
+  --color-succes-trait: var(--succes-trait);
+  --color-alerte: var(--alerte);
+  --color-alerte-foreground: var(--alerte-foreground);
+  --color-alerte-doux: var(--alerte-doux);
+  --color-alerte-trait: var(--alerte-trait);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-danger-doux: var(--danger-doux);
+  --color-danger-trait: var(--danger-trait);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-doux: var(--info-doux);
+  --color-info-trait: var(--info-trait);
+  --color-neutre: var(--neutre);
+  --color-neutre-foreground: var(--neutre-foreground);
+  --color-neutre-doux: var(--neutre-doux);
+  --color-neutre-trait: var(--neutre-trait);
+
+  --shadow-carte: var(--ombre-carte);
+  --shadow-relief: var(--ombre-relief);
+  --shadow-flottante: var(--ombre-flottante);
+
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
 }
 
-/* Default theme styles (used when no data-theme-preset is set or when 'default' is selected).
-These serve as the fallback; there is no separate default.css file. */
 :root {
+  /*
+    10 px sur les cartes, 8 sur les boutons et les champs, 6 sur les petites
+    pastilles. Gentelella imposait 6 px partout, ce qui donne l'angle dur des
+    interfaces d'administration de 2013.
+  */
   --radius: 0.625rem;
+
+  --background: oklch(0.985 0.003 256);
+  --foreground: oklch(0.21 0.02 258);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.21 0.02 258);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --popover-foreground: oklch(0.21 0.02 258);
+
+  /* Bleu institutionnel : identité, navigation, action principale. Jamais un statut. */
+  --primary: oklch(0.5 0.19 263);
+  --primary-foreground: oklch(0.99 0.005 263);
+
+  --secondary: oklch(0.967 0.007 256);
+  --secondary-foreground: oklch(0.3 0.04 256);
+  --muted: oklch(0.967 0.007 256);
+  --muted-foreground: oklch(0.52 0.025 257);
+  --accent: oklch(0.953 0.015 258);
+  --accent-foreground: oklch(0.33 0.07 260);
+  --destructive: oklch(0.52 0.19 25);
+  --border: oklch(0.915 0.009 256);
+  --input: oklch(0.915 0.009 256);
+  --ring: oklch(0.55 0.17 263);
+
+  /*
+    Cinq séries de graphique réellement distinguables, y compris en deutéranopie :
+    on écarte les teintes, pas seulement la clarté. Le socle livrait cinq gris.
+  */
+  --chart-1: oklch(0.55 0.19 263);
+  --chart-2: oklch(0.68 0.13 65);
+  --chart-3: oklch(0.6 0.11 195);
+  --chart-4: oklch(0.56 0.15 305);
+  --chart-5: oklch(0.67 0.12 145);
+
+  /* Barre latérale bleu nuit : repère constant, à gauche, sur toutes les pages. */
+  --sidebar: oklch(0.21 0.055 262);
+  --sidebar-foreground: oklch(0.93 0.015 258);
+  --sidebar-primary: oklch(0.55 0.21 264);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.55 0.21 264);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(1 0 0 / 9%);
+  --sidebar-ring: oklch(0.72 0.12 264);
+
+  --succes: oklch(0.52 0.13 152);
+  --succes-foreground: oklch(0.99 0.01 152);
+  --succes-doux: oklch(0.957 0.03 152);
+  --succes-trait: oklch(0.86 0.06 152);
+
+  --alerte: oklch(0.55 0.12 72);
+  --alerte-foreground: oklch(0.99 0.01 72);
+  --alerte-doux: oklch(0.962 0.04 80);
+  --alerte-trait: oklch(0.87 0.075 80);
+
+  --danger: oklch(0.52 0.19 25);
+  --danger-foreground: oklch(0.99 0.01 25);
+  --danger-doux: oklch(0.958 0.025 25);
+  --danger-trait: oklch(0.87 0.055 25);
+
+  --info: oklch(0.5 0.17 263);
+  --info-foreground: oklch(0.99 0.01 263);
+  --info-doux: oklch(0.956 0.03 263);
+  --info-trait: oklch(0.86 0.06 263);
+
+  --neutre: oklch(0.52 0.02 258);
+  --neutre-foreground: oklch(0.99 0 0);
+  --neutre-doux: oklch(0.962 0.005 258);
+  --neutre-trait: oklch(0.9 0.008 258);
+
+  /*
+    Ombres portées. Une seule famille, très basse : sur un fond clair, une ombre
+    marquée fait flotter les cartes et fatigue à la lecture prolongée. La
+    séparation vient du trait, l'ombre ne fait que décoller.
+  */
+  --ombre-carte: 0 1px 2px 0 oklch(0.21 0.02 258 / 0.04), 0 1px 3px 0 oklch(0.21 0.02 258 / 0.04);
+  --ombre-relief: 0 4px 12px -2px oklch(0.21 0.02 258 / 0.08), 0 2px 6px -2px oklch(0.21 0.02 258 / 0.06);
+  --ombre-flottante: 0 12px 32px -8px oklch(0.21 0.02 258 / 0.16);
 
   /* fonts */
   --font-sans: var(--font-geist);
   --font-mono: var(--font-geist-mono);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.17 0.018 260);
+  --foreground: oklch(0.96 0.005 256);
+  --card: oklch(0.215 0.02 260);
+  --card-foreground: oklch(0.96 0.005 256);
+  --popover: oklch(0.228 0.022 260);
+  --popover-foreground: oklch(0.96 0.005 256);
+
+  --primary: oklch(0.68 0.17 263);
+  --primary-foreground: oklch(0.17 0.04 263);
+
+  --secondary: oklch(0.27 0.022 260);
+  --secondary-foreground: oklch(0.95 0.006 256);
+  --muted: oklch(0.27 0.022 260);
+  --muted-foreground: oklch(0.71 0.018 257);
+  --accent: oklch(0.305 0.03 260);
+  --accent-foreground: oklch(0.96 0.005 256);
+  --destructive: oklch(0.7 0.17 25);
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.6 0.15 263);
+
+  --chart-1: oklch(0.68 0.17 263);
+  --chart-2: oklch(0.76 0.13 70);
+  --chart-3: oklch(0.72 0.1 195);
+  --chart-4: oklch(0.68 0.15 305);
+  --chart-5: oklch(0.76 0.12 145);
+
+  --sidebar: oklch(0.185 0.045 262);
+  --sidebar-foreground: oklch(0.92 0.015 258);
+  --sidebar-primary: oklch(0.55 0.21 264);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.55 0.21 264);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(1 0 0 / 9%);
+  --sidebar-ring: oklch(0.72 0.12 264);
+
+  --succes: oklch(0.75 0.15 152);
+  --succes-foreground: oklch(0.19 0.045 152);
+  --succes-doux: oklch(0.3 0.055 152);
+  --succes-trait: oklch(0.42 0.08 152);
+
+  --alerte: oklch(0.8 0.14 80);
+  --alerte-foreground: oklch(0.2 0.05 80);
+  --alerte-doux: oklch(0.31 0.06 75);
+  --alerte-trait: oklch(0.44 0.09 75);
+
+  --danger: oklch(0.72 0.17 25);
+  --danger-foreground: oklch(0.19 0.05 25);
+  --danger-doux: oklch(0.31 0.07 25);
+  --danger-trait: oklch(0.43 0.1 25);
+
+  --info: oklch(0.7 0.16 263);
+  --info-foreground: oklch(0.18 0.045 263);
+  --info-doux: oklch(0.3 0.06 263);
+  --info-trait: oklch(0.43 0.09 263);
+
+  --neutre: oklch(0.72 0.018 258);
+  --neutre-foreground: oklch(0.18 0.015 258);
+  --neutre-doux: oklch(0.29 0.015 258);
+  --neutre-trait: oklch(0.4 0.015 258);
+
+  --ombre-carte: 0 1px 2px 0 oklch(0 0 0 / 0.3), 0 1px 3px 0 oklch(0 0 0 / 0.24);
+  --ombre-relief: 0 4px 12px -2px oklch(0 0 0 / 0.4), 0 2px 6px -2px oklch(0 0 0 / 0.3);
+  --ombre-flottante: 0 12px 32px -8px oklch(0 0 0 / 0.55);
+}
+
+/*
+  La barre latérale tire sa couleur des jetons ci-dessus plutôt que de six
+  valeurs hexadécimales écrites à la main. Le dégradé reste : il donne de la
+  profondeur à une colonne haute et unie sans ajouter de trait.
+*/
+body [data-sidebar="sidebar"] {
+  background: linear-gradient(
+    175deg,
+    var(--sidebar) 0%,
+    color-mix(in oklch, var(--sidebar), black 12%) 65%,
+    color-mix(in oklch, var(--sidebar), var(--sidebar-primary) 18%) 100%
+  );
+  color: var(--sidebar-foreground);
+}
+
+body [data-sidebar="sidebar"] [data-sidebar="group-label"],
+body [data-sidebar="sidebar"] .text-muted-foreground {
+  color: color-mix(in oklch, var(--sidebar-foreground), transparent 32%);
+}
+
+body [data-sidebar="sidebar"] [data-active="true"] {
+  background: var(--sidebar-primary);
+  color: var(--sidebar-primary-foreground);
+  border-radius: var(--radius-md);
+  font-weight: 600;
 }
 
 @layer base {
@@ -169,6 +298,47 @@ These serve as the fallback; there is no separate default.css file. */
   }
   html {
     @apply font-sans;
+  }
+
+  /*
+    Toute donnée chiffrée est alignée verticalement. Sans chiffres tabulaires,
+    une colonne de moyennes ou de montants FCFA se lit en zigzag : les chiffres
+    d'une police proportionnelle n'ont pas tous la même chasse.
+  */
+  th,
+  td {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /*
+    Titres : une seule échelle pour toute l'application. Les pages fixaient
+    chacune la leur, d'où des h1 de tailles différentes d'un module à l'autre.
+  */
+  h1 {
+    @apply font-heading font-semibold text-xl tracking-tight sm:text-2xl;
+  }
+  h2 {
+    @apply font-heading font-medium text-base leading-snug;
+  }
+  h3 {
+    @apply font-heading font-medium text-sm;
+  }
+
+  /*
+    Respect de la préférence système « réduire les animations ». Les durées ne
+    sont pas coupées à zéro mais ramenées à 1 ms : à zéro, certains composants
+    Radix n'émettent jamais leur `transitionend` et restent bloqués ouverts.
+  */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

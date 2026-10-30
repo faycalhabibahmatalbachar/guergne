@@ -1,13 +1,13 @@
-import type { Metadata } from "next";
-
-import { redirect } from "next/navigation";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+
 import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 
 import { exigerSession } from "@/server/guard";
 
-import { HabillageAuthentification } from "../_components/habillage-authentification";
 import { FormulaireMotDePasse } from "../_components/formulaire-mot-de-passe";
+import { HabillageAuthentification } from "../_components/habillage-authentification";
 import styles from "../connexion/connexion.module.css";
 
 export const metadata: Metadata = { title: "Changer le mot de passe" };

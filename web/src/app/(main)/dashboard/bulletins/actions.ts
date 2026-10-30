@@ -20,10 +20,7 @@ export interface ResultatGeneration {
  * classe décide d'un passage. Le droit de consulter ne peut pas emporter celui
  * de recalculer.
  */
-export async function genererPourClasse(
-  classeId: string,
-  periodeId: string,
-): Promise<ResultatGeneration> {
+export async function genererPourClasse(classeId: string, periodeId: string): Promise<ResultatGeneration> {
   try {
     const acteur = await requirePermission("bulletin:generer");
 

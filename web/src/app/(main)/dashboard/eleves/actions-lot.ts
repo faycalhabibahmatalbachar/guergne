@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 
 import { sql } from "drizzle-orm";
-import { parametresUuid } from "@/lib/sql-uuid";
 import { z } from "zod";
 
+import { parametresUuid } from "@/lib/sql-uuid";
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
@@ -38,7 +38,10 @@ export interface ResultatLot {
 }
 
 const schemaClasse = z.object({
-  eleveIds: z.array(z.string().uuid()).min(1, "Aucun élève sélectionné.").max(100)
+  eleveIds: z
+    .array(z.string().uuid())
+    .min(1, "Aucun élève sélectionné.")
+    .max(100)
     .refine((ids) => new Set(ids).size === ids.length, "La sélection contient des doublons."),
   classeId: z.string().uuid(),
   motif: z.string().trim().min(3, "Le motif est obligatoire.").max(500, "Motif trop long."),
@@ -59,7 +62,8 @@ export async function changerClasseEnLot(donnees: unknown): Promise<ResultatLot>
         FROM classes c JOIN annees_scolaires a ON a.id = c.annee_id
        WHERE c.id = ${classeId}::uuid AND c.active AND a.est_courante AND NOT a.est_cloturee
     `);
-    if (!destination.rows[0]) return { ok: false, message: "La classe choisie n’est pas disponible pour l’année scolaire en cours." };
+    if (!destination.rows[0])
+      return { ok: false, message: "La classe choisie n’est pas disponible pour l’année scolaire en cours." };
     const classeCible = destination.rows[0];
 
     // On résout les inscriptions actives ici plutôt que de les faire remonter
@@ -74,7 +78,10 @@ export async function changerClasseEnLot(donnees: unknown): Promise<ResultatLot>
     `);
 
     if (cibles.rows.length !== eleveIds.length) {
-      return { ok: false, message: "La sélection contient des élèves sans inscription active pour cette année. Aucun dossier modifié." };
+      return {
+        ok: false,
+        message: "La sélection contient des élèves sans inscription active pour cette année. Aucun dossier modifié.",
+      };
     }
     const deja = cibles.rows.filter((i) => i.classe_id === classeId).length;
     if (deja > 0) {
@@ -86,7 +93,10 @@ export async function changerClasseEnLot(donnees: unknown): Promise<ResultatLot>
     `);
     const effectif = Number(places.rows[0]?.effectif ?? 0);
     if (effectif + cibles.rows.length > Number(classeCible.capacite_max)) {
-      return { ok: false, message: `La classe ${classeCible.libelle} dispose de ${Math.max(0, Number(classeCible.capacite_max) - effectif)} place(s) pour ${cibles.rows.length} élève(s). Aucun dossier modifié.` };
+      return {
+        ok: false,
+        message: `La classe ${classeCible.libelle} dispose de ${Math.max(0, Number(classeCible.capacite_max) - effectif)} place(s) pour ${cibles.rows.length} élève(s). Aucun dossier modifié.`,
+      };
     }
     await db.transaction(async (tx) => {
       // Verrouiller la destination pour sérialiser les mouvements concurrents.
@@ -114,13 +124,19 @@ export async function changerClasseEnLot(donnees: unknown): Promise<ResultatLot>
         motif,
       });
     } catch (auditErreur) {
-      console.error("[lot-classe] Audit applicatif indisponible", (auditErreur as { code?: string })?.code ?? "inconnu");
+      console.error(
+        "[lot-classe] Audit applicatif indisponible",
+        (auditErreur as { code?: string })?.code ?? "inconnu",
+      );
     }
     try {
       revalidatePath("/dashboard/eleves");
       revalidatePath("/dashboard/classes");
     } catch (erreurCache) {
-      console.error("[lot-classe] Déplacement confirmé, actualisation du cache indisponible", (erreurCache as { code?: string })?.code ?? "inconnu");
+      console.error(
+        "[lot-classe] Déplacement confirmé, actualisation du cache indisponible",
+        (erreurCache as { code?: string })?.code ?? "inconnu",
+      );
     }
     return {
       ok: true,
@@ -141,13 +157,20 @@ export async function changerClasseEnLot(donnees: unknown): Promise<ResultatLot>
       return { ok: false, message: "Erreur de format des identifiants. Réessayez ou contactez l’administration." };
     }
     if (code === "23503") {
-      return { ok: false, message: "Une classe, une inscription ou l’utilisateur responsable n’est plus disponible. Actualisez la page." };
+      return {
+        ok: false,
+        message: "Une classe, une inscription ou l’utilisateur responsable n’est plus disponible. Actualisez la page.",
+      };
     }
     if (code === "40001" || code === "40P01") {
       return { ok: false, message: "Une autre opération est en cours. Réessayez dans quelques instants." };
     }
     // Journalisation sans paramètres SQL ni identifiants privés des élèves.
     console.error("[lot-classe] Code PostgreSQL :", code ?? "inconnu");
-    return { ok: false, message: "Le déplacement n’a pas pu être effectué. Aucun élève déplacé. Contactez l’administration si le problème persiste." };
+    return {
+      ok: false,
+      message:
+        "Le déplacement n’a pas pu être effectué. Aucun élève déplacé. Contactez l’administration si le problème persiste.",
+    };
   }
 }

@@ -8,8 +8,8 @@ import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
 import { anneesScolaires, classes as tableClasses } from "@/server/db/schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
-import { lireFeuille } from "@/server/import/feuille";
 import { analyserEleves, type RapportAnalyse } from "@/server/import/eleves";
+import { lireFeuille } from "@/server/import/feuille";
 import { normaliserNumero } from "@/server/notifications/sms";
 
 export interface ResultatImport {
@@ -130,14 +130,10 @@ export async function importerEleves(donnees: FormData): Promise<ResultatImport>
           // plutôt que calculé ici : deux imports simultanés produiraient
           // sinon deux fois le même.
           const matricule = (
-            await tx.execute<{ v: string }>(
-              sql`SELECT prochain_numero('MATRICULE', ${anneeCivile}::smallint) AS v`,
-            )
+            await tx.execute<{ v: string }>(sql`SELECT prochain_numero('MATRICULE', ${anneeCivile}::smallint) AS v`)
           ).rows[0]!.v;
           const numeroInscription = (
-            await tx.execute<{ v: string }>(
-              sql`SELECT prochain_numero('INSCRIPTION', ${anneeCivile}::smallint) AS v`,
-            )
+            await tx.execute<{ v: string }>(sql`SELECT prochain_numero('INSCRIPTION', ${anneeCivile}::smallint) AS v`)
           ).rows[0]!.v;
 
           const eleve = await tx.execute<{ id: string }>(sql`

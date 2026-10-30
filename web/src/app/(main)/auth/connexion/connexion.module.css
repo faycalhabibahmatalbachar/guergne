@@ -28,8 +28,7 @@
   position: absolute;
   z-index: 1;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(7, 34, 38, .66) 0%, rgba(7, 35, 39, .42) 43%, rgba(6, 31, 34, .67) 100%);
+  background: linear-gradient(180deg, rgba(7, 34, 38, 0.66) 0%, rgba(7, 35, 39, 0.42) 43%, rgba(6, 31, 34, 0.67) 100%);
   pointer-events: none;
 }
 
@@ -50,9 +49,9 @@
   place-items: center;
   padding: 7px;
   background: #fff;
-  border: 1px solid rgba(255, 255, 255, .82);
+  border: 1px solid rgba(255, 255, 255, 0.82);
   border-radius: 20px;
-  box-shadow: 0 10px 34px rgba(0, 0, 0, .19);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.19);
 }
 
 .logo {
@@ -68,17 +67,17 @@
   font-size: clamp(26px, 2.45vw, 39px);
   font-weight: 730;
   line-height: 1.22;
-  letter-spacing: -.044em;
-  text-shadow: 0 2px 14px rgba(0,0,0,.46);
+  letter-spacing: -0.044em;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.46);
   text-wrap: balance;
 }
 
 .brandSubtitle {
   margin-top: 17px;
-  color: rgba(255, 255, 255, .94);
+  color: rgba(255, 255, 255, 0.94);
   font-size: clamp(15px, 1.3vw, 19px);
   line-height: 1.45;
-  text-shadow: 0 2px 9px rgba(0,0,0,.45);
+  text-shadow: 0 2px 9px rgba(0, 0, 0, 0.45);
 }
 
 .goldRule {
@@ -94,8 +93,8 @@
   color: #f6f8f9;
   font-size: 11px;
   font-weight: 650;
-  letter-spacing: .18em;
-  text-shadow: 0 2px 9px rgba(0,0,0,.45);
+  letter-spacing: 0.18em;
+  text-shadow: 0 2px 9px rgba(0, 0, 0, 0.45);
 }
 
 .motto span {
@@ -125,7 +124,9 @@
   box-shadow: none;
 }
 
-.form { width: 100%; }
+.form {
+  width: 100%;
+}
 
 .formHeading h1,
 .formHeading h2 {
@@ -134,7 +135,7 @@
   font-size: clamp(30px, 2.55vw, 37px);
   font-weight: 740;
   line-height: 1.21;
-  letter-spacing: -.052em;
+  letter-spacing: -0.052em;
 }
 
 .formHeading p {
@@ -160,7 +161,7 @@
   color: #212b38;
   font-size: 15px;
   font-weight: 650;
-  letter-spacing: -.015em;
+  letter-spacing: -0.015em;
 }
 
 .iconInput {
@@ -192,8 +193,13 @@
   text-underline-offset: 3px;
 }
 
-.recoveryLink:hover { color: #0f172a; }
-.recoveryLink:focus-visible { outline: 2px solid #64748b; outline-offset: 4px; }
+.recoveryLink:hover {
+  color: #0f172a;
+}
+.recoveryLink:focus-visible {
+  outline: 2px solid #64748b;
+  outline-offset: 4px;
+}
 
 .loginError {
   display: flex;
@@ -220,7 +226,9 @@
   line-height: 1.5;
 }
 
-.recoveryForm { margin-top: 34px; }
+.recoveryForm {
+  margin-top: 34px;
+}
 
 .recoverySubmit {
   display: grid;
@@ -236,14 +244,22 @@
   color: #fff;
   font-size: 15px;
   font-weight: 650;
-  box-shadow: 0 6px 14px rgba(15, 23, 42, .09);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.09);
   cursor: pointer;
   transition: background-color 160ms ease;
 }
 
-.recoverySubmit:hover { background: #282828; }
-.recoverySubmit:focus-visible { outline: 3px solid #a0b5c9; outline-offset: 3px; }
-.recoverySubmit:disabled { opacity: .65; cursor: wait; }
+.recoverySubmit:hover {
+  background: #282828;
+}
+.recoverySubmit:focus-visible {
+  outline: 3px solid #a0b5c9;
+  outline-offset: 3px;
+}
+.recoverySubmit:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
 
 .recoveryFooter {
   display: flex;
@@ -266,14 +282,24 @@
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
-  transition: background-color 160ms ease, border-color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
 }
 
-.backLink:hover { border-color: #a9bbc9; background: #f6f8fb; }
-.backLink:focus-visible { outline: 3px solid #a0b5c9; outline-offset: 3px; }
+.backLink:hover {
+  border-color: #a9bbc9;
+  background: #f6f8fb;
+}
+.backLink:focus-visible {
+  outline: 3px solid #a0b5c9;
+  outline-offset: 3px;
+}
 
 @media (max-width: 1119px) {
-  .page { grid-template-columns: minmax(0, 1fr); }
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
   .brandPanel {
     min-height: 0;
@@ -281,10 +307,12 @@
     align-items: center;
     justify-content: flex-start;
   }
-  .campusPhoto { object-position: center 54%; }
+  .campusPhoto {
+    object-position: center 54%;
+  }
 
   .brandOverlay {
-    background: linear-gradient(90deg, rgba(7,30,34,.83) 0%, rgba(7,30,34,.52) 65%, rgba(7,30,34,.32) 100%);
+    background: linear-gradient(90deg, rgba(7, 30, 34, 0.83) 0%, rgba(7, 30, 34, 0.52) 65%, rgba(7, 30, 34, 0.32) 100%);
   }
   .brandContent {
     display: grid;
@@ -297,15 +325,29 @@
     padding: 25px clamp(24px, 6vw, 72px);
     text-align: left;
   }
-  .logoFrame { width: 94px; height: 94px; grid-row: 1 / span 2; margin: 0; }
-  .logo { width: 94px; height: 94px; }
+  .logoFrame {
+    width: 94px;
+    height: 94px;
+    grid-row: 1 / span 2;
+    margin: 0;
+  }
+  .logo {
+    width: 94px;
+    height: 94px;
+  }
   .schoolName {
     max-width: none;
     margin: 0;
     font-size: clamp(26px, 3.5vw, 36px);
   }
-  .brandSubtitle { margin-top: 8px; font-size: 16px; }
-  .goldRule, .motto { display: none; }
+  .brandSubtitle {
+    margin-top: 8px;
+    font-size: 16px;
+  }
+  .goldRule,
+  .motto {
+    display: none;
+  }
   .loginPanel {
     min-height: calc(100svh - 232px);
     align-items: center;
@@ -314,36 +356,77 @@
 }
 
 @media (max-width: 560px) {
-  .brandPanel { height: 174px; }
+  .brandPanel {
+    height: 174px;
+  }
   .brandContent {
     grid-template-columns: 60px minmax(0, 1fr);
     column-gap: 15px;
     padding: 14px 17px;
   }
-  .logoFrame { width: 60px; height: 60px; }
-  .logo { width: 60px; height: 60px; }
-  .schoolName { font-size: clamp(18px, 4.9vw, 24px); line-height: 1.18; }
-  .brandSubtitle { margin-top: 6px; font-size: 13px; }
+  .logoFrame {
+    width: 60px;
+    height: 60px;
+  }
+  .logo {
+    width: 60px;
+    height: 60px;
+  }
+  .schoolName {
+    font-size: clamp(18px, 4.9vw, 24px);
+    line-height: 1.18;
+  }
+  .brandSubtitle {
+    margin-top: 6px;
+    font-size: 13px;
+  }
   .loginPanel {
     min-height: calc(100svh - 174px);
     align-items: flex-start;
     padding: 38px 22px 40px;
   }
-  .loginCard { max-width: 510px; }
-  .formHeading h1, .formHeading h2 { font-size: 29px; }
-  .formHeading p { font-size: 14px; line-height: 1.55; }
-  .formFields { gap: 23px; margin-top: 29px; }
-  .formLabel { font-size: 14px; }
-  .recoveryForm { margin-top: 27px; }
-  .recoverySubmit { min-height: 54px; }
+  .loginCard {
+    max-width: 510px;
+  }
+  .formHeading h1,
+  .formHeading h2 {
+    font-size: 29px;
+  }
+  .formHeading p {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .formFields {
+    gap: 23px;
+    margin-top: 29px;
+  }
+  .formLabel {
+    font-size: 14px;
+  }
+  .recoveryForm {
+    margin-top: 27px;
+  }
+  .recoverySubmit {
+    min-height: 54px;
+  }
 }
 
 @media (max-width: 365px) {
-  .brandContent { column-gap: 11px; padding-inline: 13px; }
-  .schoolName { font-size: 18px; }
-  .loginPanel { padding-inline: 15px; }
+  .brandContent {
+    column-gap: 11px;
+    padding-inline: 13px;
+  }
+  .schoolName {
+    font-size: 18px;
+  }
+  .loginPanel {
+    padding-inline: 15px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .recoverySubmit, .backLink { transition: none; }
+  .recoverySubmit,
+  .backLink {
+    transition: none;
+  }
 }

@@ -102,8 +102,7 @@ export async function creerCompteEnseignant(donnees: unknown): Promise<ResultatC
     if (!e.telephone && !e.email) {
       return {
         ok: false,
-        message:
-          "Cet enseignant n'a ni téléphone ni e-mail : renseignez-en un avant de créer le compte.",
+        message: "Cet enseignant n'a ni téléphone ni e-mail : renseignez-en un avant de créer le compte.",
       };
     }
 
@@ -228,10 +227,7 @@ export async function reinitialiserMotDePasse(enseignantId: string): Promise<Res
  * appréciations rédigées pointent sur cet identifiant. Un compte effacé rendrait
  * illisible tout ce qu'il a produit.
  */
-export async function basculerCompte(
-  enseignantId: string,
-  actif: boolean,
-): Promise<ResultatCompte> {
+export async function basculerCompte(enseignantId: string, actif: boolean): Promise<ResultatCompte> {
   try {
     const acteur = await requirePermission("utilisateur:creer");
 

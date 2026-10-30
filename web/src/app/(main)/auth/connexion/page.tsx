@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+
+import type { Metadata } from "next";
 
 import { sessionCourante } from "@/server/auth/session";
 
@@ -12,11 +13,7 @@ export const metadata: Metadata = {
   description: "Accès à l'administration du Lycée Guergné La Renaissance.",
 };
 
-export default async function PageConnexion({
-  searchParams,
-}: {
-  searchParams: Promise<{ change?: string }>;
-}) {
+export default async function PageConnexion({ searchParams }: { searchParams: Promise<{ change?: string }> }) {
   const principal = await sessionCourante();
   if (principal) redirect(principal.doitChangerMdp ? "/auth/mot-de-passe" : "/dashboard/default");
 

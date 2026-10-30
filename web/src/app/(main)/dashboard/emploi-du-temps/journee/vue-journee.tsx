@@ -181,11 +181,9 @@ export function VueJournee({
       {decouverts.length > 0 ? (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardContent className="py-4 text-sm">
-            <span className="font-medium">
-              {decouverts.length} cours ni remplacé(s) ni rattrapé(s) :
-            </span>{" "}
-            {decouverts.map((c) => `${c.classe} (${c.matiere})`).join(", ")}. Ces heures sont
-            perdues pour le programme tant qu&apos;aucune date de rattrapage n&apos;est fixée.
+            <span className="font-medium">{decouverts.length} cours ni remplacé(s) ni rattrapé(s) :</span>{" "}
+            {decouverts.map((c) => `${c.classe} (${c.matiere})`).join(", ")}. Ces heures sont perdues pour le programme
+            tant qu&apos;aucune date de rattrapage n&apos;est fixée.
           </CardContent>
         </Card>
       ) : null}
@@ -193,8 +191,7 @@ export function VueJournee({
       {cours.length === 0 ? (
         <Card>
           <CardContent className="text-muted-foreground py-10 text-center text-sm">
-            Aucun cours ce jour-là. Vérifiez la date : les dimanches et les jours fériés sont
-            naturellement vides.
+            Aucun cours ce jour-là. Vérifiez la date : les dimanches et les jours fériés sont naturellement vides.
           </CardContent>
         </Card>
       ) : (
@@ -204,8 +201,8 @@ export function VueJournee({
               {cours.length} cours · {perturbes.length} perturbé(s)
             </CardTitle>
             <CardDescription>
-              Lecture par heure et non par classe : à 10 h, ce qu&apos;on cherche est la liste des
-              salles couvertes maintenant.
+              Lecture par heure et non par classe : à 10 h, ce qu&apos;on cherche est la liste des salles couvertes
+              maintenant.
             </CardDescription>
           </CardHeader>
 
@@ -224,20 +221,16 @@ export function VueJournee({
                           decouvert
                             ? "border-destructive/40 bg-destructive/5"
                             : c.remplacementId
-                              ? "border-amber-500/40 bg-amber-500/5"
+                              ? "border-alerte-trait bg-alerte-doux"
                               : ""
                         }`}
                       >
                         <span className="font-medium">{c.classe}</span>
                         <span className="text-muted-foreground">{c.matiere}</span>
                         <span className="text-muted-foreground">
-                          {c.enseignant ?? (
-                            <span className="text-destructive">aucun professeur</span>
-                          )}
+                          {c.enseignant ?? <span className="text-destructive">aucun professeur</span>}
                         </span>
-                        {c.salle ? (
-                          <span className="text-muted-foreground text-xs">salle {c.salle}</span>
-                        ) : null}
+                        {c.salle ? <span className="text-muted-foreground text-xs">salle {c.salle}</span> : null}
 
                         {c.remplacant ? (
                           <Badge variant="outline" className="gap-1">
@@ -247,8 +240,7 @@ export function VueJournee({
                         ) : c.dateRattrapage ? (
                           <Badge variant="outline" className="gap-1">
                             <Repeat aria-hidden className="size-3" />
-                            rattrapage le{" "}
-                            {new Date(`${c.dateRattrapage}T00:00:00`).toLocaleDateString("fr-FR")}
+                            rattrapage le {new Date(`${c.dateRattrapage}T00:00:00`).toLocaleDateString("fr-FR")}
                           </Badge>
                         ) : c.remplacementId ? (
                           <Badge variant="outline" className="text-destructive gap-1">
@@ -257,9 +249,7 @@ export function VueJournee({
                           </Badge>
                         ) : null}
 
-                        {c.motif ? (
-                          <span className="text-muted-foreground text-xs">— {c.motif}</span>
-                        ) : null}
+                        {c.motif ? <span className="text-muted-foreground text-xs">— {c.motif}</span> : null}
 
                         {peutGerer ? (
                           <span className="ml-auto flex gap-1">
@@ -276,11 +266,7 @@ export function VueJournee({
                               </Button>
                             ) : null}
                             {c.enseignantId ? (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => ouvrir(c.emploiDuTempsId)}
-                              >
+                              <Button size="sm" variant="ghost" onClick={() => ouvrir(c.emploiDuTempsId)}>
                                 <UserX aria-hidden />
                                 {c.remplacementId ? "Modifier" : "Professeur absent"}
                               </Button>
@@ -317,11 +303,7 @@ export function VueJournee({
           <div className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="r-motif">Motif</Label>
-              <NativeSelect
-                id="r-motif"
-                value={motif}
-                onChange={(e) => setMotif(e.target.value)}
-              >
+              <NativeSelect id="r-motif" value={motif} onChange={(e) => setMotif(e.target.value)}>
                 {MOTIFS.map((m) => (
                   <option key={m} value={m}>
                     {m}
@@ -329,8 +311,8 @@ export function VueJournee({
                 ))}
               </NativeSelect>
               <p className="text-muted-foreground text-xs">
-                Il distingue la maladie de la convocation. C&apos;est ce qui permet de dire, en fin
-                de trimestre, si le service est désorganisé ou si un agent est défaillant.
+                Il distingue la maladie de la convocation. C&apos;est ce qui permet de dire, en fin de trimestre, si le
+                service est désorganisé ou si un agent est défaillant.
               </p>
             </div>
 
@@ -353,10 +335,9 @@ export function VueJournee({
                 ))}
               </NativeSelect>
               <p className="text-muted-foreground text-xs">
-                Seuls les professeurs réellement libres sur ce créneau sont listés : désigner
-                quelqu&apos;un qui a déjà cours laisserait une autre classe sans personne. Ceux qui
-                enseignent la matière sont en tête — hors matière, c&apos;est une surveillance, pas
-                un cours.
+                Seuls les professeurs réellement libres sur ce créneau sont listés : désigner quelqu&apos;un qui a déjà
+                cours laisserait une autre classe sans personne. Ceux qui enseignent la matière sont en tête — hors
+                matière, c&apos;est une surveillance, pas un cours.
               </p>
             </div>
 
@@ -370,8 +351,8 @@ export function VueJournee({
                 onChange={(e) => setRattrapage(e.target.value)}
               />
               <p className="text-muted-foreground text-xs">
-                Sans remplaçant ni rattrapage, l&apos;heure est enregistrée comme perdue — et c&apos;est
-                bien ce qu&apos;il faut écrire pour qu&apos;elle apparaisse au bilan.
+                Sans remplaçant ni rattrapage, l&apos;heure est enregistrée comme perdue — et c&apos;est bien ce
+                qu&apos;il faut écrire pour qu&apos;elle apparaisse au bilan.
               </p>
             </div>
           </div>

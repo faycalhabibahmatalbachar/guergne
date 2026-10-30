@@ -1,16 +1,17 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 
-import { CalendarDays, ArrowLeft } from "lucide-react";
 import { sql } from "drizzle-orm";
+import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 
+import { EnTetePage, Page } from "@/components/socle/en-tete-page";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { sessionCourante } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { genererDatesCalendrier } from "@/server/domain/calendrier-scolaire";
-import { exigerPage, peut } from "@/server/guard";
 import { chargerPlagesHorairesScolaires } from "@/server/domain/horaires-scolaires";
+import { exigerPage, peut } from "@/server/guard";
 
 import { VueCalendrierAnnuel } from "./vue";
 
@@ -41,11 +42,7 @@ interface EvenementLigne {
   source_verifiee_le: string | null;
 }
 
-export default async function PageCalendrierAnnuel({
-  searchParams,
-}: {
-  searchParams: Promise<{ annee?: string }>;
-}) {
+export default async function PageCalendrierAnnuel({ searchParams }: { searchParams: Promise<{ annee?: string }> }) {
   await exigerPage("emploi_du_temps:lire");
   const principal = await sessionCourante();
   const params = await searchParams;
@@ -59,14 +56,12 @@ export default async function PageCalendrierAnnuel({
   const annees = anneesResultat.rows;
 
   const annee =
-    annees.find((ligne) => ligne.id === params.annee) ??
-    annees.find((ligne) => ligne.est_courante) ??
-    annees[0];
+    annees.find((ligne) => ligne.id === params.annee) ?? annees.find((ligne) => ligne.est_courante) ?? annees[0];
 
   if (!annee) {
     return (
       <div className="space-y-5">
-        <h1 className="font-semibold text-2xl tracking-tight">Calendrier scolaire annuel</h1>
+        <EnTetePage titre="Calendrier scolaire annuel" />
         <Card>
           <CardContent className="py-10 text-center">
             <p className="font-medium">Aucune année scolaire configurée</p>
@@ -112,35 +107,31 @@ export default async function PageCalendrierAnnuel({
   }));
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-semibold tracking-wide">
-            <CalendarDays aria-hidden className="size-4" />
-            CALENDRIER SCOLAIRE
-          </div>
-          <h1 className="font-semibold text-2xl tracking-tight sm:text-3xl">
-            Calendrier annuel
-          </h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Toutes les dates de l’année scolaire, générées à partir de ses bornes, avec les
-            événements enregistrés et leur état de validation.
-          </p>
-        </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/dashboard/emploi-du-temps">
-            <ArrowLeft aria-hidden />
-            Emploi du temps
-          </Link>
-        </Button>
-      </div>
+    <Page>
+      <EnTetePage
+        titre="Calendrier annuel"
+        description={
+          <>
+            Toutes les dates de l’année scolaire, générées à partir de ses bornes, avec les événements enregistrés et
+            leur état de validation.
+          </>
+        }
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/emploi-du-temps">
+              <ArrowLeft aria-hidden />
+              Emploi du temps
+            </Link>
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Année scolaire</CardTitle>
           <CardDescription>
-            Le calendrier est calculé de manière inclusive entre le {annee.date_debut} et le{" "}
-            {annee.date_fin}. Changer d’année ne modifie aucune autre année.
+            Le calendrier est calculé de manière inclusive entre le {annee.date_debut} et le {annee.date_fin}. Changer
+            d’année ne modifie aucune autre année.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -155,7 +146,8 @@ export default async function PageCalendrierAnnuel({
               >
                 {annees.map((option) => (
                   <option key={option.id} value={option.id}>
-                    {option.libelle}{option.est_courante ? " — année courante" : ""}
+                    {option.libelle}
+                    {option.est_courante ? " — année courante" : ""}
                   </option>
                 ))}
               </select>
@@ -175,6 +167,6 @@ export default async function PageCalendrierAnnuel({
         evenements={evenements}
         plagesHoraires={plagesHoraires}
       />
-    </div>
+    </Page>
   );
 }

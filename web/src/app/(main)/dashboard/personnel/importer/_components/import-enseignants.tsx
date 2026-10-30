@@ -10,11 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import {
-  analyserFichierEnseignants,
-  importerEnseignants,
-  type ResultatImportEnseignants,
-} from "../../actions-import";
+import { analyserFichierEnseignants, importerEnseignants, type ResultatImportEnseignants } from "../../actions-import";
 
 /**
  * Import du personnel enseignant.
@@ -64,9 +60,7 @@ export function ImportEnseignants() {
 
   const rapport = resultat?.rapport;
   const problemes = rapport
-    ? [...rapport.erreurs, ...rapport.doublonsFichier, ...rapport.dejaPresents].sort(
-        (a, b) => a.ligne - b.ligne,
-      )
+    ? [...rapport.erreurs, ...rapport.doublonsFichier, ...rapport.dejaPresents].sort((a, b) => a.ligne - b.ligne)
     : [];
 
   return (
@@ -75,9 +69,8 @@ export function ImportEnseignants() {
         <CardHeader>
           <CardTitle className="text-base">1. Préparer le fichier</CardTitle>
           <CardDescription>
-            Le gabarit porte les colonnes attendues, la liste des statuts admis et les
-            matières de l&apos;établissement avec leur code. Ce sont les deux colonnes où une
-            valeur approximative fait échouer la ligne.
+            Le gabarit porte les colonnes attendues, la liste des statuts admis et les matières de l&apos;établissement
+            avec leur code. Ce sont les deux colonnes où une valeur approximative fait échouer la ligne.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -93,9 +86,7 @@ export function ImportEnseignants() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">2. Déposer le fichier rempli</CardTitle>
-          <CardDescription>
-            Formats acceptés : .xlsx et .csv. Rien n&apos;est écrit à cette étape.
-          </CardDescription>
+          <CardDescription>Formats acceptés : .xlsx et .csv. Rien n&apos;est écrit à cette étape.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <input
@@ -128,9 +119,7 @@ export function ImportEnseignants() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">3. Vérifier avant d&apos;écrire</CardTitle>
-            <CardDescription>
-              {termine ? "Import terminé." : "Rien n'a encore été enregistré."}
-            </CardDescription>
+            <CardDescription>{termine ? "Import terminé." : "Rien n'a encore été enregistré."}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             {rapport.colonnesManquantes.length > 0 ? (
@@ -140,9 +129,8 @@ export function ImportEnseignants() {
             ) : null}
 
             {rapport.colonnesIgnorees.length > 0 ? (
-              <p className="text-sm text-amber-600 dark:text-amber-400">
-                Colonnes non reconnues, donc <strong>ignorées</strong> :{" "}
-                {rapport.colonnesIgnorees.join(", ")}.
+              <p className="text-sm text-alerte">
+                Colonnes non reconnues, donc <strong>ignorées</strong> : {rapport.colonnesIgnorees.join(", ")}.
               </p>
             ) : null}
 
@@ -161,11 +149,7 @@ export function ImportEnseignants() {
                   <p className="text-muted-foreground text-xs">{k.libelle}</p>
                   <p
                     className={`mt-0.5 font-semibold text-xl tabular-nums ${
-                      k.bon
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : k.valeur > 0
-                          ? "text-amber-600 dark:text-amber-400"
-                          : ""
+                      k.bon ? "text-succes" : k.valeur > 0 ? "text-alerte" : ""
                     }`}
                   >
                     {k.valeur}
@@ -246,7 +230,7 @@ export function ImportEnseignants() {
             ) : null}
 
             {rapport.valides.length === 0 && !termine && rapport.colonnesManquantes.length === 0 ? (
-              <p className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+              <p className="flex items-center gap-2 text-sm text-alerte">
                 <AlertTriangle aria-hidden className="size-4" />
                 Aucune ligne exploitable : corrigez le fichier puis redéposez-le.
               </p>

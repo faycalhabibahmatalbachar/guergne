@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 
+import { EnTetePage, Page } from "@/components/socle/en-tete-page";
 import { Button } from "@/components/ui/button";
 import { exigerPage } from "@/server/guard";
 
@@ -15,7 +16,7 @@ export default async function PageImportPersonnel() {
   await exigerPage("utilisateur:creer");
 
   return (
-    <div className="space-y-6">
+    <Page>
       <div className="flex items-center gap-3">
         <Button asChild variant="ghost" size="sm">
           <Link href="/dashboard/personnel">
@@ -26,15 +27,14 @@ export default async function PageImportPersonnel() {
       </div>
 
       <div>
-        <h1 className="font-semibold text-2xl tracking-tight">Importer des enseignants</h1>
+        <EnTetePage titre="Importer des enseignants" />
         <p className="text-muted-foreground mt-1 text-sm">
-          Reprise d&apos;un fichier de personnel. Le matricule vient du fichier — il figure
-          déjà sur la fiche de paie de l&apos;enseignant, en inventer un créerait un second
-          identifiant pour la même personne.
+          Reprise d&apos;un fichier de personnel. Le matricule vient du fichier — il figure déjà sur la fiche de paie de
+          l&apos;enseignant, en inventer un créerait un second identifiant pour la même personne.
         </p>
       </div>
 
       <ImportEnseignants />
-    </div>
+    </Page>
   );
 }

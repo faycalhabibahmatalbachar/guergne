@@ -5,23 +5,24 @@ import { revalidatePath } from "next/cache";
 import { and, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { messageTelephoneInscription, normaliserTelephoneInscription } from "@/lib/telephone";
 import { journaliser } from "@/server/audit";
 import { journaliserAtomiquement, preparerContexteAudit } from "@/server/audit-v2";
+import { sessionCourante } from "@/server/auth/session";
 import { db } from "@/server/db";
 import {
   anneesScolaires,
   classes,
-  eleveTuteur,
   eleves,
+  eleveTuteur,
   historiqueStatuts,
   inscriptions,
   tuteurs,
 } from "@/server/db/schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
-import { messageTelephoneInscription, normaliserTelephoneInscription } from "@/lib/telephone";
-import { sessionCourante } from "@/server/auth/session";
-import type { DossierModifiable } from "./[id]/_components/modifier-dossier";
 import { reveillerFile } from "@/server/notifications/reveil";
+
+import type { DossierModifiable } from "./[id]/_components/modifier-dossier";
 
 export interface Resultat {
   ok: boolean;
@@ -69,10 +70,14 @@ const schemaTuteur = z.object({
   nom: z.string().trim().min(2, "Nom requis"),
   prenom: z.string().trim().min(2, "Prénom requis"),
   sexe: z.enum(["M", "F"]).nullable().optional(),
-  telephone: z.string().trim().superRefine((valeur, ctx) => {
-    const message = messageTelephoneInscription(valeur);
-    if (message) ctx.addIssue({ code: "custom", message });
-  }).transform(normaliserTelephoneInscription),
+  telephone: z
+    .string()
+    .trim()
+    .superRefine((valeur, ctx) => {
+      const message = messageTelephoneInscription(valeur);
+      if (message) ctx.addIssue({ code: "custom", message });
+    })
+    .transform(normaliserTelephoneInscription),
   telephoneSecondaire: z.string().trim().optional(),
   email: z.string().trim().email("Adresse invalide").optional().or(z.literal("")),
   profession: z.string().trim().optional(),
@@ -103,12 +108,17 @@ const schemaInscription = z
     // Coordonnées
     adresse: z.string().trim().optional(),
     quartier: z.string().trim().optional(),
-    telephone: z.string().trim().superRefine((valeur, ctx) => {
-      if (valeur) {
-        const message = messageTelephoneInscription(valeur);
-        if (message) ctx.addIssue({ code: "custom", message });
-      }
-    }).transform((v) => v ? normaliserTelephoneInscription(v) : "").optional(),
+    telephone: z
+      .string()
+      .trim()
+      .superRefine((valeur, ctx) => {
+        if (valeur) {
+          const message = messageTelephoneInscription(valeur);
+          if (message) ctx.addIssue({ code: "custom", message });
+        }
+      })
+      .transform((v) => (v ? normaliserTelephoneInscription(v) : ""))
+      .optional(),
     email: z.string().trim().email("Adresse invalide").optional().or(z.literal("")),
 
     // Santé et situation
@@ -138,8 +148,7 @@ const schemaInscription = z
     (v) => {
       // Un élève de 6ème a environ 11 ans, un terminale environ 19.
       // On refuse l'aberrant, pas l'inhabituel : les parcours sont irréguliers.
-      const age =
-        (Date.now() - new Date(v.dateNaissance).getTime()) / (365.25 * 24 * 3600 * 1000);
+      const age = (Date.now() - new Date(v.dateNaissance).getTime()) / (365.25 * 24 * 3600 * 1000);
       return age >= 8 && age <= 30;
     },
     { message: "Âge hors des bornes plausibles pour le secondaire (8 à 30 ans)", path: ["dateNaissance"] },
@@ -329,26 +338,24 @@ export async function rechercherParentsInscription(recherche: string) {
   const q = recherche.trim().slice(0, 65);
   if (q.length < 3) return [];
   const terme = "%" + q.replaceAll("%", "\\%").replaceAll("_", "\\_") + "%";
-  return db.select({
-    id: tuteurs.id,
-    nom: tuteurs.nom,
-    prenom: tuteurs.prenom,
-    telephone: tuteurs.telephone,
-    telephoneSecondaire: tuteurs.telephoneSecondaire,
-    email: tuteurs.email,
-    profession: tuteurs.profession,
-    employeur: tuteurs.employeur,
-    adresse: tuteurs.adresse,
-    quartier: tuteurs.quartier,
-    pieceIdentite: tuteurs.pieceIdentite,
-    accepteSms: tuteurs.accepteSms,
-    sexe: tuteurs.sexe,
-  }).from(tuteurs)
-    .where(or(
-      ilike(tuteurs.nom, terme),
-      ilike(tuteurs.prenom, terme),
-      ilike(tuteurs.telephone, terme),
-    ))
+  return db
+    .select({
+      id: tuteurs.id,
+      nom: tuteurs.nom,
+      prenom: tuteurs.prenom,
+      telephone: tuteurs.telephone,
+      telephoneSecondaire: tuteurs.telephoneSecondaire,
+      email: tuteurs.email,
+      profession: tuteurs.profession,
+      employeur: tuteurs.employeur,
+      adresse: tuteurs.adresse,
+      quartier: tuteurs.quartier,
+      pieceIdentite: tuteurs.pieceIdentite,
+      accepteSms: tuteurs.accepteSms,
+      sexe: tuteurs.sexe,
+    })
+    .from(tuteurs)
+    .where(or(ilike(tuteurs.nom, terme), ilike(tuteurs.prenom, terme), ilike(tuteurs.telephone, terme)))
     .limit(8);
 }
 
@@ -409,40 +416,41 @@ const SUCCES_VIDE: Resultat = { ok: true };
 // Changement de classe
 // ===========================================================================
 
-export async function changerClasse(
-  inscriptionId: string,
-  nouvelleClasseId: string,
-  motif: string,
-): Promise<Resultat> {
+export async function changerClasse(inscriptionId: string, nouvelleClasseId: string, motif: string): Promise<Resultat> {
   try {
     const acteur = await requirePermission("eleve:affecter");
-    if (motif.trim().length < 3) return {ok:false,erreurs:{motif:"Le motif est obligatoire."}};
+    if (motif.trim().length < 3) return { ok: false, erreurs: { motif: "Le motif est obligatoire." } };
     const contexte = await preparerContexteAudit("/dashboard/eleves");
     const eleveId = await db.transaction(async (tx) => {
-      const res = await tx.execute<{eleve_id:string;classe_id:string}>(sql`
+      const res = await tx.execute<{ eleve_id: string; classe_id: string }>(sql`
         SELECT eleve_id::text,classe_id::text FROM inscriptions
         WHERE id=${inscriptionId}::uuid FOR UPDATE
       `);
       const inscription = res.rows[0];
-      if(!inscription)throw new Error("Inscription introuvable.");
-      if(inscription.classe_id===nouvelleClasseId)throw new Error("L'élève est déjà dans cette classe.");
-      await tx.update(inscriptions).set({classeId:nouvelleClasseId})
-        .where(eq(inscriptions.id,inscriptionId));
+      if (!inscription) throw new Error("Inscription introuvable.");
+      if (inscription.classe_id === nouvelleClasseId) throw new Error("L'élève est déjà dans cette classe.");
+      await tx.update(inscriptions).set({ classeId: nouvelleClasseId }).where(eq(inscriptions.id, inscriptionId));
       await tx.execute(sql`
         INSERT INTO changements_classe(inscription_id,classe_origine_id,classe_destination_id,motif,decide_par)
         VALUES(${inscriptionId},${inscription.classe_id},${nouvelleClasseId},${motif.trim()},${acteur.id})
       `);
-      await journaliserAtomiquement(tx,acteur,contexte,{
-        action:"eleve.classe_changee",entite:"inscriptions",entiteId:inscriptionId,
-        eleveId:inscription.eleve_id,
-        avant:{classeId:inscription.classe_id},apres:{classeId:nouvelleClasseId},motif:motif.trim(),
+      await journaliserAtomiquement(tx, acteur, contexte, {
+        action: "eleve.classe_changee",
+        entite: "inscriptions",
+        entiteId: inscriptionId,
+        eleveId: inscription.eleve_id,
+        avant: { classeId: inscription.classe_id },
+        apres: { classeId: nouvelleClasseId },
+        motif: motif.trim(),
       });
       return inscription.eleve_id;
     });
     revalidatePath(`/dashboard/eleves/${eleveId}`);
     revalidatePath("/dashboard/classes");
     return SUCCES_VIDE;
-  }catch(erreur){return echec(erreur,"Le changement de classe a échoué.");}
+  } catch (erreur) {
+    return echec(erreur, "Le changement de classe a échoué.");
+  }
 }
 
 // ===========================================================================
@@ -572,10 +580,7 @@ export async function rattacherTuteur(eleveId: string, donnees: unknown): Promis
     const t = analyse.data;
 
     await db.transaction(async (tx) => {
-      const [existant] = await tx
-        .select({ id: tuteurs.id })
-        .from(tuteurs)
-        .where(eq(tuteurs.telephone, t.telephone));
+      const [existant] = await tx.select({ id: tuteurs.id }).from(tuteurs).where(eq(tuteurs.telephone, t.telephone));
 
       const tuteurId =
         existant?.id ??
@@ -646,9 +651,7 @@ export async function detacherTuteur(eleveId: string, tuteurId: string): Promise
       };
     }
 
-    await db
-      .delete(eleveTuteur)
-      .where(and(eq(eleveTuteur.eleveId, eleveId), eq(eleveTuteur.tuteurId, tuteurId)));
+    await db.delete(eleveTuteur).where(and(eq(eleveTuteur.eleveId, eleveId), eq(eleveTuteur.tuteurId, tuteurId)));
 
     await journaliser(acteur, {
       action: "tuteur.detache",
@@ -739,9 +742,9 @@ const schemaModification = z
  * une date de naissance ne correspond plus à l'acte.
  */
 /** Lecture autorisée à la demande pour le crayon de la liste. */
-export async function chargerDossierPourModification(eleveId: string): Promise<
-  { ok: true; dossier: DossierModifiable } | { ok: false; message: string }
-> {
+export async function chargerDossierPourModification(
+  eleveId: string,
+): Promise<{ ok: true; dossier: DossierModifiable } | { ok: false; message: string }> {
   try {
     await requirePermission("eleve:modifier");
     const principal = await sessionCourante();
@@ -751,18 +754,31 @@ export async function chargerDossierPourModification(eleveId: string): Promise<
     if (!z.string().uuid().safeParse(eleveId).success) {
       return { ok: false, message: "Identifiant d'élève invalide." };
     }
-    const [e] = await db.select({
-      nom: eleves.nom, prenom: eleves.prenom, sexe: eleves.sexe,
-      dateNaissance: eleves.dateNaissance, lieuNaissance: eleves.lieuNaissance,
-      nationalite: eleves.nationalite, acteNaissanceNumero: eleves.acteNaissanceNumero,
-      adresse: eleves.adresse, quartier: eleves.quartier,
-      telephone: eleves.telephone, email: eleves.email,
-      groupeSanguin: eleves.groupeSanguin, allergies: eleves.allergies,
-      observationsMedicales: eleves.observationsMedicales,
-      situationParticuliere: eleves.situationParticuliere,
-      urgenceNom: eleves.urgenceNom, urgenceTelephone: eleves.urgenceTelephone,
-      urgenceLien: eleves.urgenceLien, ecoleOrigine: eleves.ecoleOrigine,
-    }).from(eleves).where(eq(eleves.id, eleveId)).limit(1);
+    const [e] = await db
+      .select({
+        nom: eleves.nom,
+        prenom: eleves.prenom,
+        sexe: eleves.sexe,
+        dateNaissance: eleves.dateNaissance,
+        lieuNaissance: eleves.lieuNaissance,
+        nationalite: eleves.nationalite,
+        acteNaissanceNumero: eleves.acteNaissanceNumero,
+        adresse: eleves.adresse,
+        quartier: eleves.quartier,
+        telephone: eleves.telephone,
+        email: eleves.email,
+        groupeSanguin: eleves.groupeSanguin,
+        allergies: eleves.allergies,
+        observationsMedicales: eleves.observationsMedicales,
+        situationParticuliere: eleves.situationParticuliere,
+        urgenceNom: eleves.urgenceNom,
+        urgenceTelephone: eleves.urgenceTelephone,
+        urgenceLien: eleves.urgenceLien,
+        ecoleOrigine: eleves.ecoleOrigine,
+      })
+      .from(eleves)
+      .where(eq(eleves.id, eleveId))
+      .limit(1);
     if (!e) return { ok: false, message: "Élève introuvable." };
     return { ok: true, dossier: e };
   } catch (erreur) {
@@ -875,10 +891,7 @@ export interface TuteurTrouve {
   dejaRattache: boolean;
 }
 
-export async function rechercherTuteurParTelephone(
-  telephone: string,
-  eleveId: string,
-): Promise<TuteurTrouve | null> {
+export async function rechercherTuteurParTelephone(telephone: string, eleveId: string): Promise<TuteurTrouve | null> {
   await requirePermission("tuteur:gerer");
 
   const numero = telephone.trim();

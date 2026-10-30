@@ -22,8 +22,7 @@ export const POLITIQUES = [
   {
     valeur: "PUSH_SINON_SMS",
     libelle: "Application, SMS en repli",
-    explication:
-      "Gratuit pour les parents équipés, SMS pour les autres. Le meilleur rapport coût/portée.",
+    explication: "Gratuit pour les parents équipés, SMS pour les autres. Le meilleur rapport coût/portée.",
   },
   {
     valeur: "PUSH_ET_SMS",
@@ -33,8 +32,7 @@ export const POLITIQUES = [
   {
     valeur: "PUSH_SEUL",
     libelle: "Application seulement",
-    explication:
-      "Jamais de SMS. Les parents sans l'application ne recevront rien — à réserver aux volumes élevés.",
+    explication: "Jamais de SMS. Les parents sans l'application ne recevront rien — à réserver aux volumes élevés.",
   },
   {
     valeur: "SMS_SEUL",

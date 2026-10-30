@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 
 import { sql } from "drizzle-orm";
-import { parametresUuid } from "@/lib/sql-uuid";
 import { z } from "zod";
 
 import { segmentsSms } from "@/lib/segments-sms";
+import { parametresUuid } from "@/lib/sql-uuid";
 import { COUT_SMS_FCFA } from "@/lib/tarifs";
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
@@ -108,28 +108,24 @@ async function repartition(eleveIds: string[], titre: string, corps: string): Pr
 }
 
 /** Aperçu pour un élève. N'écrit rien. */
-export async function apercuEleve(
-  eleveId: string,
-  titre: string,
-  corps: string,
-): Promise<Apercu> {
+export async function apercuEleve(eleveId: string, titre: string, corps: string): Promise<Apercu> {
   await requirePermission("message:envoyer");
   return repartition([eleveId], titre, corps);
 }
 
 /** Aperçu pour une classe entière. N'écrit rien. */
-export async function apercuClasse(
-  classeId: string,
-  titre: string,
-  corps: string,
-): Promise<Apercu> {
+export async function apercuClasse(classeId: string, titre: string, corps: string): Promise<Apercu> {
   await requirePermission("message:envoyer");
   const r = await db.execute<{ id: string }>(sql`
     SELECT e.id FROM inscriptions i
       JOIN eleves e ON e.id = i.eleve_id
      WHERE i.classe_id = ${classeId}::uuid AND i.active
   `);
-  return repartition(r.rows.map((x) => x.id), titre, corps);
+  return repartition(
+    r.rows.map((x) => x.id),
+    titre,
+    corps,
+  );
 }
 
 /**
@@ -138,10 +134,7 @@ export async function apercuClasse(
  * `route_cible` pointe sur la fiche de l'élève dans l'application des parents :
  * une notification sur laquelle on tape doit mener quelque part.
  */
-export async function notifierEleve(
-  eleveId: string,
-  donnees: unknown,
-): Promise<ResultatNotification> {
+export async function notifierEleve(eleveId: string, donnees: unknown): Promise<ResultatNotification> {
   try {
     const acteur = await requirePermission("message:envoyer");
 
@@ -194,10 +187,7 @@ export async function notifierEleve(
  * deux enfants dans la même classe en reçoit donc deux — c'est voulu, ils
  * concernent deux scolarités distinctes.
  */
-export async function notifierClasse(
-  classeId: string,
-  donnees: unknown,
-): Promise<ResultatNotification> {
+export async function notifierClasse(classeId: string, donnees: unknown): Promise<ResultatNotification> {
   try {
     const acteur = await requirePermission("message:envoyer");
 
@@ -252,11 +242,7 @@ export async function notifierClasse(
  * entier, et l'envoi doit passer par le ciblage de la page Communication —
  * qui, lui, sait ce qu'il diffuse.
  */
-export async function apercuSelection(
-  eleveIds: string[],
-  titre: string,
-  corps: string,
-): Promise<Apercu> {
+export async function apercuSelection(eleveIds: string[], titre: string, corps: string): Promise<Apercu> {
   await requirePermission("message:envoyer");
   const ids = [...new Set(eleveIds.filter((id) => z.string().uuid().safeParse(id).success))].slice(0, 200);
   return repartition(ids, titre, corps);
@@ -270,10 +256,7 @@ export async function apercuSelection(
  * destinataires en un seul envoi ferait perdre ce rattachement, et le parent
  * recevrait une alerte sans savoir lequel de ses enfants est concerné.
  */
-export async function notifierSelection(
-  eleveIds: string[],
-  donnees: unknown,
-): Promise<ResultatNotification> {
+export async function notifierSelection(eleveIds: string[], donnees: unknown): Promise<ResultatNotification> {
   try {
     const acteur = await requirePermission("message:envoyer");
 

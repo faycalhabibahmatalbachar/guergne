@@ -18,8 +18,7 @@ import type { Statistiques } from "@/lib/statistiques-notes";
  * reprendre, et la moyenne seule ne le dit pas.
  */
 
-const fmt = (v: number | null, unite = "") =>
-  v === null ? "—" : `${v.toFixed(2).replace(".", ",")}${unite}`;
+const fmt = (v: number | null, unite = "") => (v === null ? "—" : `${v.toFixed(2).replace(".", ",")}${unite}`);
 
 function Chiffre({
   libelle,
@@ -37,11 +36,7 @@ function Chiffre({
       <p className="text-muted-foreground text-xs">{libelle}</p>
       <p
         className={`font-semibold text-lg tabular-nums ${
-          accent === "alerte"
-            ? "text-destructive"
-            : accent === "bon"
-              ? "text-emerald-600 dark:text-emerald-400"
-              : ""
+          accent === "alerte" ? "text-destructive" : accent === "bon" ? "text-succes" : ""
         }`}
       >
         {valeur}
@@ -51,13 +46,7 @@ function Chiffre({
   );
 }
 
-export function StatistiquesEvaluation({
-  stats,
-  titre,
-}: {
-  stats: Statistiques;
-  titre: string;
-}) {
+export function StatistiquesEvaluation({ stats, titre }: { stats: Statistiques; titre: string }) {
   const { moyenne, mediane, notees } = stats;
   const tauxReussite = notees > 0 && stats.reussite !== null ? stats.reussite / notees : null;
   const maxTranche = Math.max(1, ...stats.tranches.map((t) => t.effectif));
@@ -83,9 +72,7 @@ export function StatistiquesEvaluation({
         <CardDescription>
           {notees} note(s) retenue(s) sur {stats.effectif} élève(s)
           {stats.nonSaisies > 0 ? ` · ${stats.nonSaisies} non saisie(s)` : ""}
-          {stats.absentsExclus > 0
-            ? ` · ${stats.absentsExclus} absent(s) ou dispensé(s), exclu(s) du calcul`
-            : ""}
+          {stats.absentsExclus > 0 ? ` · ${stats.absentsExclus} absent(s) ou dispensé(s), exclu(s) du calcul` : ""}
           {stats.bareme !== 20 ? ` · barème sur ${stats.bareme}, ramené sur 20` : ""}
         </CardDescription>
       </CardHeader>
@@ -111,25 +98,19 @@ export function StatistiquesEvaluation({
           <Chiffre libelle="Plus haute" valeur={fmt(stats.max)} />
           <Chiffre
             libelle="Au-dessus de 10"
-            valeur={
-              tauxReussite === null ? "—" : `${Math.round(tauxReussite * 100)} %`
-            }
+            valeur={tauxReussite === null ? "—" : `${Math.round(tauxReussite * 100)} %`}
             detail={stats.reussite === null ? undefined : `${stats.reussite} / ${notees}`}
-            accent={
-              tauxReussite === null ? undefined : tauxReussite < 0.5 ? "alerte" : "bon"
-            }
+            accent={tauxReussite === null ? undefined : tauxReussite < 0.5 ? "alerte" : "bon"}
           />
         </div>
 
         <div className="space-y-1.5">
           {stats.tranches.map((t) => (
             <div key={t.libelle} className="flex items-center gap-3 text-sm">
-              <span className="text-muted-foreground w-16 shrink-0 text-xs tabular-nums">
-                {t.libelle}
-              </span>
+              <span className="text-muted-foreground w-16 shrink-0 text-xs tabular-nums">{t.libelle}</span>
               <div className="bg-muted h-5 flex-1 overflow-hidden rounded-sm">
                 <div
-                  className={`h-full ${t.max <= 10 ? "bg-amber-500/70" : "bg-primary/70"}`}
+                  className={`h-full ${t.max <= 10 ? "bg-alerte-doux" : "bg-primary/70"}`}
                   style={{ width: `${(t.effectif / maxTranche) * 100}%` }}
                 />
               </div>
@@ -141,10 +122,10 @@ export function StatistiquesEvaluation({
         {lecture ? <p className="text-muted-foreground border-t pt-3 text-sm">{lecture}</p> : null}
 
         {tauxReussite !== null && tauxReussite < 0.35 ? (
-          <p className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-sm">
-            Moins d&apos;un tiers de la classe atteint la moyenne. Avant d&apos;en conclure que le
-            travail n&apos;a pas été fait, il vaut la peine de relire le sujet : un barème trop
-            serré ou une question hors programme produit exactement cette courbe.
+          <p className="rounded-md border border-alerte-trait bg-alerte-doux px-3 py-2 text-sm">
+            Moins d&apos;un tiers de la classe atteint la moyenne. Avant d&apos;en conclure que le travail n&apos;a pas
+            été fait, il vaut la peine de relire le sujet : un barème trop serré ou une question hors programme produit
+            exactement cette courbe.
           </p>
         ) : null}
       </CardContent>

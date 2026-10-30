@@ -65,9 +65,7 @@ export function TeleverserPhoto({
     ctx.drawImage(image, x, y, cote, cote, 0, 0, COTE, COTE);
     image.close();
 
-    const blob = await new Promise<Blob | null>((resoudre) =>
-      canvas.toBlob(resoudre, "image/webp", QUALITE),
-    );
+    const blob = await new Promise<Blob | null>((resoudre) => canvas.toBlob(resoudre, "image/webp", QUALITE));
     if (!blob) throw new Error("La conversion de l'image a échoué.");
     return blob;
   }
@@ -90,9 +88,7 @@ export function TeleverserPhoto({
 
       demarrer(async () => {
         const r = await onEnvoyer(donnees);
-        toast[r.ok ? "success" : "error"](
-          r.message ?? (r.ok ? "Photo enregistrée." : "Échec de l'enregistrement."),
-        );
+        toast[r.ok ? "success" : "error"](r.message ?? (r.ok ? "Photo enregistrée." : "Échec de l'enregistrement."));
         if (!r.ok) setApercu(null);
       });
     } catch (erreur) {
@@ -108,9 +104,7 @@ export function TeleverserPhoto({
 
   return (
     <div className="flex items-start gap-3">
-      <div
-        className={`${taille} relative shrink-0 overflow-hidden rounded-lg border bg-muted`}
-      >
+      <div className={`${taille} relative shrink-0 overflow-hidden rounded-lg border bg-muted`}>
         {source ? (
           // biome-ignore lint/performance/noImgElement: l'image vient d'une
           // route authentifiée, l'optimiseur Next.js ne peut pas la traiter.
@@ -142,13 +136,7 @@ export function TeleverserPhoto({
           }}
         />
 
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={occupe}
-          onClick={() => champ.current?.click()}
-        >
+        <Button type="button" size="sm" variant="outline" disabled={occupe} onClick={() => champ.current?.click()}>
           <Camera aria-hidden />
           {source ? "Changer la photo" : "Ajouter une photo"}
         </Button>

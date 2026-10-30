@@ -30,11 +30,7 @@ function echec(e: unknown, defaut: string): ResultatPhoto {
  * réel par les octets de tête et la taille. Un client peut mentir sur les
  * deux — c'est précisément pourquoi on ne le croit pas.
  */
-async function extraireEtStocker(
-  donnees: FormData,
-  usage: "PHOTO_ELEVE" | "PHOTO_ENSEIGNANT",
-  acteurId: string,
-) {
+async function extraireEtStocker(donnees: FormData, usage: "PHOTO_ELEVE" | "PHOTO_ENSEIGNANT", acteurId: string) {
   const fichier = donnees.get("fichier");
   if (!(fichier instanceof File)) {
     return { ok: false as const, erreur: "Aucun fichier reçu." };
@@ -60,10 +56,7 @@ async function extraireEtStocker(
   return r.ok && r.id ? { ok: true as const, id: r.id } : { ok: false as const, erreur: r.erreur };
 }
 
-export async function definirPhotoEleve(
-  eleveId: string,
-  donnees: FormData,
-): Promise<ResultatPhoto> {
+export async function definirPhotoEleve(eleveId: string, donnees: FormData): Promise<ResultatPhoto> {
   try {
     const acteur = await requirePermission("eleve:modifier");
 
@@ -109,10 +102,7 @@ export async function retirerPhotoEleve(eleveId: string): Promise<ResultatPhoto>
   }
 }
 
-export async function definirPhotoEnseignant(
-  enseignantId: string,
-  donnees: FormData,
-): Promise<ResultatPhoto> {
+export async function definirPhotoEnseignant(enseignantId: string, donnees: FormData): Promise<ResultatPhoto> {
   try {
     const acteur = await requirePermission("utilisateur:modifier");
 

@@ -184,15 +184,13 @@ export function VueConseils({
       ) : null}
 
       {enAttente.length > 0 ? (
-        <Card className="border-amber-500/40 bg-amber-500/5">
+        <Card className="border-alerte-trait bg-alerte-doux">
           <CardContent className="flex items-start gap-3 py-4 text-sm">
-            <AlertTriangle aria-hidden className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <AlertTriangle aria-hidden className="mt-0.5 size-5 shrink-0 text-alerte" />
             <p>
-              <span className="font-medium">
-                {enAttente.length} conseil(s) sans décision enregistrée.
-              </span>{" "}
-              Une séance tenue dont le procès-verbal n&apos;est pas écrit n&apos;est opposable à
-              personne — et c&apos;est la première chose que conteste une famille.
+              <span className="font-medium">{enAttente.length} conseil(s) sans décision enregistrée.</span> Une séance
+              tenue dont le procès-verbal n&apos;est pas écrit n&apos;est opposable à personne — et c&apos;est la
+              première chose que conteste une famille.
             </p>
           </CardContent>
         </Card>
@@ -207,21 +205,18 @@ export function VueConseils({
       ) : (
         <div className="space-y-3">
           {conseils.map((c) => (
-            <Card key={c.id} className={c.enAttente ? "border-amber-500/40" : ""}>
+            <Card key={c.id} className={c.enAttente ? "border-alerte-trait" : ""}>
               <CardHeader className="pb-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <CardTitle className="flex flex-wrap items-center gap-2 text-base">
                       <Gavel aria-hidden className="size-4" />
-                      <Link
-                        href={`/dashboard/eleves/${c.eleveId}`}
-                        className="hover:underline"
-                      >
+                      <Link href={`/dashboard/eleves/${c.eleveId}`} className="hover:underline">
                         {c.eleve}
                       </Link>
                       <span className="text-muted-foreground font-normal">{c.classe}</span>
                       {c.enAttente ? (
-                        <Badge variant="outline" className="text-amber-700 dark:text-amber-400">
+                        <Badge variant="outline" className="text-alerte">
                           en attente de décision
                         </Badge>
                       ) : (
@@ -285,9 +280,7 @@ export function VueConseils({
                     </p>
                     <p className="font-medium">Décision : {c.decision}</p>
                     {c.sanctionType ? (
-                      <Badge variant="outline">
-                        {LIBELLE_SANCTION[c.sanctionType] ?? c.sanctionType}
-                      </Badge>
+                      <Badge variant="outline">{LIBELLE_SANCTION[c.sanctionType] ?? c.sanctionType}</Badge>
                     ) : null}
                   </div>
                 ) : null}
@@ -297,16 +290,9 @@ export function VueConseils({
                   <div className="space-y-4 border-t pt-4">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
                       <Compteur libelle="Incidents" valeur={dossier.nbIncidents} />
-                      <Compteur
-                        libelle="Dont graves"
-                        valeur={dossier.nbGraves}
-                        alerte={dossier.nbGraves > 0}
-                      />
+                      <Compteur libelle="Dont graves" valeur={dossier.nbGraves} alerte={dossier.nbGraves > 0} />
                       <Compteur libelle="Sanctions" valeur={dossier.nbSanctions} />
-                      <Compteur
-                        libelle="Abs. non just."
-                        valeur={dossier.absencesNonJustifiees}
-                      />
+                      <Compteur libelle="Abs. non just." valeur={dossier.absencesNonJustifiees} />
                       <Compteur
                         libelle="Conseils passés"
                         valeur={dossier.conseilsAnterieurs}
@@ -327,23 +313,21 @@ export function VueConseils({
                       <p className="mb-2 font-medium">Chronologie de l&apos;année</p>
                       {dossier.faits.length === 0 ? (
                         <p className="text-muted-foreground text-xs">
-                          Aucun fait antérieur. Ce conseil porte sur un premier manquement — ce qui
-                          doit peser dans la décision.
+                          Aucun fait antérieur. Ce conseil porte sur un premier manquement — ce qui doit peser dans la
+                          décision.
                         </p>
                       ) : (
                         <ul className="space-y-1.5">
                           {dossier.faits.map((f, i) => (
                             <li key={`${f.date}-${i}`} className="flex flex-wrap gap-x-2 text-xs">
-                              <span className="text-muted-foreground tabular-nums">
-                                {dateFr(f.date)}
-                              </span>
+                              <span className="text-muted-foreground tabular-nums">{dateFr(f.date)}</span>
                               <Badge
                                 variant="outline"
                                 className={
                                   f.nature === "SANCTION"
                                     ? "text-destructive"
                                     : f.libelle === "GRAVE" || f.libelle === "TRES_GRAVE"
-                                      ? "text-amber-700 dark:text-amber-400"
+                                      ? "text-alerte"
                                       : ""
                                 }
                               >
@@ -396,16 +380,13 @@ export function VueConseils({
                       </div>
 
                       <p className="text-muted-foreground text-xs">
-                        Convoquée et absente n&apos;est pas la même chose que non convoquée.
-                        C&apos;est la première chose que conteste une famille qui apprend une
-                        exclusion.
+                        Convoquée et absente n&apos;est pas la même chose que non convoquée. C&apos;est la première
+                        chose que conteste une famille qui apprend une exclusion.
                       </p>
 
                       <Button
                         onClick={() => deliberer(c.id)}
-                        disabled={
-                          enCours || deliberation.trim().length < 10 || decision.trim().length < 5
-                        }
+                        disabled={enCours || deliberation.trim().length < 10 || decision.trim().length < 5}
                         className="justify-self-start"
                       >
                         Enregistrer la décision
@@ -425,19 +406,15 @@ export function VueConseils({
           <DialogHeader>
             <DialogTitle>Convoquer un conseil de discipline</DialogTitle>
             <DialogDescription>
-              La famille est prévenue immédiatement, par le canal qu&apos;elle peut recevoir. Un
-              conseil sans convocation régulière est attaquable.
+              La famille est prévenue immédiatement, par le canal qu&apos;elle peut recevoir. Un conseil sans
+              convocation régulière est attaquable.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="cv-eleve">Élève</Label>
-              <NativeSelect
-                id="cv-eleve"
-                value={inscriptionId}
-                onChange={(e) => setInscriptionId(e.target.value)}
-              >
+              <NativeSelect id="cv-eleve" value={inscriptionId} onChange={(e) => setInscriptionId(e.target.value)}>
                 <option value="">Choisir…</option>
                 {eleves.map((e) => (
                   <option key={e.inscriptionId} value={e.inscriptionId}>
@@ -449,12 +426,7 @@ export function VueConseils({
 
             <div className="grid gap-2">
               <Label htmlFor="cv-date">Date de séance</Label>
-              <Input
-                id="cv-date"
-                type="date"
-                value={dateSeance}
-                onChange={(e) => setDateSeance(e.target.value)}
-              />
+              <Input id="cv-date" type="date" value={dateSeance} onChange={(e) => setDateSeance(e.target.value)} />
             </div>
 
             <div className="grid gap-2">
@@ -480,10 +452,7 @@ export function VueConseils({
             </div>
 
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={tuteurConvoque}
-                onCheckedChange={(v) => setTuteurConvoque(v === true)}
-              />
+              <Checkbox checked={tuteurConvoque} onCheckedChange={(v) => setTuteurConvoque(v === true)} />
               Convoquer la famille
             </label>
           </div>
@@ -492,10 +461,7 @@ export function VueConseils({
             <Button variant="ghost" onClick={() => setConvocation(false)}>
               Annuler
             </Button>
-            <Button
-              onClick={convoquer}
-              disabled={enCours || !inscriptionId || !dateSeance || motif.trim().length < 10}
-            >
+            <Button onClick={convoquer} disabled={enCours || !inscriptionId || !dateSeance || motif.trim().length < 10}>
               {enCours ? "Enregistrement…" : "Convoquer"}
             </Button>
           </DialogFooter>
@@ -505,25 +471,11 @@ export function VueConseils({
   );
 }
 
-function Compteur({
-  libelle,
-  valeur,
-  alerte,
-}: {
-  libelle: string;
-  valeur: number;
-  alerte?: boolean;
-}) {
+function Compteur({ libelle, valeur, alerte }: { libelle: string; valeur: number; alerte?: boolean }) {
   return (
     <div className="rounded-md border px-3 py-2">
       <p className="text-muted-foreground text-xs">{libelle}</p>
-      <p
-        className={`font-semibold text-lg tabular-nums ${
-          alerte && valeur > 0 ? "text-destructive" : ""
-        }`}
-      >
-        {valeur}
-      </p>
+      <p className={`font-semibold text-lg tabular-nums ${alerte && valeur > 0 ? "text-destructive" : ""}`}>{valeur}</p>
     </div>
   );
 }

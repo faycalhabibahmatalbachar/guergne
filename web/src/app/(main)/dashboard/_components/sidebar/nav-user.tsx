@@ -1,8 +1,10 @@
 "use client";
 
-import { EllipsisVertical, KeyRound, LogOut } from "lucide-react";
 import Link from "next/link";
 
+import { EllipsisVertical, KeyRound, LogOut } from "lucide-react";
+
+import { deconnexion } from "@/app/(main)/auth/actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -14,7 +16,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { getInitials } from "@/lib/utils";
-import { deconnexion } from "@/app/(main)/auth/actions";
 import type { Principal } from "@/server/auth/session";
 import { LIBELLES_ROLES } from "@/server/guard/permissions";
 
@@ -39,9 +40,7 @@ export function NavUser({ utilisateur }: { readonly utilisateur: Principal }) {
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{nomComplet}</span>
-                <span className="truncate text-muted-foreground text-xs">
-                  {LIBELLES_ROLES[utilisateur.role]}
-                </span>
+                <span className="truncate text-muted-foreground text-xs">{LIBELLES_ROLES[utilisateur.role]}</span>
               </div>
               <EllipsisVertical className="ml-auto size-4" aria-hidden />
             </SidebarMenuButton>

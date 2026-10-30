@@ -1,8 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useState, useTransition } from "react";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { AlertTriangle, Check, ClipboardCheck, X } from "lucide-react";
 import { toast } from "sonner";
@@ -16,11 +17,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { CaseSelection, EnTeteSelection, ZoneSelection } from "@/components/ui/selection-lot";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type {
-  AlerteAssiduite,
-  EleveClasse,
-  LigneAbsence,
-} from "@/server/domain/vie-scolaire";
+import type { AlerteAssiduite, EleveClasse, LigneAbsence } from "@/server/domain/vie-scolaire";
 
 import { enregistrerAppel } from "../actions";
 import { JustificationLot } from "./justification-lot";
@@ -100,8 +97,7 @@ export function Assiduite({
   /** Les trois états possibles d'un élève à l'appel. */
   type Etat = "present" | "absent" | "retard";
 
-  const etatDe = (id: string): Etat =>
-    absents.has(id) ? "absent" : retards.has(id) ? "retard" : "present";
+  const etatDe = (id: string): Etat => (absents.has(id) ? "absent" : retards.has(id) ? "retard" : "present");
 
   /**
    * Fait tourner l'état : présent → absent → en retard → présent.
@@ -132,7 +128,6 @@ export function Assiduite({
   function majDuree(id: string, minutes: number) {
     setRetards((r) => new Map(r).set(id, minutes));
   }
-
 
   function soumettreAppel() {
     demarrer(async () => {
@@ -172,13 +167,7 @@ export function Assiduite({
           <Card key={k.libelle}>
             <CardContent className="py-4">
               <p className="text-muted-foreground text-xs">{k.libelle}</p>
-              <p
-                className={`mt-1 font-semibold text-2xl tabular-nums ${
-                  k.alerte ? "text-amber-600 dark:text-amber-400" : ""
-                }`}
-              >
-                {k.valeur}
-              </p>
+              <p className={`mt-1 font-semibold text-2xl tabular-nums ${k.alerte ? "text-alerte" : ""}`}>{k.valeur}</p>
             </CardContent>
           </Card>
         ))}
@@ -197,9 +186,8 @@ export function Assiduite({
             <CardHeader>
               <CardTitle className="text-base">Feuille d&apos;appel</CardTitle>
               <CardDescription>
-                Tout le monde est présent par défaut. Un clic marque absent, un second marque
-                en retard — la durée se corrige sur place. Chaque absence et chaque retard
-                déclenche une notification aux tuteurs.
+                Tout le monde est présent par défaut. Un clic marque absent, un second marque en retard — la durée se
+                corrige sur place. Chaque absence et chaque retard déclenche une notification aux tuteurs.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -266,9 +254,7 @@ export function Assiduite({
                   Choisissez une classe pour afficher sa liste.
                 </p>
               ) : eleves.length === 0 ? (
-                <p className="py-8 text-center text-muted-foreground text-sm">
-                  Aucun élève inscrit dans cette classe.
-                </p>
+                <p className="py-8 text-center text-muted-foreground text-sm">Aucun élève inscrit dans cette classe.</p>
               ) : (
                 <>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -283,8 +269,8 @@ export function Assiduite({
                             etat === "absent"
                               ? "border-destructive/50 bg-destructive/10"
                               : etat === "retard"
-                                ? "border-amber-500/50 bg-amber-500/10"
-                                : "hover:bg-muted"
+                                ? "border-alerte-trait bg-alerte-doux"
+                                : "hover:bg-muted/90"
                           }`}
                         >
                           <span>
@@ -314,9 +300,7 @@ export function Assiduite({
                                 max={240}
                                 step={5}
                                 value={retards.get(e.inscriptionId) ?? RETARD_DEFAUT}
-                                onChange={(ev) =>
-                                  majDuree(e.inscriptionId, Number(ev.target.value))
-                                }
+                                onChange={(ev) => majDuree(e.inscriptionId, Number(ev.target.value))}
                                 className="h-7 w-16 text-xs"
                               />
                               <span className="text-muted-foreground text-xs">min</span>
@@ -334,9 +318,7 @@ export function Assiduite({
 
                   <div className="flex items-center justify-between gap-3 border-t pt-4">
                     <p className="text-muted-foreground text-sm">
-                      {absents.size === 0
-                        ? "Aucun absent signalé."
-                        : `${absents.size} absent(s) sur ${eleves.length}.`}
+                      {absents.size === 0 ? "Aucun absent signalé." : `${absents.size} absent(s) sur ${eleves.length}.`}
                     </p>
                     <Button onClick={soumettreAppel} disabled={enCours}>
                       <ClipboardCheck aria-hidden />
@@ -408,56 +390,53 @@ export function Assiduite({
                 </p>
               ) : (
                 <ZoneSelection ids={absences.map((a) => a.id)}>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <EnTeteSelection />
-                      <TableHead>Élève</TableHead>
-                      <TableHead>Classe</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Heures</TableHead>
-                      <TableHead>Matière</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Motif</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {absences.map((a) => (
-                      <TableRow key={a.id}>
-                        <CaseSelection id={a.id} />
-                        <TableCell>
-                          <Link
-                            href={`/dashboard/eleves/${a.eleveId}`}
-                            className="font-medium hover:underline"
-                          >
-                            {a.prenom} {a.nom}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{a.classe}</TableCell>
-                        <TableCell className="tabular-nums">{dateFr(a.dateAbsence)}</TableCell>
-                        <TableCell className="tabular-nums">{Number(a.nbHeures)} h</TableCell>
-                        <TableCell className="text-muted-foreground">{a.matiere ?? "Journée"}</TableCell>
-                        <TableCell>
-                          <Badge variant={a.statut === "JUSTIFIEE" ? "secondary" : "destructive"}>
-                            {a.statut === "JUSTIFIEE" ? "Justifiée" : "Non justifiée"}
-                          </Badge>
-                        </TableCell>
-                        {/*
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <EnTeteSelection />
+                        <TableHead>Élève</TableHead>
+                        <TableHead>Classe</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Heures</TableHead>
+                        <TableHead>Matière</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Motif</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {absences.map((a) => (
+                        <TableRow key={a.id}>
+                          <CaseSelection id={a.id} />
+                          <TableCell>
+                            <Link href={`/dashboard/eleves/${a.eleveId}`} className="font-medium hover:underline">
+                              {a.prenom} {a.nom}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{a.classe}</TableCell>
+                          <TableCell className="tabular-nums">{dateFr(a.dateAbsence)}</TableCell>
+                          <TableCell className="tabular-nums">{Number(a.nbHeures)} h</TableCell>
+                          <TableCell className="text-muted-foreground">{a.matiere ?? "Journée"}</TableCell>
+                          <TableCell>
+                            <Badge variant={a.statut === "JUSTIFIEE" ? "secondary" : "destructive"}>
+                              {a.statut === "JUSTIFIEE" ? "Justifiée" : "Non justifiée"}
+                            </Badge>
+                          </TableCell>
+                          {/*
                           Le motif remplace le bouton « Justifier » de chaque
                           ligne : cocher puis justifier vaut pour une ligne
                           comme pour dix-huit, et le bouton par ligne passait
                           par un `window.prompt` qu'on ne peut ni relire avant
                           d'envoyer, ni annuler proprement.
                         */}
-                        <TableCell className="text-muted-foreground max-w-56 truncate text-xs">
-                          {a.motif ?? ""}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                          <TableCell className="text-muted-foreground max-w-56 truncate text-xs">
+                            {a.motif ?? ""}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
 
-                <JustificationLot />
+                  <JustificationLot />
                 </ZoneSelection>
               )}
             </CardContent>
@@ -469,12 +448,12 @@ export function Assiduite({
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" aria-hidden />
+                <AlertTriangle className="size-4 text-alerte" aria-hidden />
                 Élèves au-delà du seuil
               </CardTitle>
               <CardDescription>
-                Le seuil d&apos;heures non justifiées est fixé dans les paramètres de
-                l&apos;établissement. Ces situations appellent une convocation des tuteurs.
+                Le seuil d&apos;heures non justifiées est fixé dans les paramètres de l&apos;établissement. Ces
+                situations appellent une convocation des tuteurs.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
@@ -498,23 +477,17 @@ export function Assiduite({
                     {alertes.map((a) => (
                       <TableRow key={`${a.eleveId}-${a.periode}`}>
                         <TableCell>
-                          <Link
-                            href={`/dashboard/eleves/${a.eleveId}`}
-                            className="font-medium hover:underline"
-                          >
+                          <Link href={`/dashboard/eleves/${a.eleveId}`} className="font-medium hover:underline">
                             {a.prenom} {a.nom}
                           </Link>
                           <span className="block text-muted-foreground text-xs">{a.matricule}</span>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{a.classe}</TableCell>
                         <TableCell className="text-muted-foreground">{a.periode}</TableCell>
-                        <TableCell className="font-medium text-amber-600 tabular-nums dark:text-amber-400">
-                          {Number(a.heuresNonJustifiees)} h
-                          <span className="text-muted-foreground"> / {a.seuil} h</span>
+                        <TableCell className="font-medium text-alerte tabular-nums">
+                          {Number(a.heuresNonJustifiees)} h<span className="text-muted-foreground"> / {a.seuil} h</span>
                         </TableCell>
-                        <TableCell className="tabular-nums">
-                          {Number(a.heuresJustifiees)} h
-                        </TableCell>
+                        <TableCell className="tabular-nums">{Number(a.heuresJustifiees)} h</TableCell>
                         <TableCell className="tabular-nums">{a.nbRetards}</TableCell>
                       </TableRow>
                     ))}

@@ -34,11 +34,7 @@ const SANCTIONS = [
  * perd sa parole devant les familles. C'est la première chose qu'un
  * surveillant général doit pouvoir sortir.
  */
-export function FiltresDiscipline({
-  classes,
-}: {
-  classes: Array<{ id: string; libelle: string }>;
-}) {
+export function FiltresDiscipline({ classes }: { classes: Array<{ id: string; libelle: string }> }) {
   const routeur = useRouter();
   const params = useSearchParams();
 

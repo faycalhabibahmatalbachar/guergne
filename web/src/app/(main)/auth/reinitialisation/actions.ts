@@ -1,11 +1,12 @@
 "use server";
 
-import { and, eq, gte, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
+
+import { and, eq, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { hacherMotDePasse, validerMotDePasse } from "@/server/auth/mot-de-passe";
 import { roleAutoriseAdministration } from "@/lib/acces-administration";
+import { hacherMotDePasse, validerMotDePasse } from "@/server/auth/mot-de-passe";
 import {
   compteDuJeton,
   creerJetonReinitialisation,
@@ -31,12 +32,19 @@ export async function demanderReinitialisation(
   const adresse = adresseValide.safeParse(donnees.get("email"));
   if (!adresse.success) return { erreur: "Saisissez une adresse e-mail valide." };
   if (!emailsDisponibles()) {
-    return { erreur: "L’envoi des e-mails doit encore être activé par l’établissement. Veuillez contacter l’administrateur." };
+    return {
+      erreur: "L’envoi des e-mails doit encore être activé par l’établissement. Veuillez contacter l’administrateur.",
+    };
   }
 
   const reponseGenerique = { succes: true };
   const [compte] = await db
-    .select({ id: utilisateurs.id, email: utilisateurs.email, hash: utilisateurs.motDePasseHash, role: utilisateurs.role })
+    .select({
+      id: utilisateurs.id,
+      email: utilisateurs.email,
+      hash: utilisateurs.motDePasseHash,
+      role: utilisateurs.role,
+    })
     .from(utilisateurs)
     .where(and(sql`lower(${utilisateurs.email}) = ${adresse.data}`, eq(utilisateurs.actif, true)))
     .limit(1);
@@ -46,11 +54,13 @@ export async function demanderReinitialisation(
   const tentatives = await db
     .select({ id: journalAudit.id })
     .from(journalAudit)
-    .where(and(
-      eq(journalAudit.utilisateurId, compte.id),
-      eq(journalAudit.action, "mot_de_passe.reinitialisation_demandee"),
-      gte(journalAudit.creeLe, new Date(Date.now() - 3_600_000).toISOString()),
-    ))
+    .where(
+      and(
+        eq(journalAudit.utilisateurId, compte.id),
+        eq(journalAudit.action, "mot_de_passe.reinitialisation_demandee"),
+        gte(journalAudit.creeLe, new Date(Date.now() - 3_600_000).toISOString()),
+      ),
+    )
     .limit(3);
   if (tentatives.length >= 3) return reponseGenerique;
 

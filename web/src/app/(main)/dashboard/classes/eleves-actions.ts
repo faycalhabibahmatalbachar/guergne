@@ -2,9 +2,10 @@
 
 import { sql } from "drizzle-orm";
 import { z } from "zod";
+
+import { parametresUuid } from "@/lib/sql-uuid";
 import { db } from "@/server/db";
 import { requirePermission } from "@/server/guard";
-import { parametresUuid } from "@/lib/sql-uuid";
 
 const schema = z.object({
   anneeId: z.string().uuid(),
@@ -40,16 +41,18 @@ export type ResultatElevesClasses = {
  * artificiellement aux locaux depuis l'emploi du temps.
  */
 export async function rechercherElevesClasses(entree: {
-  anneeId: string; classesIds?: string[]; recherche?: string; dossier?: "VALIDE" | "A_VALIDER" | "INCOMPLET" | "BROUILLON" | "REFUSE"; page?: number;
+  anneeId: string;
+  classesIds?: string[];
+  recherche?: string;
+  dossier?: "VALIDE" | "A_VALIDER" | "INCOMPLET" | "BROUILLON" | "REFUSE";
+  page?: number;
 }): Promise<ResultatElevesClasses> {
   await requirePermission("classe:lire");
   await requirePermission("eleve:lire");
   const v = schema.parse(entree);
   const ids = [...new Set(v.classesIds)];
   const taillePage = 25;
-  const filtreClasses = ids.length
-    ? sql`AND i.classe_id IN (${parametresUuid(ids)})`
-    : sql``;
+  const filtreClasses = ids.length ? sql`AND i.classe_id IN (${parametresUuid(ids)})` : sql``;
   const q = v.recherche || null;
   const dossier = v.dossier ?? null;
   const filtre = sql`
@@ -69,9 +72,17 @@ export async function rechercherElevesClasses(entree: {
   const [compte, resultat] = await Promise.all([
     db.execute<{ total: number }>(sql`SELECT count(*)::int AS total ${filtre}`),
     db.execute<{
-      id: string; matricule: string; nom: string; prenom: string;
-      photo_url: string | null; sexe: "M" | "F" | null; classe_id: string; classe_libelle: string;
-      niveau_libelle: string; statut: string; dossier: string;
+      id: string;
+      matricule: string;
+      nom: string;
+      prenom: string;
+      photo_url: string | null;
+      sexe: "M" | "F" | null;
+      classe_id: string;
+      classe_libelle: string;
+      niveau_libelle: string;
+      statut: string;
+      dossier: string;
     }>(sql`
       SELECT e.id::text AS id, e.matricule, e.nom, e.prenom,
         e.photo_url, e.sexe, c.id::text AS classe_id, c.libelle AS classe_libelle,
@@ -87,9 +98,17 @@ export async function rechercherElevesClasses(entree: {
     page: v.page,
     taillePage,
     lignes: resultat.rows.map((l) => ({
-      id: l.id, matricule: l.matricule, nom: l.nom, prenom: l.prenom,
-      photoUrl: l.photo_url, sexe: l.sexe, classeId: l.classe_id, classeLibelle: l.classe_libelle,
-      niveauLibelle: l.niveau_libelle, statut: l.statut, dossier: l.dossier,
+      id: l.id,
+      matricule: l.matricule,
+      nom: l.nom,
+      prenom: l.prenom,
+      photoUrl: l.photo_url,
+      sexe: l.sexe,
+      classeId: l.classe_id,
+      classeLibelle: l.classe_libelle,
+      niveauLibelle: l.niveau_libelle,
+      statut: l.statut,
+      dossier: l.dossier,
     })),
   };
 }

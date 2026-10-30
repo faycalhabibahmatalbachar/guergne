@@ -21,17 +21,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-import { basculerMatiere, basculerSerie, creerMatiere, creerSerie, modifierMatiere, modifierSerie } from "../actions";
 import type { LigneMatiere, LigneSerie } from "@/server/domain/parametres";
 
-export function OngletMatieres({
-  matieres,
-  series,
-}: {
-  matieres: LigneMatiere[];
-  series: LigneSerie[];
-}) {
+import { basculerMatiere, basculerSerie, creerMatiere, creerSerie, modifierMatiere, modifierSerie } from "../actions";
+
+export function OngletMatieres({ matieres, series }: { matieres: LigneMatiere[]; series: LigneSerie[] }) {
   return (
     <div className="space-y-8">
       <BlocMatieres matieres={matieres} />
@@ -54,7 +48,7 @@ function BlocMatieres({ matieres }: { matieres: LigneMatiere[] }) {
       code: String(formulaire.get("code") ?? ""),
       libelle: String(formulaire.get("libelle") ?? ""),
       libelleCourt: String(formulaire.get("libelleCourt") ?? ""),
-      couleur: String(formulaire.get("couleur") ?? "#64748b"),
+      couleur: String(formulaire.get("couleur") ?? "var(--muted-foreground)"),
       ordreBulletin: String(formulaire.get("ordreBulletin") ?? "0"),
     };
 
@@ -116,7 +110,7 @@ function BlocMatieres({ matieres }: { matieres: LigneMatiere[] }) {
                       <span
                         aria-hidden
                         className="size-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: m.couleur ?? "#64748b" }}
+                        style={{ backgroundColor: m.couleur ?? "var(--muted-foreground)" }}
                       />
                       {m.libelle}
                     </span>
@@ -127,11 +121,7 @@ function BlocMatieres({ matieres }: { matieres: LigneMatiere[] }) {
                     </Badge>
                   </TableCell>
                   <TableCell className="tabular-nums">
-                    {m.nbCoefficients > 0 ? (
-                      m.nbCoefficients
-                    ) : (
-                      <span className="text-amber-600 text-xs dark:text-amber-400">aucun</span>
-                    )}
+                    {m.nbCoefficients > 0 ? m.nbCoefficients : <span className="text-alerte text-xs">aucun</span>}
                   </TableCell>
                   <TableCell>
                     <Switch
@@ -197,13 +187,7 @@ function BlocMatieres({ matieres }: { matieres: LigneMatiere[] }) {
 
               <div className="grid gap-2">
                 <Label htmlFor="libelle">Libellé</Label>
-                <Input
-                  id="libelle"
-                  name="libelle"
-                  defaultValue={edite?.libelle}
-                  placeholder="Mathématiques"
-                  required
-                />
+                <Input id="libelle" name="libelle" defaultValue={edite?.libelle} placeholder="Mathématiques" required />
                 {erreurs.libelle ? <p className="text-destructive text-sm">{erreurs.libelle}</p> : null}
               </div>
 
@@ -224,7 +208,7 @@ function BlocMatieres({ matieres }: { matieres: LigneMatiere[] }) {
                     id="couleur"
                     name="couleur"
                     type="color"
-                    defaultValue={edite?.couleur ?? "#64748b"}
+                    defaultValue={edite?.couleur ?? "var(--muted-foreground)"}
                     className="h-9 w-full"
                   />
                 </div>
@@ -284,8 +268,8 @@ function BlocSeries({ series }: { series: LigneSerie[] }) {
         <div>
           <h2 className="font-medium text-lg">Séries</h2>
           <p className="text-muted-foreground text-sm">
-            Les séries ne concernent que le lycée. Une classe peut n&apos;en avoir aucune — c&apos;est
-            le cas du collège et d&apos;une 2nde indifférenciée.
+            Les séries ne concernent que le lycée. Une classe peut n&apos;en avoir aucune — c&apos;est le cas du collège
+            et d&apos;une 2nde indifférenciée.
           </p>
         </div>
         <Dialog
@@ -305,9 +289,7 @@ function BlocSeries({ series }: { series: LigneSerie[] }) {
             <form action={soumettre}>
               <DialogHeader>
                 <DialogTitle>{edite ? "Modifier la série" : "Nouvelle série"}</DialogTitle>
-                <DialogDescription>
-                  Par exemple S (scientifique), L (littéraire), A ou D.
-                </DialogDescription>
+                <DialogDescription>Par exemple S (scientifique), L (littéraire), A ou D.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
@@ -336,9 +318,7 @@ function BlocSeries({ series }: { series: LigneSerie[] }) {
                     defaultValue={edite?.libelle}
                     required
                   />
-                  {erreurs.libelle ? (
-                    <p className="text-destructive text-sm">{erreurs.libelle}</p>
-                  ) : null}
+                  {erreurs.libelle ? <p className="text-destructive text-sm">{erreurs.libelle}</p> : null}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="serie-description">Description</Label>

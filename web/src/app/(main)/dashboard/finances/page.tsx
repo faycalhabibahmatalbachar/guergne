@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { EnTetePage, Page } from "@/components/socle/en-tete-page";
 import {
   listerEcheances,
   listerPaiements,
@@ -9,8 +10,8 @@ import {
   recouvrementParClasse,
   statistiquesFinancieres,
 } from "@/server/domain/finances";
-import { listerClassesEtMatieres } from "@/server/domain/personnel";
 import { listerNiveaux } from "@/server/domain/parametres";
+import { listerClassesEtMatieres } from "@/server/domain/personnel";
 import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
 import { exigerPage } from "@/server/guard";
 
@@ -40,14 +41,14 @@ export default async function PageFinances({
 
   if (!annee) {
     return (
-      <div className="space-y-6">
-        <h1 className="font-semibold text-2xl tracking-tight">Finances</h1>
+      <Page>
+        <EnTetePage titre="Finances" />
         <Prerequis
           titre="Aucune année scolaire n'est configurée"
           explication="Les frais de scolarité sont propres à une année : grille tarifaire, tranches et échéanciers s'y rattachent."
           manquants={[{ libelle: "Configurer l'année scolaire", url: "/dashboard/parametres" }]}
         />
-      </div>
+      </Page>
     );
   }
 
@@ -73,20 +74,15 @@ export default async function PageFinances({
     recouvrementParClasse(annee.id),
   ]);
 
-  const inscriptionSelectionnee =
-    situations.find((s) => s.inscriptionId === params.inscription) ?? null;
-  const echeancesEleve = inscriptionSelectionnee
-    ? await listerEcheances(inscriptionSelectionnee.inscriptionId)
-    : [];
+  const inscriptionSelectionnee = situations.find((s) => s.inscriptionId === params.inscription) ?? null;
+  const echeancesEleve = inscriptionSelectionnee ? await listerEcheances(inscriptionSelectionnee.inscriptionId) : [];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-semibold text-2xl tracking-tight">Finances</h1>
-        <p className="mt-1 text-muted-foreground text-sm">
-          Année {annee.libelle}. Tous les montants sont en francs CFA, sans décimale.
-        </p>
-      </div>
+    <Page>
+      <EnTetePage
+        titre="Finances"
+        description={<>Année {annee.libelle}. Tous les montants sont en francs CFA, sans décimale.</>}
+      />
 
       <FiltresFinances classes={classes.map((c) => ({ id: c.id, libelle: c.libelle }))} />
 
@@ -105,6 +101,6 @@ export default async function PageFinances({
         echeancesEleve={echeancesEleve}
         inscriptionSelectionnee={inscriptionSelectionnee}
       />
-    </div>
+    </Page>
   );
 }

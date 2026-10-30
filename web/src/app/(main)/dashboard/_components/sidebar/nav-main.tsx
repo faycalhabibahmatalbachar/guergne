@@ -72,7 +72,7 @@ interface NavCollapsibleItemProps {
 
 function CollapsedIconFallback({ title }: { title: string }) {
   return (
-    <span className="flex size-4 shrink-0 items-center justify-center rounded-xs font-medium text-[10px] outline">
+    <span className="flex size-4 shrink-0 items-center justify-center rounded-xs font-medium text-xs outline">
       {title.slice(0, 1)}
     </span>
   );
@@ -86,8 +86,7 @@ export function NavMain({ items }: NavMainProps) {
   const path = usePathname();
   const searchParams = useSearchParams();
   const activeSettingsSection = settingsCategoryForRoute(path, searchParams);
-  const isSettingsPath = path === "/dashboard/parametres"
-    || path.startsWith("/dashboard/parametres/");
+  const isSettingsPath = path === "/dashboard/parametres" || path.startsWith("/dashboard/parametres/");
 
   // A parent menu is an accordion, not a URL. For settings, the query
   // (section=...) identifies the selected child; direct forms resolve to it.
@@ -170,7 +169,7 @@ function NavLinkItem({ item, isActive, showIconFallback }: NavLinkItemProps) {
         aria-disabled={item.disabled}
         tooltip={item.title}
         isActive={isActive}
-        className="data-[active=true]:!bg-[#2563eb] data-[active=true]:!font-semibold data-[active=true]:!text-white data-[active=true]:hover:!bg-[#2563eb] data-[active=true]:[&_svg]:!text-white"
+        className="data-[active=true]:!bg-primary data-[active=true]:!font-semibold data-[active=true]:!text-primary-foreground data-[active=true]:hover:!bg-primary data-[active=true]:[&_svg]:!text-primary-foreground"
       >
         <Link
           prefetch={false}
@@ -212,7 +211,7 @@ function NavDropdownItem({ item, isActive, isSubItemActive }: NavDropdownItemPro
             tooltip={item.title}
             isActive={isActive}
             disabled={item.disabled}
-            className="data-[active=true]:!bg-[#2563eb] data-[active=true]:!font-semibold data-[active=true]:!text-white data-[active=true]:hover:!bg-[#2563eb] data-[active=true]:[&_svg]:!text-white"
+            className="data-[active=true]:!bg-primary data-[active=true]:!font-semibold data-[active=true]:!text-primary-foreground data-[active=true]:hover:!bg-primary data-[active=true]:[&_svg]:!text-primary-foreground"
           >
             {Icon ? <Icon /> : <CollapsedIconFallback title={item.title} />}
             <span>{item.title}</span>
@@ -258,7 +257,7 @@ function NavCollapsibleItem({ item, isActive, defaultOpen, isSubItemActive }: Na
             tooltip={item.title}
             isActive={isActive}
             disabled={item.disabled}
-            className="data-[active=true]:!bg-[#2563eb] data-[active=true]:!font-semibold data-[active=true]:!text-white data-[active=true]:hover:!bg-[#2563eb] data-[active=true]:[&_svg]:!text-white"
+            className="data-[active=true]:!bg-primary data-[active=true]:!font-semibold data-[active=true]:!text-primary-foreground data-[active=true]:hover:!bg-primary data-[active=true]:[&_svg]:!text-primary-foreground"
           >
             {Icon && <Icon />}
             <span>{item.title}</span>
@@ -278,7 +277,7 @@ function NavCollapsibleItem({ item, isActive, defaultOpen, isSubItemActive }: Na
                     asChild
                     aria-disabled={subItem.disabled}
                     isActive={isSubItemActive(subItem.url)}
-                    className="data-[active=true]:!bg-[#2563eb] data-[active=true]:!font-semibold data-[active=true]:!text-white data-[active=true]:hover:!bg-[#2563eb] data-[active=true]:[&_svg]:!text-white"
+                    className="data-[active=true]:!bg-primary data-[active=true]:!font-semibold data-[active=true]:!text-primary-foreground data-[active=true]:hover:!bg-primary data-[active=true]:[&_svg]:!text-primary-foreground"
                   >
                     <Link
                       prefetch={false}
@@ -310,7 +309,7 @@ function NavItemBadge({ badge }: { badge?: NavBadge }) {
       className={cn(
         "rounded-sm border",
         badge === "new" &&
-          "border-green-600 text-green-600 peer-hover/menu-button:text-green-600 peer-data-active/menu-button:text-green-600",
+          "border-succes-trait text-succes peer-hover/menu-button:text-succes peer-data-active/menu-button:text-succes",
         badge === "soon" && "border-muted-foreground text-muted-foreground",
       )}
     >

@@ -1,7 +1,5 @@
 "use server";
 
-import { createHash, randomInt } from "node:crypto";
-
 import { revalidatePath } from "next/cache";
 
 import { hash } from "@node-rs/argon2";
@@ -14,6 +12,8 @@ import { codesActivation, tuteurs, utilisateurs } from "@/server/db/schema";
 import { numeroTuteurDejaUtilise, telephoneDisponible } from "@/server/domain/parents";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 import { normaliserNumero } from "@/server/notifications/sms";
+
+import { createHash, randomInt } from "node:crypto";
 
 /**
  * Création complète d'un compte parent.
@@ -48,15 +48,16 @@ function echec(e: unknown, defaut: string): ResultatCreation {
   return { ok: false, message: defaut };
 }
 
-const LIENS = [
-  "PERE", "MERE", "TUTEUR", "ONCLE", "TANTE", "GRAND_PARENT", "FRERE_SOEUR", "AUTRE",
-] as const;
+const LIENS = ["PERE", "MERE", "TUTEUR", "ONCLE", "TANTE", "GRAND_PARENT", "FRERE_SOEUR", "AUTRE"] as const;
 
 const schema = z.object({
   nom: z.string().trim().min(2, "Nom requis").toUpperCase(),
   prenom: z.string().trim().min(2, "Prénom requis"),
   sexe: z.enum(["M", "F"]).nullable().optional(),
-  telephone: z.string().trim().regex(/^\+?[0-9\s.-]{8,20}$/, "Numéro invalide"),
+  telephone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9\s.-]{8,20}$/, "Numéro invalide"),
   telephoneSecondaire: z.string().trim().optional(),
   email: z.string().trim().email("Adresse invalide").optional().or(z.literal("")),
   profession: z.string().trim().optional(),
@@ -91,8 +92,20 @@ const schema = z.object({
  */
 function genererMotDePasse(): string {
   const mots = [
-    "Sahel", "Chari", "Ennedi", "Tibesti", "Kanem", "Guera", "Salamat",
-    "Baguirmi", "Ouaddai", "Logone", "Mayo", "Batha", "Borkou", "Sila",
+    "Sahel",
+    "Chari",
+    "Ennedi",
+    "Tibesti",
+    "Kanem",
+    "Guera",
+    "Salamat",
+    "Baguirmi",
+    "Ouaddai",
+    "Logone",
+    "Mayo",
+    "Batha",
+    "Borkou",
+    "Sila",
   ];
   return `${mots[randomInt(mots.length)]}-${mots[randomInt(mots.length)]}-${randomInt(1000, 10000)}`;
 }
@@ -130,7 +143,12 @@ export async function creerCompteParent(donnees: unknown): Promise<ResultatCreat
     const numero = normaliserNumero(v.telephone);
 
     if (await numeroTuteurDejaUtilise(numero)) {
-      return { ok: false, erreurs: { telephone: "Une fiche parent utilise déjà ce numéro. Vérifiez le dossier existant avant de créer un doublon." } };
+      return {
+        ok: false,
+        erreurs: {
+          telephone: "Une fiche parent utilise déjà ce numéro. Vérifiez le dossier existant avant de créer un doublon.",
+        },
+      };
     }
     if (v.creerAcces && !(await telephoneDisponible(numero))) {
       return { ok: false, erreurs: { telephone: "Ce numéro est déjà rattaché à un compte parent." } };
@@ -264,9 +282,9 @@ export async function creerCompteParent(donnees: unknown): Promise<ResultatCreat
 }
 
 /** Recherche d'élèves pour le rattachement, avec leur classe. */
-export async function rechercherEleves(terme: string): Promise<
-  Array<{ id: string; nom: string; prenom: string; matricule: string; classe: string }>
-> {
+export async function rechercherEleves(
+  terme: string,
+): Promise<Array<{ id: string; nom: string; prenom: string; matricule: string; classe: string }>> {
   try {
     await requirePermission("tuteur:gerer");
     const recherche = terme.trim();

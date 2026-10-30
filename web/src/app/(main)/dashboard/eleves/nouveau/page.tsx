@@ -1,5 +1,7 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+
+import type { Metadata } from "next";
+
 import { exigerPage } from "@/server/guard";
 
 export const metadata: Metadata = { title: "Inscrire un élève" };

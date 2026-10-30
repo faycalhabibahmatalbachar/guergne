@@ -1,9 +1,11 @@
 /* Vue d’ensemble sans fiche d’identité redondante : deux colonnes sur bureau,
    une sur petit écran, calculées après la largeur du menu latéral. */
-.shell { container-type: inline-size; }
+.shell {
+  container-type: inline-size;
+}
 .layout {
   display: grid;
-  grid-template-columns: minmax(0,1fr);
+  grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
     "middle"
     "side"
@@ -12,18 +14,37 @@
   gap: 14px;
   align-items: start;
 }
-.middle, .side, .finance, .activity { min-width: 0; }
-.middle { grid-area: middle; display: grid; gap: 14px; align-content: start; }
-.side { grid-area: side; display: grid; gap: 14px; align-content: start; }
-.finance { grid-area: finance; }
-.activity { grid-area: activity; }
+.middle,
+.side,
+.finance,
+.activity {
+  min-width: 0;
+}
+.middle {
+  grid-area: middle;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+.side {
+  grid-area: side;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+.finance {
+  grid-area: finance;
+}
+.activity {
+  grid-area: activity;
+}
 .card {
   min-width: 0;
   border: 1px solid #e7edf4;
   background: #fff;
   border-radius: 14px;
   padding: 17px;
-  box-shadow: 0 2px 9px rgba(20,40,80,.035);
+  box-shadow: 0 2px 9px rgba(20, 40, 80, 0.035);
 }
 .sectionIcon {
   width: 47px;
@@ -36,7 +57,7 @@
 }
 .schoolHero {
   display: grid;
-  grid-template-columns: minmax(0,1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 0;
   padding: 17px;
   border-radius: 14px;
@@ -44,62 +65,111 @@
 }
 .schoolSecondary {
   display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   padding: 17px;
   background: #f7f9fc;
   border-radius: 14px;
 }
-.tutorInfo { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; }
+.tutorInfo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
 .documentRow {
   display: grid;
-  grid-template-columns: minmax(0,1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
 }
 @container (min-width: 740px) {
   .layout {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0,1fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
     grid-template-areas:
       "middle side"
       "finance activity";
   }
-  .middle, .side { height: 100%; }
-  .side { grid-template-columns: minmax(0,1fr); }
-  .schoolHero { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .middle,
+  .side {
+    height: 100%;
+  }
+  .side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .schoolHero {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 @container (min-width: 1120px) {
   .layout {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
     grid-template-areas:
       "middle side"
       "finance activity";
     align-items: stretch;
   }
-  .middle, .side {
+  .middle,
+  .side {
     display: flex;
     flex-direction: column;
     height: 100%;
   }
-  .middle > *, .side > * { min-width: 0; flex: 1 1 0; }
-  .middle > :first-child { flex-grow: .96; }
-  .middle > :last-child { flex-grow: 1.04; }
-  .side > :first-child { flex-grow: .96; }
-  .side > :last-child { flex-grow: 1.04; }
-  .schoolSecondary { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .tutorInfo { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .middle > *,
+  .side > * {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+  .middle > :first-child {
+    flex-grow: 0.96;
+  }
+  .middle > :last-child {
+    flex-grow: 1.04;
+  }
+  .side > :first-child {
+    flex-grow: 0.96;
+  }
+  .side > :last-child {
+    flex-grow: 1.04;
+  }
+  .schoolSecondary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tutorInfo {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 @container (min-width: 1450px) {
-  .schoolSecondary { grid-template-columns: repeat(4,minmax(0,1fr)); }
-  .card { padding: 22px; }
+  .schoolSecondary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .card {
+    padding: 22px;
+  }
 }
 @media (prefers-color-scheme: dark) {
-  .card { background: var(--card); border-color: var(--border); }
-  .schoolHero { background: var(--muted); }
-  .schoolSecondary { background: var(--muted); }
+  .card {
+    background: var(--card);
+    border-color: var(--border);
+  }
+  .schoolHero {
+    background: var(--muted);
+  }
+  .schoolSecondary {
+    background: var(--muted);
+  }
 }
 @media print {
-  .shell { container-type: normal; }
-  .layout { display: block; }
-  .layout > *, .middle > *, .side > * { margin-bottom: 12px; box-shadow: none!important; break-inside: avoid; }
+  .shell {
+    container-type: normal;
+  }
+  .layout {
+    display: block;
+  }
+  .layout > *,
+  .middle > *,
+  .side > * {
+    margin-bottom: 12px;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
 }

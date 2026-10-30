@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { useRouter } from "next/navigation";
 
-import { GraduationCap, Search, School, UserCog } from "lucide-react";
+import { GraduationCap, School, Search, UserCog } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,7 @@ import {
 import type { NavMainItem } from "@/navigation/sidebar/sidebar-items";
 import { sidebarItems } from "@/navigation/sidebar/sidebar-items";
 
-import { rechercheGlobale, type ResultatRecherche } from "../../_actions/recherche";
+import { type ResultatRecherche, rechercheGlobale } from "../../_actions/recherche";
 
 type SearchItem = {
   id: string;
@@ -184,15 +184,21 @@ export function SearchDialog() {
 
   return (
     <>
+      {/*
+        Le déclencheur a l'allure du champ qu'il ouvre, au lieu du lien nu
+        d'origine : on cherche un champ de recherche des yeux, pas un lien.
+        Il se réduit à son icône sous 640 px, où la place va au fil d'Ariane.
+      */}
       <Button
         onClick={() => handleOpenChange(true)}
-        variant="link"
-        className="px-0! font-normal text-muted-foreground hover:no-underline"
+        variant="outline"
+        aria-label="Rechercher"
+        className="w-9 justify-center px-0 font-normal text-muted-foreground sm:w-56 sm:justify-start sm:px-3 lg:w-64"
       >
-        <Search data-icon="inline-start" />
-        Search
-        <kbd className="inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-medium text-[10px]">
-          <span className="text-xs">⌘</span>J
+        <Search aria-hidden />
+        <span className="hidden sm:inline">Rechercher…</span>
+        <kbd className="ml-auto hidden h-5 select-none items-center gap-0.5 rounded border bg-muted px-1.5 font-medium text-xs text-muted-foreground sm:inline-flex">
+          Ctrl J
         </kbd>
       </Button>
       <CommandDialog open={open} onOpenChange={handleOpenChange}>
@@ -203,9 +209,7 @@ export function SearchDialog() {
             onValueChange={setQuery}
           />
           <CommandList>
-            <CommandEmpty>
-              {cherche ? "Recherche…" : "Aucun résultat."}
-            </CommandEmpty>
+            <CommandEmpty>{cherche ? "Recherche…" : "Aucun résultat."}</CommandEmpty>
 
             {/*
               Les données AVANT les pages : quand on tape un nom, ce qu'on
@@ -225,13 +229,7 @@ export function SearchDialog() {
                           key={d.id}
                           /* Unique — cmdk déduplique sur cette clé, et deux
                              homonymes se masqueraient l'un l'autre. */
-                          value={[
-                            d.type,
-                            d.id,
-                            d.libelle,
-                            sansAccents(d.libelle),
-                            d.detail ?? "",
-                          ].join(" ")}
+                          value={[d.type, d.id, d.libelle, sansAccents(d.libelle), d.detail ?? ""].join(" ")}
                           onSelect={() => {
                             handleOpenChange(false);
                             router.push(d.url);
@@ -241,9 +239,7 @@ export function SearchDialog() {
                             <Icone />
                             <span className="truncate">{d.libelle}</span>
                             {d.detail ? (
-                              <span className="text-muted-foreground truncate text-xs">
-                                {d.detail}
-                              </span>
+                              <span className="text-muted-foreground truncate text-xs">{d.detail}</span>
                             ) : null}
                           </span>
                         </CommandItem>

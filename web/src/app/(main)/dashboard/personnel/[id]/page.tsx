@@ -1,16 +1,13 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 
+import { EnTetePage, Page } from "@/components/socle/en-tete-page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  chargerFicheEnseignant,
-  listerClassesEtMatieres,
-  listerCreneaux,
-} from "@/server/domain/personnel";
+import { chargerFicheEnseignant, listerClassesEtMatieres, listerCreneaux } from "@/server/domain/personnel";
 import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
 import { exigerPage } from "@/server/guard";
 
@@ -28,11 +25,7 @@ const LIBELLE_STATUT: Record<string, string> = {
   DEMISSIONNAIRE: "Démissionnaire",
 };
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const annee = await chargerAnneeCourante();
   const fiche = await chargerFicheEnseignant(id, annee?.id ?? null);
@@ -57,7 +50,7 @@ export default async function PageEnseignant({ params }: { params: Promise<{ id:
   const e = fiche.enseignant;
 
   return (
-    <div className="space-y-6">
+    <Page>
       <Button asChild variant="ghost" size="sm" className="-ml-2">
         <Link href="/dashboard/personnel">
           <ArrowLeft aria-hidden />
@@ -72,9 +65,13 @@ export default async function PageEnseignant({ params }: { params: Promise<{ id:
             {e.nom.charAt(0)}
           </div>
           <div>
-            <h1 className="font-semibold text-2xl tracking-tight">
-              {e.prenom} {e.nom}
-            </h1>
+            <EnTetePage
+              titre={
+                <>
+                  {e.prenom} {e.nom}
+                </>
+              }
+            />
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="font-mono text-xs">
                 {e.matricule}
@@ -83,9 +80,7 @@ export default async function PageEnseignant({ params }: { params: Promise<{ id:
                 {LIBELLE_STATUT[e.statut] ?? e.statut}
               </Badge>
               {!e.actif ? <Badge variant="outline">Compte désactivé</Badge> : null}
-              {e.telephone ? (
-                <span className="text-muted-foreground text-sm">{e.telephone}</span>
-              ) : null}
+              {e.telephone ? <span className="text-muted-foreground text-sm">{e.telephone}</span> : null}
               {e.diplome ? <span className="text-muted-foreground text-sm">· {e.diplome}</span> : null}
             </div>
           </div>
@@ -99,6 +94,6 @@ export default async function PageEnseignant({ params }: { params: Promise<{ id:
         matieres={matieres.map((m) => ({ id: m.id, libelle: m.libelle }))}
         creneaux={creneaux.map((c) => ({ id: c.id, libelle: c.libelle }))}
       />
-    </div>
+    </Page>
   );
 }

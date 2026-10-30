@@ -34,9 +34,7 @@ export function SelecteurCible({
       <NativeSelect
         id="cible"
         value={cibleId}
-        onChange={(e) =>
-          routeur.push(`/dashboard/emploi-du-temps?vue=${vue}&cible=${e.target.value}`)
-        }
+        onChange={(e) => routeur.push(`/dashboard/emploi-du-temps?vue=${vue}&cible=${e.target.value}`)}
       >
         {cibles.map((c) => (
           <option key={c.id} value={c.id}>

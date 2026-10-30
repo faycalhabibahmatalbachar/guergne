@@ -1,29 +1,66 @@
 "use client";
 
+import { useState, useTransition } from "react";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { BellRing, Copy, Eye, History, KeyRound, Mail, MoreHorizontal, Pencil, Phone, Send, ShieldOff, Trash2, UserRoundX, Users, AlertTriangle } from "lucide-react";
+
+import {
+  AlertTriangle,
+  BellRing,
+  Copy,
+  Eye,
+  History,
+  KeyRound,
+  Mail,
+  MoreHorizontal,
+  Pencil,
+  Phone,
+  Send,
+  ShieldOff,
+  Trash2,
+  UserRoundX,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
-  DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { LigneTuteur } from "@/server/domain/parents";
+
 import { inviterTuteur, modifierProfilTuteur, revoquerAcces, supprimerTuteurOrphelin } from "../actions";
 import { CodeActivationParent } from "./code-activation-parent";
 
-export function ActionsParent({ t, peutInviter, peutNotifier, onNotifier }: { t: LigneTuteur; peutInviter: boolean; peutNotifier: boolean; onNotifier: (parent: LigneTuteur) => void }) {
+export function ActionsParent({
+  t,
+  peutInviter,
+  peutNotifier,
+  onNotifier,
+}: {
+  t: LigneTuteur;
+  peutInviter: boolean;
+  peutNotifier: boolean;
+  onNotifier: (parent: LigneTuteur) => void;
+}) {
   const routeur = useRouter();
   const [enCours, demarrer] = useTransition();
   const [fenetre, setFenetre] = useState<"modifier" | "revoquer" | "supprimer" | null>(null);
@@ -90,8 +127,12 @@ export function ActionsParent({ t, peutInviter, peutNotifier, onNotifier }: { t:
     if (motif.trim().length < 3) return;
     demarrer(async () => {
       const r = await revoquerAcces(t.id, motif.trim());
-      if (r.ok) { toast.success(r.message ?? "Accès révoqué."); setFenetre(null); setMotif(""); routeur.refresh(); }
-      else toast.error(r.message ?? "Échec de révocation.");
+      if (r.ok) {
+        toast.success(r.message ?? "Accès révoqué.");
+        setFenetre(null);
+        setMotif("");
+        routeur.refresh();
+      } else toast.error(r.message ?? "Échec de révocation.");
     });
   }
 
@@ -107,121 +148,325 @@ export function ActionsParent({ t, peutInviter, peutNotifier, onNotifier }: { t:
     });
   }
 
-  const champ = (nom: string, libelle: string, valeur: string | null, requis = false, type = "text") =>
+  const champ = (nom: string, libelle: string, valeur: string | null, requis = false, type = "text") => (
     <div className="space-y-1.5" key={nom}>
-      <Label htmlFor={nom + "-" + t.id}>{libelle}{requis ? <span className="text-red-600"> *</span> : null}</Label>
-      <Input id={nom + "-" + t.id} name={nom} type={type} defaultValue={valeur ?? ""} required={requis} aria-invalid={Boolean(erreurs[nom])} />
-      {erreurs[nom] ? <p className="text-xs text-red-700">{erreurs[nom]}</p> : null}
-    </div>;
-
-  return <>
-    <CodeActivationParent code={codeActivation} nom={nomComplet} onFermer={() => setCodeActivation(null)} />
-    <div className="flex items-center justify-end gap-1.5">
-      <Button asChild variant="outline" size="icon" className="size-9 rounded-lg border-slate-200 bg-white shadow-none dark:border-border dark:bg-card" title="Ouvrir la fiche parent">
-        <Link href={"/dashboard/parents/" + t.id} aria-label={"Ouvrir la fiche de " + nomComplet}><Eye className="size-4" aria-hidden /></Link>
-      </Button>
-      {peutNotifier && <Button type="button" variant="outline" size="icon"
-        className="size-9 rounded-lg border-emerald-200 bg-emerald-50 text-emerald-700 shadow-none hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300"
-        title={"Envoyer une notification uniquement à " + nomComplet}
-        aria-label={"Notifier individuellement " + nomComplet}
-        onClick={() => onNotifier(t)}><BellRing className="size-4" aria-hidden /></Button>}
-      <Button variant="outline" size="icon" className="size-9 rounded-lg border-slate-200 bg-white shadow-none dark:border-border dark:bg-card"
-        title="Modifier le profil" aria-label={"Modifier le profil de " + nomComplet} onClick={() => { setErreurs({}); setSms(t.accepteSms); setFenetre("modifier"); }}>
-        <Pencil className="size-4" aria-hidden />
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon" className="size-9 rounded-lg border-slate-200 bg-white shadow-none dark:border-border dark:bg-card" aria-label={"Autres actions pour " + nomComplet}>
-            <MoreHorizontal className="size-4" aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-60">
-          <DropdownMenuLabel className="text-xs text-muted-foreground">Compte de {nomComplet}</DropdownMenuLabel>
-          <DropdownMenuItem asChild><Link href={"/dashboard/parents/" + t.id}><Eye className="size-4" aria-hidden />Consulter le dossier</Link></DropdownMenuItem>
-          <DropdownMenuItem asChild><Link href={"/dashboard/parents/" + t.id + "#enfants-rattaches"}><Users className="size-4" aria-hidden />Gérer les enfants liés</Link></DropdownMenuItem>
-          <DropdownMenuItem asChild><Link href={"/dashboard/parents/" + t.id + "#historique-notifications"}><History className="size-4" aria-hidden />Historique des notifications</Link></DropdownMenuItem>
-          {t.doublonTelephone && <DropdownMenuItem asChild><Link href="/dashboard/parents/familles/doublons"><AlertTriangle className="size-4" aria-hidden />Vérifier les fiches en doublon</Link></DropdownMenuItem>}
-          {t.telephone && <DropdownMenuItem onSelect={() => { void navigator.clipboard.writeText(t.telephone).then(() => toast.success("Téléphone copié.")).catch(() => toast.error("Impossible de copier le numéro.")); }}><Copy className="size-4" aria-hidden />Copier le téléphone</DropdownMenuItem>}
-          {t.email && <DropdownMenuItem asChild><a href={"mailto:" + encodeURIComponent(t.email)}><Mail className="size-4" aria-hidden />Envoyer un e-mail</a></DropdownMenuItem>}
-          {t.telephone && <DropdownMenuItem asChild><a href={"tel:" + t.telephone.replace(/[^+0-9]/g, "")}><Phone className="size-4" aria-hidden />Appeler ce parent</a></DropdownMenuItem>}
-          {peutNotifier && <DropdownMenuItem onSelect={() => onNotifier(t)}><BellRing className="size-4" aria-hidden />Notifier ce parent</DropdownMenuItem>}
-          <DropdownMenuItem onSelect={() => { setErreurs({}); setFenetre("modifier"); }}><Pencil className="size-4" aria-hidden />Modifier les informations</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => { setErreurs({}); setSms(t.accepteSms); setFenetre("modifier"); }}><BellRing className="size-4" aria-hidden />Préférences SMS et coordonnées</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {peutInviter && statutInvite ? (
-            <DropdownMenuItem disabled={enCours} onSelect={() => inviter()}>
-              {t.compteActif === false ? <KeyRound className="size-4" aria-hidden /> : <Send className="size-4" aria-hidden />}
-              {t.compteActif === false ? "Réactiver et inviter" : !t.utilisateurId ? "Inviter le parent" : "Renvoyer le code"}
-            </DropdownMenuItem>
-          ) : !statutInvite ? (
-            <DropdownMenuItem className="text-red-700 focus:text-red-700" onSelect={() => { setMotif(""); setFenetre("revoquer"); }}>
-              <ShieldOff className="size-4" aria-hidden />Révoquer l’accès
-            </DropdownMenuItem>
-          ) : null}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem disabled={!peutSupprimer} className="text-red-700 focus:text-red-700" onSelect={() => { setMotif(""); setConfirmation(""); setFenetre("supprimer"); }}>
-            <Trash2 className="size-4" aria-hidden />Supprimer la fiche orpheline
-          </DropdownMenuItem>
-          {!peutSupprimer ? <p className="px-2 py-1.5 text-[11px] leading-relaxed text-muted-foreground">Suppression bloquée : ce tuteur est lié à un compte ou à un enfant.</p> : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <Label htmlFor={nom + "-" + t.id}>
+        {libelle}
+        {requis ? <span className="text-danger"> *</span> : null}
+      </Label>
+      <Input
+        id={nom + "-" + t.id}
+        name={nom}
+        type={type}
+        defaultValue={valeur ?? ""}
+        required={requis}
+        aria-invalid={Boolean(erreurs[nom])}
+      />
+      {erreurs[nom] ? <p className="text-xs text-danger">{erreurs[nom]}</p> : null}
     </div>
+  );
 
-    <Dialog open={fenetre === "modifier"} onOpenChange={v => { if (!v) fermer(); }}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader><DialogTitle>Modifier le parent — {nomComplet}</DialogTitle><DialogDescription>Corrigez les coordonnées et informations professionnelles. Les changements sont journalisés. Les enfants rattachés ne sont pas modifiés.</DialogDescription></DialogHeader>
-        <form onSubmit={enregistrer} className="space-y-5">
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-foreground">Identité du responsable</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {champ("nom","Nom",t.nom,true)}
-              {champ("prenom","Prénom",t.prenom,true)}
-              <div className="space-y-1.5">
-                <Label htmlFor={"sexe-"+t.id}>Sexe</Label>
-                <NativeSelect id={"sexe-"+t.id} name="sexe" defaultValue={t.sexe ?? ""}>
-                  <option value="">Non renseigné</option><option value="M">Masculin</option><option value="F">Féminin</option>
-                </NativeSelect>
+  return (
+    <>
+      <CodeActivationParent code={codeActivation} nom={nomComplet} onFermer={() => setCodeActivation(null)} />
+      <div className="flex items-center justify-end gap-1.5">
+        <Button asChild variant="outline" size="icon" className="size-9" title="Ouvrir la fiche parent">
+          <Link href={"/dashboard/parents/" + t.id} aria-label={"Ouvrir la fiche de " + nomComplet}>
+            <Eye className="size-4" aria-hidden />
+          </Link>
+        </Button>
+        {peutNotifier && (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-9 border-succes-trait bg-succes-doux text-succes hover:bg-succes-doux/90"
+            title={"Envoyer une notification uniquement à " + nomComplet}
+            aria-label={"Notifier individuellement " + nomComplet}
+            onClick={() => onNotifier(t)}
+          >
+            <BellRing className="size-4" aria-hidden />
+          </Button>
+        )}
+        <Button
+          variant="outline"
+          size="icon"
+          className="size-9"
+          title="Modifier le profil"
+          aria-label={"Modifier le profil de " + nomComplet}
+          onClick={() => {
+            setErreurs({});
+            setSms(t.accepteSms);
+            setFenetre("modifier");
+          }}
+        >
+          <Pencil className="size-4" aria-hidden />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" className="size-9" aria-label={"Autres actions pour " + nomComplet}>
+              <MoreHorizontal className="size-4" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Compte de {nomComplet}</DropdownMenuLabel>
+            <DropdownMenuItem asChild>
+              <Link href={"/dashboard/parents/" + t.id}>
+                <Eye className="size-4" aria-hidden />
+                Consulter le dossier
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={"/dashboard/parents/" + t.id + "#enfants-rattaches"}>
+                <Users className="size-4" aria-hidden />
+                Gérer les enfants liés
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={"/dashboard/parents/" + t.id + "#historique-notifications"}>
+                <History className="size-4" aria-hidden />
+                Historique des notifications
+              </Link>
+            </DropdownMenuItem>
+            {t.doublonTelephone && (
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/parents/familles/doublons">
+                  <AlertTriangle className="size-4" aria-hidden />
+                  Vérifier les fiches en doublon
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {t.telephone && (
+              <DropdownMenuItem
+                onSelect={() => {
+                  void navigator.clipboard
+                    .writeText(t.telephone)
+                    .then(() => toast.success("Téléphone copié."))
+                    .catch(() => toast.error("Impossible de copier le numéro."));
+                }}
+              >
+                <Copy className="size-4" aria-hidden />
+                Copier le téléphone
+              </DropdownMenuItem>
+            )}
+            {t.email && (
+              <DropdownMenuItem asChild>
+                <a href={"mailto:" + encodeURIComponent(t.email)}>
+                  <Mail className="size-4" aria-hidden />
+                  Envoyer un e-mail
+                </a>
+              </DropdownMenuItem>
+            )}
+            {t.telephone && (
+              <DropdownMenuItem asChild>
+                <a href={"tel:" + t.telephone.replace(/[^+0-9]/g, "")}>
+                  <Phone className="size-4" aria-hidden />
+                  Appeler ce parent
+                </a>
+              </DropdownMenuItem>
+            )}
+            {peutNotifier && (
+              <DropdownMenuItem onSelect={() => onNotifier(t)}>
+                <BellRing className="size-4" aria-hidden />
+                Notifier ce parent
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onSelect={() => {
+                setErreurs({});
+                setFenetre("modifier");
+              }}
+            >
+              <Pencil className="size-4" aria-hidden />
+              Modifier les informations
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                setErreurs({});
+                setSms(t.accepteSms);
+                setFenetre("modifier");
+              }}
+            >
+              <BellRing className="size-4" aria-hidden />
+              Préférences SMS et coordonnées
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {peutInviter && statutInvite ? (
+              <DropdownMenuItem disabled={enCours} onSelect={() => inviter()}>
+                {t.compteActif === false ? (
+                  <KeyRound className="size-4" aria-hidden />
+                ) : (
+                  <Send className="size-4" aria-hidden />
+                )}
+                {t.compteActif === false
+                  ? "Réactiver et inviter"
+                  : !t.utilisateurId
+                    ? "Inviter le parent"
+                    : "Renvoyer le code"}
+              </DropdownMenuItem>
+            ) : !statutInvite ? (
+              <DropdownMenuItem
+                className="text-danger focus:text-danger"
+                onSelect={() => {
+                  setMotif("");
+                  setFenetre("revoquer");
+                }}
+              >
+                <ShieldOff className="size-4" aria-hidden />
+                Révoquer l’accès
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={!peutSupprimer}
+              className="text-danger focus:text-danger"
+              onSelect={() => {
+                setMotif("");
+                setConfirmation("");
+                setFenetre("supprimer");
+              }}
+            >
+              <Trash2 className="size-4" aria-hidden />
+              Supprimer la fiche orpheline
+            </DropdownMenuItem>
+            {!peutSupprimer ? (
+              <p className="px-2 py-1.5 text-xs leading-relaxed text-muted-foreground">
+                Suppression bloquée : ce tuteur est lié à un compte ou à un enfant.
+              </p>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <Dialog
+        open={fenetre === "modifier"}
+        onOpenChange={(v) => {
+          if (!v) fermer();
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Modifier le parent — {nomComplet}</DialogTitle>
+            <DialogDescription>
+              Corrigez les coordonnées et informations professionnelles. Les changements sont journalisés. Les enfants
+              rattachés ne sont pas modifiés.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={enregistrer} className="space-y-5">
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Identité du responsable</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {champ("nom", "Nom", t.nom, true)}
+                {champ("prenom", "Prénom", t.prenom, true)}
+                <div className="space-y-1.5">
+                  <Label htmlFor={"sexe-" + t.id}>Sexe</Label>
+                  <NativeSelect id={"sexe-" + t.id} name="sexe" defaultValue={t.sexe ?? ""}>
+                    <option value="">Non renseigné</option>
+                    <option value="M">Masculin</option>
+                    <option value="F">Féminin</option>
+                  </NativeSelect>
+                </div>
+                {champ("profession", "Profession", t.profession)}
+                {champ("employeur", "Employeur", t.employeur)}
               </div>
-              {champ("profession","Profession",t.profession)}
-              {champ("employeur","Employeur",t.employeur)}
-            </div>
-          </section>
-          <section className="space-y-3 border-t border-slate-100 pt-4 dark:border-border">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-foreground">Coordonnées</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {champ("telephone","Téléphone principal",t.telephone,true,"tel")}
-              {champ("telephoneSecondaire","Téléphone secondaire",t.telephoneSecondaire,false,"tel")}
-              {champ("email","Adresse e-mail",t.email,false,"email")}
-              {champ("quartier","Quartier",t.quartier)}
-              <div className="sm:col-span-2">{champ("adresse","Adresse",t.adresse)}</div>
-            </div>
-            <label className="flex items-center gap-2 text-sm"><Checkbox checked={sms} onCheckedChange={v => setSms(v===true)} /> Accepte les notifications SMS</label>
-          </section>
+            </section>
+            <section className="space-y-3 border-t border-border pt-4">
+              <h3 className="text-sm font-semibold text-foreground">Coordonnées</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {champ("telephone", "Téléphone principal", t.telephone, true, "tel")}
+                {champ("telephoneSecondaire", "Téléphone secondaire", t.telephoneSecondaire, false, "tel")}
+                {champ("email", "Adresse e-mail", t.email, false, "email")}
+                {champ("quartier", "Quartier", t.quartier)}
+                <div className="sm:col-span-2">{champ("adresse", "Adresse", t.adresse)}</div>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={sms} onCheckedChange={(v) => setSms(v === true)} /> Accepte les notifications SMS
+              </label>
+            </section>
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={enCours} onClick={fermer}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={enCours} className="bg-succes text-primary-foreground hover:bg-succes/90">
+                {enCours ? "Enregistrement…" : "Enregistrer les modifications"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={fenetre === "revoquer"}
+        onOpenChange={(v) => {
+          if (!v) fermer();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Révoquer l’accès parent</DialogTitle>
+            <DialogDescription>
+              Les sessions de {nomComplet} seront fermées. La fiche et les liens avec les enfants seront conservés.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor={"motif-rev-" + t.id}>Motif obligatoire</Label>
+            <Input
+              id={"motif-rev-" + t.id}
+              value={motif}
+              onChange={(e) => setMotif(e.target.value)}
+              placeholder="Exemple : accès à désactiver sur demande..."
+            />
+          </div>
           <DialogFooter>
-            <Button type="button" variant="outline" disabled={enCours} onClick={fermer}>Annuler</Button>
-            <Button type="submit" disabled={enCours} className="bg-emerald-700 text-white hover:bg-emerald-800">{enCours ? "Enregistrement…" : "Enregistrer les modifications"}</Button>
+            <Button variant="outline" disabled={enCours} onClick={fermer}>
+              Annuler
+            </Button>
+            <Button variant="destructive" disabled={enCours || motif.trim().length < 3} onClick={confirmerRevoquer}>
+              Confirmer la révocation
+            </Button>
           </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
 
-    <Dialog open={fenetre === "revoquer"} onOpenChange={v => { if (!v) fermer(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Révoquer l’accès parent</DialogTitle><DialogDescription>Les sessions de {nomComplet} seront fermées. La fiche et les liens avec les enfants seront conservés.</DialogDescription></DialogHeader>
-        <div className="space-y-2"><Label htmlFor={"motif-rev-"+t.id}>Motif obligatoire</Label><Input id={"motif-rev-"+t.id} value={motif} onChange={e=>setMotif(e.target.value)} placeholder="Exemple : accès à désactiver sur demande..." /></div>
-        <DialogFooter><Button variant="outline" disabled={enCours} onClick={fermer}>Annuler</Button><Button variant="destructive" disabled={enCours || motif.trim().length < 3} onClick={confirmerRevoquer}>Confirmer la révocation</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <Dialog open={fenetre === "supprimer"} onOpenChange={v => { if (!v) fermer(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Supprimer une fiche orpheline</DialogTitle><DialogDescription>Action irréversible, autorisée uniquement si aucun compte, enfant ou historique de notification n’existe. Saisissez le nom complet exactement.</DialogDescription></DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5"><Label htmlFor={"conf-del-"+t.id}>Confirmation : {nomComplet}</Label><Input id={"conf-del-"+t.id} value={confirmation} onChange={e=>setConfirmation(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label htmlFor={"motif-del-"+t.id}>Motif (8 caractères minimum)</Label><Input id={"motif-del-"+t.id} value={motif} onChange={e=>setMotif(e.target.value)} /></div>
-        </div>
-        <DialogFooter><Button variant="outline" disabled={enCours} onClick={fermer}>Annuler</Button><Button variant="destructive" disabled={enCours || confirmation.trim() !== nomComplet || motif.trim().length < 8} onClick={confirmerSupprimer}><UserRoundX className="size-4" aria-hidden />Supprimer définitivement</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
-  </>;
+      <Dialog
+        open={fenetre === "supprimer"}
+        onOpenChange={(v) => {
+          if (!v) fermer();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Supprimer une fiche orpheline</DialogTitle>
+            <DialogDescription>
+              Action irréversible, autorisée uniquement si aucun compte, enfant ou historique de notification n’existe.
+              Saisissez le nom complet exactement.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor={"conf-del-" + t.id}>Confirmation : {nomComplet}</Label>
+              <Input id={"conf-del-" + t.id} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={"motif-del-" + t.id}>Motif (8 caractères minimum)</Label>
+              <Input id={"motif-del-" + t.id} value={motif} onChange={(e) => setMotif(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={enCours} onClick={fermer}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={enCours || confirmation.trim() !== nomComplet || motif.trim().length < 8}
+              onClick={confirmerSupprimer}
+            >
+              <UserRoundX className="size-4" aria-hidden />
+              Supprimer définitivement
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }

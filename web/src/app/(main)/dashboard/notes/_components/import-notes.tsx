@@ -19,11 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import {
-  analyserFichierNotes,
-  importerNotes,
-  type ResultatImportNotes,
-} from "../actions-import";
+import { analyserFichierNotes, importerNotes, type ResultatImportNotes } from "../actions-import";
 
 /**
  * Import des notes d'une évaluation.
@@ -84,9 +80,7 @@ export function ImportNotes({
   }
 
   const rapport = resultat?.rapport;
-  const problemes = rapport
-    ? [...rapport.erreurs, ...rapport.doublonsFichier].sort((a, b) => a.ligne - b.ligne)
-    : [];
+  const problemes = rapport ? [...rapport.erreurs, ...rapport.doublonsFichier].sort((a, b) => a.ligne - b.ligne) : [];
 
   return (
     <Dialog
@@ -110,8 +104,8 @@ export function ImportNotes({
         <DialogHeader>
           <DialogTitle>Importer les notes — {titre}</DialogTitle>
           <DialogDescription>
-            La grille est pré-remplie avec la classe et les notes déjà saisies. Remplissez la
-            colonne Note, puis redéposez le fichier.
+            La grille est pré-remplie avec la classe et les notes déjà saisies. Remplissez la colonne Note, puis
+            redéposez le fichier.
           </DialogDescription>
         </DialogHeader>
 
@@ -143,33 +137,25 @@ export function ImportNotes({
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-4 rounded-md border p-3">
                 <div>
-                  <p className="text-muted-foreground text-xs">
-                    {termine ? "Notes écrites" : "Notes lues"}
-                  </p>
-                  <p className="font-semibold text-emerald-600 text-xl tabular-nums dark:text-emerald-400">
+                  <p className="text-muted-foreground text-xs">{termine ? "Notes écrites" : "Notes lues"}</p>
+                  <p className="font-semibold text-succes text-xl tabular-nums">
                     {resultat?.ecrites ?? rapport.valides.length}
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Erreurs</p>
-                  <p
-                    className={`font-semibold text-xl tabular-nums ${
-                      problemes.length > 0 ? "text-destructive" : ""
-                    }`}
-                  >
+                  <p className={`font-semibold text-xl tabular-nums ${problemes.length > 0 ? "text-destructive" : ""}`}>
                     {problemes.length}
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Absents du fichier</p>
-                  <p className="font-semibold text-xl tabular-nums">
-                    {rapport.nonFournis.length}
-                  </p>
+                  <p className="font-semibold text-xl tabular-nums">{rapport.nonFournis.length}</p>
                 </div>
               </div>
 
               {rapport.colonnesIgnorees.length > 0 ? (
-                <p className="text-sm text-amber-600 dark:text-amber-400">
+                <p className="text-sm text-alerte">
                   Colonnes non reconnues, donc ignorées : {rapport.colonnesIgnorees.join(", ")}.
                 </p>
               ) : null}
@@ -178,8 +164,8 @@ export function ImportNotes({
                 <>
                   <p className="flex items-center gap-2 text-destructive text-sm">
                     <AlertTriangle aria-hidden className="size-4" />
-                    Rien ne sera écrit tant que ces lignes ne sont pas corrigées : une classe à
-                    moitié notée fausse la moyenne de tous les élèves.
+                    Rien ne sera écrit tant que ces lignes ne sont pas corrigées : une classe à moitié notée fausse la
+                    moyenne de tous les élèves.
                   </p>
                   <div className="max-h-60 overflow-y-auto rounded-md border">
                     <Table>
@@ -194,9 +180,7 @@ export function ImportNotes({
                         {problemes.map((p, i) => (
                           <TableRow key={`${p.ligne}-${i}`}>
                             <TableCell className="tabular-nums">{p.ligne}</TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {p.colonne ?? "—"}
-                            </TableCell>
+                            <TableCell className="text-muted-foreground">{p.colonne ?? "—"}</TableCell>
                             <TableCell>{p.message}</TableCell>
                           </TableRow>
                         ))}
@@ -233,16 +217,12 @@ export function ImportNotes({
                         <TableRow key={n.inscriptionId}>
                           <TableCell>
                             {n.eleve}
-                            <span className="text-muted-foreground ml-2 font-mono text-xs">
-                              {n.matricule}
-                            </span>
+                            <span className="text-muted-foreground ml-2 font-mono text-xs">{n.matricule}</span>
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-muted-foreground">
                             {n.ancienneValeur ?? "—"}
                           </TableCell>
-                          <TableCell className="text-right font-medium tabular-nums">
-                            {n.valeur ?? "—"}
-                          </TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">{n.valeur ?? "—"}</TableCell>
                           <TableCell className="text-muted-foreground">
                             {n.statut === "NOTEE" ? "" : n.statut.toLowerCase().replace(/_/g, " ")}
                           </TableCell>

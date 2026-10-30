@@ -1,8 +1,9 @@
-
-import type { Metadata } from "next";
 import Link from "next/link";
-import { Wallet } from "lucide-react";
 
+import { Wallet } from "lucide-react";
+import type { Metadata } from "next";
+
+import { EnTetePage, Page } from "@/components/socle/en-tete-page";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { reglageBlocage } from "@/server/domain/caisse";
@@ -22,7 +23,7 @@ export default async function PageReglagesFinanciers() {
       <div>
         <div className="flex items-center gap-2">
           <Wallet className="size-6 text-primary" aria-hidden />
-          <h1 className="font-semibold text-2xl tracking-tight">Règles financières</h1>
+          <EnTetePage titre="Règles financières" />
         </div>
         <p className="mt-2 text-muted-foreground text-sm">
           Décisions financières appliquées au processus de publication des bulletins du lycée.
@@ -32,8 +33,8 @@ export default async function PageReglagesFinanciers() {
         <CardHeader>
           <CardTitle className="text-base">Bulletins et impayés</CardTitle>
           <CardDescription>
-            Ce réglage est partagé avec la page Bulletins. Toute modification y prend effet
-            immédiatement et reste journalisée.
+            Ce réglage est partagé avec la page Bulletins. Toute modification y prend effet immédiatement et reste
+            journalisée.
           </CardDescription>
         </CardHeader>
         <CardContent>

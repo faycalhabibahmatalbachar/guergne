@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { AlertTriangle } from "lucide-react";
 
+import { useRouter } from "next/navigation";
+
+import { AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
+
+import { definirReglageBlocage } from "@/app/(main)/dashboard/bulletins/actions-blocage";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +23,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { ReglageBlocage } from "@/server/domain/caisse";
-import { definirReglageBlocage } from "@/app/(main)/dashboard/bulletins/actions-blocage";
 
 export function ReglageBulletinsImpayes({ reglage }: { reglage: ReglageBlocage }) {
   const routeur = useRouter();
@@ -49,10 +51,12 @@ export function ReglageBulletinsImpayes({ reglage }: { reglage: ReglageBlocage }
       <div className="space-y-5">
         <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
           <div className="space-y-1">
-            <Label htmlFor="retenue-bulletins" className="font-medium">Retenir la publication des bulletins impayés</Label>
+            <Label htmlFor="retenue-bulletins" className="font-medium">
+              Retenir la publication des bulletins impayés
+            </Label>
             <p className="max-w-xl text-muted-foreground text-xs">
-              La retenue ne s'applique qu'aux bulletins non encore publiés. Elle peut être levée
-              individuellement avec les permissions financières appropriées.
+              La retenue ne s'applique qu'aux bulletins non encore publiés. Elle peut être levée individuellement avec
+              les permissions financières appropriées.
             </p>
           </div>
           <Switch id="retenue-bulletins" checked={actif} onCheckedChange={setActif} disabled={enCours} />
@@ -80,23 +84,34 @@ export function ReglageBulletinsImpayes({ reglage }: { reglage: ReglageBlocage }
         </Button>
       </div>
 
-      <AlertDialog open={confirmer} onOpenChange={(ouvert) => { if (!enCours) setConfirmer(ouvert); }}>
+      <AlertDialog
+        open={confirmer}
+        onOpenChange={(ouvert) => {
+          if (!enCours) setConfirmer(ouvert);
+        }}
+      >
         <AlertDialogContent className="w-[calc(100%-2rem)] max-w-md sm:max-w-md">
           <AlertDialogHeader>
             <div className="flex items-center gap-2">
-              <AlertTriangle className="size-5 text-amber-600" aria-hidden />
+              <AlertTriangle className="size-5 text-alerte" aria-hidden />
               <AlertDialogTitle>Confirmer le réglage financier</AlertDialogTitle>
             </div>
             <AlertDialogDescription>
               {actif
                 ? "Les bulletins non publiés des élèves dépassant le seuil d'impayé pourront être retenus."
-                : "La retenue automatique sera désactivée. Les bulletins concernés pourront être publiés normalement."}
-              {" "}Seuil choisi : {seuil.toLocaleString("fr-FR")} FCFA.
+                : "La retenue automatique sera désactivée. Les bulletins concernés pourront être publiés normalement."}{" "}
+              Seuil choisi : {seuil.toLocaleString("fr-FR")} FCFA.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={enCours}>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={(evenement) => { evenement.preventDefault(); enregistrer(); }} disabled={enCours}>
+            <AlertDialogAction
+              onClick={(evenement) => {
+                evenement.preventDefault();
+                enregistrer();
+              }}
+              disabled={enCours}
+            >
               {enCours ? "Enregistrement…" : "Confirmer"}
             </AlertDialogAction>
           </AlertDialogFooter>

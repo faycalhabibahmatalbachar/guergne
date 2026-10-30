@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 
 import { sql } from "drizzle-orm";
 import { ArrowLeft, Gavel } from "lucide-react";
+import type { Metadata } from "next";
 
+import { EnTetePage, Page } from "@/components/socle/en-tete-page";
 import { Button } from "@/components/ui/button";
 import { db } from "@/server/db";
 import { statistiquesDiscipline } from "@/server/domain/conseil-discipline";
@@ -35,10 +36,10 @@ export default async function PageStatistiquesDiscipline({
 
   if (!annee) {
     return (
-      <div className="space-y-6">
-        <h1 className="font-semibold text-2xl tracking-tight">Statistiques de discipline</h1>
+      <Page>
+        <EnTetePage titre="Statistiques de discipline" />
         <p className="text-muted-foreground text-sm">Aucune année scolaire n&apos;est configurée.</p>
-      </div>
+      </Page>
     );
   }
 
@@ -62,29 +63,29 @@ export default async function PageStatistiquesDiscipline({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-semibold text-2xl tracking-tight">Statistiques de discipline</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
-            Année {annee.libelle}. Où et quand la vie scolaire se tend, et sur qui.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/discipline/conseils">
-              <Gavel aria-hidden />
-              Conseils de discipline
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/discipline">
-              <ArrowLeft aria-hidden />
-              Incidents et sanctions
-            </Link>
-          </Button>
-        </div>
-      </div>
+    <Page>
+      <EnTetePage
+        titre="Statistiques de discipline"
+        description={<>Année {annee.libelle}. Où et quand la vie scolaire se tend, et sur qui.</>}
+        actions={
+          <>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/discipline/conseils">
+                  <Gavel aria-hidden />
+                  Conseils de discipline
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/discipline">
+                  <ArrowLeft aria-hidden />
+                  Incidents et sanctions
+                </Link>
+              </Button>
+            </div>
+          </>
+        }
+      />
 
       <VueStatistiques
         stats={stats}
@@ -93,6 +94,6 @@ export default async function PageStatistiquesDiscipline({
         classeId={params.classe ?? ""}
         periodeId={params.periode ?? ""}
       />
-    </div>
+    </Page>
   );
 }

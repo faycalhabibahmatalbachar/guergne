@@ -2,14 +2,21 @@
  * La largeur est mesurée dans le contenu, après la barre latérale.
  * Les cartes gardent exactement le même gabarit.
  */
-.region { container: parents-stats / inline-size; min-width: 0; }
+.region {
+  container: parents-stats / inline-size;
+  min-width: 0;
+}
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   align-items: stretch;
 }
-.card { min-width: 0; min-height: 164px; height: 100%; }
+.card {
+  min-width: 0;
+  min-height: 164px;
+  height: 100%;
+}
 /* À largeur intermédiaire, un ruban horizontal garde les cinq cartes
    de dimensions identiques plutôt que des rangées 3+2 déséquilibrées. */
 @container parents-stats (min-width: 560px) and (max-width: 839px) {
@@ -20,13 +27,24 @@
     scrollbar-width: thin;
     padding-bottom: 6px;
   }
-  .card { scroll-snap-align: start; }
+  .card {
+    scroll-snap-align: start;
+  }
 }
 @container parents-stats (min-width: 840px) {
-  .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 @media print {
-  .region { container-type: normal; }
-  .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
-  .card { break-inside: avoid; }
+  .region {
+    container-type: normal;
+  }
+  .grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    overflow: visible;
+  }
+  .card {
+    break-inside: avoid;
+  }
 }

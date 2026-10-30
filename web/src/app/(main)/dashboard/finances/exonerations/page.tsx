@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 
 import { sql } from "drizzle-orm";
 import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 
+import { EnTetePage, Page } from "@/components/socle/en-tete-page";
 import { Button } from "@/components/ui/button";
 import { db } from "@/server/db";
 import { historiqueExonerations } from "@/server/domain/caisse";
@@ -42,10 +43,10 @@ export default async function PageExonerations({
 
   if (!annee) {
     return (
-      <div className="space-y-6">
-        <h1 className="font-semibold text-2xl tracking-tight">Exonérations</h1>
+      <Page>
+        <EnTetePage titre="Exonérations" />
         <p className="text-muted-foreground text-sm">Aucune année scolaire n&apos;est configurée.</p>
-      </div>
+      </Page>
     );
   }
 
@@ -63,22 +64,21 @@ export default async function PageExonerations({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-semibold text-2xl tracking-tight">Exonérations et remises</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
-            Année {annee.libelle}. Ce à quoi l&apos;établissement a renoncé, et qui l&apos;a
-            décidé.
-          </p>
-        </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/dashboard/finances">
-            <ArrowLeft aria-hidden />
-            Suivi financier
-          </Link>
-        </Button>
-      </div>
+    <Page>
+      <EnTetePage
+        titre="Exonérations et remises"
+        description={<>Année {annee.libelle}. Ce à quoi l&apos;établissement a renoncé, et qui l&apos;a décidé.</>}
+        actions={
+          <>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/finances">
+                <ArrowLeft aria-hidden />
+                Suivi financier
+              </Link>
+            </Button>
+          </>
+        }
+      />
 
       <VueExonerations
         historique={historique}
@@ -86,6 +86,6 @@ export default async function PageExonerations({
         classeId={params.classe ?? ""}
         motif={params.motif ?? ""}
       />
-    </div>
+    </Page>
   );
 }

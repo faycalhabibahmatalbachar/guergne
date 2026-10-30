@@ -112,10 +112,7 @@ export async function leverBlocage(donnees: unknown): Promise<ResultatBlocage> {
  * Efface les trois colonnes d'un coup : laisser un motif sans auteur donnerait
  * une ligne que la contrainte accepte mais que personne ne sait lire.
  */
-export async function retablirBlocage(
-  inscriptionId: string,
-  periodeId: string,
-): Promise<ResultatBlocage> {
+export async function retablirBlocage(inscriptionId: string, periodeId: string): Promise<ResultatBlocage> {
   try {
     const acteur = await requirePermission("finance:exonerer");
 
@@ -154,10 +151,7 @@ export async function retablirBlocage(
  * Le droit exigé reste `finance:configurer` : voir la liste n'autorise pas à
  * changer la politique de l'établissement.
  */
-export async function definirReglageBlocage(
-  actif: boolean,
-  seuilFcfa: number,
-): Promise<ResultatBlocage> {
+export async function definirReglageBlocage(actif: boolean, seuilFcfa: number): Promise<ResultatBlocage> {
   try {
     const acteur = await requirePermission("finance:configurer");
 

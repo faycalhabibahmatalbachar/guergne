@@ -1,8 +1,9 @@
 "use client";
 
+import { useState, useTransition } from "react";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
 
 import { Ban, Plus, Receipt, Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -26,13 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { formaterFcfa } from "@/lib/finances-format";
-import type {
-  EcheanceEleve,
-  LignePaiement,
-  LigneTarif,
-  LigneTranche,
-  SituationEleve,
-} from "@/server/domain/finances";
+import type { EcheanceEleve, LignePaiement, LigneTarif, LigneTranche, SituationEleve } from "@/server/domain/finances";
 
 import {
   annulerPaiement,
@@ -133,8 +128,7 @@ export function Finances({
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
   const [dialogue, setDialogue] = useState<"tarif" | "tranche" | "encaisser" | "exonerer" | null>(null);
 
-  const erreur = (c: string) =>
-    erreurs[c] ? <p className="text-destructive text-sm">{erreurs[c]}</p> : null;
+  const erreur = (c: string) => (erreurs[c] ? <p className="text-destructive text-sm">{erreurs[c]}</p> : null);
 
   const totalTranches = tranches.reduce((s, t) => s + Number(t.pourcentage), 0);
 
@@ -156,7 +150,11 @@ export function Finances({
   const KPI = [
     { libelle: "Total dû", valeur: formaterFcfa(stats.totalDu) },
     { libelle: "Encaissé", valeur: formaterFcfa(stats.totalPaye), ton: "succes" },
-    { libelle: "Reste à recouvrer", valeur: formaterFcfa(stats.resteDu), ton: stats.resteDu > 0 ? "alerte" : undefined },
+    {
+      libelle: "Reste à recouvrer",
+      valeur: formaterFcfa(stats.resteDu),
+      ton: stats.resteDu > 0 ? "alerte" : undefined,
+    },
     { libelle: "Encaissé ce mois", valeur: formaterFcfa(stats.encaisseMois) },
   ];
 
@@ -169,11 +167,7 @@ export function Finances({
               <p className="text-muted-foreground text-xs">{k.libelle}</p>
               <p
                 className={`mt-1 font-semibold text-xl tabular-nums ${
-                  k.ton === "alerte"
-                    ? "text-amber-600 dark:text-amber-400"
-                    : k.ton === "succes"
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : ""
+                  k.ton === "alerte" ? "text-alerte" : k.ton === "succes" ? "text-succes" : ""
                 }`}
               >
                 {k.valeur}
@@ -234,9 +228,7 @@ export function Finances({
           <Card>
             <CardContent className="p-0">
               {situations.length === 0 ? (
-                <p className="py-14 text-center text-muted-foreground text-sm">
-                  Aucun élève inscrit sur ce périmètre.
-                </p>
+                <p className="py-14 text-center text-muted-foreground text-sm">Aucun élève inscrit sur ce périmètre.</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -255,10 +247,7 @@ export function Finances({
                     {situations.map((s) => (
                       <TableRow key={s.inscriptionId}>
                         <TableCell>
-                          <Link
-                            href={`/dashboard/eleves/${s.eleveId}`}
-                            className="font-medium hover:underline"
-                          >
+                          <Link href={`/dashboard/eleves/${s.eleveId}`} className="font-medium hover:underline">
                             {s.prenom} {s.nom}
                           </Link>
                           <span className="block text-muted-foreground text-xs">{s.matricule}</span>
@@ -269,11 +258,7 @@ export function Finances({
                         <TableCell className="tabular-nums text-muted-foreground">
                           {s.totalExonere > 0 ? formaterFcfa(s.totalExonere) : "—"}
                         </TableCell>
-                        <TableCell
-                          className={`font-medium tabular-nums ${
-                            s.resteDu > 0 ? "text-amber-600 dark:text-amber-400" : ""
-                          }`}
-                        >
+                        <TableCell className={`font-medium tabular-nums ${s.resteDu > 0 ? "text-alerte" : ""}`}>
                           {formaterFcfa(s.resteDu)}
                           {s.nbEnRetard > 0 ? (
                             <Badge variant="destructive" className="ml-2">
@@ -314,8 +299,7 @@ export function Finances({
                       Échéancier — {inscriptionSelectionnee.prenom} {inscriptionSelectionnee.nom}
                     </CardTitle>
                     <CardDescription>
-                      {inscriptionSelectionnee.classe} · reste{" "}
-                      {formaterFcfa(inscriptionSelectionnee.resteDu)}
+                      {inscriptionSelectionnee.classe} · reste {formaterFcfa(inscriptionSelectionnee.resteDu)}
                     </CardDescription>
                   </div>
                   <Button size="sm" variant="outline" onClick={() => setDialogue("exonerer")}>
@@ -390,9 +374,7 @@ export function Finances({
           <Card>
             <CardContent className="p-0">
               {paiements.length === 0 ? (
-                <p className="py-14 text-center text-muted-foreground text-sm">
-                  Aucun encaissement enregistré.
-                </p>
+                <p className="py-14 text-center text-muted-foreground text-sm">Aucun encaissement enregistré.</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -420,19 +402,11 @@ export function Finances({
                             {p.elevePrenom} {p.eleveNom}
                             <span className="block text-muted-foreground text-xs">{p.classe}</span>
                           </TableCell>
-                          <TableCell
-                            className={`font-medium tabular-nums ${
-                              estAnnulation ? "text-destructive" : ""
-                            }`}
-                          >
+                          <TableCell className={`font-medium tabular-nums ${estAnnulation ? "text-destructive" : ""}`}>
                             {formaterFcfa(p.montantFcfa)}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {LIBELLE_MODE[p.mode] ?? p.mode}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-xs">
-                            {p.referenceExterne ?? "—"}
-                          </TableCell>
+                          <TableCell className="text-muted-foreground">{LIBELLE_MODE[p.mode] ?? p.mode}</TableCell>
+                          <TableCell className="text-muted-foreground text-xs">{p.referenceExterne ?? "—"}</TableCell>
                           <TableCell className="tabular-nums">{dateFr(p.datePaiement)}</TableCell>
                           <TableCell className="text-right">
                             {p.annule || estAnnulation ? (
@@ -498,11 +472,7 @@ export function Finances({
                           </div>
                         </TableCell>
                         <TableCell className="tabular-nums">
-                          {r.nbEnRetard > 0 ? (
-                            <Badge variant="destructive">{r.nbEnRetard}</Badge>
-                          ) : (
-                            "—"
-                          )}
+                          {r.nbEnRetard > 0 ? <Badge variant="destructive">{r.nbEnRetard}</Badge> : "—"}
                         </TableCell>
                       </TableRow>
                     );
@@ -549,13 +519,9 @@ export function Finances({
                     {tarifs.map((t) => (
                       <TableRow key={t.id}>
                         <TableCell className="font-medium">{t.niveauLibelle}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {LIBELLE_NATURE[t.nature] ?? t.nature}
-                        </TableCell>
+                        <TableCell className="text-muted-foreground">{LIBELLE_NATURE[t.nature] ?? t.nature}</TableCell>
                         <TableCell>{t.libelle}</TableCell>
-                        <TableCell className="font-medium tabular-nums">
-                          {formaterFcfa(t.montantFcfa)}
-                        </TableCell>
+                        <TableCell className="font-medium tabular-nums">{formaterFcfa(t.montantFcfa)}</TableCell>
                         <TableCell className="text-muted-foreground text-xs">
                           {t.applicableNouveaux && t.applicableAnciens
                             ? "Tous"
@@ -587,9 +553,7 @@ export function Finances({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-base">Tranches de paiement</CardTitle>
-                  <CardDescription>
-                    La somme doit atteindre 100 % — actuellement {totalTranches} %.
-                  </CardDescription>
+                  <CardDescription>La somme doit atteindre 100 % — actuellement {totalTranches} %.</CardDescription>
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => setDialogue("tranche")}>
@@ -662,8 +626,8 @@ export function Finances({
             <DialogHeader>
               <DialogTitle>Ajouter un tarif</DialogTitle>
               <DialogDescription>
-                Montant en francs CFA, sans décimale. Les droits d&apos;inscription ne s&apos;appliquent
-                généralement qu&apos;aux nouveaux élèves.
+                Montant en francs CFA, sans décimale. Les droits d&apos;inscription ne s&apos;appliquent généralement
+                qu&apos;aux nouveaux élèves.
               </DialogDescription>
             </DialogHeader>
 
@@ -755,9 +719,7 @@ export function Finances({
           >
             <DialogHeader>
               <DialogTitle>Ajouter une tranche</DialogTitle>
-              <DialogDescription>
-                Il reste {Math.max(0, 100 - totalTranches)} % à répartir.
-              </DialogDescription>
+              <DialogDescription>Il reste {Math.max(0, 100 - totalTranches)} % à répartir.</DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
@@ -834,8 +796,8 @@ export function Finances({
             <DialogHeader>
               <DialogTitle>Enregistrer un encaissement</DialogTitle>
               <DialogDescription>
-                Le numéro de reçu est attribué automatiquement. Le montant ne peut pas dépasser le
-                reste dû de l&apos;échéance.
+                Le numéro de reçu est attribué automatiquement. Le montant ne peut pas dépasser le reste dû de
+                l&apos;échéance.
               </DialogDescription>
             </DialogHeader>
 
@@ -866,16 +828,13 @@ export function Finances({
                 <Label htmlFor="echeanceId">Échéance à régler *</Label>
                 <NativeSelect id="echeanceId" name="echeanceId" required>
                   <option value="">
-                    {echeancesEleve.length === 0
-                      ? "Sélectionnez d'abord l'élève"
-                      : "Choisir l'échéance…"}
+                    {echeancesEleve.length === 0 ? "Sélectionnez d'abord l'élève" : "Choisir l'échéance…"}
                   </option>
                   {echeancesEleve
                     .filter((e) => e.montantDu > e.montantPaye + e.montantExonere)
                     .map((e) => (
                       <option key={e.id} value={e.id}>
-                        {e.libelle} — reste{" "}
-                        {formaterFcfa(e.montantDu - e.montantPaye - e.montantExonere)}
+                        {e.libelle} — reste {formaterFcfa(e.montantDu - e.montantPaye - e.montantExonere)}
                       </option>
                     ))}
                 </NativeSelect>
@@ -885,14 +844,7 @@ export function Finances({
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="montantFcfa">Montant (FCFA) *</Label>
-                  <Input
-                    id="montantFcfa"
-                    name="montantFcfa"
-                    type="number"
-                    min={1}
-                    step={500}
-                    required
-                  />
+                  <Input id="montantFcfa" name="montantFcfa" type="number" min={1} step={500} required />
                   {erreur("montantFcfa")}
                 </div>
                 <div className="grid gap-2">
@@ -910,11 +862,7 @@ export function Finances({
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="referenceExterne">Référence</Label>
-                  <Input
-                    id="referenceExterne"
-                    name="referenceExterne"
-                    placeholder="N° transaction Mobile Money"
-                  />
+                  <Input id="referenceExterne" name="referenceExterne" placeholder="N° transaction Mobile Money" />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="datePaiement">Date *</Label>
@@ -963,8 +911,8 @@ export function Finances({
             <DialogHeader>
               <DialogTitle>Accorder une exonération</DialogTitle>
               <DialogDescription>
-                Indiquez soit un pourcentage, soit un montant fixe — pas les deux. L&apos;exonération
-                est appliquée immédiatement à l&apos;échéancier.
+                Indiquez soit un pourcentage, soit un montant fixe — pas les deux. L&apos;exonération est appliquée
+                immédiatement à l&apos;échéancier.
               </DialogDescription>
             </DialogHeader>
 

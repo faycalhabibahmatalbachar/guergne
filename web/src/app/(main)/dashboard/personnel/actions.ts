@@ -61,16 +61,18 @@ const schemaEnseignant = z.object({
   prenom: z.string().trim().min(2, "Prénom requis"),
   sexe: z.enum(["M", "F"]).nullable().optional(),
   dateNaissance: z.string().optional(),
-  telephone: z.string().trim().regex(/^\+?[0-9\s.-]{8,20}$/, "Numéro invalide").optional().or(z.literal("")),
+  telephone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9\s.-]{8,20}$/, "Numéro invalide")
+    .optional()
+    .or(z.literal("")),
   email: z.string().trim().email("Adresse invalide").optional().or(z.literal("")),
   adresse: z.string().trim().optional(),
   quartier: z.string().trim().optional(),
   diplome: z.string().trim().optional(),
   specialite: z.string().trim().optional(),
-  statut: z.enum([
-    "PERMANENT", "CONTRACTUEL", "VACATAIRE", "STAGIAIRE",
-    "SUSPENDU", "RETRAITE", "DEMISSIONNAIRE",
-  ]),
+  statut: z.enum(["PERMANENT", "CONTRACTUEL", "VACATAIRE", "STAGIAIRE", "SUSPENDU", "RETRAITE", "DEMISSIONNAIRE"]),
   dateEmbauche: z.string().optional(),
   dateFinContrat: z.string().optional(),
   numeroCnps: z.string().trim().optional(),
@@ -106,10 +108,7 @@ export async function creerEnseignant(donnees: unknown): Promise<Resultat> {
     const a = schemaEnseignant.safeParse(donnees);
     if (!a.success) return { ok: false, erreurs: messages(a.error) };
 
-    const [cree] = await db
-      .insert(enseignants)
-      .values(valeursEnseignant(a.data))
-      .returning({ id: enseignants.id });
+    const [cree] = await db.insert(enseignants).values(valeursEnseignant(a.data)).returning({ id: enseignants.id });
 
     await journaliser(acteur, {
       action: "enseignant.cree",
@@ -207,29 +206,16 @@ export async function definirSpecialite(
         await tx
           .update(enseignantMatieres)
           .set({ estPrincipale: false })
-          .where(
-            and(
-              eq(enseignantMatieres.enseignantId, enseignantId),
-              eq(enseignantMatieres.estPrincipale, true),
-            ),
-          );
+          .where(and(eq(enseignantMatieres.enseignantId, enseignantId), eq(enseignantMatieres.estPrincipale, true)));
       }
 
       const [existant] = await tx
         .select({ id: enseignantMatieres.id })
         .from(enseignantMatieres)
-        .where(
-          and(
-            eq(enseignantMatieres.enseignantId, enseignantId),
-            eq(enseignantMatieres.matiereId, matiereId),
-          ),
-        );
+        .where(and(eq(enseignantMatieres.enseignantId, enseignantId), eq(enseignantMatieres.matiereId, matiereId)));
 
       if (existant) {
-        await tx
-          .update(enseignantMatieres)
-          .set({ estPrincipale })
-          .where(eq(enseignantMatieres.id, existant.id));
+        await tx.update(enseignantMatieres).set({ estPrincipale }).where(eq(enseignantMatieres.id, existant.id));
       } else {
         await tx.insert(enseignantMatieres).values({ enseignantId, matiereId, estPrincipale });
       }
@@ -254,12 +240,7 @@ export async function retirerSpecialite(enseignantId: string, matiereId: string)
     const acteur = await requirePermission("affectation:gerer");
     await db
       .delete(enseignantMatieres)
-      .where(
-        and(
-          eq(enseignantMatieres.enseignantId, enseignantId),
-          eq(enseignantMatieres.matiereId, matiereId),
-        ),
-      );
+      .where(and(eq(enseignantMatieres.enseignantId, enseignantId), eq(enseignantMatieres.matiereId, matiereId)));
     await journaliser(acteur, {
       action: "enseignant.specialite_retiree",
       entite: "enseignant_matieres",
@@ -615,11 +596,7 @@ export async function retirerCours(id: string): Promise<Resultat> {
 }
 
 /** Publie ou masque l'emploi du temps d'une classe pour les familles. */
-export async function publierEmploiDuTemps(
-  anneeId: string,
-  classeId: string,
-  publie: boolean,
-): Promise<Resultat> {
+export async function publierEmploiDuTemps(anneeId: string, classeId: string, publie: boolean): Promise<Resultat> {
   try {
     const acteur = await requirePermission("emploi_du_temps:gerer");
 

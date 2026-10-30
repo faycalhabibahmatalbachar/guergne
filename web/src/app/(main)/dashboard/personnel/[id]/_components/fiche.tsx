@@ -68,18 +68,8 @@ export function Fiche({
           <Card key={k.libelle}>
             <CardContent className="py-4">
               <p className="text-muted-foreground text-xs">{k.libelle}</p>
-              <p
-                className={`mt-1 font-semibold text-xl tabular-nums ${
-                  k.alerte ? "text-amber-600 dark:text-amber-400" : ""
-                }`}
-              >
-                {k.valeur}
-              </p>
-              {k.alerte ? (
-                <p className="mt-1 text-amber-600 text-xs dark:text-amber-400">
-                  Charge supérieure au contrat
-                </p>
-              ) : null}
+              <p className={`mt-1 font-semibold text-xl tabular-nums ${k.alerte ? "text-alerte" : ""}`}>{k.valeur}</p>
+              {k.alerte ? <p className="mt-1 text-alerte text-xs">Charge supérieure au contrat</p> : null}
             </CardContent>
           </Card>
         ))}
@@ -90,8 +80,8 @@ export function Fiche({
         <CardHeader>
           <CardTitle className="text-base">Matières enseignables</CardTitle>
           <CardDescription>
-            Ce que l&apos;enseignant est qualifié pour enseigner. Distinct des affectations : on peut
-            être qualifié en physique sans se la voir confier cette année.
+            Ce que l&apos;enseignant est qualifié pour enseigner. Distinct des affectations : on peut être qualifié en
+            physique sans se la voir confier cette année.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -100,11 +90,7 @@ export function Fiche({
               <p className="text-muted-foreground text-sm">Aucune matière déclarée.</p>
             ) : (
               specialites.map((s) => (
-                <Badge
-                  key={s.id}
-                  variant={s.estPrincipale ? "default" : "secondary"}
-                  className="gap-1.5 py-1"
-                >
+                <Badge key={s.id} variant={s.estPrincipale ? "default" : "secondary"} className="gap-1.5 py-1">
                   {s.libelle}
                   {s.estPrincipale ? " · principale" : ""}
                   <button
@@ -168,8 +154,8 @@ export function Fiche({
         <CardHeader>
           <CardTitle className="text-base">Affectations classe × matière</CardTitle>
           <CardDescription>
-            C&apos;est cette table qui autorise l&apos;enseignant à saisir des notes : il ne voit que
-            les classes et matières qui lui sont confiées.
+            C&apos;est cette table qui autorise l&apos;enseignant à saisir des notes : il ne voit que les classes et
+            matières qui lui sont confiées.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -203,9 +189,7 @@ export function Fiche({
                         onClick={() =>
                           demarrer(async () => {
                             const r = await retirerAffectation(a.id, enseignant.id);
-                            toast[r.ok ? "success" : "error"](
-                              r.ok ? "Affectation retirée." : (r.message ?? "Échec."),
-                            );
+                            toast[r.ok ? "success" : "error"](r.ok ? "Affectation retirée." : (r.message ?? "Échec."));
                           })
                         }
                       >
@@ -260,15 +244,7 @@ export function Fiche({
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="aff-heures">Heures/sem.</Label>
-                <Input
-                  id="aff-heures"
-                  name="heures"
-                  type="number"
-                  min={0}
-                  max={40}
-                  step={0.5}
-                  className="w-28"
-                />
+                <Input id="aff-heures" name="heures" type="number" min={0} max={40} step={0.5} className="w-28" />
               </div>
               <Button type="submit" size="sm" disabled={enCours}>
                 <Plus aria-hidden />
@@ -284,8 +260,8 @@ export function Fiche({
         <CardHeader>
           <CardTitle className="text-base">Indisponibilités</CardTitle>
           <CardDescription>
-            Créneaux où l&apos;enseignant ne peut pas être placé — utile pour les vacataires qui
-            interviennent dans plusieurs établissements.
+            Créneaux où l&apos;enseignant ne peut pas être placé — utile pour les vacataires qui interviennent dans
+            plusieurs établissements.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

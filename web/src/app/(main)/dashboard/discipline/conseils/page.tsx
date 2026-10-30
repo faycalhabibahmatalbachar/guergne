@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 
 import { sql } from "drizzle-orm";
 import { ArrowLeft, BarChart3 } from "lucide-react";
+import type { Metadata } from "next";
 
+import { EnTetePage, Page } from "@/components/socle/en-tete-page";
 import { Button } from "@/components/ui/button";
 import { sessionCourante } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -41,10 +42,10 @@ export default async function PageConseils({
 
   if (!annee) {
     return (
-      <div className="space-y-6">
-        <h1 className="font-semibold text-2xl tracking-tight">Conseils de discipline</h1>
+      <Page>
+        <EnTetePage titre="Conseils de discipline" />
         <p className="text-muted-foreground text-sm">Aucune année scolaire n&apos;est configurée.</p>
-      </div>
+      </Page>
     );
   }
 
@@ -62,38 +63,41 @@ export default async function PageConseils({
     peut(principal, "conseil_discipline:convoquer"),
   ]);
 
-  const conseilOuvert =
-    params.dossier && conseils.some((c) => c.id === params.dossier) ? params.dossier : null;
+  const conseilOuvert = params.dossier && conseils.some((c) => c.id === params.dossier) ? params.dossier : null;
 
   const dossier = conseilOuvert
     ? await dossierDiscipline(conseils.find((c) => c.id === conseilOuvert)!.inscriptionId)
     : null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-semibold text-2xl tracking-tight">Conseils de discipline</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
-            Année {annee.libelle}. Un conseil se tient sur un élève, pas sur un incident : le
-            dossier complet s&apos;ouvre au moment de délibérer.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/discipline/statistiques">
-              <BarChart3 aria-hidden />
-              Statistiques
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/discipline">
-              <ArrowLeft aria-hidden />
-              Incidents et sanctions
-            </Link>
-          </Button>
-        </div>
-      </div>
+    <Page>
+      <EnTetePage
+        titre="Conseils de discipline"
+        description={
+          <>
+            Année {annee.libelle}. Un conseil se tient sur un élève, pas sur un incident : le dossier complet
+            s&apos;ouvre au moment de délibérer.
+          </>
+        }
+        actions={
+          <>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/discipline/statistiques">
+                  <BarChart3 aria-hidden />
+                  Statistiques
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/discipline">
+                  <ArrowLeft aria-hidden />
+                  Incidents et sanctions
+                </Link>
+              </Button>
+            </div>
+          </>
+        }
+      />
 
       <VueConseils
         conseils={conseils}
@@ -107,6 +111,6 @@ export default async function PageConseils({
         dossierPour={conseilOuvert}
         peutConvoquer={peutConvoquer}
       />
-    </div>
+    </Page>
   );
 }

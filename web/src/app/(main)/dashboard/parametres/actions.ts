@@ -3,20 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import { and, eq, ne, sql } from "drizzle-orm";
-import { verifierDatesPeriode } from "@/lib/parametres-periodes";
 import { z } from "zod";
 
+import { verifierDatesPeriode } from "@/lib/parametres-periodes";
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
-import {
-  anneesScolaires,
-  classes,
-  coefficients,
-  inscriptions,
-  matieres,
-  periodes,
-  series,
-} from "@/server/db/schema";
+import { anneesScolaires, classes, coefficients, inscriptions, matieres, periodes, series } from "@/server/db/schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 
 /**
@@ -103,9 +95,7 @@ function decouperPeriodes(
   const parPeriode = Math.floor(totalJours / nombre);
 
   const nom = (i: number) =>
-    type === "TRIMESTRE"
-      ? `${i === 1 ? "1er" : `${i}ème`} Trimestre`
-      : `${i === 1 ? "1er" : "2ème"} Semestre`;
+    type === "TRIMESTRE" ? `${i === 1 ? "1er" : `${i}ème`} Trimestre` : `${i === 1 ? "1er" : "2ème"} Semestre`;
 
   const iso = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -228,7 +218,12 @@ export async function cloturerAnnee(anneeId: string, motif: string): Promise<Res
       // peut être modifiée sur une année close.
       await tx
         .update(periodes)
-        .set({ estVerrouillee: true, saisieOuverte: false, verrouilleeLe: new Date().toISOString(), verrouilleePar: acteur.id })
+        .set({
+          estVerrouillee: true,
+          saisieOuverte: false,
+          verrouilleeLe: new Date().toISOString(),
+          verrouilleePar: acteur.id,
+        })
         .where(eq(periodes.anneeId, anneeId));
 
       await tx.update(anneesScolaires).set({ estCloturee: true }).where(eq(anneesScolaires.id, anneeId));
@@ -295,8 +290,10 @@ export async function modifierPeriode(donnees: unknown): Promise<Resultat> {
         .where(eq(periodes.id, v.id))
         .limit(1);
       if (!actuelle) return { ok: false as const, message: "Période introuvable." };
-      if (actuelle.anneeCloturee) return { ok: false as const, message: "Une année clôturée ne peut plus être modifiée." };
-      if (actuelle.verrouillee) return { ok: false as const, message: "Déverrouillez la période avant de la modifier." };
+      if (actuelle.anneeCloturee)
+        return { ok: false as const, message: "Une année clôturée ne peut plus être modifiée." };
+      if (actuelle.verrouillee)
+        return { ok: false as const, message: "Déverrouillez la période avant de la modifier." };
 
       const autres = await tx
         .select({ id: periodes.id, dateDebut: periodes.dateDebut, dateFin: periodes.dateFin })
@@ -311,7 +308,8 @@ export async function modifierPeriode(donnees: unknown): Promise<Resultat> {
         return { ok: false as const, message: Object.values(erreurs)[0], erreurs };
       }
 
-      await tx.update(periodes)
+      await tx
+        .update(periodes)
         .set({ libelle: v.libelle, dateDebut: v.dateDebut, dateFin: v.dateFin })
         .where(eq(periodes.id, v.id));
 
@@ -345,8 +343,11 @@ export async function basculerVerrouPeriode(periodeId: string, verrouiller: bool
     }
 
     const resultat = await db.transaction(async (tx) => {
-      const [reference] = await tx.select({ anneeId: periodes.anneeId })
-        .from(periodes).where(eq(periodes.id, periodeId)).limit(1);
+      const [reference] = await tx
+        .select({ anneeId: periodes.anneeId })
+        .from(periodes)
+        .where(eq(periodes.id, periodeId))
+        .limit(1);
       if (!reference) return { ok: false as const, message: "Période introuvable." };
       await tx.execute(sql`SELECT id FROM annees_scolaires WHERE id = ${reference.anneeId}::uuid FOR UPDATE`);
 
@@ -354,17 +355,25 @@ export async function basculerVerrouPeriode(periodeId: string, verrouiller: bool
         .select({ cloturee: anneesScolaires.estCloturee, verrouillee: periodes.estVerrouillee })
         .from(periodes)
         .innerJoin(anneesScolaires, eq(periodes.anneeId, anneesScolaires.id))
-        .where(eq(periodes.id, periodeId)).limit(1);
+        .where(eq(periodes.id, periodeId))
+        .limit(1);
       if (!etat) return { ok: false as const, message: "Période introuvable." };
-      if (etat.cloturee) return { ok: false as const, message: "Une période d'année clôturée ne peut pas être déverrouillée ou modifiée." };
+      if (etat.cloturee)
+        return {
+          ok: false as const,
+          message: "Une période d'année clôturée ne peut pas être déverrouillée ou modifiée.",
+        };
       if (etat.verrouillee === verrouiller) return { ok: true as const, inchange: true as const };
 
-      await tx.update(periodes).set({
-        estVerrouillee: verrouiller,
-        saisieOuverte: !verrouiller,
-        verrouilleeLe: verrouiller ? new Date().toISOString() : null,
-        verrouilleePar: verrouiller ? acteur.id : null,
-      }).where(eq(periodes.id, periodeId));
+      await tx
+        .update(periodes)
+        .set({
+          estVerrouillee: verrouiller,
+          saisieOuverte: !verrouiller,
+          verrouilleeLe: verrouiller ? new Date().toISOString() : null,
+          verrouilleePar: verrouiller ? acteur.id : null,
+        })
+        .where(eq(periodes.id, periodeId));
       return { ok: true as const, inchange: false as const };
     });
 
@@ -469,10 +478,7 @@ export async function basculerSerie(serieId: string, active: boolean): Promise<R
     if (!active) {
       // Une série utilisée par une classe ne peut pas être désactivée : les
       // bulletins de ces élèves y font référence.
-      const [{ n }] = await db
-        .select({ n: sql<number>`count(*)` })
-        .from(classes)
-        .where(eq(classes.serieId, serieId));
+      const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(classes).where(eq(classes.serieId, serieId));
 
       if (Number(n) > 0) {
         return {

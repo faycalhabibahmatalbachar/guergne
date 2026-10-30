@@ -1,14 +1,23 @@
 "use client";
 
 import { useState, useTransition } from "react";
+
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+
 import { CalendarPlus, Check, Pencil, Send, XCircle } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -118,23 +127,53 @@ function FormulaireEvenement({
         </div>
         <div className="grid gap-2">
           <Label htmlFor={initial ? "edit-type" : "new-type"}>Type *</Label>
-          <NativeSelect id={initial ? "edit-type" : "new-type"} name="type" required defaultValue={initial?.type ?? "AUTRE"}>
-            {TYPES.map(([valeur, libelle]) => <option key={valeur} value={valeur}>{libelle}</option>)}
+          <NativeSelect
+            id={initial ? "edit-type" : "new-type"}
+            name="type"
+            required
+            defaultValue={initial?.type ?? "AUTRE"}
+          >
+            {TYPES.map(([valeur, libelle]) => (
+              <option key={valeur} value={valeur}>
+                {libelle}
+              </option>
+            ))}
           </NativeSelect>
         </div>
         <div className="grid gap-2">
           <Label htmlFor={initial ? "edit-impact" : "new-impact"}>Effet sur les cours *</Label>
-          <NativeSelect id={initial ? "edit-impact" : "new-impact"} name="impactCours" required defaultValue={initial?.impactCours ?? "INFORMATIF"}>
-            {IMPACTS.map(([valeur, libelle]) => <option key={valeur} value={valeur}>{libelle}</option>)}
+          <NativeSelect
+            id={initial ? "edit-impact" : "new-impact"}
+            name="impactCours"
+            required
+            defaultValue={initial?.impactCours ?? "INFORMATIF"}
+          >
+            {IMPACTS.map(([valeur, libelle]) => (
+              <option key={valeur} value={valeur}>
+                {libelle}
+              </option>
+            ))}
           </NativeSelect>
         </div>
         <div className="grid gap-2">
           <Label htmlFor={initial ? "edit-debut" : "new-debut"}>Date de début *</Label>
-          <Input id={initial ? "edit-debut" : "new-debut"} type="date" name="dateDebut" required defaultValue={initial?.dateDebut ?? ""} />
+          <Input
+            id={initial ? "edit-debut" : "new-debut"}
+            type="date"
+            name="dateDebut"
+            required
+            defaultValue={initial?.dateDebut ?? ""}
+          />
         </div>
         <div className="grid gap-2">
           <Label htmlFor={initial ? "edit-fin" : "new-fin"}>Date de fin *</Label>
-          <Input id={initial ? "edit-fin" : "new-fin"} type="date" name="dateFin" required defaultValue={initial?.dateFin ?? ""} />
+          <Input
+            id={initial ? "edit-fin" : "new-fin"}
+            type="date"
+            name="dateFin"
+            required
+            defaultValue={initial?.dateFin ?? ""}
+          />
         </div>
         <div className="grid gap-2 sm:col-span-2">
           <Label htmlFor={initial ? "edit-description" : "new-description"}>Description (facultatif)</Label>
@@ -171,7 +210,11 @@ function FormulaireEvenement({
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {onAnnuler ? <Button type="button" variant="outline" onClick={onAnnuler}>Annuler</Button> : null}
+        {onAnnuler ? (
+          <Button type="button" variant="outline" onClick={onAnnuler}>
+            Annuler
+          </Button>
+        ) : null}
         <Button type="submit" disabled={enCours}>
           {enCours ? "Enregistrement…" : libelleBouton}
         </Button>
@@ -196,9 +239,7 @@ export function GestionEvenements({
   function sauvegarder(formulaire: FormData, element: HTMLFormElement, id?: string) {
     const donnees = payload(formulaire, anneeId);
     demarrer(async () => {
-      const resultat = id
-        ? await modifierEvenementCalendrier(id, donnees)
-        : await creerEvenementCalendrier(donnees);
+      const resultat = id ? await modifierEvenementCalendrier(id, donnees) : await creerEvenementCalendrier(donnees);
       toast[resultat.ok ? "success" : "error"](resultat.message);
       if (resultat.ok) {
         element.reset();
@@ -243,8 +284,8 @@ export function GestionEvenements({
               Ajouter un événement
             </CardTitle>
             <CardDescription>
-              Les nouveaux événements commencent en brouillon et ne sont pas visibles aux familles.
-              Un effet de suspension n’est appliqué qu’après vérification et validation.
+              Les nouveaux événements commencent en brouillon et ne sont pas visibles aux familles. Un effet de
+              suspension n’est appliqué qu’après vérification et validation.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -267,8 +308,8 @@ export function GestionEvenements({
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Événements de l’année</CardTitle>
           <CardDescription>
-            {evenements.length} événement(s) enregistrés, hors annulations. Les événements à vérifier
-            sont visibles aux administrateurs mais ne doivent pas piloter les cours.
+            {evenements.length} événement(s) enregistrés, hors annulations. Les événements à vérifier sont visibles aux
+            administrateurs mais ne doivent pas piloter les cours.
           </CardDescription>
         </CardHeader>
         <CardContent className="divide-y p-0">
@@ -281,7 +322,9 @@ export function GestionEvenements({
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h4 className="text-sm font-semibold">{evenement.titre}</h4>
-                      <Badge variant="outline">{TYPES.find(([type]) => type === evenement.type)?.[1] ?? evenement.type}</Badge>
+                      <Badge variant="outline">
+                        {TYPES.find(([type]) => type === evenement.type)?.[1] ?? evenement.type}
+                      </Badge>
                       <Badge variant="outline">{statutLibelle(evenement.statutValidation)}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -295,7 +338,9 @@ export function GestionEvenements({
                       {" · "}
                       {evenement.visibleParents ? "Publié aux parents" : "Non visible aux parents"}
                     </p>
-                    {evenement.description ? <p className="whitespace-pre-wrap text-sm">{evenement.description}</p> : null}
+                    {evenement.description ? (
+                      <p className="whitespace-pre-wrap text-sm">{evenement.description}</p>
+                    ) : null}
                     {evenement.sourceOfficielle ? (
                       <p className="break-all text-xs text-muted-foreground">
                         Source : {evenement.sourceOfficielle}
@@ -305,7 +350,13 @@ export function GestionEvenements({
                   </div>
                   {peutGerer && evenement.statutValidation !== "ANNULE" ? (
                     <div className="flex flex-wrap gap-2 sm:justify-end">
-                      <Button type="button" size="sm" variant="outline" disabled={enCours} onClick={() => setEdition(evenement)}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={enCours}
+                        onClick={() => setEdition(evenement)}
+                      >
                         <Pencil aria-hidden className="size-3.5" />
                         Modifier
                       </Button>
@@ -317,17 +368,35 @@ export function GestionEvenements({
                       ) : null}
                       {evenement.statutValidation === "VALIDE" ? (
                         <>
-                          <Button type="button" size="sm" variant="outline" disabled={enCours} onClick={() => publier(evenement.id, false)}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={enCours}
+                            onClick={() => publier(evenement.id, false)}
+                          >
                             <Send aria-hidden className="size-3.5" />
                             Publier interne
                           </Button>
-                          <Button type="button" size="sm" disabled={enCours} onClick={() => publier(evenement.id, true)}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={enCours}
+                            onClick={() => publier(evenement.id, true)}
+                          >
                             <Send aria-hidden className="size-3.5" />
                             Publier aux parents
                           </Button>
                         </>
                       ) : null}
-                      <Button type="button" size="sm" variant="ghost" className="text-destructive" disabled={enCours} onClick={() => annuler(evenement.id)}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive"
+                        disabled={enCours}
+                        onClick={() => annuler(evenement.id)}
+                      >
                         <XCircle aria-hidden className="size-3.5" />
                         Annuler
                       </Button>

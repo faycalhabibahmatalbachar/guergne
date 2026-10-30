@@ -1,17 +1,12 @@
-import Image from "next/image";
 import type { ReactNode } from "react";
+
+import Image from "next/image";
 
 import { APP_CONFIG } from "@/config/app-config";
 
 import styles from "../connexion/connexion.module.css";
 
-export function HabillageAuthentification({
-  children,
-  regionLabel,
-}: {
-  children: ReactNode;
-  regionLabel: string;
-}) {
+export function HabillageAuthentification({ children, regionLabel }: { children: ReactNode; regionLabel: string }) {
   return (
     <main className={styles.page}>
       <section className={styles.brandPanel} aria-label="Présentation du lycée">

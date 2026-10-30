@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { EnTetePage, Page } from "@/components/socle/en-tete-page";
 import { listerClassesEtMatieres } from "@/server/domain/personnel";
 import { chargerStatistiques } from "@/server/domain/tableau-de-bord";
 import {
@@ -33,14 +34,14 @@ export default async function PageAssiduite({
 
   if (!annee || !periode) {
     return (
-      <div className="space-y-6">
-        <h1 className="font-semibold text-2xl tracking-tight">Assiduité</h1>
+      <Page>
+        <EnTetePage titre="Assiduité" />
         <Prerequis
           titre="Aucune période d'évaluation en cours"
           explication="Une absence se rattache toujours à une période — c'est ce qui permet de la reporter sur le bon bulletin."
           manquants={[{ libelle: "Configurer l'année et ses trimestres", url: "/dashboard/parametres" }]}
         />
-      </div>
+      </Page>
     );
   }
 
@@ -66,13 +67,15 @@ export default async function PageAssiduite({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-semibold text-2xl tracking-tight">Assiduité</h1>
-        <p className="mt-1 text-muted-foreground text-sm">
-          Année {annee.libelle} — {periode.libelle}
-        </p>
-      </div>
+    <Page>
+      <EnTetePage
+        titre="Assiduité"
+        description={
+          <>
+            Année {annee.libelle} — {periode.libelle}
+          </>
+        }
+      />
 
       {classes.length === 0 ? (
         <Prerequis
@@ -97,6 +100,6 @@ export default async function PageAssiduite({
           stats={stats}
         />
       )}
-    </div>
+    </Page>
   );
 }

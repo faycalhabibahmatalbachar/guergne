@@ -1,8 +1,9 @@
 "use client";
 
+import { useState, useTransition } from "react";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
 
 import { Gavel, Plus, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
@@ -87,8 +88,7 @@ export function Discipline({
   const exigeDateFin = typeSanction === "EXCLUSION_TEMPORAIRE";
   const impacteStatut = exigeDateFin || typeSanction === "EXCLUSION_DEFINITIVE";
 
-  const erreur = (c: string) =>
-    erreurs[c] ? <p className="text-destructive text-sm">{erreurs[c]}</p> : null;
+  const erreur = (c: string) => (erreurs[c] ? <p className="text-destructive text-sm">{erreurs[c]}</p> : null);
 
   function soumettreIncident(f: FormData) {
     setErreurs({});
@@ -215,10 +215,7 @@ export function Discipline({
                     {incidents.map((i) => (
                       <TableRow key={i.id}>
                         <TableCell>
-                          <Link
-                            href={`/dashboard/eleves/${i.eleveId}`}
-                            className="font-medium hover:underline"
-                          >
+                          <Link href={`/dashboard/eleves/${i.eleveId}`} className="font-medium hover:underline">
                             {i.prenom} {i.nom}
                           </Link>
                         </TableCell>
@@ -233,9 +230,7 @@ export function Discipline({
                           <p className="truncate text-sm" title={i.description}>
                             {i.description}
                           </p>
-                          {i.lieu ? (
-                            <p className="text-muted-foreground text-xs">{i.lieu}</p>
-                          ) : null}
+                          {i.lieu ? <p className="text-muted-foreground text-xs">{i.lieu}</p> : null}
                         </TableCell>
                         <TableCell className="text-right">
                           {i.nbSanctions > 0 ? (
@@ -285,10 +280,7 @@ export function Discipline({
                     {sanctions.map((s) => (
                       <TableRow key={s.id}>
                         <TableCell>
-                          <Link
-                            href={`/dashboard/eleves/${s.eleveId}`}
-                            className="font-medium hover:underline"
-                          >
+                          <Link href={`/dashboard/eleves/${s.eleveId}`} className="font-medium hover:underline">
                             {s.prenom} {s.nom}
                           </Link>
                         </TableCell>
@@ -346,8 +338,8 @@ export function Discipline({
             <DialogHeader>
               <DialogTitle>Signaler un incident</DialogTitle>
               <DialogDescription>
-                Décrivez les faits, pas l&apos;élève. Ce texte peut être relu en conseil de discipline
-                et communiqué à la famille.
+                Décrivez les faits, pas l&apos;élève. Ce texte peut être relu en conseil de discipline et communiqué à
+                la famille.
               </DialogDescription>
             </DialogHeader>
 
@@ -427,11 +419,7 @@ export function Discipline({
 
               <div className="grid gap-2">
                 <Label htmlFor="type">Type de sanction *</Label>
-                <NativeSelect
-                  id="type"
-                  value={typeSanction}
-                  onChange={(e) => setTypeSanction(e.target.value)}
-                >
+                <NativeSelect id="type" value={typeSanction} onChange={(e) => setTypeSanction(e.target.value)}>
                   {SANCTIONS.map((s) => (
                     <option key={s.valeur} value={s.valeur}>
                       {s.libelle}
@@ -439,7 +427,7 @@ export function Discipline({
                   ))}
                 </NativeSelect>
                 {impacteStatut ? (
-                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-700 text-sm dark:text-amber-400">
+                  <p className="rounded-md border border-alerte-trait bg-alerte-doux px-3 py-2 text-alerte text-sm">
                     Cette sanction change le statut de l&apos;élève et sera notifiée aux tuteurs.
                   </p>
                 ) : null}
@@ -457,9 +445,7 @@ export function Discipline({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="dateFin">
-                    Date de fin {exigeDateFin ? "*" : ""}
-                  </Label>
+                  <Label htmlFor="dateFin">Date de fin {exigeDateFin ? "*" : ""}</Label>
                   <Input id="dateFin" name="dateFin" type="date" required={exigeDateFin} />
                   {erreur("dateFin")}
                 </div>

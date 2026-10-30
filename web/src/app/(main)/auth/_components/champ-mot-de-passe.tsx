@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentProps } from "react";
+import { type ComponentProps, useState } from "react";
 
 import { Eye, EyeOff } from "lucide-react";
 
@@ -9,13 +9,7 @@ import { cn } from "@/lib/utils";
 
 type Proprietes = Omit<ComponentProps<typeof Input>, "type">;
 
-export function ChampMotDePasse({
-  className,
-  onKeyDown,
-  onKeyUp,
-  onBlur,
-  ...props
-}: Proprietes) {
+export function ChampMotDePasse({ className, onKeyDown, onKeyUp, onBlur, ...props }: Proprietes) {
   const [visible, setVisible] = useState(false);
   const [verrMaj, setVerrMaj] = useState(false);
 
@@ -50,7 +44,7 @@ export function ChampMotDePasse({
         </button>
       </div>
       {verrMaj ? (
-        <p role="status" className="text-amber-700 text-xs dark:text-amber-400">
+        <p role="status" className="text-alerte text-xs">
           Verr. maj. est activée.
         </p>
       ) : null}

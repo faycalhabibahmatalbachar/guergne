@@ -8,7 +8,7 @@ import { z } from "zod";
 import { journaliser } from "@/server/audit";
 import { journaliserAtomiquement, preparerContexteAudit } from "@/server/audit-v2";
 import { db } from "@/server/db";
-import { evaluations, notes, inscriptions, periodes } from "@/server/db/schema";
+import { evaluations, inscriptions, notes, periodes } from "@/server/db/schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 
 export interface Resultat {
@@ -28,13 +28,18 @@ function echec(e: unknown, defaut: string): Resultat {
   // Messages métier connus des déclencheurs PostgreSQL.
   // Les erreurs SQL techniques restent dans les logs serveur et ne sont pas
   // exposées telles quelles dans l'interface.
-  if (/bar[eè]me|verrouill|p[eé]riode.*ferm|saisie.*ferm|date.*p[eé]riode|hors p[eé]riode|classe [^\n]*[eé]valu[eé]e/i.test(m)) {
+  if (
+    /bar[eè]me|verrouill|p[eé]riode.*ferm|saisie.*ferm|date.*p[eé]riode|hors p[eé]riode|classe [^\n]*[eé]valu[eé]e/i.test(
+      m,
+    )
+  ) {
     return { ok: false, message: m.replace(/^.*?ERROR:\s*/i, "").split("\n")[0] };
   }
   if (/affectation|mati[eè]re.*classe|classe.*mati[eè]re/i.test(m)) {
     return {
       ok: false,
-      message: "La classe ou la matière sélectionnée n'est pas valide pour cette évaluation. Vérifiez les affectations pédagogiques.",
+      message:
+        "La classe ou la matière sélectionnée n'est pas valide pour cette évaluation. Vérifiez les affectations pédagogiques.",
     };
   }
   console.error("[notes]", e);
@@ -94,7 +99,10 @@ export async function creerEvaluation(donnees: unknown): Promise<Resultat> {
       return { ok: false, message: "La période scolaire sélectionnée est introuvable. Actualisez la page." };
     }
     if (periode.anneeId !== v.anneeId) {
-      return { ok: false, message: "La période sélectionnée ne correspond pas à l'année scolaire choisie. Actualisez la page." };
+      return {
+        ok: false,
+        message: "La période sélectionnée ne correspond pas à l'année scolaire choisie. Actualisez la page.",
+      };
     }
     if (v.dateEvaluation < periode.dateDebut || v.dateEvaluation > periode.dateFin) {
       return {
@@ -150,9 +158,7 @@ export async function changerStatutEvaluation(
   try {
     // Publier des notes est une décision pédagogique : elle relève du censeur
     // ou de la direction, pas de l'enseignant qui a saisi.
-    const acteur = await requirePermission(
-      statut === "PUBLIEE" ? "bulletin:publier" : "evaluation:modifier",
-    );
+    const acteur = await requirePermission(statut === "PUBLIEE" ? "bulletin:publier" : "evaluation:modifier");
 
     const [avant] = await db
       .select({ statut: evaluations.statut, titre: evaluations.titre })
@@ -180,26 +186,17 @@ export async function changerStatutEvaluation(
     revalidatePath("/dashboard/notes");
     return {
       ok: true,
-      message:
-        statut === "PUBLIEE"
-          ? "Notes publiées : elles sont désormais visibles des familles."
-          : undefined,
+      message: statut === "PUBLIEE" ? "Notes publiées : elles sont désormais visibles des familles." : undefined,
     };
   } catch (e) {
     return echec(e, "Le changement d'état a échoué.");
   }
 }
 
-export async function basculerVerrouEvaluation(
-  evaluationId: string,
-  verrouiller: boolean,
-): Promise<Resultat> {
+export async function basculerVerrouEvaluation(evaluationId: string, verrouiller: boolean): Promise<Resultat> {
   try {
     const acteur = await requirePermission("periode:verrouiller");
-    await db
-      .update(evaluations)
-      .set({ estVerrouillee: verrouiller })
-      .where(eq(evaluations.id, evaluationId));
+    await db.update(evaluations).set({ estVerrouillee: verrouiller }).where(eq(evaluations.id, evaluationId));
 
     await journaliser(acteur, {
       action: verrouiller ? "evaluation.verrouillee" : "evaluation.deverrouillee",
@@ -223,7 +220,10 @@ const schemaSaisie = z.object({
   lignes: z.array(
     z.object({
       inscriptionId: z.string().uuid(),
-      valeur: z.preprocess((valeur) => valeur === null || valeur === "" ? null : Number(valeur), z.number().finite().min(0).nullable()),
+      valeur: z.preprocess(
+        (valeur) => (valeur === null || valeur === "" ? null : Number(valeur)),
+        z.number().finite().min(0).nullable(),
+      ),
       statut: z.enum(["NOTEE", "ABSENT", "ABSENT_ZERO", "DISPENSE", "NON_RENDU"]),
       appreciation: z.string().trim().optional(),
     }),
@@ -244,81 +244,112 @@ const schemaSaisie = z.object({
 export async function enregistrerNotes(donnees: unknown): Promise<Resultat> {
   try {
     const a = schemaSaisie.safeParse(donnees);
-    if (!a.success) return { ok:false, erreurs:messages(a.error) };
+    if (!a.success) return { ok: false, erreurs: messages(a.error) };
     const v = a.data;
-    const [evaluation] = await db.select({
-      classeId: evaluations.classeId,
-      matiereId: evaluations.matiereId,
-      titre: evaluations.titre,
-      bareme: evaluations.bareme,
-      estVerrouillee: evaluations.estVerrouillee,
-    }).from(evaluations).where(eq(evaluations.id, v.evaluationId));
+    const [evaluation] = await db
+      .select({
+        classeId: evaluations.classeId,
+        matiereId: evaluations.matiereId,
+        titre: evaluations.titre,
+        bareme: evaluations.bareme,
+        estVerrouillee: evaluations.estVerrouillee,
+      })
+      .from(evaluations)
+      .where(eq(evaluations.id, v.evaluationId));
     if (!evaluation) return { ok: false, message: "Évaluation introuvable." };
-    if (evaluation.estVerrouillee) return { ok: false, message: "Cette évaluation est verrouillée : les notes ne peuvent plus être modifiées." };
+    if (evaluation.estVerrouillee)
+      return { ok: false, message: "Cette évaluation est verrouillée : les notes ne peuvent plus être modifiées." };
     const bareme = Number(evaluation.bareme);
-    const horsBareme = v.lignes.find((ligne) => ligne.statut === "NOTEE" && ligne.valeur !== null && ligne.valeur > bareme);
-    if (horsBareme) return { ok: false, message: `Une note dépasse le barème de ${bareme}. Corrigez les notes signalées avant d’enregistrer.` };
-    const acteur=await requirePermission("note:saisir",{
-      classeId:evaluation.classeId,matiereId:evaluation.matiereId,
+    const horsBareme = v.lignes.find(
+      (ligne) => ligne.statut === "NOTEE" && ligne.valeur !== null && ligne.valeur > bareme,
+    );
+    if (horsBareme)
+      return {
+        ok: false,
+        message: `Une note dépasse le barème de ${bareme}. Corrigez les notes signalées avant d’enregistrer.`,
+      };
+    const acteur = await requirePermission("note:saisir", {
+      classeId: evaluation.classeId,
+      matiereId: evaluation.matiereId,
     });
-    const contexte=await preparerContexteAudit("/dashboard/notes");
-    let ecrites=0,supprimees=0;
-    await db.transaction(async tx=>{
-      for (const ligne of v.lignes){
-        const [existante]=await tx.select({
-          id:notes.id,valeur:notes.valeur,statut:notes.statut,
-        }).from(notes).where(and(
-          eq(notes.evaluationId,v.evaluationId),
-          eq(notes.inscriptionId,ligne.inscriptionId),
-        ));
-        const [insc]=await tx.select({eleveId:inscriptions.eleveId})
-          .from(inscriptions).where(eq(inscriptions.id,ligne.inscriptionId));
-        if (!insc)throw new Error("Inscription absente : saisie annulée.");
+    const contexte = await preparerContexteAudit("/dashboard/notes");
+    let ecrites = 0,
+      supprimees = 0;
+    await db.transaction(async (tx) => {
+      for (const ligne of v.lignes) {
+        const [existante] = await tx
+          .select({
+            id: notes.id,
+            valeur: notes.valeur,
+            statut: notes.statut,
+          })
+          .from(notes)
+          .where(and(eq(notes.evaluationId, v.evaluationId), eq(notes.inscriptionId, ligne.inscriptionId)));
+        const [insc] = await tx
+          .select({ eleveId: inscriptions.eleveId })
+          .from(inscriptions)
+          .where(eq(inscriptions.id, ligne.inscriptionId));
+        if (!insc) throw new Error("Inscription absente : saisie annulée.");
 
-        if(ligne.statut==="NOTEE" && (ligne.valeur===null||Number.isNaN(ligne.valeur))){
-          if(existante){
-            await tx.delete(notes).where(eq(notes.id,existante.id));
-            await journaliserAtomiquement(tx,acteur,contexte,{
-              action:"note.supprimee",entite:"notes",entiteId:existante.id,eleveId:insc.eleveId,
-              avant:{valeur:existante.valeur,statut:existante.statut},apres:{statut:"SUPPRIMEE",valeur:null},
+        if (ligne.statut === "NOTEE" && (ligne.valeur === null || Number.isNaN(ligne.valeur))) {
+          if (existante) {
+            await tx.delete(notes).where(eq(notes.id, existante.id));
+            await journaliserAtomiquement(tx, acteur, contexte, {
+              action: "note.supprimee",
+              entite: "notes",
+              entiteId: existante.id,
+              eleveId: insc.eleveId,
+              avant: { valeur: existante.valeur, statut: existante.statut },
+              apres: { statut: "SUPPRIMEE", valeur: null },
             });
             supprimees++;
           }
           continue;
         }
 
-        const valeurs={
-          valeur:ligne.statut==="NOTEE"?String(ligne.valeur):null,
-          statut:ligne.statut,
-          appreciation:ligne.appreciation||null,
-          saisiePar:acteur.id,
+        const valeurs = {
+          valeur: ligne.statut === "NOTEE" ? String(ligne.valeur) : null,
+          statut: ligne.statut,
+          appreciation: ligne.appreciation || null,
+          saisiePar: acteur.id,
         };
-        let noteId:string;
-        if(existante){
-          await tx.update(notes).set(valeurs).where(eq(notes.id,existante.id));
-          noteId=existante.id;
-        }else{
-          const [cree]=await tx.insert(notes).values({
-            evaluationId:v.evaluationId,inscriptionId:ligne.inscriptionId,...valeurs,
-          }).returning({id:notes.id});
-          noteId=cree.id;
+        let noteId: string;
+        if (existante) {
+          await tx.update(notes).set(valeurs).where(eq(notes.id, existante.id));
+          noteId = existante.id;
+        } else {
+          const [cree] = await tx
+            .insert(notes)
+            .values({
+              evaluationId: v.evaluationId,
+              inscriptionId: ligne.inscriptionId,
+              ...valeurs,
+            })
+            .returning({ id: notes.id });
+          noteId = cree.id;
         }
-        await journaliserAtomiquement(tx,acteur,contexte,{
-          action:existante?"note.modifiee":"note.creee",
-          entite:"notes",entiteId:noteId,eleveId:insc.eleveId,
-          avant:existante?{valeur:existante.valeur,statut:existante.statut}:null,
-          apres:{valeur:valeurs.valeur,statut:valeurs.statut,evaluationId:v.evaluationId},
+        await journaliserAtomiquement(tx, acteur, contexte, {
+          action: existante ? "note.modifiee" : "note.creee",
+          entite: "notes",
+          entiteId: noteId,
+          eleveId: insc.eleveId,
+          avant: existante ? { valeur: existante.valeur, statut: existante.statut } : null,
+          apres: { valeur: valeurs.valeur, statut: valeurs.statut, evaluationId: v.evaluationId },
         });
         ecrites++;
       }
-      await journaliserAtomiquement(tx,acteur,contexte,{
-        action:"notes.saisies",entite:"evaluations",entiteId:v.evaluationId,
-        apres:{titre:evaluation.titre,nbNotes:ecrites,nbSupprimees:supprimees},
+      await journaliserAtomiquement(tx, acteur, contexte, {
+        action: "notes.saisies",
+        entite: "evaluations",
+        entiteId: v.evaluationId,
+        apres: { titre: evaluation.titre, nbNotes: ecrites, nbSupprimees: supprimees },
       });
     });
     revalidatePath("/dashboard/notes");
-    return {ok:true,message:`${ecrites} note(s) enregistrée(s).`};
-  }catch(e){return echec(e,"L'enregistrement des notes a échoué.");}
+    return { ok: true, message: `${ecrites} note(s) enregistrée(s).` };
+  } catch (e) {
+    return echec(e, "L'enregistrement des notes a échoué.");
+  }
 }
 
 /**
@@ -430,9 +461,7 @@ export async function dupliquerEvaluation(
       ignorees: ignorees.length > 0 ? ignorees : undefined,
       message:
         `Évaluation créée dans ${retenues.length} classe(s).` +
-        (ignorees.length > 0
-          ? ` ${ignorees.length} écartée(s) : la matière n'est pas à leur programme.`
-          : ""),
+        (ignorees.length > 0 ? ` ${ignorees.length} écartée(s) : la matière n'est pas à leur programme.` : ""),
     };
   } catch (e) {
     return echec(e, "La duplication a échoué.");

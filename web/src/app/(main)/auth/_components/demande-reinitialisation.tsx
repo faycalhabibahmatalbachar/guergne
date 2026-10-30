@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 
 import { CircleAlert, LoaderCircle, Mail, Send } from "lucide-react";
+import { useFormStatus } from "react-dom";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,8 +38,8 @@ export function DemandeReinitialisation() {
       ) : null}
       {etat.succes ? (
         <p role="status" className={styles.changeNotice}>
-          Si cette adresse correspond à un compte actif, un lien a été envoyé.
-          Vérifiez également votre dossier de courriers indésirables.
+          Si cette adresse correspond à un compte actif, un lien a été envoyé. Vérifiez également votre dossier de
+          courriers indésirables.
         </p>
       ) : (
         <>
@@ -60,7 +60,7 @@ export function DemandeReinitialisation() {
                 autoCorrect="off"
                 spellCheck={false}
                 placeholder="prenom.nom@lyceerenaissance.td"
-                className="h-14 rounded-xl border-neutral-200 bg-white pl-12 pr-4 text-base text-neutral-950 placeholder:text-neutral-400 focus-visible:border-neutral-400 focus-visible:ring-neutral-200"
+                className="h-14 rounded-xl border-border bg-card pl-12 pr-4 text-base text-foreground placeholder:text-muted-foreground focus-visible:border-border focus-visible:ring-border"
               />
             </div>
           </div>

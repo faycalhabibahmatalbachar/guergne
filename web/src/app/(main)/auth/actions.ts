@@ -1,16 +1,17 @@
 "use server";
 
-import { eq, or, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+
+import { eq, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { roleAutoriseAdministration } from "@/lib/acces-administration";
+import { formatInternational, partieNationale, telephoneValide } from "@/lib/telephone";
 import { hacherMotDePasse, validerMotDePasse, verifierMotDePasse } from "@/server/auth/mot-de-passe";
 import { fermerSession, ouvrirSession, revoquerSessions, sessionCourante } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { journalAudit, utilisateurs } from "@/server/db/schema";
-import { formatInternational, partieNationale, telephoneValide } from "@/lib/telephone";
-import { roleAutoriseAdministration } from "@/lib/acces-administration";
 
 /** Nombre d'échecs avant verrouillage temporaire du compte. */
 const MAX_TENTATIVES = 5;
@@ -36,10 +37,7 @@ export interface EtatConnexion {
  * n'existe pas) : c'est un compromis assumé, l'énumération par chronométrage
  * étant hors de portée du risque réel ici, et le hachage Argon2 coûteux.
  */
-export async function connexion(
-  _precedent: EtatConnexion,
-  donnees: FormData,
-): Promise<EtatConnexion> {
+export async function connexion(_precedent: EtatConnexion, donnees: FormData): Promise<EtatConnexion> {
   const analyse = schemaConnexion.safeParse({
     identifiant: donnees.get("identifiant"),
     motDePasse: donnees.get("motDePasse"),
@@ -101,9 +99,7 @@ export async function connexion(
       .update(utilisateurs)
       .set({
         tentativesEchouees: verrouiller ? 0 : tentatives,
-        verrouilleJusqua: verrouiller
-          ? new Date(Date.now() + DUREE_VERROU_MINUTES * 60_000).toISOString()
-          : null,
+        verrouilleJusqua: verrouiller ? new Date(Date.now() + DUREE_VERROU_MINUTES * 60_000).toISOString() : null,
       })
       .where(eq(utilisateurs.id, compte.id));
 
@@ -169,10 +165,7 @@ const schemaChangement = z
  * une compromission, laisser les sessions ouvertes annulerait l'intérêt de
  * l'opération.
  */
-export async function changerMotDePasse(
-  _precedent: EtatConnexion,
-  donnees: FormData,
-): Promise<EtatConnexion> {
+export async function changerMotDePasse(_precedent: EtatConnexion, donnees: FormData): Promise<EtatConnexion> {
   const principal = await sessionCourante();
   if (!principal) redirect("/auth/connexion");
 
@@ -224,11 +217,7 @@ export async function changerMotDePasse(
  * pas empêcher un agent de se connecter. L'incident part dans les traces
  * serveur pour être traité séparément.
  */
-async function journaliser(
-  utilisateurId: string,
-  action: string,
-  extra: Record<string, unknown> = {},
-): Promise<void> {
+async function journaliser(utilisateurId: string, action: string, extra: Record<string, unknown> = {}): Promise<void> {
   try {
     const entetes = await headers();
     await db.insert(journalAudit).values({
