@@ -197,7 +197,10 @@ async function rafraichir() {
         urlCourante = u;
         $("qr").src = u; $("qr").hidden = false; $("vide").hidden = true;
       }
-    } else { $("qr").hidden = true; $("vide").hidden = false; $("vide").textContent = M[e.etat] ?? ""; }
+    } else {
+      $("qr").hidden = true; $("vide").hidden = false; $("vide").textContent = M[e.etat] ?? "";
+      if (urlCourante) { URL.revokeObjectURL(urlCourante); urlCourante = null; }
+    }
     if (e.etat === "authentifie") { $("compte").textContent = "Cette page n'est plus nécessaire."; clearInterval(boucle); }
   } catch { $("msg").textContent = "Connexion au service perdue"; }
 }
