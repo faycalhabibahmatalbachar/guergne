@@ -180,7 +180,9 @@ createServer(async (req, res) => {
     }
 
     if (url === "/pairing/etat") {
-      if (!autorise(req, res)) return;
+      // Une fois WhatsApp authentifie, seul l'etat non sensible reste public ;
+      // le QR et ses donnees restent inaccessibles et le jeton demeure brule.
+      if (!pairing.authentifie && !autorise(req, res)) return;
       res.writeHead(200, entetesSurs({ "content-type": "application/json" }))
         .end(JSON.stringify(pairing.etat()));
       return;
