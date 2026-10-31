@@ -5,9 +5,18 @@
   "type": "module",
   "description": "Agent de pilotage de la plateforme guergne par WhatsApp (coeur indépendant du transport).",
   "scripts": {
-    "test": "node --test"
+    "start": "node index.js",
+    "test": "node --test",
+    "sante": "curl -s localhost:8080/sante"
   },
   "devDependencies": {
     "pg": "^8.23.1"
+  },
+  "main": "index.js",
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "^1.34.1"
   }
 }

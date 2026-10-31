@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { MoteurIA, extraireJson } from "../src/ia.js";
+import { MoteurIA, classerErreur, extraireJson } from "../src/ia.js";
 
 const ok = (body) => ({ ok: true, status: 200, json: async () => body });
 const ko = (status) => ({ ok: false, status, json: async () => ({}) });
@@ -54,16 +54,20 @@ test("bascule sur Mistral quand Groq échoue", async () => {
 });
 
 test("une panne de tous les fournisseurs lève une erreur explicite", async () => {
-  const f = tracant([ko(500), ko(500)]);
-  const m = new MoteurIA({ cles: { groq: "a", mistral: "b" }, fetch: f });
-  await assert.rejects(() => m.completer([]), /Tous les fournisseurs IA ont échoué/);
+  // 401 des deux côtés : pas de réessai, bascule puis échec maîtrisé.
+  const f = tracant([ko(401), ko(401)]);
+  const m = new MoteurIA({ cles: { groq: "a", mistral: "b" }, fetch: f, pause: async () => {} });
+  await assert.rejects(() => m.completer([]), /Aucun fournisseur IA disponible/);
 });
 
-test("une réponse vide compte comme un échec et déclenche le repli", async () => {
+test("une réponse vide est transitoire : on réessaie le même fournisseur avant de basculer", async () => {
+  // Une réponse vide est un incident passager, pas une panne du fournisseur :
+  // basculer immédiatement gaspillerait le quota du suivant.
   const f = tracant([chat(""), chat("recupere")]);
-  const m = new MoteurIA({ cles: { groq: "a", mistral: "b" }, fetch: f });
+  const m = new MoteurIA({ cles: { groq: "a", mistral: "b" }, fetch: f, pause: async () => {} });
   const r = await m.completer([]);
-  assert.equal(r.fournisseur, "mistral");
+  assert.equal(r.fournisseur, "groq");
+  assert.equal(r.tentatives, 2);
 });
 
 test("completerJson renvoie l'objet analysé", async () => {
@@ -99,10 +103,98 @@ test("le journal reçoit le fournisseur, le modèle et la durée", async () => {
 
 test("un échec de fournisseur est tracé avant le repli", async () => {
   const evts = [];
-  const m = new MoteurIA({ cles: { groq: "a", mistral: "b" }, fetch: tracant([ko(503), chat("ok")]), journal: (e) => evts.push(e) });
+  const m = new MoteurIA({
+    cles: { groq: "a", mistral: "b" },
+    fetch: tracant([ko(401), chat("ok")]),
+    journal: (e) => evts.push(e),
+    pause: async () => {},
+  });
   await m.completer([]);
-  assert.equal(evts[0].type, "llm_echec");
-  assert.equal(evts[0].fournisseur, "groq");
-  assert.equal(evts[1].type, "llm");
-  assert.equal(evts[1].fournisseur, "mistral");
+  const types = evts.map((e) => e.type);
+  assert.ok(types.includes("llm_echec"), "l'échec doit être tracé");
+  assert.ok(types.includes("fournisseur_ecarte"), "la mise à l'écart doit être tracée");
+  const reussite = evts.find((e) => e.type === "llm");
+  assert.equal(reussite.fournisseur, "mistral");
+});
+
+// --- P4 : résilience -------------------------------------------------------
+
+const avecEntetes = (status, entetes = {}) => ({
+  ok: false,
+  status,
+  headers: { get: (k) => entetes[k.toLowerCase()] ?? null },
+  json: async () => ({}),
+});
+
+function moteurTeste(reponses, { cles = { groq: "a", mistral: "b" } } = {}) {
+  let t = 0;
+  const pauses = [];
+  const m = new MoteurIA({
+    cles,
+    fetch: tracant(reponses),
+    horloge: () => t,
+    pause: async (ms) => { pauses.push(ms); t += ms; },
+    alea: () => 0.5,
+  });
+  return { m, pauses, avance: (ms) => { t += ms; } };
+}
+
+test("un 401 écarte le fournisseur : aucune tentative répétée", async () => {
+  const { m } = moteurTeste([avecEntetes(401), chat("ok")]);
+  const r = await m.completer([]);
+  assert.equal(r.fournisseur, "mistral");
+  assert.equal(m.etatFournisseurs.groq.ecarte, true, "Groq doit être écarté définitivement");
+  assert.deepEqual(m.disponibles, ["mistral"]);
+});
+
+test("un 429 met en cooldown en respectant Retry-After", async () => {
+  const { m, avance } = moteurTeste([avecEntetes(429, { "retry-after": "30" }), chat("ok")]);
+  await m.completer([]);
+  assert.equal(m.etatFournisseurs.groq.cooldownRestantMs, 30_000);
+  assert.deepEqual(m.disponibles, ["mistral"]);
+  avance(30_000);
+  assert.deepEqual(m.disponibles, ["groq", "mistral"], "le cooldown doit expirer");
+});
+
+test("une erreur 5xx est réessayée avec un recul croissant", async () => {
+  const { m, pauses } = moteurTeste([avecEntetes(503), avecEntetes(503), chat("enfin")]);
+  const r = await m.completer([]);
+  assert.equal(r.fournisseur, "groq");
+  assert.equal(r.tentatives, 3);
+  assert.equal(pauses.length, 2);
+  assert.ok(pauses[1] > pauses[0], "le recul doit croître");
+});
+
+test("un fournisseur écarté n'est plus appelé au message suivant", async () => {
+  const f = tracant([avecEntetes(401), chat("un"), chat("deux")]);
+  const m = new MoteurIA({ cles: { groq: "a", mistral: "b" }, fetch: f, horloge: () => 0 });
+  await m.completer([]);
+  const nb = f.appels.length;
+  await m.completer([]);
+  assert.equal(f.appels.length, nb + 1, "un seul appel : Groq ne doit plus être tenté");
+  assert.match(f.appels[nb].url, /mistral/);
+});
+
+test("aucun fournisseur disponible : erreur maîtrisée, jamais de résultat inventé", async () => {
+  const { m } = moteurTeste([avecEntetes(401), avecEntetes(429, { "retry-after": "60" })]);
+  await assert.rejects(
+    () => m.completer([]),
+    (e) => e.code === "IA_INDISPONIBLE" && Array.isArray(e.detail),
+  );
+  assert.deepEqual(m.disponibles, []);
+});
+
+test("classerErreur distingue les trois familles", () => {
+  assert.equal(classerErreur(401), "fatal");
+  assert.equal(classerErreur(403), "fatal");
+  assert.equal(classerErreur(429), "quota");
+  assert.equal(classerErreur(500), "transitoire");
+  assert.equal(classerErreur(502), "transitoire");
+});
+
+test("Retry-After au format date HTTP est converti", async () => {
+  const dans2min = new Date(120_000).toUTCString();
+  const { m } = moteurTeste([avecEntetes(429, { "retry-after": dans2min }), chat("ok")]);
+  await m.completer([]);
+  assert.ok(m.etatFournisseurs.groq.cooldownRestantMs > 100_000);
 });
