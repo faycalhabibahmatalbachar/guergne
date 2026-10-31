@@ -4,6 +4,31 @@ Avancement mesurable et daté. Entrée la plus récente en haut.
 
 ---
 
+## 2026-10-31 — P0 : décision transport + socle de spécification
+
+**Décidé**
+- **DT-001 : transport WhatsApp = `whatsapp-web.js`** (choix de l'établissement), risque
+  de bannissement accepté, mitigé par l'abstraction `WhatsAppProvider` + numéro dédié +
+  débit limité + plan de bascule Cloud API.
+
+**Examiné (code réel, via API GitHub)**
+- `moov-ai/src/{engine,router,security,config,db}.js` : moteur de flux à étapes avec
+  `prefill` (pont NLU→exécution), routeur indépendant du transport, IA multi-providers
+  avec rotation/repli, table `links` (JID→compte), `tx()` atomique, PIN/OTP sans log.
+
+**Produit**
+- `DECISIONS_TECHNIQUES.md`, `ARCHITECTURE_WHATSAPP.md`, `CAHIER_DES_CHARGES_COMPLET.md` (v0.1 socle).
+- README index mis à jour.
+
+**Actions restantes**
+- Détail par doc : CATALOGUE_OUTILS_AGENT (module pilote Assiduité d'abord), MATRICE_PERMISSIONS,
+  SECURITE_ET_AUDIT, OBSERVABILITE, ENVIRONNEMENT_TEST, PLAN_DE_TESTS, AUTOMATISATIONS,
+  ARCHITECTURE_TECHNIQUE, ROADMAP.
+- Décisions ouvertes : DT-002 numéro dédié ; budget IA/STT.
+- Débloquer Northflank pour compléter son audit.
+
+---
+
 ## 2026-10-31 — P0 : audit de l'existant (1er passage)
 
 **Examiné**

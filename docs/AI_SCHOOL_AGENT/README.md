@@ -19,13 +19,16 @@
 | [CARTOGRAPHIE_BACKEND.md](CARTOGRAPHIE_BACKEND.md) | Modules, tables, API et couche domaine de guergne | ✅ Rédigé (1er passage) |
 | [AUDIT_NORTHFLANK.md](AUDIT_NORTHFLANK.md) | Infrastructure Northflank | ⛔ Bloqué (accès indisponible) |
 | [JOURNAL_IMPLEMENTATION.md](JOURNAL_IMPLEMENTATION.md) | Avancement mesurable, pas à pas | ✅ Ouvert |
-| CAHIER_DES_CHARGES_COMPLET.md | Spécification fonctionnelle et technique complète | ⏳ À venir (P0, après décisions) |
-| ARCHITECTURE_TECHNIQUE.md / ARCHITECTURE_WHATSAPP.md | Architecture cible | ⏳ À venir |
+| [DECISIONS_TECHNIQUES.md](DECISIONS_TECHNIQUES.md) | Registre des décisions (transport WhatsApp…) | ✅ Ouvert (DT-001 confirmé) |
+| [CAHIER_DES_CHARGES_COMPLET.md](CAHIER_DES_CHARGES_COMPLET.md) | Spécification fonctionnelle et technique | ✅ v0.1 (socle) |
+| [ARCHITECTURE_WHATSAPP.md](ARCHITECTURE_WHATSAPP.md) | Provider, session, concurrence | ✅ Rédigé |
+| ARCHITECTURE_TECHNIQUE.md | Architecture cible d'ensemble | ⏳ À venir |
 | CATALOGUE_OUTILS_AGENT.md / MATRICE_PERMISSIONS.md | Registre d'outils métier et permissions | ⏳ À venir |
 | SECURITE_ET_AUDIT.md / OBSERVABILITE.md | Sécurité, traçabilité, observabilité | ⏳ À venir |
 | ENVIRONNEMENT_TEST.md / PLAN_DE_TESTS.md | Simulation, dry-run, stratégie de tests | ⏳ À venir |
+| AUTOMATISATIONS.md | Moteur d'automatisations | ⏳ À venir |
 | NORTHFLANK_*.md | Architecture / déploiement / runbook | ⏳ À venir (dépend de l'accès) |
-| ROADMAP_P0_P1_P2_P3.md / DECISIONS_TECHNIQUES.md | Feuille de route et décisions | ⏳ À venir |
+| ROADMAP_P0_P1_P2_P3.md | Feuille de route | ⏳ À venir |
 
 Les documents marqués ⏳ ne sont pas encore écrits : ils dépendent soit de décisions
 que seul l'établissement peut trancher (voir AUDIT_EXISTANT §6), soit d'un accès non
