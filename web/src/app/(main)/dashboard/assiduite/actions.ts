@@ -2,12 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
-import { absences, incidents, inscriptions, retards, sanctions } from "@/server/db/schema";
+import { incidents, inscriptions, sanctions } from "@/server/db/schema";
+import {
+  enregistrerAppelPour,
+  enregistrerRetardPour,
+  justifierEnLotPour,
+  supprimerAbsencePour,
+} from "@/server/domain/assiduite-ecritures";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 import { reveillerFile } from "@/server/notifications/reveil";
 
@@ -40,7 +46,7 @@ function messages(e: z.ZodError): Record<string, string> {
 // Appel et absences
 // ===========================================================================
 
-const schemaAppel = z.object({
+const _schemaAppel = z.object({
   periodeId: z.string().uuid(),
   dateAbsence: z.string().min(1, "Date requise"),
   matiereId: z.string().uuid().nullable().optional(),
@@ -72,68 +78,12 @@ const schemaAppel = z.object({
 export async function enregistrerAppel(donnees: unknown): Promise<Resultat> {
   try {
     const acteur = await requirePermission("assiduite:saisir");
-    const a = schemaAppel.safeParse(donnees);
-    if (!a.success) return { ok: false, erreurs: messages(a.error) };
-
-    const v = a.data;
-    if (v.absents.length === 0 && v.retards.length === 0) {
-      return { ok: true, message: "Appel enregistré : classe au complet." };
-    }
-
-    if (v.absents.length > 0) {
-      await db.insert(absences).values(
-        v.absents.map((inscriptionId) => ({
-          inscriptionId,
-          periodeId: v.periodeId,
-          type: v.matiereId ? ("COURS" as const) : ("JOURNEE" as const),
-          dateAbsence: v.dateAbsence,
-          matiereId: v.matiereId ?? null,
-          nbHeures: String(v.nbHeures),
-          saisiePar: acteur.id,
-        })),
-      );
-    }
-
-    // Les retards passent par leur propre table, avec leur propre déclencheur
-    // de notification.
-    if (v.retards.length > 0) {
-      await db.insert(retards).values(
-        v.retards.map((r) => ({
-          inscriptionId: r.inscriptionId,
-          periodeId: v.periodeId,
-          dateRetard: v.dateAbsence,
-          dureeMinutes: r.dureeMinutes,
-          matiereId: v.matiereId ?? null,
-          saisiePar: acteur.id,
-        })),
-      );
-    }
-
-    await journaliser(acteur, {
-      action: "assiduite.appel",
-      entite: "absences",
-      apres: {
-        date: v.dateAbsence,
-        nbAbsents: v.absents.length,
-        nbRetards: v.retards.length,
-        matiereId: v.matiereId,
-      },
-    });
-
+    const r = await enregistrerAppelPour(acteur, donnees);
     // La file part MAINTENANT, sans attendre le cron : trois à sept
     // minutes de délai ne se distinguent pas, pour un parent, d'un
     // envoi manuel.
-    reveillerFile();
-    revalidatePath("/dashboard/assiduite");
-
-    const parties = [];
-    if (v.absents.length > 0) parties.push(`${v.absents.length} absence(s)`);
-    if (v.retards.length > 0) parties.push(`${v.retards.length} retard(s)`);
-
-    return {
-      ok: true,
-      message: `${parties.join(" et ")} enregistré(s). Les tuteurs seront notifiés.`,
-    };
+    if (r.ok) reveillerFile();
+    return r;
   } catch (e) {
     return echec(e, "L'enregistrement de l'appel a échoué.");
   }
@@ -150,23 +100,7 @@ export async function enregistrerAppel(donnees: unknown): Promise<Resultat> {
 export async function supprimerAbsence(absenceId: string, motif: string): Promise<Resultat> {
   try {
     const acteur = await requirePermission("assiduite:saisir");
-    if (motif.trim().length < 3) {
-      return { ok: false, erreurs: { motif: "Une saisie erronée se corrige avec un motif." } };
-    }
-
-    const [avant] = await db.select().from(absences).where(eq(absences.id, absenceId));
-    await db.delete(absences).where(eq(absences.id, absenceId));
-
-    await journaliser(acteur, {
-      action: "absence.supprimee",
-      entite: "absences",
-      entiteId: absenceId,
-      avant: avant ? { date: avant.dateAbsence, heures: avant.nbHeures } : null,
-      motif: motif.trim(),
-    });
-
-    revalidatePath("/dashboard/assiduite");
-    return OK;
+    return await supprimerAbsencePour(acteur, absenceId, motif);
   } catch (e) {
     return echec(e, "La suppression a échoué.");
   }
@@ -176,7 +110,7 @@ export async function supprimerAbsence(absenceId: string, motif: string): Promis
 // Retards
 // ===========================================================================
 
-const schemaRetard = z.object({
+const _schemaRetard = z.object({
   inscriptionId: z.string().uuid("Sélectionnez un élève"),
   periodeId: z.string().uuid(),
   dateRetard: z.string().min(1, "Date requise"),
@@ -188,28 +122,7 @@ const schemaRetard = z.object({
 export async function enregistrerRetard(donnees: unknown): Promise<Resultat> {
   try {
     const acteur = await requirePermission("retard:saisir");
-    const a = schemaRetard.safeParse(donnees);
-    if (!a.success) return { ok: false, erreurs: messages(a.error) };
-
-    const v = a.data;
-    await db.insert(retards).values({
-      inscriptionId: v.inscriptionId,
-      periodeId: v.periodeId,
-      dateRetard: v.dateRetard,
-      heureArrivee: v.heureArrivee || null,
-      dureeMinutes: v.dureeMinutes ?? null,
-      motif: v.motif || null,
-      saisiePar: acteur.id,
-    });
-
-    await journaliser(acteur, {
-      action: "retard.saisi",
-      entite: "retards",
-      apres: { date: v.dateRetard, duree: v.dureeMinutes },
-    });
-
-    revalidatePath("/dashboard/assiduite");
-    return OK;
+    return await enregistrerRetardPour(acteur, donnees);
   } catch (e) {
     return echec(e, "L'enregistrement du retard a échoué.");
   }
@@ -417,51 +330,7 @@ export async function justifierEnLot(
 ): Promise<Resultat & { traitees?: number }> {
   try {
     const acteur = await requirePermission("assiduite:justifier");
-
-    if (absenceIds.length === 0) {
-      return { ok: false, message: "Aucune absence sélectionnée." };
-    }
-    if (absenceIds.length > 200) {
-      return { ok: false, message: "Sélection trop large : 200 absences au maximum." };
-    }
-    if (statut === "JUSTIFIEE" && motif.trim().length < 3) {
-      return { ok: false, erreurs: { motif: "Indiquez le motif de la justification." } };
-    }
-
-    const r = await db.execute<{ n: number }>(sql`
-      WITH maj AS (
-        UPDATE absences
-           SET statut = ${statut}::statut_justification,
-               motif = ${motif.trim() || null},
-               justifiee_par = ${acteur.id}::uuid,
-               justifiee_le = now(),
-               modifie_le = now()
-         WHERE id = ANY(${absenceIds}::uuid[])
-        RETURNING 1
-      )
-      SELECT count(*)::int AS n FROM maj
-    `);
-
-    const traitees = Number(r.rows[0]?.n ?? 0);
-    if (traitees === 0) return { ok: false, message: "Aucune de ces absences n'existe plus." };
-
-    await journaliser(acteur, {
-      action: statut === "JUSTIFIEE" ? "absence.justifiee_en_lot" : "absence.dejustifiee_en_lot",
-      entite: "absences",
-      apres: { statut, absences: traitees },
-      motif: motif.trim() || null,
-    });
-
-    revalidatePath("/dashboard/assiduite");
-
-    return {
-      ok: true,
-      traitees,
-      message:
-        statut === "JUSTIFIEE"
-          ? `${traitees} absence(s) justifiée(s).`
-          : `${traitees} absence(s) repassée(s) en non justifiée(s).`,
-    };
+    return await justifierEnLotPour(acteur, absenceIds, statut, motif);
   } catch (e) {
     return echec(e, "La justification a échoué. Aucune absence n'a été modifiée.");
   }

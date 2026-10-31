@@ -6,5 +6,8 @@
   "description": "Agent de pilotage de la plateforme guergne par WhatsApp (coeur indépendant du transport).",
   "scripts": {
     "test": "node --test"
+  },
+  "devDependencies": {
+    "pg": "^8.23.1"
   }
 }

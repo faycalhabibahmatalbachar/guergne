@@ -60,3 +60,8 @@ mobile/ios/Pods/
 
 # Livrables compilés — jamais dans le dépôt
 livraison/
+
+# Secrets IA locaux (jamais commites)
+grok.env
+*.env
+!.env.example

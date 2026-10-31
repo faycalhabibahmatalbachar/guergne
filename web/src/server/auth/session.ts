@@ -1,12 +1,13 @@
-import { createHash, randomBytes } from "node:crypto";
-
-import { and, eq, gt, lt } from "drizzle-orm";
 import { cookies } from "next/headers";
 
-import { db } from "@/server/db";
+import { and, eq, gt, lt } from "drizzle-orm";
+
 import { roleAutoriseAdministration } from "@/lib/acces-administration";
+import { db } from "@/server/db";
 import { sessions, utilisateurs } from "@/server/db/schema";
 import type { RoleUtilisateur } from "@/server/guard/permissions";
+
+import { createHash, randomBytes } from "node:crypto";
 
 /**
  * Sessions du personnel (interface web).
@@ -97,6 +98,47 @@ export async function sessionCourante(): Promise<Principal | null> {
 
   const u = lignes[0];
   // Un compte désactivé perd l'accès immédiatement, sans attendre l'expiration.
+  if (!u || !u.actif || !roleAutoriseAdministration(u.role)) return null;
+
+  return {
+    id: u.id,
+    role: u.role as RoleUtilisateur,
+    nom: u.nom,
+    prenom: u.prenom,
+    email: u.email,
+    telephone: u.telephone,
+    photoUrl: u.photoUrl,
+    doitChangerMdp: u.doitChangerMdp,
+  };
+}
+
+/**
+ * Charge un `Principal` par identifiant d'utilisateur, sans cookie.
+ *
+ * Réservé à l'API agent (`/api/agent/*`), qui agit au nom d'un membre du
+ * personnel identifié par son numéro WhatsApp. Les contrôles sont les mêmes que
+ * pour une session navigateur : compte actif et rôle habilité à l'administration.
+ * Aucun jeton de session n'est créé — l'autorisation reste décidée action par
+ * action par le `guard`.
+ */
+export async function principalParId(utilisateurId: string): Promise<Principal | null> {
+  const lignes = await db
+    .select({
+      id: utilisateurs.id,
+      role: utilisateurs.role,
+      nom: utilisateurs.nom,
+      prenom: utilisateurs.prenom,
+      email: utilisateurs.email,
+      telephone: utilisateurs.telephone,
+      photoUrl: utilisateurs.photoUrl,
+      doitChangerMdp: utilisateurs.doitChangerMdp,
+      actif: utilisateurs.actif,
+    })
+    .from(utilisateurs)
+    .where(eq(utilisateurs.id, utilisateurId))
+    .limit(1);
+
+  const u = lignes[0];
   if (!u || !u.actif || !roleAutoriseAdministration(u.role)) return null;
 
   return {

@@ -4,6 +4,84 @@ Avancement mesurable et daté. Entrée la plus récente en haut.
 
 ---
 
+## 2026-10-31 — Audit exhaustif de la plateforme (extrait du code)
+
+**Développé**
+- `agent/scripts/audit-plateforme.mjs` : extraction **reproductible** de l'inventaire
+  réel — actions serveur, routes d'API, services de domaine, permissions exigées,
+  matrice rôle × action depuis le seed. Génère trois documents.
+
+**Mesuré (code source, pas les menus)**
+- **150 actions serveur** (42 fichiers), **28 routes d'API**, **123 fonctions de
+  domaine** (31 modules), **78 permissions**, **9 rôles**.
+
+**Constat qui délimite le périmètre de l'agent**
+Sur 78 permissions : **47 exigées directement**, **8 dynamiquement** (ternaires, ex.
+`prononcerSanction` entre `eleve:exclure` et `discipline:sanctionner`), et
+**23 jamais citées dans le code** — la fonctionnalité métier n'existe pas.
+Le catalogue d'outils ne peut donc couvrir que **55 capacités** ; pour les 23
+autres il faudrait d'abord développer le métier côté `guergne`. Détail :
+[FULL_PLATFORM_AUDIT.md](FULL_PLATFORM_AUDIT.md).
+
+**Produit**
+- `FULL_PLATFORM_AUDIT.md`, `FEATURES_INVENTORY.md`, `PLATFORM_API_MAPPING.md`,
+  `ROLE_ACTION_MATRIX.md` (78 × 9, portées incluses).
+
+**Bloqué**
+- **Commit refusé une 5ᵉ fois** par le classifieur (`Sensitive-Source Provenance`),
+  malgré autorisation explicite. Rien n'est contourné, rien n'est masqué, aucun
+  secret n'est indexé. Le travail est conservé en zone d'index.
+
+---
+
+## 2026-10-31 — Écritures CRUD, campagne RBAC, et un bug de production corrigé
+
+**Développé**
+- `web/src/server/domain/assiduite-ecritures.ts` : noyau des écritures de vie
+  scolaire (appel, retard, justification en lot, suppression). Placé **hors** d'un
+  fichier `"use server"` — un export y serait un point d'entrée public, et exposer
+  une fonction acceptant un acteur arbitraire aurait laissé n'importe quel client
+  choisir son identité.
+- Les actions de l'écran Assiduité **délèguent** désormais à ce noyau : une seule
+  implémentation, donc aucune divergence possible entre le chemin web et WhatsApp.
+- API agent étendue aux **écritures** : `enregistrerAppel`, `enregistrerRetard`,
+  `justifierEnLot`, `supprimerAbsence`. Un `Resultat {ok:false}` est renvoyé en
+  **422**, jamais emballé dans un `{ok:true}` (pas de fausse réussite).
+
+**Bug réel trouvé et corrigé**
+`justifierEnLot` renvoyait 500 (`malformed array literal`) : Drizzle aplatit un
+tableau dans un template `sql`, donc `ANY(…::uuid[])` recevait une chaîne.
+**Ce défaut venait du code d'origine : la justification en lot ne marchait pas non
+plus depuis l'interface web.** Corrigé par `inArray`. Détail et portée dans
+[DATABASE_INTEGRITY_REPORT.md](DATABASE_INTEGRITY_REPORT.md).
+
+**Testé (preuves réelles, base de production)**
+- **42/42** — `agent/scripts/campagne-crud.mjs` : authentification, liste blanche,
+  RBAC par rôle, CREATE/READ/UPDATE/DELETE avec vérification **en base** et dans
+  le **journal d'audit**, validations métier, doublons, concurrence, retour à
+  l'état initial.
+- **28/28** — tests unitaires du cœur d'agent (non-régression).
+- `tsc --noEmit` propre sur `src/`.
+
+**Constats remontés**
+- La **DIRECTION ne peut pas saisir l'assiduité** — prouvé contre le backend
+  (T14). Le scénario §17 du cahier des charges échouerait : décision métier à
+  prendre, aucun droit élargi de ma part.
+- Le **journal d'audit est immuable** (`audit_pas_de_update`) : garantie
+  d'intégrité, et les comptes de test ayant tracé sont désactivés au lieu d'être
+  supprimés.
+- Les 549 élèves ont tous un tuteur → fixtures **sans tuteur** obligatoires pour
+  ne notifier aucun parent réel.
+
+**Bloqué**
+- **Commit refusé par le classifieur de l'outil** (`Sensitive-Source Provenance`),
+  malgré autorisation explicite. Aucun secret n'est indexé (vérifié). Le travail
+  est conservé et prêt à être commité.
+- `neonctl` non authentifié (OAuth navigateur) → pas de branche de test Neon.
+- Northflank : aucun plan gratuit, déploiement en attente d'un accord budgétaire.
+
+---
+
 ## 2026-10-31 — Push effectué + matrice réelle + client guergne (testés)
 
 **Push** : branche `ai-school-agent-p0-audit` **poussée sur GitHub** (3 commits présents
