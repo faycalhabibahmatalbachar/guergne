@@ -22,10 +22,10 @@
 | [DECISIONS_TECHNIQUES.md](DECISIONS_TECHNIQUES.md) | Registre des décisions (transport WhatsApp…) | ✅ Ouvert (DT-001 confirmé) |
 | [CAHIER_DES_CHARGES_COMPLET.md](CAHIER_DES_CHARGES_COMPLET.md) | Spécification fonctionnelle et technique | ✅ v0.1 (socle) |
 | [ARCHITECTURE_WHATSAPP.md](ARCHITECTURE_WHATSAPP.md) | Provider, session, concurrence | ✅ Rédigé |
-| ARCHITECTURE_TECHNIQUE.md | Architecture cible d'ensemble | ⏳ À venir |
+| [ARCHITECTURE_TECHNIQUE.md](ARCHITECTURE_TECHNIQUE.md) | Architecture d'ensemble + contrat API agent | ✅ Rédigé |
 | [CATALOGUE_OUTILS_AGENT.md](CATALOGUE_OUTILS_AGENT.md) | Registre d'outils métier (Assiduité détaillé) | ✅ Assiduité |
-| MATRICE_PERMISSIONS.md | Matrice rôles → permissions | ⏳ À venir |
-| [Service `agent/`](../../agent/README.md) | Cœur de l'agent (code + tests, 18/18) | ✅ Cœur testé |
+| [MATRICE_PERMISSIONS.md](MATRICE_PERMISSIONS.md) | Matrice réelle rôles → permissions | ✅ Rédigé |
+| [Service `agent/`](../../agent/README.md) | Cœur de l'agent (code + tests, **28/28**) | ✅ Cœur testé |
 | SECURITE_ET_AUDIT.md / OBSERVABILITE.md | Sécurité, traçabilité, observabilité | ⏳ À venir |
 | ENVIRONNEMENT_TEST.md / PLAN_DE_TESTS.md | Simulation, dry-run, stratégie de tests | ⏳ À venir |
 | AUTOMATISATIONS.md | Moteur d'automatisations | ⏳ À venir |

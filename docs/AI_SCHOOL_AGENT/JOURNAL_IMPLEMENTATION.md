@@ -4,6 +4,39 @@ Avancement mesurable et daté. Entrée la plus récente en haut.
 
 ---
 
+## 2026-10-31 — Push effectué + matrice réelle + client guergne (testés)
+
+**Push** : branche `ai-school-agent-p0-audit` **poussée sur GitHub** (3 commits présents
+sur `origin`, drift 0/0). Pas de CI déclenchée : les workflows ne se lancent que sur PR
+touchant `web/**` ; la branche ne touche que `docs/` et `agent/`.
+
+**Examiné (code réel)**
+- `web/src/server/guard/permissions.ts` : 84 actions, 9 rôles, portées
+  AUCUNE/PROPRES_CLASSES/PROPRES_ENFANTS.
+- `db/migrations/0009_seed_referentiel.sql` : matrice rôle→action complète.
+
+**Produit (code + doc)**
+- `agent/src/permissions-matrix.js` : reflet de la matrice guergne (pré-filtre, données,
+  pas en dur dans le prompt) + tests.
+- `agent/src/guergne-client.js` : client HTTP vers l'API agent de guergne (jeton de service
+  + `x-acteur-id` pour que le guard applique rôle ET portée) + tests avec `fetch` factice.
+- `MATRICE_PERMISSIONS.md`, `ARCHITECTURE_TECHNIQUE.md` (dont le contrat `/api/agent/*`).
+- **Tests : 28 / 28 passent** (`cd agent && node --test`).
+
+**Constat remonté (preuve, non tranché)** : la DIRECTION ne détient pas `assiduite:saisir`
+ni `retard:saisir` (lecture seule). Le scénario du brief §17 (directeur enregistrant des
+absences) serait refusé par le guard tel quel → décision établissement (cumul de rôle ou
+ajustement de la matrice). L'agent refuse proprement en attendant.
+
+**Prochaines tâches (sans accès externe)**
+- Implémenter les routes `/api/agent/*` côté guergne (après lecture de `server/auth/session`).
+- Étendre le catalogue + outils aux modules élèves, classes, notes, finances.
+- Squelette du moteur d'automatisations + environnement de simulation/dry-run.
+
+**En attente d'accès** : numéro WhatsApp dédié, clés LLM/STT, token Northflank.
+
+---
+
 ## 2026-10-31 — Audit Assiduité + cœur d'agent testé (code réel)
 
 **Examiné (code réel de guergne)**
