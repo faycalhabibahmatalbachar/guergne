@@ -14,6 +14,7 @@
 import { createServer } from "node:http";
 import QRCode from "qrcode";
 import { chmodSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { AuditLog } from "./src/audit.js";
 import { Agent } from "./src/engine.js";
