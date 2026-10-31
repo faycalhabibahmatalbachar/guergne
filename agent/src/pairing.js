@@ -25,7 +25,8 @@ export class Pairing {
     this._validiteMs = validiteMs;
     this._qr = null; // { valeur, emisLe }
     this._authentifie = false;
-    this._tentatives = []; // horodatages des échecs
+    this._tentatives = new Map(); // origine -> horodatages des échecs
+    this._brules = new Set(); // secrets déjà utilisés, jamais réacceptés
   }
 
   /** Le pairing n'est ouvert que s'il est configuré ET pas encore authentifié. */
@@ -43,16 +44,30 @@ export class Pairing {
     this._qr = { valeur, emisLe: this._horloge() };
   }
 
-  /** Session authentifiée : le QR est détruit et l'accès révoqué définitivement. */
+  /**
+   * Session authentifiée : le QR est détruit et le jeton **brûlé**.
+   *
+   * La révocation est définitive POUR CE SECRET. Une déconnexion ultérieure ne
+   * doit pas ressusciter un jeton déjà utilisé : il a pu circuler (copié,
+   * capturé dans une capture d'écran, laissé dans un presse-papier) et sa
+   * réutilisation rouvrirait l'appairage à quiconque le détient encore.
+   */
   marquerAuthentifie() {
     this._authentifie = true;
     this._qr = null;
+    this._brules.add(this._jeton);
+    this._jeton = null;
   }
 
-  /** Déconnexion : le pairing redevient possible. */
-  reinitialiser() {
+  /**
+   * Déconnexion WhatsApp. Le pairing NE redevient PAS possible tout seul :
+   * il faut fournir un nouveau secret, donc une nouvelle autorisation humaine.
+   */
+  reinitialiser({ nouveauJeton = null } = {}) {
     this._authentifie = false;
     this._qr = null;
+    if (nouveauJeton && !this._brules.has(nouveauJeton)) this._jeton = nouveauJeton;
+    else this._jeton = null; // sans secret neuf, l'appairage reste fermé
   }
 
   get expire() {
@@ -84,21 +99,29 @@ export class Pairing {
    * Vérifie un jeton, à temps constant, avec limitation des tentatives.
    * @returns {{ok:true}|{ok:false, raison:"non_configure"|"trop_de_tentatives"|"invalide"|"revoque"}}
    */
-  verifier(fourni) {
-    if (!this._jeton) return { ok: false, raison: "non_configure" };
+  verifier(fourni, { origine = "inconnue" } = {}) {
     if (this._authentifie) return { ok: false, raison: "revoque" };
+    if (!this._jeton) return { ok: false, raison: "non_configure" };
+    if (this._brules.has(String(fourni ?? ""))) return { ok: false, raison: "revoque" };
 
     const t = this._horloge();
-    this._tentatives = this._tentatives.filter((x) => t - x < FENETRE_TENTATIVES_MS);
-    if (this._tentatives.length >= TENTATIVES_MAX) return { ok: false, raison: "trop_de_tentatives" };
+    // Comptage PAR ORIGINE : un seul attaquant ne doit pas pouvoir verrouiller
+    // l'appairage pour le personnel légitime.
+    const passees = (this._tentatives.get(origine) ?? []).filter((x) => t - x < FENETRE_TENTATIVES_MS);
+    if (passees.length >= TENTATIVES_MAX) {
+      this._tentatives.set(origine, passees);
+      return { ok: false, raison: "trop_de_tentatives" };
+    }
 
     const a = Buffer.from(String(fourni ?? ""));
     const b = Buffer.from(this._jeton);
     const valide = a.length === b.length && timingSafeEqual(a, b);
     if (!valide) {
-      this._tentatives.push(t);
+      passees.push(t);
+      this._tentatives.set(origine, passees);
       return { ok: false, raison: "invalide" };
     }
+    this._tentatives.delete(origine);
     return { ok: true };
   }
 }

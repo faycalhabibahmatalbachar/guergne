@@ -23,15 +23,15 @@ test("un jeton valide est accepté, un jeton faux est refusé", () => {
 
 test("les tentatives répétées sont bloquées", () => {
   const { p } = creer();
-  for (let i = 0; i < 10; i++) p.verifier("faux");
-  assert.deepEqual(p.verifier(JETON), { ok: false, raison: "trop_de_tentatives" });
+  for (let i = 0; i < 10; i++) p.verifier("faux", { origine: "x" });
+  assert.deepEqual(p.verifier(JETON, { origine: "x" }), { ok: false, raison: "trop_de_tentatives" });
 });
 
 test("la fenêtre de limitation se purge avec le temps", () => {
   const { p, avance } = creer();
-  for (let i = 0; i < 10; i++) p.verifier("faux");
+  for (let i = 0; i < 10; i++) p.verifier("faux", { origine: "x" });
   avance(6 * 60_000);
-  assert.equal(p.verifier(JETON).ok, true);
+  assert.equal(p.verifier(JETON, { origine: "x" }).ok, true);
 });
 
 test("l'état public ne contient JAMAIS la valeur du QR", () => {
@@ -72,12 +72,45 @@ test("après authentification : QR détruit et accès révoqué", () => {
   assert.deepEqual(p.verifier(JETON), { ok: false, raison: "revoque" });
 });
 
-test("une déconnexion WhatsApp rouvre le pairing", () => {
+test("un jeton utilise est BRULE : la deconnexion ne le ressuscite pas", () => {
   const { p } = creer();
   p.marquerAuthentifie();
   p.reinitialiser();
+  assert.equal(p.actif, false, "sans secret neuf, l'appairage reste ferme");
+  assert.deepEqual(p.verifier(JETON), { ok: false, raison: "non_configure" });
+});
+
+test("un nouveau pairing exige un secret NEUF", () => {
+  const { p } = creer();
+  p.marquerAuthentifie();
+  p.reinitialiser({ nouveauJeton: "un-tout-nouveau-secret-xyz" });
   assert.equal(p.actif, true);
-  assert.equal(p.verifier(JETON).ok, true);
+  assert.equal(p.verifier("un-tout-nouveau-secret-xyz").ok, true);
+  // « revoque » et non « invalide » : l'ancien secret est connu ET brûlé, ce qui
+  // est une information plus juste qu'un simple rejet.
+  assert.deepEqual(p.verifier(JETON), { ok: false, raison: "revoque" });
+});
+
+test("rejouer un ancien jeton brule est refuse meme comme nouveau secret", () => {
+  const { p } = creer();
+  p.marquerAuthentifie();
+  p.reinitialiser({ nouveauJeton: JETON });
+  assert.equal(p.actif, false, "un secret deja utilise ne peut pas etre represente");
+});
+
+test("la limitation est PAR ORIGINE : un attaquant ne bloque pas le personnel", () => {
+  const { p } = creer();
+  for (let i = 0; i < 10; i++) p.verifier("faux", { origine: "1.2.3.4" });
+  assert.deepEqual(p.verifier("faux", { origine: "1.2.3.4" }), { ok: false, raison: "trop_de_tentatives" });
+  assert.equal(p.verifier(JETON, { origine: "5.6.7.8" }).ok, true, "une autre origine reste servie");
+});
+
+test("un succes efface le compteur de l'origine", () => {
+  const { p } = creer();
+  for (let i = 0; i < 5; i++) p.verifier("faux", { origine: "a" });
+  assert.equal(p.verifier(JETON, { origine: "a" }).ok, true);
+  for (let i = 0; i < 9; i++) p.verifier("faux", { origine: "a" });
+  assert.equal(p.verifier(JETON, { origine: "a" }).ok, true, "le compteur doit avoir ete remis a zero");
 });
 
 test("le jeton aléatoire est assez long et sûr pour une URL", () => {
