@@ -4,6 +4,45 @@ Avancement mesurable et daté. Entrée la plus récente en haut.
 
 ---
 
+## 2026-10-31 — Audit Assiduité + cœur d'agent testé (code réel)
+
+**Examiné (code réel de guergne)**
+- `web/src/app/(main)/dashboard/assiduite/actions.ts` : `enregistrerAppel`,
+  `enregistrerRetard`, `justifierEnLot`, `supprimerAbsence`, `signalerIncident`,
+  `prononcerSanction`, `marquerSanctionExecutee` — avec leurs schémas et règles.
+- `web/src/server/domain/vie-scolaire.ts` : lectures (`listerAbsences`, `listerAlertes`,
+  `listerRetards`, `listerIncidents`, `listerSanctions`, `statistiquesVieScolaire`…).
+- `web/src/server/guard` : `requirePermission` (AUTH → RÔLE → PÉRIMÈTRE), autorité réelle.
+- Permissions réelles : `assiduite:lire|saisir|justifier`, `retard:saisir`,
+  `discipline:signaler|sanctionner`, `eleve:exclure`.
+
+**Produit (code)**
+- Nouveau service `agent/` (Node ESM, sans dépendance) : `provider`, `normalize`,
+  `identity`, `idempotency`, `audit`, `guard`, `tools` (outils Assiduité), `engine`.
+- Tests `agent/test/` : **18 tests, 18 passent** (`node --test`).
+- Doc `CATALOGUE_OUTILS_AGENT.md` (Assiduité : outils, scénarios, validations, tests).
+
+**Preuves**
+- `cd agent && node --test` → `tests 18 / pass 18 / fail 0`.
+- Scénarios couverts : refus numéro inconnu, idempotence, écriture tracée avant/après,
+  droit manquant bloqué, params invalides sans écriture, suppression sensible confirmée,
+  annulation, clarification, transcription vocale, échec backend non maquillé en réussite.
+
+**Bloqué / en attente d'accès**
+- **Push de la branche** `ai-school-agent-p0-audit` : refusé par le classifieur du mode
+  auto de l'outil (« Out-of-Place Publication »), bien qu'autorisé par l'utilisateur.
+  Commits présents en local ; à pousser via approbation ou `git push` manuel.
+- Branchement réel (whatsapp-web.js, STT Whisper, client HTTP guergne, LLM, stores Neon)
+  en attente des accès correspondants (numéro dédié, clés, API agent côté guergne).
+
+**Prochaines tâches (auto-enchaînées)**
+- Implémenter le client guergne réel (HTTP) + décider API mobile vs API agent dédiée.
+- Brancher le NLU (interpret) et le STT derrière les interfaces.
+- Étendre le catalogue aux autres modules (élèves, classes, notes, finances…).
+- Débloquer Northflank pour l'infra.
+
+---
+
 ## 2026-10-31 — P0 : décision transport + socle de spécification
 
 **Décidé**

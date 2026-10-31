@@ -23,7 +23,9 @@
 | [CAHIER_DES_CHARGES_COMPLET.md](CAHIER_DES_CHARGES_COMPLET.md) | Spécification fonctionnelle et technique | ✅ v0.1 (socle) |
 | [ARCHITECTURE_WHATSAPP.md](ARCHITECTURE_WHATSAPP.md) | Provider, session, concurrence | ✅ Rédigé |
 | ARCHITECTURE_TECHNIQUE.md | Architecture cible d'ensemble | ⏳ À venir |
-| CATALOGUE_OUTILS_AGENT.md / MATRICE_PERMISSIONS.md | Registre d'outils métier et permissions | ⏳ À venir |
+| [CATALOGUE_OUTILS_AGENT.md](CATALOGUE_OUTILS_AGENT.md) | Registre d'outils métier (Assiduité détaillé) | ✅ Assiduité |
+| MATRICE_PERMISSIONS.md | Matrice rôles → permissions | ⏳ À venir |
+| [Service `agent/`](../../agent/README.md) | Cœur de l'agent (code + tests, 18/18) | ✅ Cœur testé |
 | SECURITE_ET_AUDIT.md / OBSERVABILITE.md | Sécurité, traçabilité, observabilité | ⏳ À venir |
 | ENVIRONNEMENT_TEST.md / PLAN_DE_TESTS.md | Simulation, dry-run, stratégie de tests | ⏳ À venir |
 | AUTOMATISATIONS.md | Moteur d'automatisations | ⏳ À venir |

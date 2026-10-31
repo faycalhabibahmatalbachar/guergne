@@ -1,0 +1,10 @@
+{
+  "name": "school-ai-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Agent de pilotage de la plateforme guergne par WhatsApp (coeur indépendant du transport).",
+  "scripts": {
+    "test": "node --test"
+  }
+}
