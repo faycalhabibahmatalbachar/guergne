@@ -31,6 +31,69 @@ function nettoyerVerrousChrome(dossierSession, clientId) {
   }
 }
 
+
+/**
+ * Configuration Chromium, reprise de `moov-ai/index.js`.
+ *
+ * Cette liste n'est pas décorative : elle est le produit d'incidents de
+ * production réels sur ce même transport. On la réutilise plutôt que de la
+ * redécouvrir par les mêmes pannes.
+ *
+ * CE QUI N'EST PAS REPRIS, ET POURQUOI
+ * ------------------------------------
+ * `moov-ai` ajoute `--single-process`, `--no-zygote` et un tas JavaScript
+ * plafonné à 80 Mo. C'est un compromis imposé par Render Starter (512 Mo), où
+ * Chromium multi-process déclenchait des OOM en pleine navigation
+ * (« Execution context was destroyed »). Altare offre **2 Gio** : appliquer ce
+ * bridage ici dégraderait les performances sans aucun bénéfice. Il reste
+ * activable par `CHROME_SINGLE_PROCESS=true` si la mémoire venait à manquer.
+ *
+ * `--blink-settings=imagesEnabled=false` est volontairement ABSENT : il
+ * économise de la mémoire mais **casse l'envoi de médias image** — piège
+ * documenté dans moov-ai, où la photo ne partait plus.
+ */
+const ARGS_CHROME = [
+  // Indispensables en conteneur : pas de namespace de sandbox, et un /dev/shm
+  // trop petit fait planter Chrome au bout de quelques pages.
+  "--no-sandbox",
+  "--disable-setuid-sandbox",
+  "--disable-dev-shm-usage",
+  // Aucun GPU dans un conteneur : tout rendu accéléré est une source de crash.
+  "--disable-gpu",
+  "--disable-software-rasterizer",
+  "--disable-accelerated-2d-canvas",
+  // Surface inutile pour un client WhatsApp : autant ne pas la charger.
+  "--disable-extensions",
+  "--disable-default-apps",
+  "--disable-background-networking",
+  "--disable-sync",
+  "--disable-translate",
+  "--disable-client-side-phishing-detection",
+  // Un onglet d'arrière-plan bridé fait expirer les requêtes de whatsapp-web.js.
+  "--disable-background-timer-throttling",
+  "--disable-renderer-backgrounding",
+  "--disable-backgrounding-occluded-windows",
+  "--disable-hang-monitor",
+  "--mute-audio",
+  "--hide-scrollbars",
+  "--no-first-run",
+  "--no-default-browser-check",
+  "--disable-blink-features=AutomationControlled",
+  "--window-size=800,600",
+  "--lang=fr-FR",
+  // Le cache disque ne sert à rien ici et remplit le volume persistant.
+  "--disk-cache-size=1",
+  "--media-cache-size=1",
+  "--aggressive-cache-discard",
+  "--disable-features=TranslateUI,BlinkGenPropertyTrees",
+];
+
+// Repli pour environnement contraint, hérité de moov-ai : à n'activer que si
+// la mémoire manque réellement.
+if (String(process.env.CHROME_SINGLE_PROCESS || "false").toLowerCase() === "true") {
+  ARGS_CHROME.push("--single-process", "--no-zygote", "--js-flags=--max-old-space-size=80 --expose-gc");
+}
+
 export class WwebjsProvider extends WhatsAppProvider {
   /**
    * @param dossierSession répertoire PERSISTANT (volume), jamais un FS éphémère
@@ -69,9 +132,7 @@ export class WwebjsProvider extends WhatsAppProvider {
       puppeteer: {
         headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        // Obligatoire en conteneur : pas de sandbox namespace, et /dev/shm trop
-        // petit fait planter Chrome au bout de quelques pages.
-        args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+        args: ARGS_CHROME,
       },
     });
 
