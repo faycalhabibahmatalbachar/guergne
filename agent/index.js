@@ -36,7 +36,9 @@ const requis = (c) => {
 
 const CONF = {
   donnees: env("DONNEES_DIR", "/home/container/donnees"),
-  port: Number(env("PORT", "8080")),
+  // Altare injecte le port alloué dans SERVER_PORT. On le préfère à PORT :
+  // écouter sur un autre port rendrait le point de santé injoignable.
+  port: Number(env("SERVER_PORT") ?? env("PORT", "8080")),
   apiEcole: requis("SCHOOL_API_BASE_URL"),
   jetonService: requis("AGENT_SERVICE_TOKEN"),
   cles: { groq: env("GROQ_API_KEY"), mistral: env("MISTRAL_API_KEY") },

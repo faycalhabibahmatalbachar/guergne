@@ -10,7 +10,8 @@
     "sante": "curl -s localhost:8080/sante"
   },
   "devDependencies": {
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "ssh2-sftp-client": "^12.1.1"
   },
   "main": "index.js",
   "engines": {
