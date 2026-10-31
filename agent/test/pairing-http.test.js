@@ -60,7 +60,9 @@ async function monter(pairing) {
         return;
       }
       if (url === "/pairing/etat") {
-        if (!autorise(req, res)) return;
+        // Meme regle que app.js : apres authentification l'etat n'est plus
+        // sensible, il est donc servi sans jeton (qui reste brule).
+        if (!pairing.authentifie && !autorise(req, res)) return;
         res.writeHead(200, entetesSurs({ "content-type": "application/json" })).end(JSON.stringify(pairing.etat()));
         return;
       }

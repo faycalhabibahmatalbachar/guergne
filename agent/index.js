@@ -1,246 +1,153 @@
 /**
- * Point d'entrée du service — c'est le fichier que le démarrage Altare attend.
+ * Amorçage du service — le fichier que le panneau Altare lance réellement.
  *
- * Son absence expliquait les échecs de lancement constatés : la configuration
- * pointait sur `index.js` alors qu'aucun n'existait.
+ * POURQUOI CE FICHIER EXISTE
+ * ---------------------------
+ * Le panneau exécute `node /home/container/index.js`, et ce champ s'est révélé
+ * impossible à modifier de façon fiable. Une commande de démarrage élaborée
+ * (installation conditionnelle des dépendances, téléchargement de Chromium)
+ * n'était donc jamais appliquée, et le service échouait sur
+ * `ERR_MODULE_NOT_FOUND: Cannot find package 'qrcode'`.
  *
- * Ordre de démarrage, délibéré :
- *   1. configuration (échouer tôt si un secret manque, pas au premier message) ;
- *   2. verrou d'instance (avant WhatsApp : deux instances font bannir le numéro) ;
- *   3. dépendances sans effet de bord (IA, client métier, registre d'outils) ;
- *   4. serveur de santé ;
- *   5. WhatsApp en dernier, une fois tout le reste prêt à recevoir.
+ * La préparation est donc déplacée là où nous avons réellement la main : dans
+ * le code lui-même, déposé par SFTP. L'amorçage installe ce qui manque, vérifie
+ * que c'est vraiment là, puis passe la main à l'application (`app.js`).
+ *
+ * CONTRAINTE : ce fichier ne peut importer AUCUNE dépendance npm — elles ne
+ * sont pas encore garanties présentes. Uniquement des modules Node natifs.
  */
-import { createServer } from "node:http";
-import QRCode from "qrcode";
-import { mkdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, readdirSync, writeFileSync, unlinkSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { AuditLog } from "./src/audit.js";
-import { Agent } from "./src/engine.js";
-import { GuergneHttpClient } from "./src/guergne-client.js";
-import { IdentityStore } from "./src/identity.js";
-import { MoteurIA } from "./src/ia.js";
-import { Pairing, pageAppairage } from "./src/pairing.js";
-import { MatricePermissions } from "./src/permissions-matrix.js";
-import { DedupPersistant, VerrouInstance, cheminsPersistants } from "./src/persistance.js";
-import { WwebjsProvider } from "./src/providers/wwebjs.js";
-import { ASSIDUITE_TOOLS, ToolRegistry } from "./src/tools.js";
+const racine = dirname(fileURLToPath(import.meta.url));
+const log = (m) => console.log(`[amorcage] ${m}`);
+const erreur = (m) => console.error(`[amorcage] ${m}`);
 
-const env = (c, defaut = undefined) => process.env[c] ?? defaut;
-const requis = (c) => {
-  const v = process.env[c];
-  if (!v) {
-    console.error(`[config] variable obligatoire manquante : ${c}`);
+/** Dépendances sans lesquelles l'application ne peut pas démarrer. */
+const REQUISES = ["qrcode", "whatsapp-web.js", "puppeteer"];
+
+const manquantes = () => REQUISES.filter((d) => !existsSync(join(racine, "node_modules", d)));
+
+/**
+ * Installation conditionnelle, pilotée par l'empreinte du lockfile.
+ *
+ * Réinstaller à chaque redémarrage coûterait plusieurs minutes et retarderait
+ * d'autant la reconnexion WhatsApp. Un témoin `.deps-<empreinte>` mémorise
+ * l'état déjà installé ; l'installation ne se refait que si le lockfile change.
+ */
+function installerDependances() {
+  const lock = join(racine, "package-lock.json");
+  if (!existsSync(lock)) {
+    erreur("package-lock.json introuvable : installation impossible");
     process.exit(1);
   }
-  return v;
-};
+  const empreinte = createHash("sha256").update(readFileSync(lock)).digest("hex").slice(0, 16);
+  const temoin = join(racine, `.deps-${empreinte}`);
 
-const CONF = {
-  donnees: env("DONNEES_DIR", "/home/container/donnees"),
-  // Altare injecte le port alloué dans SERVER_PORT. On le préfère à PORT :
-  // écouter sur un autre port rendrait le point de santé injoignable.
-  port: Number(env("SERVER_PORT") ?? env("PORT", "8080")),
-  apiEcole: requis("SCHOOL_API_BASE_URL"),
-  jetonService: requis("AGENT_SERVICE_TOKEN"),
-  cles: { groq: env("GROQ_API_KEY"), mistral: env("MISTRAL_API_KEY") },
-};
+  if (existsSync(temoin) && manquantes().length === 0) {
+    log("dependances deja installees (lockfile inchange)");
+    return;
+  }
 
-const chemins = cheminsPersistants(CONF.donnees);
-mkdirSync(chemins.racine, { recursive: true });
+  log(`installation des dependances (lockfile ${empreinte})...`);
+  // `--omit=dev` : pas de dépendances de test en production.
+  // `--ignore-scripts` : le postinstall de Puppeteer est bloqué de toute façon ;
+  // le navigateur est installé juste après par son binaire dédié, ce qui
+  // n'autorise que ce téléchargement précis.
+  const r = spawnSync("npm", ["ci", "--omit=dev", "--ignore-scripts"], {
+    cwd: racine,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  });
+  if (r.status !== 0) {
+    erreur(`npm ci a echoue (code ${r.status})`);
+    process.exit(1);
+  }
 
-// --- Verrou avant toute connexion WhatsApp ---------------------------------
-const verrou = new VerrouInstance({ chemin: chemins.verrou });
-const prise = verrou.acquerir();
-if (!prise.ok) {
-  console.error(
-    `[verrou] une autre instance (pid ${prise.detenuPar}) utilise deja la session ; ` +
-      `arret pour ne pas faire bannir le numero.`,
-  );
-  process.exit(1);
-}
-const battement = setInterval(() => verrou.rafraichir(), 20_000);
-battement.unref?.();
-
-// --- Dépendances ------------------------------------------------------------
-const audit = new AuditLog((e) =>
-  console.log(JSON.stringify({ ts: e.at, type: "audit", run: e.runId, intent: e.intent, result: e.result })),
-);
-const ia = new MoteurIA({
-  cles: CONF.cles,
-  journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
-});
-const guergne = new GuergneHttpClient({ baseUrl: CONF.apiEcole, serviceToken: CONF.jetonService });
-const outils = new ToolRegistry(ASSIDUITE_TOOLS);
-
-// L'association numéro → compte interne vit en base côté guergne. Tant que ce
-// point n'est pas branché, le magasin démarre vide : AUCUN numéro n'est reconnu,
-// donc aucune opération n'est possible. C'est le défaut sûr.
-const identites = new IdentityStore();
-
-// `Pairing` est l'UNIQUE autorité sur le cycle de vie du QR : pas de variable
-// parallèle qui pourrait diverger de son état.
-const pairing = new Pairing({ jeton: env("PAIRING_TOKEN") || null });
-
-const provider = new WwebjsProvider({
-  dossierSession: chemins.session,
-  // Le QR ne passe jamais par les journaux : il est remis directement au
-  // gestionnaire, qui seul décide de sa durée de vie.
-  surQr: (qr) => pairing.nouveauQr(qr),
-  // Session authentifiee : le QR est detruit et le jeton brule.
-  surPret: () => pairing.marquerAuthentifie(),
-  // Deconnexion : on NE rouvre PAS l'appairage. Sans secret neuf il reste
-  // ferme, pour qu'un ancien jeton ayant circule ne redevienne jamais valide.
-  surDeconnexion: () => pairing.reinitialiser(),
-  journal: console,
-});
-
-const agent = new Agent({
-  provider,
-  identity: identites,
-  idempotency: new DedupPersistant({ chemin: chemins.dedup }),
-  audit,
-  tools: outils,
-  permissions: new MatricePermissions(),
-  guergne,
-  interpret: async (texte) => {
-    const catalogue = outils.all().map((t) => `${t.name} (${t.sensitivity})`).join(", ");
-    const r = await ia.completerJson([
-      {
-        role: "system",
-        content:
-          `Tu choisis UN outil parmi : ${catalogue}. ` +
-          `Reponds en JSON {"tool":"<nom>","params":{}}. ` +
-          `Si la demande est ambigue ou incomplete, reponds {"clarify":"<question>"}.`,
-      },
-      { role: "user", content: texte },
-    ]);
-    return r.objet ?? { clarify: "Je n'ai pas compris la demande." };
-  },
-  transcribe: async (media) => (media ? (await ia.transcrire(media.data ?? media)).texte : ""),
-});
-
-provider.onMessage((msg) => agent.handle(msg));
-
-// --- Santé : un processus vivant ne signifie pas que WhatsApp fonctionne ----
-/** En-têtes communs : rien de ce qui touche à l'appairage ne doit être mis en cache. */
-function entetesSurs(extra = {}) {
-  return {
-    "cache-control": "no-store, no-cache, must-revalidate, private",
-    pragma: "no-cache",
-    "referrer-policy": "no-referrer",
-    "x-content-type-options": "nosniff",
-    "x-frame-options": "DENY",
-    ...extra,
-  };
+  // On purge les anciens témoins : un retour arrière doit réinstaller.
+  for (const f of readdirSync(racine)) {
+    if (f.startsWith(".deps-")) {
+      try {
+        unlinkSync(join(racine, f));
+      } catch {
+        /* sans importance */
+      }
+    }
+  }
+  writeFileSync(temoin, empreinte, "utf8");
 }
 
 /**
- * Origine de la requête, pour la limitation par adresse.
- *
- * `X-Forwarded-For` est trivialement falsifiable : on ne s'y fie que si le
- * service est explicitement déclaré derrière un proxy de confiance. Sinon on
- * prend l'adresse de la socket, qui ne se falsifie pas.
+ * Chromium. La présence du dossier ne prouve rien : on vérifie qu'un exécutable
+ * existe réellement, sinon `whatsapp-web.js` échouera au premier message.
  */
-const DERRIERE_PROXY = String(env("TRUST_PROXY", "false")).toLowerCase() === "true";
-function origineDe(req) {
-  if (DERRIERE_PROXY) {
-    const xff = req.headers["x-forwarded-for"];
-    if (typeof xff === "string" && xff.length) return xff.split(",")[0].trim();
+function cheminChromium(cache) {
+  const base = join(cache, "chrome");
+  if (!existsSync(base)) return null;
+  for (const version of readdirSync(base)) {
+    for (const rel of [
+      ["chrome-linux64", "chrome"],
+      ["chrome-linux", "chrome"],
+      ["chrome-win64", "chrome.exe"],
+    ]) {
+      const p = join(base, version, ...rel);
+      if (existsSync(p)) return p;
+    }
   }
-  return req.socket?.remoteAddress ?? "inconnue";
+  return null;
 }
 
-/** Vérifie le jeton d'appairage. Ni le jeton ni la raison du refus ne sont journalisés. */
-function autorise(req, res) {
-  const r = pairing.verifier(req.headers["x-pairing-token"], { origine: origineDe(req) });
-  if (r.ok) return true;
-  const code = r.raison === "trop_de_tentatives" ? 429 : r.raison === "revoque" ? 410 : 401;
-  res.writeHead(code, entetesSurs({ "content-type": "application/json" }))
-    .end(JSON.stringify({ erreur: r.raison }));
-  return false;
-}
+function installerChromium() {
+  const cache = process.env.PUPPETEER_CACHE_DIR || join(racine, ".cache", "puppeteer");
+  process.env.PUPPETEER_CACHE_DIR = cache;
 
-createServer(async (req, res) => {
-  const url = (req.url || "").split("?")[0];
-
-  if (url.startsWith("/pairing")) {
-    if (req.method !== "GET") {
-      res.writeHead(405, entetesSurs({ allow: "GET" })).end();
-      return;
-    }
-
-    // La page elle-même ne contient aucun secret : le jeton arrive côté client
-    // par le fragment d'URL, que le navigateur n'envoie jamais au serveur.
-    if (url === "/pairing") {
-      const e = pairing.etat();
-      res.writeHead(200, entetesSurs({ "content-type": "text/html; charset=utf-8" }))
-        .end(pageAppairage({ etat: e.etat, resteMs: e.resteMs }));
-      return;
-    }
-
-    if (url === "/pairing/etat") {
-      // Une fois WhatsApp authentifie, seul l'etat non sensible reste public ;
-      // le QR et ses donnees restent inaccessibles et le jeton demeure brule.
-      if (!pairing.authentifie && !autorise(req, res)) return;
-      res.writeHead(200, entetesSurs({ "content-type": "application/json" }))
-        .end(JSON.stringify(pairing.etat()));
-      return;
-    }
-
-    if (url === "/pairing/qr") {
-      if (!autorise(req, res)) return;
-      const valeur = pairing.valeurCourante();
-      if (!valeur) {
-        res.writeHead(409, entetesSurs({ "content-type": "application/json" }))
-          .end(JSON.stringify({ erreur: pairing.etat().etat }));
-        return;
-      }
-      // Vrai QR lisible par WhatsApp, généré à la demande et jamais stocké.
-      const png = await QRCode.toBuffer(valeur, { type: "png", width: 512, margin: 2 });
-      res.writeHead(200, entetesSurs({ "content-type": "image/png", "content-length": png.length }))
-        .end(png);
-      return;
-    }
-
-    res.writeHead(404, entetesSurs()).end();
+  let chemin = cheminChromium(cache);
+  if (chemin) {
+    log(`Chromium deja present : ${chemin}`);
+    process.env.PUPPETEER_EXECUTABLE_PATH ||= chemin;
     return;
   }
 
-  if (url !== "/sante") {
-    res.writeHead(404, entetesSurs()).end();
-    return;
+  log("telechargement de Chromium (une seule fois)...");
+  const bin = join(racine, "node_modules", ".bin", process.platform === "win32" ? "puppeteer.cmd" : "puppeteer");
+  const r = spawnSync(bin, ["browsers", "install", "chrome"], {
+    cwd: racine,
+    stdio: "inherit",
+    env: { ...process.env, PUPPETEER_CACHE_DIR: cache },
+    shell: process.platform === "win32",
+  });
+  if (r.status !== 0) {
+    erreur(`installation de Chromium echouee (code ${r.status})`);
+    process.exit(1);
   }
-  const wa = provider.getConnectionStatus();
-  const corps = {
-    processus: "ok",
-    whatsapp: wa.state,
-    reconnexions: wa.reconnexions,
-    fournisseursIA: ia.etatFournisseurs,
-    attenteScanQr: wa.state === "qr",
-    appairage: pairing.etat().etat,
-    appairageOuvert: pairing.actif,
-    memoireMo: Math.round(process.memoryUsage().rss / 1024 / 1024),
-    tempsDeMarcheS: Math.round(process.uptime()),
-  };
-  const sain = wa.state === "ready" && ia.disponibles.length > 0;
-  res.writeHead(sain ? 200 : 503, { "content-type": "application/json" }).end(JSON.stringify(corps));
-}).listen(CONF.port, "0.0.0.0", () => console.log(`[sante] ecoute sur 0.0.0.0:${CONF.port}`));
 
-// --- Arrêt propre -----------------------------------------------------------
-async function arreter(signal) {
-  console.log(`[arret] ${signal} recu`);
-  clearInterval(battement);
-  try {
-    await provider.disconnect();
-  } finally {
-    verrou.liberer();
-    process.exit(0);
+  chemin = cheminChromium(cache);
+  if (!chemin) {
+    erreur("Chromium introuvable apres installation");
+    process.exit(1);
   }
+  log(`Chromium installe : ${chemin}`);
+  process.env.PUPPETEER_EXECUTABLE_PATH ||= chemin;
 }
-process.on("SIGTERM", () => arreter("SIGTERM"));
-process.on("SIGINT", () => arreter("SIGINT"));
 
-console.log("[demarrage] connexion WhatsApp...");
-await provider.connect();
-// Le QR est transmis directement à Pairing par le callback surQr ; aucun état parallèle ici.
+// --- Séquence d'amorçage ----------------------------------------------------
+log(`Node ${process.version} — ${racine}`);
+
+installerDependances();
+
+const restantes = manquantes();
+if (restantes.length > 0) {
+  // On refuse de démarrer une application incomplète : mieux vaut un échec
+  // explicite qu'un crash obscur au premier message reçu.
+  erreur(`dependances toujours absentes apres installation : ${restantes.join(", ")}`);
+  process.exit(1);
+}
+log(`dependances verifiees : ${REQUISES.join(", ")}`);
+
+installerChromium();
+
+log("demarrage de l'application");
+await import("./app.js");
