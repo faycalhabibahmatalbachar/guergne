@@ -241,4 +241,4 @@ process.on("SIGINT", () => arreter("SIGINT"));
 
 console.log("[demarrage] connexion WhatsApp...");
 await provider.connect();
-if (dernierQr) console.log("[demarrage] en attente du scan du QR");
+// Le QR est transmis directement à Pairing par le callback surQr ; aucun état parallèle ici.
