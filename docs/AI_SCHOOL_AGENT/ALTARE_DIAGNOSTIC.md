@@ -1,79 +1,71 @@
-# Diagnostic d'accès Altare — P0
+# Diagnostic d'accès Altare
 
-Relevé du 31 octobre 2026, 17:56 UTC. **Résultat : accès BLOQUÉ**, pour deux
-causes indépendantes, l'une et l'autre vérifiées et non supposées.
+Dernière vérification : 31 octobre 2026.
 
 ---
 
-## 1. Aucun identifiant Altare n'existe dans l'environnement
+## Rectificatif : la console est en ligne
 
-Recherche exhaustive, sans afficher aucune valeur :
+Un premier diagnostic n'avait testé que `panel.altare.gg` (Cloudflare **521**) et
+en avait conclu que l'infrastructure Altare était inaccessible. **C'était une
+conclusion trop large.** La véritable console de gestion est
+**`https://console.altare.gg`**, et elle **répond normalement**.
 
-| Source | Résultat |
-|---|---|
-| Variables d'environnement (`altare`, `pterodactyl`, `sftp`) | **aucune** |
-| `ai_apikey.env` | seulement `grok_api`, `mistral_ai` |
-| `web/.env.local` | aucune variable Altare |
-| Dépôt entier (`*.env`, `*.json`, `*.md`, `*.ts`, `*.mjs`) | **aucune mention** d'Altare ni de Pterodactyl |
+## Ce que la console révèle
 
-Il n'existe donc ni `ALTARE_CLIENT_API_TOKEN`, ni identifiants SFTP, ni URL de
-panneau configurée. Ces noms de variables figuraient dans le brief comme des
-propositions, et le brief précisait de ne pas les supposer existantes : la
-vérification confirme qu'elles n'existent pas.
+| Constat | Valeur | Preuve |
+|---|---|---|
+| État | **en ligne**, redirige vers `/login?from=/` | page chargée |
+| Logiciel | **Heliactyl Next 20.11.122** (`Copper Point`) | pied de page |
+| Backend API | **même origine** (`console.altare.gg`) | `/config.json` → `apiBaseUrl: "/"` |
+| CAPTCHA applicatif | **désactivé** | `/config.json` → `cap.enabled: false` |
+| Discord OAuth | activé | `/config.json` → `discordOAuthEnabled: true` |
 
-## 2. Le panneau Altare est hors service
+### Conséquence majeure : ce n'est pas Pterodactyl standard
 
-`https://panel.altare.gg` → **Cloudflare 521, « Web server is down »**
-(Ray ID `a5348a02088568db`, 2026-10-31 17:56:54 UTC). Cloudflare répond, mais le
-serveur d'origine ne renvoie aucune connexion.
+Heliactyl Next est un espace client **distinct** de Pterodactyl. Les routes de
+l'API Client Pterodactyl documentées dans le brief
+(`/api/client/servers/{server}`, `/resources`, `/websocket`, `/power`) **ne
+s'appliquent pas à cette console** — vérifié : dix chemins candidats
+(`/api/user`, `/api/v5/user`, `/api/client/servers`, `/api/servers`, …)
+renvoient tous **404**.
 
-En revanche `https://altare.gg` et son centre d'aide **répondent normalement** :
-la panne est limitée au panneau, elle n'est pas générale.
+L'analyse du bundle frontend (401 Ko) donne les **routes de l'interface**
+(`/server/{id}/console`, `/files`, `/network`, `/startup`, `/backups`,
+`/snapshots`, `/schedules`, `/activity`…) et un préfixe d'appel `/admin/servers`.
+Le point d'authentification vit dans un fragment chargé à la demande.
 
-Conséquence : même avec des identifiants, l'API Client Pterodactyl
-(`/api/client/servers/{server}`, `/resources`, `/websocket`, `/power`) et la
-page de gestion des clés (`/account/api`) sont injoignables tant que l'origine
-ne répond pas.
+`panel.altare.gg` reste en 521 ; c'est probablement le Pterodactyl sous-jacent,
+mais il est hors service et la console ne passe pas par lui côté navigateur.
 
-## 3. Ce que dit la documentation officielle
+## Le blocage réel, et lui seul
 
-D'après `altare.gg/en/help/getting-started/connect-with-sftp` :
+**Tout le reste exige une session authentifiée**, que je ne peux pas ouvrir :
+aucun identifiant Altare n'existe dans l'environnement (vérifié : variables,
+fichiers `.env`, dépôt entier), et je ne saisis pas de mot de passe à votre place.
 
-| Élément | Où l'obtenir |
-|---|---|
-| Hôte et port SFTP | **dans la console du serveur** |
-| Nom d'utilisateur | `name.serverid`, propre à chaque serveur, **dans la console** |
-| Mot de passe | **mot de passe SFTP global de l'équipe**, dans les réglages d'équipe |
+Je n'ai contourné aucune authentification, ni touché aux cookies, ni résolu de
+CAPTCHA.
 
-Les trois s'obtiennent uniquement depuis le panneau — celui qui est en 521.
-Le blocage est donc **double** : pas d'identifiants, et pas de panneau pour les lire.
+## Intervention minimale — une seule action
 
-> Note : `se-kna02.altare.global:25278` est l'adresse applicative affichée du
-> serveur. Ce n'est **pas** le point d'entrée SFTP, et la documentation ne permet
-> pas de le déduire. Je ne l'ai pas supposé.
+**Connectez-vous à `https://console.altare.gg` dans le panneau navigateur de
+cette session.** Le navigateur intégré conserve les sessions : une fois
+connecté, je peux enchaîner sans autre intervention —
 
-## 4. Ce qui reste vrai et exploitable
+1. ouvrir `lycee-whatsapp-gateway` et relever son identifiant réel, son état et ses ressources ;
+2. lire l'onglet **Network** : hôte et port SFTP, nom d'utilisateur `name.serverid` ;
+3. lire l'onglet **Startup** : image, commande de démarrage, variables ;
+4. créer une **clé API Client** (jamais une clé Application) si l'interface le permet ;
+5. déposer les secrets dans un fichier local ignoré par git — **jamais dans la conversation** ;
+6. tester l'API et le SFTP en lecture, puis déployer.
 
-- Le dépôt est sain : branche `ai-school-agent-p0-audit`, commit `6fa71d2`,
-  synchronisée avec `origin`, rien en attente.
-- Le backend scolaire, l'API agent, la branche Neon de test et la couche IA
-  (Groq + Mistral validés) fonctionnent et sont testés — voir les autres documents.
-- La passerelle WhatsApp peut être **écrite et testée en local** sans Altare :
-  seul son hébergement en dépend.
+Le mot de passe SFTP est **global à l'équipe** : à traiter comme un secret à
+privilèges élevés, donc à déposer dans le fichier local, pas à coller ici.
 
-## 5. Intervention minimale requise
+## Ce qui avance sans cet accès
 
-Pour débloquer, dans cet ordre :
-
-1. **Attendre le rétablissement de `panel.altare.gg`** (panne côté hébergeur, rien
-   à faire de notre côté ; la page d'état ou le support Altare renseignera).
-2. Une fois le panneau accessible, y relever **trois informations** depuis la page
-   Network/SFTP du serveur `lycee-whatsapp-gateway` : **hôte SFTP, port SFTP,
-   nom d'utilisateur** (`name.serverid`).
-3. Le **mot de passe SFTP d'équipe** (réglages d'équipe) — à déposer dans un
-   fichier local ignoré par git, jamais collé dans un message.
-4. Optionnellement, créer une **clé Client API** (jamais une clé Application ou
-   administrateur) pour piloter démarrage/arrêt/logs par script.
-
-Tant que ces éléments manquent, aucun transfert ni déploiement n'est possible, et
-je ne présenterai aucun déploiement comme effectué.
+La passerelle est écrite et testée hors ligne (66 tests) : provider
+`whatsapp-web.js`, persistance de session, déduplication, verrou d'instance,
+point d'entrée `index.js` et endpoint `/sante`. Seul l'hébergement attend la
+console.
