@@ -35,8 +35,20 @@ const ANNEE = "06c2249d-ecb6-475d-b5b1-b41af4bf4067"; // 2025-2026
 const PERIODE = "6bf40233-015e-4aae-a2ca-4f18f0c883a8"; // 1er Trimestre
 const AUJ = new Date().toISOString().slice(0, 10);
 
+// Priorité à la branche Neon de test : la campagne écrit et supprime, elle ne
+// doit jamais toucher la production. `web/.env.test.local` n'existe que si la
+// branche isolée a été créée.
+let urlTest = null;
+try {
+  const t = readFileSync(resolve(racine, "web/.env.test.local"), "utf8");
+  urlTest = (t.match(/^DATABASE_URL_TEST=(.*)$/m) || [])[1]?.trim().replace(/^["']|["']$/g, "");
+} catch {
+  /* pas de branche de test : on retombe sur la configuration locale */
+}
+console.log(urlTest ? "Base : branche Neon de TEST (isolée)" : "Base : configuration locale (.env.local)");
+
 const db = new pg.Client({
-  connectionString: g("DATABASE_URL_DIRECT") || g("DATABASE_URL"),
+  connectionString: urlTest || g("DATABASE_URL_DIRECT") || g("DATABASE_URL"),
   ssl: { rejectUnauthorized: false },
 });
 const q = async (sql, p = []) => (await db.query(sql, p)).rows;

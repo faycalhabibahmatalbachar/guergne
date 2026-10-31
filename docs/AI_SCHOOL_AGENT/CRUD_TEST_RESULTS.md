@@ -1,6 +1,6 @@
 # Résultats de la campagne CRUD + RBAC
 
-Exécutée le 2026-10-31 14:11 contre la base réelle,
+Exécutée le 2026-10-31 15:22 contre la base réelle,
 via `node agent/scripts/campagne-crud.mjs` (serveur local, API `/api/agent/*`).
 
 **42 / 42 tests réussis.**
@@ -48,7 +48,7 @@ comparaison des compteurs avant/après.
 | T26 | justification HTTP | `200` | `200` | ✅ PASS |
 | T27 | statut modifié en base | `JUSTIFIEE` | `JUSTIFIEE` | ✅ PASS |
 | T28 | motif enregistré | `certificat de test` | `certificat de test` | ✅ PASS |
-| T29 | auteur de la justification tracé | `aeaee956-f849-4b33-a16b-180192d48753` | `aeaee956-f849-4b33-a16b-180192d48753` | ✅ PASS |
+| T29 | auteur de la justification tracé | `414899a0-2347-4615-b7d0-10352408c704` | `414899a0-2347-4615-b7d0-10352408c704` | ✅ PASS |
 | T30 | audit « justifiee_en_lot » écrit | `1` | `1` | ✅ PASS |
 | T31 | justification > 200 refusée | `422` | `422` | ✅ PASS |
 | T32 | motif trop court refusé | `422` | `422` | ✅ PASS |
