@@ -99,11 +99,13 @@ export class WwebjsProvider extends WhatsAppProvider {
    * @param dossierSession répertoire PERSISTANT (volume), jamais un FS éphémère
    * @param surQr          callback(qr) — l'agent ne diffuse jamais le QR dans les logs publics
    */
-  constructor({ dossierSession, clientId = "lycee", surQr = null, journal = console } = {}) {
+  constructor({ dossierSession, clientId = "lycee", surQr = null, surPret = null, surDeconnexion = null, journal = console } = {}) {
     super();
     this._dossier = dossierSession;
     this._clientId = clientId;
     this._surQr = surQr;
+    this._surPret = surPret;
+    this._surDeconnexion = surDeconnexion;
     this._log = journal;
     this._client = null;
     this._etat = "disconnected";
@@ -144,6 +146,7 @@ export class WwebjsProvider extends WhatsAppProvider {
     this._client.on("ready", () => {
       this._etat = "ready";
       this._log.info?.("[whatsapp] session prete");
+      this._surPret?.();
     });
     this._client.on("auth_failure", (m) => {
       this._etat = "disconnected";
@@ -152,6 +155,7 @@ export class WwebjsProvider extends WhatsAppProvider {
     this._client.on("disconnected", async (raison) => {
       this._etat = "disconnected";
       this._log.warn?.("[whatsapp] deconnecte:", raison);
+      this._surDeconnexion?.(raison);
       await this.reconnect();
     });
     this._client.on("message", async (msg) => {

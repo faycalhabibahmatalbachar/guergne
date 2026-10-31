@@ -177,6 +177,7 @@ history.replaceState(null, "", location.pathname);
 const M = ${JSON.stringify(messages)};
 const $ = (i) => document.getElementById(i);
 let reste = ${resteMs};
+let urlCourante = null;
 async function rafraichir() {
   try {
     const r = await fetch("/pairing/etat", { headers: { "x-pairing-token": jeton }, cache: "no-store" });
@@ -190,6 +191,10 @@ async function rafraichir() {
       if (img.ok) {
         const b = await img.blob();
         const u = URL.createObjectURL(b);
+        // Liberer l'URL precedente : sans cela chaque rafraichissement laisse
+        // un Blob en memoire, et la page gonfle au fil des heures.
+        if (urlCourante) URL.revokeObjectURL(urlCourante);
+        urlCourante = u;
         $("qr").src = u; $("qr").hidden = false; $("vide").hidden = true;
       }
     } else { $("qr").hidden = true; $("vide").hidden = false; $("vide").textContent = M[e.etat] ?? ""; }
