@@ -188,14 +188,21 @@ test("un nouveau QR remplace l'ancien", async () => {
   }
 });
 
-test("après authentification : QR inaccessible et ancien jeton mort (410)", async () => {
+test("après authentification : statut visible, QR inaccessible et jeton brûlé", async () => {
   const p = new Pairing({ jeton: JETON });
   p.nouveauQr("2@x");
   p.marquerAuthentifie();
   const s = await monter(p);
   try {
+    // L'etat "connecte" ne contient aucun secret et reste consultable pour
+    // permettre a la page navigateur d'afficher le succes apres le scan.
+    const etat = await fetch(`${s.base}/pairing/etat`);
+    assert.equal(etat.status, 200);
+    const corps = await etat.json();
+    assert.equal(corps.etat, "authentifie");
+    assert.equal(corps.qrDisponible, false);
+    // Le jeton brûlé ne permet toujours jamais de récupérer le QR.
     assert.equal((await fetch(`${s.base}/pairing/qr`, avecJeton(JETON))).status, 410);
-    assert.equal((await fetch(`${s.base}/pairing/etat`, avecJeton(JETON))).status, 410);
   } finally {
     await s.fermer();
   }
