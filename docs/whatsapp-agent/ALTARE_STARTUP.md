@@ -69,3 +69,45 @@ Un processus Node qui démarre ne prouve rien. À contrôler un par un :
 5. QR accessible de façon sécurisée, jamais dans les logs ;
 6. session WhatsApp authentifiée après scan ;
 7. **redémarrage sans nouveau scan** — c'est la preuve que `donnees/wwebjs_auth` persiste.
+
+---
+
+## Commande définitive (31 octobre 2026)
+
+Le transfert a révélé que `qrcode` n'est pas installé côté serveur : le
+lockfile a changé depuis le dernier `npm install`. La commande doit donc
+installer les dépendances — **mais pas à chaque redémarrage**.
+
+```sh
+cd /home/container; set -eu; export PUPPETEER_CACHE_DIR=/home/container/.cache/puppeteer; S=$(sha256sum package-lock.json | cut -c1-16); [ -f .deps-$S ] || { npm ci --omit=dev --ignore-scripts && rm -f .deps-* && touch .deps-$S; }; [ -d "$PUPPETEER_CACHE_DIR/chrome" ] || ./node_modules/.bin/puppeteer browsers install chrome; exec node /home/container/index.js
+```
+
+### Ce que chaque partie garantit
+
+| Fragment | Rôle |
+|---|---|
+| `set -eu` | toute étape qui échoue arrête le démarrage — jamais d'agent à moitié installé |
+| `S=$(sha256sum package-lock.json ...)` | empreinte du lockfile : l'installation ne se refait que s'il a changé |
+| `[ -f .deps-$S ] \|\| { ... }` | installation **conditionnelle**, pas à chaque redémarrage |
+| `npm ci --omit=dev --ignore-scripts` | installation reproductible, sans dépendances de test, sans postinstall non maîtrisé |
+| `rm -f .deps-*` | purge des anciens témoins, pour qu'un retour arrière réinstalle bien |
+| `[ -d "$PUPPETEER_CACHE_DIR/chrome" ] \|\|` | Chromium installé seulement s'il manque (~150 Mo épargnés à chaque reboot) |
+| `exec node …` | Node devient PID 1 et reçoit `SIGTERM` : l'arrêt libère le verrou d'instance |
+
+`--ignore-scripts` écarte le postinstall de Puppeteer, qui serait de toute façon
+bloqué ; le navigateur est installé juste après par son binaire dédié, ce qui
+n'autorise que ce téléchargement et rien d'autre.
+
+### Variables à définir
+
+Outre celles déjà listées : **`PAIRING_TOKEN`**, longue et aléatoire. Sans elle,
+`Pairing` reste inactif et refuse tout accès — c'est le comportement voulu.
+
+### État du serveur au moment de ce relevé
+
+```
+index.js 9382 o · src/pairing.js 9171 o · src/providers/wwebjs.js 8767 o
+package-lock.json 106762 o · 6 fichiers verifies, 0 divergent
+node_modules/qrcode : ABSENT  -> npm ci requis
+donnees/wwebjs_auth : absente -> aucune session a preserver pour l'instant
+```
