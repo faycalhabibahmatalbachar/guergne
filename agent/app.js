@@ -13,14 +13,14 @@
  */
 import { createServer } from "node:http";
 import QRCode from "qrcode";
-import { mkdirSync } from "node:fs";
+import { chmodSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 
 import { AuditLog } from "./src/audit.js";
 import { Agent } from "./src/engine.js";
 import { GuergneHttpClient } from "./src/guergne-client.js";
 import { IdentityStore } from "./src/identity.js";
 import { MoteurIA } from "./src/ia.js";
-import { Pairing, pageAppairage } from "./src/pairing.js";
+import { Pairing, jetonAleatoire, pageAppairage } from "./src/pairing.js";
 import { MatricePermissions } from "./src/permissions-matrix.js";
 import { DedupPersistant, VerrouInstance, cheminsPersistants } from "./src/persistance.js";
 import { WwebjsProvider } from "./src/providers/wwebjs.js";
@@ -41,8 +41,9 @@ const CONF = {
   // Altare injecte le port alloué dans SERVER_PORT. On le préfère à PORT :
   // écouter sur un autre port rendrait le point de santé injoignable.
   port: Number(env("SERVER_PORT") ?? env("PORT", "8080")),
-  apiEcole: requis("SCHOOL_API_BASE_URL"),
-  jetonService: requis("AGENT_SERVICE_TOKEN"),
+  // Le backend scolaire peut être raccordé après la première liaison WhatsApp.
+  apiEcole: env("SCHOOL_API_BASE_URL"),
+  jetonService: env("AGENT_SERVICE_TOKEN"),
   cles: { groq: env("GROQ_API_KEY"), mistral: env("MISTRAL_API_KEY") },
 };
 
@@ -66,11 +67,28 @@ battement.unref?.();
 const audit = new AuditLog((e) =>
   console.log(JSON.stringify({ ts: e.at, type: "audit", run: e.runId, intent: e.intent, result: e.result })),
 );
-const ia = new MoteurIA({
-  cles: CONF.cles,
-  journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
-});
-const guergne = new GuergneHttpClient({ baseUrl: CONF.apiEcole, serviceToken: CONF.jetonService });
+const iaConfiguree = Boolean(CONF.cles.groq || CONF.cles.mistral);
+const backendConfigure = Boolean(CONF.apiEcole && CONF.jetonService);
+
+// Le transport WhatsApp et l'appairage démarrent sans IA ni API.
+// Toute action scolaire échoue explicitement tant que le backend n'est pas branché.
+const ia = iaConfiguree
+  ? new MoteurIA({
+      cles: CONF.cles,
+      journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+    })
+  : null;
+const guergne = backendConfigure
+  ? new GuergneHttpClient({ baseUrl: CONF.apiEcole, serviceToken: CONF.jetonService })
+  : new Proxy({}, {
+      get: (_cible, propriete) => {
+        if (propriete === "snapshot") return undefined;
+        return async () => ({
+          ok: false,
+          message: "Backend scolaire non configuré : opération indisponible.",
+        });
+      },
+    });
 const outils = new ToolRegistry(ASSIDUITE_TOOLS);
 
 // L'association numéro → compte interne vit en base côté guergne. Tant que ce
@@ -80,7 +98,18 @@ const identites = new IdentityStore();
 
 // `Pairing` est l'UNIQUE autorité sur le cycle de vie du QR : pas de variable
 // parallèle qui pourrait diverger de son état.
-const pairing = new Pairing({ jeton: env("PAIRING_TOKEN") || null });
+// Secret de liaison neuf à chaque démarrage, jamais écrit dans les journaux ni servi en HTTP.
+const fichierJetonPairing = join(chemins.racine, "PAIRING_TOKEN.txt");
+function nouveauJetonPairing() {
+  const jeton = jetonAleatoire();
+  writeFileSync(fichierJetonPairing, jeton + "\n", { mode: 0o600 });
+  try { chmodSync(fichierJetonPairing, 0o600); } catch { /* permissions best effort */ }
+  return jeton;
+}
+function retirerJetonPairing() {
+  try { unlinkSync(fichierJetonPairing); } catch { /* absent = normal */ }
+}
+const pairing = new Pairing({ jeton: nouveauJetonPairing() });
 
 const provider = new WwebjsProvider({
   dossierSession: chemins.session,
@@ -88,10 +117,12 @@ const provider = new WwebjsProvider({
   // gestionnaire, qui seul décide de sa durée de vie.
   surQr: (qr) => pairing.nouveauQr(qr),
   // Session authentifiee : le QR est detruit et le jeton brule.
-  surPret: () => pairing.marquerAuthentifie(),
-  // Deconnexion : on NE rouvre PAS l'appairage. Sans secret neuf il reste
-  // ferme, pour qu'un ancien jeton ayant circule ne redevienne jamais valide.
-  surDeconnexion: () => pairing.reinitialiser(),
+  surPret: () => {
+    pairing.marquerAuthentifie();
+    retirerJetonPairing(); // le secret n'est plus nécessaire après le scan
+  },
+  // Chaque déconnexion ouvre un nouveau cycle avec un secret neuf.
+  surDeconnexion: () => pairing.reinitialiser({ nouveauJeton: nouveauJetonPairing() }),
   journal: console,
 });
 
@@ -104,6 +135,7 @@ const agent = new Agent({
   permissions: new MatricePermissions(),
   guergne,
   interpret: async (texte) => {
+    if (!ia) throw new Error("Aucun fournisseur IA configuré : compréhension indisponible.");
     const catalogue = outils.all().map((t) => `${t.name} (${t.sensitivity})`).join(", ");
     const r = await ia.completerJson([
       {
@@ -117,7 +149,10 @@ const agent = new Agent({
     ]);
     return r.objet ?? { clarify: "Je n'ai pas compris la demande." };
   },
-  transcribe: async (media) => (media ? (await ia.transcrire(media.data ?? media)).texte : ""),
+  transcribe: async (media) => {
+    if (!ia) throw new Error("Aucun fournisseur IA configuré : transcription indisponible.");
+    return media ? (await ia.transcrire(media.data ?? media)).texte : '';
+  },
 });
 
 provider.onMessage((msg) => agent.handle(msg));
@@ -216,14 +251,15 @@ createServer(async (req, res) => {
     processus: "ok",
     whatsapp: wa.state,
     reconnexions: wa.reconnexions,
-    fournisseursIA: ia.etatFournisseurs,
+    fournisseursIA: ia?.etatFournisseurs ?? {},
+    configuration: { backend: backendConfigure, ia: Boolean(ia) },
     attenteScanQr: wa.state === "qr",
     appairage: pairing.etat().etat,
     appairageOuvert: pairing.actif,
     memoireMo: Math.round(process.memoryUsage().rss / 1024 / 1024),
     tempsDeMarcheS: Math.round(process.uptime()),
   };
-  const sain = wa.state === "ready" && ia.disponibles.length > 0;
+  const sain = wa.state === "ready" && Boolean(ia?.disponibles.length) && backendConfigure;
   res.writeHead(sain ? 200 : 503, { "content-type": "application/json" }).end(JSON.stringify(corps));
 }).listen(CONF.port, "0.0.0.0", () => console.log(`[sante] ecoute sur 0.0.0.0:${CONF.port}`));
 
