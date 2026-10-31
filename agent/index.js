@@ -26,6 +26,18 @@ const racine = dirname(fileURLToPath(import.meta.url));
 const log = (m) => console.log(`[amorcage] ${m}`);
 const erreur = (m) => console.error(`[amorcage] ${m}`);
 
+/** Charge les secrets locaux hors Git (Altare ne présente pas ces variables dans son egg). */
+const fichierEnv = join(racine, ".env");
+if (existsSync(fichierEnv)) {
+  try {
+    process.loadEnvFile(fichierEnv);
+    log("configuration privee .env chargee");
+  } catch (e) {
+    erreur(`chargement de .env impossible : ${e.message}`);
+    process.exit(1);
+  }
+}
+
 /** Dépendances sans lesquelles l'application ne peut pas démarrer. */
 const REQUISES = ["qrcode", "whatsapp-web.js", "puppeteer"];
 
