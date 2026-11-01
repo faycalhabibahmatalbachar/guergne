@@ -10,6 +10,96 @@ Aucune clé, aucun numéro complet et aucune donnée scolaire réelle ne figure 
 
 ---
 
+## 0 bis. Incident « l'agent ne répond plus » — le silence
+
+Après la correction d'identité, le refus « Numéro non autorisé » a cessé — et
+**plus aucune réponse n'est arrivée**. Aucune ligne `identity_resolution`,
+aucun appel IA, aucun envoi. Le processus paraissait sain, `/sante` répondait,
+WhatsApp était `ready`.
+
+### A. Cause racine
+
+**Ce n'était pas une exception** — celles-là étaient attrapées et journalisées.
+C'était une **promesse qui ne se résout jamais**.
+
+`getContactLidAndPhone`, introduit pour résoudre les identifiants LID, traverse
+Puppeteer jusqu'à la page WhatsApp, qui interroge le réseau. Si cette requête
+reste en suspens, le traitement du message reste en suspens avec elle, **pour
+toujours**. Rien ne le signale : ni erreur, ni délai, ni trace.
+
+Le changement de symptôme le prouve. Avant, le refus arrivait — donc l'envoi
+fonctionnait. Après, silence total — donc le message se perdait **avant**
+l'envoi, dans du code qui venait d'être ajouté, et sur le seul chemin nouveau :
+la résolution LID, placée juste avant le journal d'identification.
+
+**Une attente sans borne est un échec qui ne dit pas son nom.**
+
+### B. Correctifs
+
+| Fichier | Correctif |
+|---|---|
+| `src/delai.js` *(nouveau)* | `avecDelai` borne toute dépendance externe. `defaut` n'absorbe **que** le dépassement : masquer une vraie erreur recréerait le problème. Le minuteur est toujours nettoyé. |
+| `src/providers/wwebjs.js` | Résolution LID bornée à 10 s, envoi à 30 s. Journaux `message_received`, `message_normalized`, `handler_started/completed/error`, `reply_started/accepted/failed`. |
+| `src/engine.js` | Enveloppe qui garantit **toujours** une réponse ; revendication de déduplication relâchée si l'échec précède toute action métier ; commande `TEST AGENT`. |
+| `src/persistance.js`, `src/idempotency.js` | `oublier(id)` — relâcher une revendication, et que cela survive au redémarrage. |
+| `app.js` | Journal d'étape corrélé et état des dépendances pour le diagnostic. |
+
+**Un message obtient désormais toujours une réponse.** Pour l'utilisateur, le
+silence et la panne se ressemblent : il renvoie son message, ce qui ne change
+rien. Toute défaillance devient un message explicite et une entrée d'audit.
+
+### C. Déduplication — ni silence, ni double écriture
+
+La revendication se relâche quand l'échec précède toute action métier : la
+marquer vue à vie condamnait un message pour une panne d'une seconde. Elle est
+**conservée** dès qu'une écriture a pu aboutir — rejouer une absence en
+créerait une seconde dans le dossier d'un élève. Trois états sont désormais
+tracés : `message_id_missing`, `message_duplicate_detected`,
+`message_id_claimed`.
+
+### D. Observabilité corrélée
+
+Un `runId` naît à la réception et accompagne le message jusqu'à la réponse.
+Les identifiants de message sont **empreintés** : un identifiant WhatsApp porte
+le numéro du correspondant, le journaliser tel quel reviendrait à publier des
+numéros.
+
+### E. Commande `TEST AGENT`
+
+Déterministe, placée **avant** le LLM et le backend, réservée aux identités
+autorisées, sans écriture ni notification. Elle prouve la chaîne
+réception → identité → envoi quand tout le reste est en panne :
+
+```
+Agent WhatsApp connecte. Identite reconnue : <role>.
+Service IA : <etat verifie>. Backend scolaire : <etat>.
+```
+
+L'état annoncé est ce qui est **vérifié**, pas ce qui est configuré : une clé
+présente ne prouve pas qu'elle fonctionne.
+
+### F. Tests
+
+**267 tests** (251 avant cet incident), dont : une promesse qui ne se résout
+jamais est bornée · un défaut n'absorbe pas une vraie erreur · le minuteur ne
+retient pas le processus · une compréhension qui lève, et une qui n'aboutit
+jamais, ne produisent pas de silence · un envoi qui échoue ne masque pas la
+cause · un échec avant action métier relâche la revendication · un échec après
+la conserve · un vrai doublon reste ignoré · `TEST AGENT` sans LLM ni backend ·
+`TEST AGENT` refusé à un inconnu · une phrase ordinaire ne la déclenche pas ·
+le `runId` du transport traverse toutes les étapes.
+
+### G. Livraison
+
+| Élément | État |
+|---|---|
+| Commit | `a1f4dd5` |
+| Push | **confirmé** sur `ai-school-agent-p0-audit` |
+| Déploiement Altare | **vérifié par condensat** — 8 fichiers identiques au commit |
+| Version chargée | **en attente d'un redémarrage** |
+
+---
+
 ## 0. Incident `REFUSED_UNKNOWN` — identification des responsables
 
 Le service démarrait, WhatsApp atteignait `ready`, le magasin chargeait son
@@ -563,11 +653,11 @@ Trois conséquences qui dépassent la liste blanche :
 
 | Mesure | Valeur |
 |---|---|
-| Tests automatisés | **247** |
-| Réussites | **247** |
+| Tests automatisés | **267** |
+| Réussites | **267** |
 | Échecs | **0** |
 | Au début de la session | 136 |
-| Ajoutés | **+111** |
+| Ajoutés | **+131** |
 | Fichiers `web/` modifiés | **aucun** — cette recette n'a touché que `agent/` |
 | Commits | voir ci-dessous |
 | Déploiements | code + `.env` transférés ; **service non redémarré** |
