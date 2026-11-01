@@ -207,6 +207,20 @@ export class IdentityStorePersistant {
 
   /** Liaisons actives, numéros masqués — jamais de liste de numéros en clair. */
   /**
+   * JID des responsables a prevenir, par role.
+   *
+   * Le JID porte le numero : il ne sort donc d'ici que pour etre remis au
+   * transport, jamais pour etre journalise. Les associations suspendues ou
+   * revoquees sont exclues — prevenir un acces retire serait au mieux inutile.
+   */
+  destinatairesParRole(roles = []) {
+    const voulus = new Set(roles);
+    return [...this._parNumero.values()]
+      .filter((a) => !a.revoqueLe && !a.suspendu && voulus.has(a.role))
+      .map((a) => `${a.numero}@c.us`);
+  }
+
+  /**
    * Empreintes des associations, pour le diagnostic.
    *
    * Le calcul se fait ICI, et non chez l'appelant : c'est la seule façon de

@@ -19,6 +19,7 @@
  */
 import { normalizeIncoming } from "./normalize.js";
 import { SENSITIVE } from "./guard.js";
+import { DECISIONS, MOTIFS, NOTIFIER } from "./politiques.js";
 import { RAISONS, analyserJid, empreinte, jidUtilisateur, resoudreNumeroDepuisJid } from "./jid.js";
 import { INTENTIONS, normaliserPlan } from "./plan.js";
 // `masquer` est la mise en forme canonique du projet : la redefinir ici ferait
@@ -58,6 +59,40 @@ export class Agent {
     this.pending = new Map(); // jid -> { tool, params, runId }
     /** runIds ayant atteint une action metier : leur revendication ne se relache pas. */
     this._actionsEngagees = new Set();
+    /**
+     * Indicateurs d'autonomie.
+     *
+     * Ils existent pour une raison precise : sans mesure, « l'agent travaille
+     * seul » reste une impression. Le rapport entre `automatiques` et
+     * `confirmationsDemandees` dit si les politiques couvrent reellement le
+     * travail quotidien, ou s'il faut en ecrire d'autres.
+     */
+    this._metriques = {
+      messages: 0,
+      conversations: 0,
+      consultations: 0,
+      ecritures: 0,
+      automatiques: 0,
+      confirmationsDemandees: 0,
+      operationsReussies: 0,
+      operationsEchouees: 0,
+      refusPermission: 0,
+      refusIdentite: 0,
+      notificationsEnvoyees: 0,
+      repriseApresEchec: 0,
+      dureeCumuleeMs: 0,
+    };
+  }
+
+  /** Indicateurs d'autonomie, pour /sante et le compte rendu. */
+  get metriques() {
+    const m = this._metriques;
+    const tentees = m.automatiques + m.confirmationsDemandees;
+    return {
+      ...m,
+      tauxAutonomie: tentees ? Number((m.automatiques / tentees).toFixed(3)) : null,
+      dureeMoyenneMs: m.messages ? Math.round(m.dureeCumuleeMs / m.messages) : null,
+    };
   }
 
   /**
@@ -72,6 +107,7 @@ export class Agent {
     const runId = raw?.runId ?? uid("run");
     const msg = normalizeIncoming(raw);
     const started = Date.now();
+    this._metriques.messages += 1;
     try {
       return await this._traiter(raw, msg, runId, started);
     } catch (e) {
@@ -99,6 +135,8 @@ export class Agent {
         intent: null, result: "FAILED", error: erreur, durationMs: Date.now() - started,
       });
       return { status: Status.FAILED, runId, error: erreur };
+    } finally {
+      this._metriques.dureeCumuleeMs += Date.now() - started;
     }
   }
 
@@ -171,6 +209,7 @@ export class Agent {
         message: msg.text, intent: null, result: "REFUSED_UNKNOWN", raison,
         durationMs: Date.now() - started,
       });
+      this._metriques.refusIdentite += 1;
       return { status: Status.REJECTED_UNKNOWN, runId, raison };
     }
 
@@ -243,6 +282,7 @@ export class Agent {
         runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
         intent: "conversation", result: "SUCCESS", durationMs: Date.now() - started,
       });
+      this._metriques.conversations += 1;
       return { status: Status.COMPLETED, runId, conversation: true };
     }
 
@@ -290,7 +330,42 @@ export class Agent {
     }
 
     // 8. Confirmation forte pour une opération sensible ou en lot (brief §10)
-    if ((tool.sensitivity === SENSITIVE || tool.requiresConfirmation) && !plan.confirmed) {
+    // 7 bis. Politique d'execution — autorisation PERMANENTE plutot que
+    // confirmation repetee.
+    //
+    // Une confirmation donnee machinalement soixante fois par jour ne protege
+    // plus rien : elle entraine au reflexe, et le jour ou la demande est
+    // anormale, elle est approuvee comme les autres. L'etablissement decide
+    // une fois ce que l'agent fait seul ; l'agent n'interrompt que ce qui sort
+    // de ce cadre.
+    //
+    // Une politique ne donne JAMAIS une permission : le pre-filtre RBAC vient
+    // de passer, et le garde du backend aura le dernier mot. Elle ne peut
+    // qu'enlever une friction.
+    const verdict = this.politiques?.decider({ outil: tool, params: plan.params, staff }) ?? {
+      decision: DECISIONS.CONFIRMATION,
+      motif: MOTIFS.AUCUNE_POLITIQUE,
+    };
+    this.journalEtape?.({
+      event: "politique_evaluee",
+      run: runId,
+      outil: tool.name,
+      decision: verdict.decision,
+      politique: verdict.politique ?? null,
+      version: verdict.version ?? null,
+      motif: verdict.motif ?? null,
+      detail: verdict.detail ?? null,
+    });
+
+    const automatique = verdict.decision === DECISIONS.AUTOMATIQUE;
+    if (automatique) {
+      this._metriques.automatiques += 1;
+      this.politiques?.enregistrerExecution?.({ politique: verdict.politique, staff });
+    }
+
+    const exigeConfirmation = !automatique && (tool.sensitivity === SENSITIVE || tool.requiresConfirmation);
+    if (exigeConfirmation && !plan.confirmed) {
+      this._metriques.confirmationsDemandees += 1;
       this.pending.set(msg.fromJid, { tool, params: plan.params ?? {}, runId });
       await this.provider.sendText(
         msg.fromJid,
@@ -304,7 +379,7 @@ export class Agent {
     }
 
     // 9. Exécution
-    return this._execute(tool, plan.params ?? {}, { staff, msg, runId, transcription, started, confirmed: !!plan.confirmed });
+    return this._execute(tool, plan.params ?? {}, { staff, msg, runId, transcription, started, confirmed: !!plan.confirmed, verdict });
   }
 
   /**
@@ -329,7 +404,48 @@ export class Agent {
     }
   }
 
-  async _execute(tool, params, { staff, msg, runId, transcription, started, confirmed }) {
+  /**
+   * Informe les responsables d'une operation executee automatiquement.
+   *
+   * Trois garde-fous :
+   *   - la politique decide QUAND (jamais / echec / toujours) : noyer les
+   *     responsables sous les accuses de reception reviendrait a ce qu'ils ne
+   *     lisent plus rien ;
+   *   - on ne notifie que les operations AUTOMATIQUES : une operation qu'un
+   *     humain vient de confirmer n'a pas besoin de lui etre annoncee ;
+   *   - le message ne porte aucune donnee d'eleve, seulement l'operation,
+   *     l'auteur et le resultat. Une notification part sur WhatsApp, pas dans
+   *     le portail.
+   */
+  async _informerResponsables({ verdict, tool, staff, ok, runId, erreur, resultat }) {
+    const quand = verdict?.notifier?.quand;
+    if (!verdict?.politique || !quand || quand === NOTIFIER.JAMAIS) return;
+    if (quand === NOTIFIER.ECHEC && ok) return;
+
+    const roles = verdict.notifier.destinataires ?? [];
+    const destinataires = (await this.destinatairesNotification?.(roles)) ?? [];
+    if (destinataires.length === 0) return;
+
+    const texte =
+      `${ok ? "Operation effectuee" : "ECHEC d'operation"} — ${tool.name}\n` +
+      `Par : ${staff.role}\n` +
+      `Politique : ${verdict.politique} (v${verdict.version})\n` +
+      (ok ? "" : `Motif : ${String(erreur?.message ?? resultat?.message ?? "inconnu").slice(0, 120)}\n`) +
+      `Reference : ${runId}`;
+
+    for (const jid of destinataires) {
+      try {
+        await this.provider.sendText(jid, texte);
+        this._metriques.notificationsEnvoyees += 1;
+      } catch (e) {
+        // Une notification qui echoue ne doit pas faire echouer l'operation :
+        // celle-ci a deja eu lieu.
+        this.journalEtape?.({ event: "notification_echouee", run: runId, erreur: String(e?.message ?? e).slice(0, 120) });
+      }
+    }
+  }
+
+  async _execute(tool, params, { staff, msg, runId, transcription, started, confirmed, verdict = null }) {
     // État avant (si le client sait le lire)
     let before = null;
     if (this.guergne.snapshot) {
@@ -352,6 +468,13 @@ export class Agent {
 
     // Vérification : une réussite n'est affirmée que si le backend l'a confirmée (Règle 9)
     const ok = !error && !!result && result.ok !== false;
+    this._metriques[ok ? "operationsReussies" : "operationsEchouees"] += 1;
+    this._metriques[tool.sensitivity === "read" ? "consultations" : "ecritures"] += 1;
+
+    // Les responsables sont INFORMES, pas sollicites : la notification rend
+    // compte d'un travail deja fait, elle ne demande rien. C'est la difference
+    // entre une supervision et un goulot d'etranglement.
+    await this._informerResponsables({ verdict, tool, staff, ok, runId, erreur: error, resultat: result });
     let after = null;
     if (ok && this.guergne.snapshot) {
       try { after = await this.guergne.snapshot(tool, params); } catch { after = null; }

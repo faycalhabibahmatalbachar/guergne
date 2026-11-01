@@ -30,6 +30,7 @@ import { GuergneHttpClient } from "../src/guergne-client.js";
 import { IdempotencyStore } from "../src/idempotency.js";
 import { IdentityStore } from "../src/identity.js";
 import { MatricePermissions } from "../src/permissions-matrix.js";
+import { MoteurPolitiques, POLITIQUES_DEFAUT } from "../src/politiques.js";
 import { FakeProvider } from "../src/provider.js";
 import { Referentiel } from "../src/referentiel.js";
 import { resoudreNomsEleves } from "../src/resolution-eleves.js";
@@ -86,6 +87,15 @@ const agent = new Agent({
   audit,
   tools: outils,
   permissions: new MatricePermissions(),
+  // Configuration de PRODUCTION : les politiques par defaut de l'etablissement.
+  // Sans elles, cette demonstration eprouverait un agent qui n'existe pas.
+  politiques: new MoteurPolitiques({ politiques: POLITIQUES_DEFAUT }),
+  destinatairesNotification: async () => [],
+  journalEtape: (e) => {
+    if (e.event === "politique_evaluee") {
+      console.log(`    [politique] ${e.outil} -> ${e.decision}${e.politique ? ` (${e.politique} v${e.version})` : ` (${e.motif})`}`);
+    }
+  },
   guergne,
   interpret: async () => {
     if (!plan?.tool) return plan;

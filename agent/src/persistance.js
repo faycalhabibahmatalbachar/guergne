@@ -90,6 +90,64 @@ export class DedupPersistant {
   }
 }
 
+/**
+ * Compteur journalier persistant — support des quotas de politiques.
+ *
+ * POURQUOI SUR DISQUE
+ * -------------------
+ * Un quota « 80 saisies par jour » qui repart de zéro à chaque redémarrage
+ * n'est pas un quota : il suffit d'un incident, ou d'un redémarrage provoqué,
+ * pour le remettre à neuf. Le compteur suit donc le même volume persistant que
+ * la session et la déduplication.
+ *
+ * Les clés portent la date : les entrées d'hier sont purgées au chargement,
+ * sinon le fichier grossirait sans fin sur un service qui tourne des mois.
+ */
+export class CompteurJournalierPersistant {
+  constructor({ chemin, horloge = () => new Date() } = {}) {
+    this._chemin = chemin;
+    this._horloge = horloge;
+    this._n = new Map();
+    this._charger();
+  }
+
+  _jour() {
+    return this._horloge().toISOString().slice(0, 10);
+  }
+
+  _charger() {
+    if (!this._chemin || !existsSync(this._chemin)) return;
+    try {
+      const d = JSON.parse(readFileSync(this._chemin, "utf8"));
+      const jour = this._jour();
+      for (const [cle, v] of Object.entries(d ?? {})) {
+        // La date est le dernier segment de la clé : on ne garde que le jour
+        // courant.
+        if (cle.endsWith(`:${jour}`)) this._n.set(cle, Number(v) || 0);
+      }
+    } catch {
+      // Compteur illisible : on repart à zéro. Le pire cas est un quota plus
+      // large qu'attendu pour une journée, jamais une opération interdite —
+      // les permissions, elles, ne dépendent pas de ce fichier.
+    }
+  }
+
+  _sauver() {
+    if (this._chemin) ecrireAtomique(this._chemin, JSON.stringify(Object.fromEntries(this._n)));
+  }
+
+  compter(cle) {
+    return this._n.get(cle) ?? 0;
+  }
+
+  incrementer(cle) {
+    const v = this.compter(cle) + 1;
+    this._n.set(cle, v);
+    this._sauver();
+    return v;
+  }
+}
+
 // Le verrou d'instance vit désormais dans son propre module : décider qui
 // détient la session WhatsApp exige de sonder les processus, ce qui n'a rien à
 // voir avec la déduplication des messages. Il reste réexporté ici pour que les
@@ -103,6 +161,7 @@ export function cheminsPersistants(racine) {
     session: join(racine, "wwebjs_auth"),
     dedup: join(racine, "dedup.json"),
     verrou: join(racine, "instance.lock"),
+    compteurs: join(racine, "compteurs.json"),
     redemarrages: join(racine, "redemarrages.json"),
   };
 }
