@@ -56,6 +56,12 @@ export class GuergneHttpClient {
     }
   }
 
+  // --- Référentiel : libellés que l'utilisateur emploie réellement ---
+  // Personne ne dicte un UUID sur WhatsApp. Ces deux lectures donnent la liste
+  // réelle de l'établissement, dans le périmètre de l'acteur.
+  listerClasses(p, c) { return this._call("listerClasses", p, c); }
+  listerPeriodes(p, c) { return this._call("listerPeriodes", p, c); }
+
   // --- Outils Assiduité (mêmes noms d'action que le registre d'outils) ---
   listerAbsences(p, c) { return this._call("listerAbsences", p, c); }
   listerAlertes(p, c) { return this._call("listerAlertes", p, c); }

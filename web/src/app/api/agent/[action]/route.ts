@@ -16,6 +16,9 @@ import {
   listerSanctions,
   statistiquesVieScolaire,
 } from "@/server/domain/vie-scolaire";
+import { listerClassesCourantes } from "@/server/domain/eleves";
+import { listerPeriodes } from "@/server/domain/parametres";
+import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
 import { ErreurAutorisation, exigerPermissionPour } from "@/server/guard";
 import type { Action } from "@/server/guard/permissions";
 
@@ -125,6 +128,33 @@ const OUTILS: Record<string, OutilExpose> = {
         classeId: s(p.classeId),
         limite: typeof p.limite === "number" ? p.limite : 100,
       }),
+  },
+
+  // --- Référentiel ---------------------------------------------------------
+  // Sans ces deux lectures, l'agent est inutilisable par un humain. Le reste du
+  // catalogue ne parle qu'en UUID, alors qu'un surveillant dit « la 6ème B » et
+  // « le deuxième trimestre ». `agent/src/resolveur.js` sait faire la
+  // correspondance — y compris sur une transcription vocale abîmée — mais il lui
+  // faut la liste réelle de l'établissement, qu'aucune route ne fournissait.
+  // L'agent demandait donc à l'utilisateur de saisir un UUID : une question à
+  // laquelle personne ne peut répondre depuis WhatsApp.
+  //
+  // Ce sont des libellés et des dates, pas des données d'élèves ; elles restent
+  // néanmoins derrière le même garde et les mêmes permissions réelles.
+  listerClasses: {
+    permission: "classe:lire",
+    executer: () => listerClassesCourantes(),
+  },
+  listerPeriodes: {
+    permission: "assiduite:lire",
+    executer: async (p) => {
+      // L'année courante est le défaut utile : c'est la seule dont on saisit
+      // l'assiduité. Un `anneeId` explicite reste accepté pour une consultation
+      // d'archive.
+      const anneeId = s(p.anneeId) ?? (await chargerAnneeCourante())?.id;
+      if (!anneeId) return [];
+      return listerPeriodes(anneeId);
+    },
   },
 
   // --- Écritures -----------------------------------------------------------

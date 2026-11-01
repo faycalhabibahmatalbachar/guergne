@@ -23,6 +23,7 @@ import { IdentityStorePersistant } from "./src/identity-store.js";
 import { MoteurIA } from "./src/ia.js";
 import { Pairing, jetonAleatoire, pageAppairage } from "./src/pairing.js";
 import { MatricePermissions } from "./src/permissions-matrix.js";
+import { Referentiel } from "./src/referentiel.js";
 import { DedupPersistant, VerrouInstance, cheminsPersistants } from "./src/persistance.js";
 import { WwebjsProvider } from "./src/providers/wwebjs.js";
 import { ASSIDUITE_TOOLS, ToolRegistry } from "./src/tools.js";
@@ -91,6 +92,8 @@ const guergne = backendConfigure
       },
     });
 const outils = new ToolRegistry(ASSIDUITE_TOOLS);
+// Les listes reelles de classes et de periodes, dans le perimetre de l'acteur.
+const referentiel = new Referentiel({ guergne });
 
 // L'association numéro → compte interne vit en base côté guergne. Tant que ce
 // point n'est pas branché, le magasin démarre vide : AUCUN numéro n'est reconnu,
@@ -139,16 +142,20 @@ const agent = new Agent({
   tools: outils,
   permissions: new MatricePermissions(),
   guergne,
-  interpret: async (texte) => {
+  interpret: async (texte, ctx = {}) => {
     if (!ia) throw new Error("Aucun fournisseur IA configuré : compréhension indisponible.");
-    // L'invite vient du registre : c'est lui qui connait les parametres que
-    // l'API honore. Un modele a qui l'on ne decrit aucun parametre ne peut en
-    // remplir aucun, et toute consultation retombe sur les valeurs par defaut.
+    // Deux sources, deux roles. L'invite vient du registre : c'est lui qui
+    // connait les parametres que l'API honore — un modele a qui l'on ne decrit
+    // aucun parametre ne peut en remplir aucun. Le referentiel vient de la
+    // plateforme : il porte les classes et les periodes que l'utilisateur
+    // nomme, pour que le modele recopie un identifiant reel au lieu d'en
+    // reclamer un a quelqu'un qui ne le connait pas.
+    // Le moteur passe `{ staff, tools }` : l'identite de l'acteur est dans
+    // `staff.id`, et c'est elle qui determine le perimetre des listes.
+    const listes = await referentiel.pour(ctx.staff?.id);
     const r = await ia.completerJson([
-      {
-        role: "system",
-        content: outils.invitePourNlu(),
-      },
+      { role: "system", content: outils.invitePourNlu() },
+      { role: "system", content: Referentiel.enTexte(listes) },
       { role: "user", content: texte },
     ]);
     return r.objet ?? { clarify: "Je n'ai pas compris la demande." };

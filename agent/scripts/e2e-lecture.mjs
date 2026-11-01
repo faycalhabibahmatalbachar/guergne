@@ -24,6 +24,7 @@ import { AuditLog } from "../src/audit.js";
 import { MatricePermissions } from "../src/permissions-matrix.js";
 import { ToolRegistry, ASSIDUITE_TOOLS } from "../src/tools.js";
 import { GuergneHttpClient } from "../src/guergne-client.js";
+import { Referentiel } from "../src/referentiel.js";
 
 const racine = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const lire = (f, k) => {
@@ -42,8 +43,8 @@ if (!SERVICE_TOKEN || !GROQ_KEY) {
 }
 
 /** NLU réel : Groq choisit un outil du registre et ses paramètres. */
-function interpretGroq(registre) {
-  return async (texte) => {
+function interpretGroq(registre, referentiel) {
+  return async (texte, ctx = {}) => {
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${GROQ_KEY}` },
@@ -52,6 +53,7 @@ function interpretGroq(registre) {
         temperature: 0,
         messages: [
           { role: "system", content: registre.invitePourNlu() },
+          { role: "system", content: Referentiel.enTexte(await referentiel.pour(ctx.staff?.id ?? ACTEUR)) },
           { role: "user", content: texte },
         ],
       }),
@@ -68,6 +70,11 @@ function interpretGroq(registre) {
   };
 }
 
+const guergne = new GuergneHttpClient({ baseUrl: "http://localhost:3000", serviceToken: SERVICE_TOKEN });
+// Memes listes reelles que la production : le modele recopie un identifiant
+// existant plutot que d'en reclamer un a l'utilisateur.
+const referentiel = new Referentiel({ guergne });
+
 const provider = new FakeProvider();
 const audit = new AuditLog();
 const tools = new ToolRegistry(ASSIDUITE_TOOLS);
@@ -79,8 +86,8 @@ const agent = new Agent({
   audit,
   tools,
   permissions: new MatricePermissions(),
-  guergne: new GuergneHttpClient({ baseUrl: "http://localhost:3000", serviceToken: SERVICE_TOKEN }),
-  interpret: interpretGroq(tools),
+  guergne,
+  interpret: interpretGroq(tools, referentiel),
 });
 
 const demande = process.argv[2] ?? "Montre-moi les 3 dernieres absences enregistrees.";
