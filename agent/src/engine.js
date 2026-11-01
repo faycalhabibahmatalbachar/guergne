@@ -20,6 +20,7 @@
 import { normalizeIncoming } from "./normalize.js";
 import { SENSITIVE } from "./guard.js";
 import { RAISONS, analyserJid, empreinte, jidUtilisateur, resoudreNumeroDepuisJid } from "./jid.js";
+import { INTENTIONS, normaliserPlan } from "./plan.js";
 // `masquer` est la mise en forme canonique du projet : la redefinir ici ferait
 // diverger deux facons de masquer un numero.
 import { masquer } from "./identity-store.js";
@@ -221,16 +222,50 @@ export class Agent {
     }
 
     // 5. Compréhension (NLU ; réel : LLM)
-    const plan = await this.interpret(text, { staff, tools: this.tools });
-    if (!plan || plan.clarify) {
-      await this.provider.sendText(msg.fromJid, plan?.clarify ?? "Je n'ai pas compris la demande.");
+    this.journalEtape?.({ event: "llm_request_started", run: runId });
+    const debutNlu = Date.now();
+    const brut = await this.interpret(text, { staff, tools: this.tools });
+    const plan = normaliserPlan(brut, this.tools);
+    this.journalEtape?.({
+      event: "intent_detected",
+      run: runId,
+      intention: plan.type,
+      outil: plan.nomOutil ?? null,
+      rejet: plan.rejet ?? null,
+      detail: plan.rejet ? plan.detail : null,
+      dureeMs: Date.now() - debutNlu,
+    });
+
+    // 5a. Conversation — aucune donnée n'est touchée, aucune permission en jeu.
+    if (plan.type === INTENTIONS.CONVERSATION) {
+      await this.provider.sendText(msg.fromJid, plan.texte);
+      this.audit.record({
+        runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
+        intent: "conversation", result: "SUCCESS", durationMs: Date.now() - started,
+      });
+      return { status: Status.COMPLETED, runId, conversation: true };
+    }
+
+    // 5b. Clarification.
+    if (plan.type === INTENTIONS.CLARIFIER) {
+      await this.provider.sendText(msg.fromJid, plan.question);
       return { status: Status.WAITING_INPUT, runId };
     }
-    const tool = this.tools.get(plan.tool);
-    if (!tool) {
-      await this.provider.sendText(msg.fromJid, "Action inconnue.");
-      return { status: Status.WAITING_INPUT, runId };
+
+    // 5c. Contrat rompu. On NOMME ce qui s'est passé : « Action inconnue. »
+    // ne permettait aucun diagnostic, et laissait croire à un refus métier.
+    if (plan.type !== INTENTIONS.OUTIL) {
+      await this.provider.sendText(msg.fromJid, this._messageDeRejet(plan));
+      this.audit.record({
+        runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
+        intent: null, result: "PLAN_INVALIDE", error: `${plan.rejet}:${plan.detail ?? ""}`,
+        durationMs: Date.now() - started,
+      });
+      return { status: Status.WAITING_INPUT, runId, rejet: plan.rejet };
     }
+
+    const tool = plan.tool;
+    plan.params = plan.params ?? {};
 
     // 6. Validation des paramètres (mêmes règles que guergne) — aucune écriture si invalide
     const errs = tool.validate(plan.params ?? {});
@@ -270,6 +305,28 @@ export class Agent {
 
     // 9. Exécution
     return this._execute(tool, plan.params ?? {}, { staff, msg, runId, transcription, started, confirmed: !!plan.confirmed });
+  }
+
+  /**
+   * Ce que lit l'utilisateur quand le modele a rompu le contrat.
+   *
+   * Chaque cas dit ce qui s'est passe et ce qu'il peut faire. Un message
+   * unique et opaque — « Action inconnue. » — ne renseignait ni l'un ni
+   * l'autre.
+   */
+  _messageDeRejet(plan) {
+    switch (plan.rejet) {
+      case "OUTIL_INCONNU":
+        return "Je ne sais pas faire cette operation. Demandez-moi plutot une consultation d'assiduite, de retards, d'incidents ou de sanctions.";
+      case "DONNEES_INVENTEES":
+        // Le cas le plus important : mieux vaut une question qu'un chiffre faux.
+        return "Je ne peux pas repondre de memoire a une question sur l'etablissement. Precisez la classe et la periode, et j'irai consulter les donnees reelles.";
+      case "CHAMP_MANQUANT":
+      case "INTENTION_INCONNUE":
+      case "PLAN_ABSENT":
+      default:
+        return "Je n'ai pas compris votre demande. Reformulez-la, par exemple : « les absences de la 6eme B cette semaine ».";
+    }
   }
 
   async _execute(tool, params, { staff, msg, runId, transcription, started, confirmed }) {

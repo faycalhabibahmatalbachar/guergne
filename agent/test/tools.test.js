@@ -131,24 +131,42 @@ test("le catalogue NLU annonce les paramètres de chaque outil", () => {
   const vide = new ToolRegistry([
     { name: "x.sans_parametre", module: "x", permission: "p", sensitivity: "read", action: "a", validate: () => ({}) },
   ]);
-  assert.match(vide.pourNlu(), /x\.sans_parametre \[read\] parametres : aucun parametre/);
+  assert.match(vide.pourNlu(), /x\.sans_parametre \[read\]\n  parametres : aucun/);
+});
+
+test("le catalogue annonce CE QUE FAIT chaque outil, pas seulement son nom", () => {
+  // Sans description, le modèle devait deviner d'après le nom : « qui dépasse
+  // le seuil d'absences ? » tombait sur consulter_absences au lieu de alertes.
+  const texte = reg.pourNlu();
+  for (const t of reg.all()) {
+    assert.ok(t.description, `outil sans description : ${t.name}`);
+    assert.ok(texte.includes(t.description), `description absente du catalogue : ${t.name}`);
+  }
+  assert.match(texte, /alertes \[read\] — lister les eleves QUI DEPASSENT le seuil/);
 });
 
 test("le catalogue couvre TOUS les outils du registre", () => {
   const texte = reg.pourNlu();
   for (const t of reg.all()) assert.ok(texte.includes(t.name), `absent du catalogue : ${t.name}`);
-  assert.equal(texte.split("\n").length, reg.all().length);
+  // Deux lignes par outil : ce qu'il fait, puis ses paramètres.
+  assert.equal(texte.split("\n").length, reg.all().length * 2);
 });
 
 test("l'invite système s'évalue et porte les consignes qui comptent", () => {
   const invite = reg.invitePourNlu();
   assert.equal(typeof invite, "string");
   assert.ok(invite.length > 200);
-  assert.match(invite, /Tu choisis UN outil parmi :/);
-  // Les deux garde-fous : ne rien inventer, ne pas réclamer un facultatif.
+  // Les trois intentions : sans la premiere, une salutation etait prise pour
+  // une commande metier et finissait en « Action inconnue. ».
+  assert.match(invite, /"intention":"conversation"/);
+  assert.match(invite, /"intention":"outil"/);
+  assert.match(invite, /"intention":"clarifier"/);
+  // Les garde-fous : ne rien inventer, ne pas reclamer un facultatif, et ne
+  // jamais avancer un chiffre scolaire de memoire.
   assert.match(invite, /n'invente aucune valeur, surtout pas un identifiant/);
   assert.match(invite, /ne le demande JAMAIS a l'utilisateur/);
-  assert.match(invite, /"clarify"/);
+  assert.match(invite, /AUCUNE donnee scolaire par toi-meme/);
+  assert.match(invite, /Outils disponibles :/);
   // Le catalogue est bien inclus : l'invite et la liste ne peuvent pas diverger.
   assert.ok(invite.includes(reg.pourNlu()));
 });

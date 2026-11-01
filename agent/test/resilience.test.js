@@ -226,3 +226,72 @@ test("le journal d'etape porte le run du transport, de bout en bout", async () =
     "un run different a chaque etape rendrait la correlation impossible",
   );
 });
+
+// --- Le contrat d'intention, de bout en bout dans le moteur ----------------
+
+test("une conversation obtient une vraie reponse, sans toucher au backend", async () => {
+  const guergne = new GuergneSim();
+  const { ecrire, provider, audit } = monter({
+    guergne,
+    interpret: async () => ({ intention: "conversation", reponse: "Bonjour, comment puis-je vous aider ?" }),
+  });
+  const r = await ecrire("Salut");
+  assert.equal(r.status, Status.COMPLETED);
+  assert.equal(r.conversation, true);
+  assert.equal(provider.lastTextTo(JID), "Bonjour, comment puis-je vous aider ?");
+  assert.equal(guergne.calls.length, 0, "une conversation ne lit aucune donnee");
+  assert.equal(audit.last().intent, "conversation");
+});
+
+test("l'objet qui produisait « Action inconnue. » obtient une reponse utile", async () => {
+  // Le cas exact observe en production.
+  const { ecrire, provider, audit } = monter({
+    interpret: async () => ({ description: "Je peux consulter l'assiduite", examples: ["..."] }),
+  });
+  const r = await ecrire("presente-moi tes capacites");
+  assert.equal(r.status, Status.WAITING_INPUT);
+  const rep = provider.lastTextTo(JID) ?? "";
+  assert.notEqual(rep, "Action inconnue.");
+  assert.match(rep, /Reformulez/);
+  assert.equal(audit.last().result, "PLAN_INVALIDE");
+  assert.match(audit.last().error, /INTENTION_INCONNUE/);
+});
+
+test("un outil invente est nomme dans l'audit, pas masque", async () => {
+  const { ecrire, provider, audit } = monter({
+    interpret: async () => ({ intention: "outil", outil: "assiduite.supprimer_tout" }),
+  });
+  await ecrire("supprime tout");
+  assert.match(provider.lastTextTo(JID) ?? "", /Je ne sais pas faire cette operation/);
+  assert.match(audit.last().error, /OUTIL_INCONNU:assiduite\.supprimer_tout/);
+});
+
+test("un chiffre scolaire invente n'atteint JAMAIS l'utilisateur", async () => {
+  // Un directeur lirait « 45 absences » comme un releve de son etablissement.
+  const { ecrire, provider, audit } = monter({
+    interpret: async () => ({ intention: "conversation", reponse: "Aujourd'hui nous avons 45 absences." }),
+  });
+  const rep = await ecrire("combien d'absences aujourd'hui ?").then(() => provider.lastTextTo(JID) ?? "");
+  assert.ok(!rep.includes("45"), "le chiffre invente ne doit pas etre transmis");
+  assert.match(rep, /donnees reelles/);
+  assert.match(audit.last().error, /DONNEES_INVENTEES/);
+});
+
+test("une clarification reste une clarification", async () => {
+  const { ecrire, provider } = monter({
+    interpret: async () => ({ intention: "clarifier", question: "De quelle classe parlez-vous ?" }),
+  });
+  const r = await ecrire("les absences");
+  assert.equal(r.status, Status.WAITING_INPUT);
+  assert.equal(provider.lastTextTo(JID), "De quelle classe parlez-vous ?");
+});
+
+test("le journal nomme l'intention detectee et la raison d'un rejet", async () => {
+  const { ecrire, etapes } = monter({ interpret: async () => ({ fantaisie: true }) });
+  await ecrire("quelque chose");
+  const e = etapes.find((x) => x.event === "intent_detected");
+  assert.equal(e.intention, "invalide");
+  assert.equal(e.rejet, "INTENTION_INCONNUE");
+  assert.equal(e.detail, "fantaisie");
+  assert.ok(typeof e.dureeMs === "number");
+});

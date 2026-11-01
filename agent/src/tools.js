@@ -6,6 +6,7 @@
  *   motif ≥ 3 caractères pour justifier/supprimer.
  */
 import { READ, WRITE, SENSITIVE } from "./guard.js";
+import { inviteContrat } from "./plan.js";
 
 const required = (v) => v !== undefined && v !== null && v !== "";
 const noErrs = () => ({});
@@ -109,6 +110,7 @@ function listeRendue(lignes, titre, ligne) {
 export const ASSIDUITE_TOOLS = [
   {
     name: "assiduite.consulter_absences",
+    description: "lister les absences enregistrees (par classe, periode, statut ou dates)",
     module: "assiduite",
     permission: "assiduite:lire",
     sensitivity: READ,
@@ -131,6 +133,7 @@ export const ASSIDUITE_TOOLS = [
   },
   {
     name: "assiduite.alertes",
+    description: "lister les eleves QUI DEPASSENT le seuil d'absences — depassements de seuil, eleves les plus concernes, eleves a signaler",
     module: "assiduite",
     permission: "assiduite:lire",
     sensitivity: READ,
@@ -153,6 +156,7 @@ export const ASSIDUITE_TOOLS = [
     // La route expose cette lecture depuis l'origine ; aucun outil ne
     // l'offrait. Un surveillant ne pouvait donc pas demander les retards.
     name: "assiduite.consulter_retards",
+    description: "lister les retards enregistres",
     module: "assiduite",
     permission: "assiduite:lire",
     sensitivity: READ,
@@ -173,6 +177,7 @@ export const ASSIDUITE_TOOLS = [
   },
   {
     name: "assiduite.tableau_de_bord",
+    description: "chiffres du jour : nombre d'absences et de retards aujourd'hui, total non justifie, incidents, alertes",
     module: "assiduite",
     permission: "assiduite:lire",
     sensitivity: READ,
@@ -199,6 +204,7 @@ export const ASSIDUITE_TOOLS = [
   },
   {
     name: "assiduite.conduite_classe",
+    description: "notes de conduite des eleves d'une classe sur une periode",
     module: "assiduite",
     permission: "assiduite:lire",
     sensitivity: READ,
@@ -225,6 +231,7 @@ export const ASSIDUITE_TOOLS = [
   },
   {
     name: "discipline.consulter_incidents",
+    description: "lister les incidents disciplinaires declares",
     module: "discipline",
     permission: "discipline:lire",
     sensitivity: READ,
@@ -248,6 +255,7 @@ export const ASSIDUITE_TOOLS = [
   },
   {
     name: "discipline.consulter_sanctions",
+    description: "lister les sanctions prononcees",
     module: "discipline",
     permission: "discipline:lire",
     sensitivity: READ,
@@ -270,6 +278,7 @@ export const ASSIDUITE_TOOLS = [
   },
   {
     name: "assiduite.enregistrer_appel",
+    description: "ENREGISTRER l'appel : creer des absences pour des eleves nommes",
     module: "assiduite",
     permission: "assiduite:saisir",
     sensitivity: WRITE,
@@ -296,6 +305,7 @@ export const ASSIDUITE_TOOLS = [
   },
   {
     name: "assiduite.enregistrer_retard",
+    description: "ENREGISTRER un retard pour un eleve nomme",
     module: "assiduite",
     permission: "retard:saisir",
     sensitivity: WRITE,
@@ -323,6 +333,7 @@ export const ASSIDUITE_TOOLS = [
   },
   {
     name: "assiduite.justifier_absences",
+    description: "JUSTIFIER ou DEJUSTIFIER des absences existantes",
     module: "assiduite",
     permission: "assiduite:justifier",
     sensitivity: WRITE,
@@ -339,6 +350,7 @@ export const ASSIDUITE_TOOLS = [
   },
   {
     name: "assiduite.supprimer_absence",
+    description: "SUPPRIMER une absence enregistree par erreur",
     module: "assiduite",
     permission: "assiduite:saisir",
     sensitivity: SENSITIVE,
@@ -389,17 +401,24 @@ export class ToolRegistry {
    * de syntaxe dans ce texte ne se manifestait donc qu'en production, et
    * `node --check` ne la voyait pas. Ici, un test l'evalue.
    */
+  /**
+   * Invite du modele.
+   *
+   * Le contrat des intentions vit dans `plan.js`, a cote de sa validation :
+   * une consigne donnee au modele et une regle appliquee au code qui
+   * divergent, c'est exactement ce qui produit « Action inconnue. ».
+   */
   invitePourNlu() {
     return [
-      "Tu choisis UN outil parmi :",
+      inviteContrat(),
+      "",
+      "Outils disponibles :",
       this.pourNlu(),
-      'Reponds en JSON {"tool":"<nom>","params":{...}}.',
+      "",
       "Renseigne les parametres que la demande precise, et EUX SEULS :",
       "n'invente aucune valeur, surtout pas un identifiant.",
       'Un parametre marque "facultatif" doit rester absent si la demande ne le',
       "precise pas : ne le demande JAMAIS a l'utilisateur.",
-      "Si un parametre OBLIGATOIRE manque, ou si la demande est ambigue,",
-      'reponds {"clarify":"<question>"}.',
     ].join("\n");
   }
 
@@ -412,7 +431,8 @@ export class ToolRegistry {
         const declares = Object.entries(t.parametres ?? {}).filter(([n]) => !vers.has(n));
         const nommes = Object.entries(t.nommes ?? {}).map(([n, d]) => `${n} (${d.role})`);
         const noms = [...nommes, ...declares.map(([n, role]) => `${n} (${role})`)];
-        return `- ${t.name} [${t.sensitivity}] parametres : ${noms.length ? noms.join(", ") : "aucun parametre"}`;
+        const quoi = t.description ? ` — ${t.description}` : "";
+        return `- ${t.name} [${t.sensitivity}]${quoi}\n  parametres : ${noms.length ? noms.join(", ") : "aucun"}`;
       })
       .join("\n");
   }
