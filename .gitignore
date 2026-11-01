@@ -72,3 +72,6 @@ grok.env
 # Liste blanche des numeros autorises — donnees personnelles, jamais dans Git.
 identites-autorisees.json
 donnees-privees/
+
+# Rapports produits par les demonstrations de bout en bout.
+agent/.rapports/

@@ -22,6 +22,7 @@ import { SENSITIVE } from "./guard.js";
 import { DECISIONS, MOTIFS, NOTIFIER } from "./politiques.js";
 import { RAISONS, analyserJid, empreinte, jidUtilisateur, resoudreNumeroDepuisJid } from "./jid.js";
 import { INTENTIONS, normaliserPlan } from "./plan.js";
+import { documentDeMission, genererDocument } from "./document.js";
 import { ETAPE, agreger, estTransitoire, rendreBilan, validerMission } from "./mission.js";
 // `masquer` est la mise en forme canonique du projet : la redefinir ici ferait
 // diverger deux facons de masquer un numero.
@@ -81,6 +82,7 @@ export class Agent {
       refusIdentite: 0,
       notificationsEnvoyees: 0,
       rapportsGeneres: 0,
+      documentsGeneres: 0,
       repriseApresEchec: 0,
       dureeCumuleeMs: 0,
     };
@@ -470,6 +472,10 @@ export class Agent {
     await this.provider.sendText(msg.fromJid, bilan);
     this._metriques.rapportsGeneres += 1;
 
+    // Un bilan rendu en texte se lit une fois puis se perd dans la
+    // conversation. On joint donc un vrai fichier, qui s'imprime et se garde.
+    const fichier = await this._joindreRapport({ but: verif.but, resultats, msg, runId });
+
     const reussies = resultats.filter((r) => r.statut === ETAPE.REUSSIE).length;
     this.audit.record({
       runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
@@ -480,7 +486,7 @@ export class Agent {
     this.journalEtape?.({ event: "mission_terminee", run: runId, reussies, total: resultats.length });
 
     // Les responsables sont informes du rapport, pas sollicites pour l'autoriser.
-    await this._diffuserRapport({ but: verif.but, bilan, staff, runId });
+    await this._diffuserRapport({ but: verif.but, bilan, staff, runId, fichier });
 
     return {
       status: reussies ? Status.COMPLETED : Status.FAILED,
@@ -533,8 +539,41 @@ export class Agent {
     return { statut: ETAPE.ECHOUEE, detail: "echec apres reprise", reprises };
   }
 
+  /**
+   * Genere et envoie le rapport en piece jointe.
+   *
+   * L'echec n'est jamais fatal : le bilan textuel vient d'etre envoye, et le
+   * perdre pour un probleme de format serait absurde. On le dit, et on
+   * continue.
+   */
+  async _joindreRapport({ but, resultats, msg, runId }) {
+    if (typeof this.provider.sendMedia !== "function") return null;
+    try {
+      const modele = documentDeMission({ but, resultats, periode: this.periodeRapport ?? null });
+      const fichier = await genererDocument(modele);
+      await this.provider.sendMedia(msg.fromJid, {
+        data: fichier.data,
+        mimetype: fichier.mimetype,
+        filename: fichier.nomFichier,
+        caption: but,
+      });
+      this.journalEtape?.({
+        event: "document_genere",
+        run: runId,
+        format: fichier.format,
+        octets: fichier.octets,
+        nom: fichier.nomFichier,
+      });
+      this._metriques.documentsGeneres += 1;
+      return fichier;
+    } catch (e) {
+      this.journalEtape?.({ event: "document_echoue", run: runId, erreur: String(e?.message ?? e).slice(0, 140) });
+      return null;
+    }
+  }
+
   /** Transmet un rapport aux responsables, sans rien leur demander. */
-  async _diffuserRapport({ but, bilan, staff, runId }) {
+  async _diffuserRapport({ but, bilan, staff, runId, fichier = null }) {
     const roles = this.rolesRapport ?? ["SUPER_ADMIN", "DIRECTION"];
     const destinataires = (await this.destinatairesNotification?.(roles)) ?? [];
     for (const jid of destinataires) {
@@ -544,6 +583,16 @@ export class Agent {
       try {
         await this.provider.sendText(jid, `${but} (prepare automatiquement)\n\n${bilan}`);
         this._metriques.notificationsEnvoyees += 1;
+        // Le MÊME fichier, pas un second calcul : deux rapports qui
+        // différeraient d'une ligne seraient impossibles à rapprocher.
+        if (fichier && typeof this.provider.sendMedia === "function") {
+          await this.provider.sendMedia(jid, {
+            data: fichier.data,
+            mimetype: fichier.mimetype,
+            filename: fichier.nomFichier,
+            caption: but,
+          });
+        }
       } catch (e) {
         this.journalEtape?.({ event: "notification_echouee", run: runId, erreur: String(e?.message ?? e).slice(0, 120) });
       }
