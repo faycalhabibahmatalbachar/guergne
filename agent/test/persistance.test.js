@@ -4,7 +4,9 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { DedupPersistant, VerrouInstance, cheminsPersistants } from "../src/persistance.js";
+import { DedupPersistant, cheminsPersistants } from "../src/persistance.js";
+
+// Le verrou d'instance a ses propres tests : voir `verrou.test.js`.
 
 const bac = () => mkdtempSync(join(tmpdir(), "agent-persist-"));
 
@@ -52,74 +54,10 @@ test("un fichier corrompu n'empêche pas le démarrage", () => {
   }
 });
 
-test("le verrou empêche une seconde instance de démarrer", () => {
-  const d = bac();
-  try {
-    const f = join(d, "instance.lock");
-    let t = 1000;
-    const premier = new VerrouInstance({ chemin: f, pid: 111, horloge: () => t });
-    const second = new VerrouInstance({ chemin: f, pid: 222, horloge: () => t });
-
-    assert.equal(premier.acquerir().ok, true);
-    const r = second.acquerir();
-    assert.equal(r.ok, false, "deux instances sur la même session feraient bannir le numéro");
-    assert.equal(r.detenuPar, 111);
-  } finally {
-    rmSync(d, { recursive: true, force: true });
-  }
-});
-
-test("un verrou périmé est repris (processus tué sans nettoyage)", () => {
-  const d = bac();
-  try {
-    const f = join(d, "instance.lock");
-    let t = 1000;
-    const mort = new VerrouInstance({ chemin: f, pid: 111, ttlMs: 5000, horloge: () => t });
-    mort.acquerir();
-
-    t += 6000; // au-delà du TTL, sans rafraîchissement
-    const neuf = new VerrouInstance({ chemin: f, pid: 222, ttlMs: 5000, horloge: () => t });
-    assert.equal(neuf.acquerir().ok, true, "un verrou périmé doit pouvoir être repris");
-  } finally {
-    rmSync(d, { recursive: true, force: true });
-  }
-});
-
-test("un verrou rafraîchi reste détenu", () => {
-  const d = bac();
-  try {
-    const f = join(d, "instance.lock");
-    let t = 1000;
-    const vivant = new VerrouInstance({ chemin: f, pid: 111, ttlMs: 5000, horloge: () => t });
-    vivant.acquerir();
-
-    t += 4000;
-    vivant.rafraichir();
-    t += 4000; // 8s depuis l'acquisition, mais 4s depuis le rafraîchissement
-
-    const autre = new VerrouInstance({ chemin: f, pid: 222, ttlMs: 5000, horloge: () => t });
-    assert.equal(autre.acquerir().ok, false, "le détenteur vivant doit conserver le verrou");
-  } finally {
-    rmSync(d, { recursive: true, force: true });
-  }
-});
-
-test("libérer le verrou laisse la place", () => {
-  const d = bac();
-  try {
-    const f = join(d, "instance.lock");
-    const a = new VerrouInstance({ chemin: f, pid: 111 });
-    a.acquerir();
-    a.liberer();
-    assert.equal(new VerrouInstance({ chemin: f, pid: 222 }).acquerir().ok, true);
-  } finally {
-    rmSync(d, { recursive: true, force: true });
-  }
-});
-
 test("les chemins persistants sont regroupés sous une racine", () => {
   const c = cheminsPersistants("/data");
   assert.match(c.session, /wwebjs_auth$/);
   assert.match(c.dedup, /dedup\.json$/);
   assert.match(c.verrou, /instance\.lock$/);
+  assert.match(c.redemarrages, /redemarrages\.json$/);
 });

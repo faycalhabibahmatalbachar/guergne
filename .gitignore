@@ -68,3 +68,7 @@ grok.env
 
 # Contexte local neonctl
 .neon
+
+# Liste blanche des numeros autorises — donnees personnelles, jamais dans Git.
+identites-autorisees.json
+donnees-privees/

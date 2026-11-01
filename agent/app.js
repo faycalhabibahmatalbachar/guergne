@@ -20,12 +20,12 @@ import { AuditLog } from "./src/audit.js";
 import { Agent } from "./src/engine.js";
 import { GuergneHttpClient } from "./src/guergne-client.js";
 import { IdentityStorePersistant } from "./src/identity-store.js";
-import { MoteurIA } from "./src/ia.js";
+import { FOURNISSEURS as FOURNISSEURS_CONNUS, MoteurIA, configurerDepuisEnv } from "./src/ia.js";
 import { Pairing, jetonAleatoire, pageAppairage } from "./src/pairing.js";
 import { MatricePermissions } from "./src/permissions-matrix.js";
 import { Referentiel } from "./src/referentiel.js";
 import { resoudreNomsEleves } from "./src/resolution-eleves.js";
-import { DedupPersistant, VerrouInstance, cheminsPersistants } from "./src/persistance.js";
+import { DedupPersistant, FreinRedemarrage, VerrouInstance, cheminsPersistants } from "./src/persistance.js";
 import { WwebjsProvider } from "./src/providers/wwebjs.js";
 import { ASSIDUITE_TOOLS, ToolRegistry } from "./src/tools.js";
 
@@ -47,37 +47,68 @@ const CONF = {
   // Le backend scolaire peut être raccordé après la première liaison WhatsApp.
   apiEcole: env("SCHOOL_API_BASE_URL"),
   jetonService: env("AGENT_SERVICE_TOKEN"),
-  cles: { groq: env("GROQ_API_KEY"), mistral: env("MISTRAL_API_KEY") },
 };
+
+// --- Fournisseurs IA : ce qui est présent, et rien de plus ------------------
+// La lecture est déportée dans `configurerDepuisEnv` pour être testable sans
+// toucher à `process.env`, et pour qu'un seul endroit connaisse les alias.
+const confIA = configurerDepuisEnv(process.env);
+for (const a of confIA.avertissements) console.warn(`[config] ${a}`);
+// Diagnostic non sensible : des noms et des états, jamais une valeur.
+console.log(
+  `[config] ${Object.keys(FOURNISSEURS_CONNUS)
+    .map((n) => `${n}=${confIA.desactives.includes(n) ? "desactive" : confIA.cles[n] ? "present" : "absent"}`)
+    .join(" ")}`,
+);
+console.log(`[config] ordre=${confIA.ordre.join(">")}`);
 
 const chemins = cheminsPersistants(CONF.donnees);
 mkdirSync(chemins.racine, { recursive: true });
+
+// --- Frein : une boucle de redémarrages coûte le numéro, pas seulement du temps
+const frein = new FreinRedemarrage({ chemin: chemins.redemarrages });
+const { pauseMs } = frein.enregistrer();
+if (pauseMs > 0) await new Promise((r) => setTimeout(r, pauseMs));
 
 // --- Verrou avant toute connexion WhatsApp ---------------------------------
 const verrou = new VerrouInstance({ chemin: chemins.verrou });
 const prise = verrou.acquerir();
 if (!prise.ok) {
   console.error(
-    `[verrou] une autre instance (pid ${prise.detenuPar}) utilise deja la session ; ` +
-      `arret pour ne pas faire bannir le numero.`,
+    `[verrou] une autre instance (pid ${prise.detenuPar}) utilise deja la session ` +
+      `(decision=${prise.decision}) ; arret pour ne pas faire bannir le numero.`,
   );
   process.exit(1);
 }
-const battement = setInterval(() => verrou.rafraichir(), 20_000);
+console.log(`[verrou] acquis (decision=${prise.decision}) instance=${verrou.instanceId.slice(0, 8)}`);
+
+// Le battement est aussi une surveillance : s'il découvre que le verrou n'est
+// plus le nôtre, c'est qu'une autre instance tient la session. Rester en vie
+// signifierait deux clients sur le même compte — donc le bannissement.
+const battement = setInterval(() => {
+  if (!verrou.rafraichir()) {
+    console.error("[verrou] verrou perdu au profit d'une autre instance ; arret immediat.");
+    clearInterval(battement);
+    provider.disconnect().finally(() => process.exit(1));
+  }
+}, 20_000);
 battement.unref?.();
 
 // --- Dépendances ------------------------------------------------------------
 const audit = new AuditLog((e) =>
   console.log(JSON.stringify({ ts: e.at, type: "audit", run: e.runId, intent: e.intent, result: e.result })),
 );
-const iaConfiguree = Boolean(CONF.cles.groq || CONF.cles.mistral);
+const iaConfiguree = confIA.presents.some((n) => !confIA.desactives.includes(n));
 const backendConfigure = Boolean(CONF.apiEcole && CONF.jetonService);
 
 // Le transport WhatsApp et l'appairage démarrent sans IA ni API.
 // Toute action scolaire échoue explicitement tant que le backend n'est pas branché.
 const ia = iaConfiguree
   ? new MoteurIA({
-      cles: CONF.cles,
+      cles: confIA.cles,
+      modeles: confIA.modeles,
+      ordre: confIA.ordre,
+      desactives: confIA.desactives,
       journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
     })
   : null;
@@ -281,6 +312,7 @@ createServer(async (req, res) => {
     fournisseursIA: ia?.etatFournisseurs ?? {},
     configuration: { backend: backendConfigure, ia: Boolean(ia) },
     attenteScanQr: wa.state === "qr",
+    verrou: { detenu: verrou.detientToujours(), instance: verrou.instanceId.slice(0, 8), pid: process.pid },
     appairage: pairing.etat().etat,
     appairageOuvert: pairing.actif,
     memoireMo: Math.round(process.memoryUsage().rss / 1024 / 1024),
@@ -303,6 +335,15 @@ async function arreter(signal) {
 }
 process.on("SIGTERM", () => arreter("SIGTERM"));
 process.on("SIGINT", () => arreter("SIGINT"));
+
+// Dernière vérification avant d'ouvrir la session : entre l'acquisition et ce
+// point, le service a monté ses dépendances et son serveur HTTP. Si une autre
+// instance a pris le verrou dans cet intervalle, connecter WhatsApp ferait
+// exactement ce que le verrou existe pour empêcher.
+if (!verrou.detientToujours()) {
+  console.error("[verrou] le verrou a change de main pendant le demarrage ; arret avant connexion WhatsApp.");
+  process.exit(1);
+}
 
 console.log("[demarrage] connexion WhatsApp...");
 await provider.connect();

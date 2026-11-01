@@ -11,11 +11,9 @@
  * POURQUOI UN VERROU
  * ------------------
  * Deux instances partageant la même session WhatsApp font bannir le numéro.
- * Le verrou porte le PID et un horodatage rafraîchi : un verrou périmé (processus
- * tué sans nettoyage) est repris au bout de `ttlMs`, sinon le second démarrage
- * s'arrête de lui-même.
+ * Le mécanisme lui-même est dans `verrou.js`, réexporté en fin de fichier.
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 /** Écriture atomique : un crash en plein écrit ne doit pas laisser un fichier tronqué. */
@@ -77,66 +75,11 @@ export class DedupPersistant {
   }
 }
 
-/**
- * Verrou d'instance unique, adossé à un fichier.
- *
- * `acquerir()` renvoie false si une autre instance vivante le détient. Le
- * détenteur doit appeler `rafraichir()` périodiquement : sans cela, son verrou
- * est considéré comme périmé après `ttlMs` et peut être repris.
- */
-export class VerrouInstance {
-  constructor({ chemin, ttlMs = 60_000, pid = process.pid, horloge = () => Date.now() } = {}) {
-    this._chemin = chemin;
-    this._ttl = ttlMs;
-    this._pid = pid;
-    this._horloge = horloge;
-    this._detenu = false;
-  }
-
-  _lire() {
-    if (!existsSync(this._chemin)) return null;
-    try {
-      return JSON.parse(readFileSync(this._chemin, "utf8"));
-    } catch {
-      return null;
-    }
-  }
-
-  /** @returns {{ok:true}|{ok:false, detenuPar:number, expireDansMs:number}} */
-  acquerir() {
-    const actuel = this._lire();
-    const t = this._horloge();
-    if (actuel && actuel.pid !== this._pid) {
-      const age = t - (actuel.vuLe ?? 0);
-      if (age < this._ttl) {
-        return { ok: false, detenuPar: actuel.pid, expireDansMs: this._ttl - age };
-      }
-      // Verrou périmé : l'ancien détenteur n'a pas survécu, on le reprend.
-    }
-    ecrireAtomique(this._chemin, JSON.stringify({ pid: this._pid, vuLe: t }));
-    this._detenu = true;
-    return { ok: true };
-  }
-
-  rafraichir() {
-    if (!this._detenu) return false;
-    ecrireAtomique(this._chemin, JSON.stringify({ pid: this._pid, vuLe: this._horloge() }));
-    return true;
-  }
-
-  liberer() {
-    if (!this._detenu) return;
-    const actuel = this._lire();
-    if (actuel && actuel.pid === this._pid) {
-      try {
-        unlinkSync(this._chemin);
-      } catch {
-        /* déjà parti */
-      }
-    }
-    this._detenu = false;
-  }
-}
+// Le verrou d'instance vit désormais dans son propre module : décider qui
+// détient la session WhatsApp exige de sonder les processus, ce qui n'a rien à
+// voir avec la déduplication des messages. Il reste réexporté ici pour que les
+// appelants n'aient qu'un seul point d'entrée vers la persistance.
+export { FreinRedemarrage, VerrouInstance, evaluerVerrou, sonderProcessus } from "./verrou.js";
 
 /** Chemins standard sous le répertoire persistant du service. */
 export function cheminsPersistants(racine) {
@@ -145,5 +88,6 @@ export function cheminsPersistants(racine) {
     session: join(racine, "wwebjs_auth"),
     dedup: join(racine, "dedup.json"),
     verrou: join(racine, "instance.lock"),
+    redemarrages: join(racine, "redemarrages.json"),
   };
 }
