@@ -22,6 +22,7 @@ import { SENSITIVE } from "./guard.js";
 import { DECISIONS, MOTIFS, NOTIFIER } from "./politiques.js";
 import { RAISONS, analyserJid, empreinte, jidUtilisateur, resoudreNumeroDepuisJid } from "./jid.js";
 import { INTENTIONS, normaliserPlan } from "./plan.js";
+import { ETAPE, agreger, estTransitoire, rendreBilan, validerMission } from "./mission.js";
 // `masquer` est la mise en forme canonique du projet : la redefinir ici ferait
 // diverger deux facons de masquer un numero.
 import { masquer } from "./identity-store.js";
@@ -79,6 +80,7 @@ export class Agent {
       refusPermission: 0,
       refusIdentite: 0,
       notificationsEnvoyees: 0,
+      rapportsGeneres: 0,
       repriseApresEchec: 0,
       dureeCumuleeMs: 0,
     };
@@ -286,6 +288,11 @@ export class Agent {
       return { status: Status.COMPLETED, runId, conversation: true };
     }
 
+    // 5a bis. Mission — plusieurs consultations, puis une synthese chiffree.
+    if (plan.type === INTENTIONS.MISSION) {
+      return this._conduireMission({ plan, staff, msg, runId, started });
+    }
+
     // 5b. Clarification.
     if (plan.type === INTENTIONS.CLARIFIER) {
       await this.provider.sendText(msg.fromJid, plan.question);
@@ -401,6 +408,145 @@ export class Agent {
       case "PLAN_ABSENT":
       default:
         return "Je n'ai pas compris votre demande. Reformulez-la, par exemple : « les absences de la 6eme B cette semaine ».";
+    }
+  }
+
+  /**
+   * Conduit une mission : plusieurs consultations, puis une synthese.
+   *
+   * Chaque etape repasse par la chaine complete — RBAC, politique, garde du
+   * backend. Une mission n'est pas un laissez-passer : c'est une suite
+   * d'appels dont chacun est controle comme s'il etait seul.
+   *
+   * Une etape qui echoue n'arrete pas la mission : on poursuit les autres, et
+   * le bilan dit ce qui manque. Rendre un bilan muet sur ce qu'il n'a pas pu
+   * lire laisserait croire que le reste est complet.
+   */
+  async _conduireMission({ plan, staff, msg, runId, started }) {
+    const verif = validerMission(plan, this.tools);
+    if (!verif.ok) {
+      this.journalEtape?.({ event: "mission_refusee", run: runId, raison: verif.raison });
+      await this.provider.sendText(
+        msg.fromJid,
+        "Je n'ai pas pu preparer ce travail. Demandez-moi plutot une consultation precise, par exemple « les absences de la 6eme B cette semaine ».",
+      );
+      this.audit.record({
+        runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
+        intent: "mission", result: "PLAN_INVALIDE", error: verif.raison, durationMs: Date.now() - started,
+      });
+      return { status: Status.WAITING_INPUT, runId, rejet: "MISSION_INVALIDE" };
+    }
+
+    this.journalEtape?.({ event: "mission_demarree", run: runId, but: verif.but, etapes: verif.etapes.length });
+    const resultats = [];
+
+    for (const [i, etape] of verif.etapes.entries()) {
+      const rang = i + 1;
+      const base = { libelle: etape.libelle, outil: etape.nomOutil };
+
+      if (!this.permissions.allows(staff, etape.tool.permission)) {
+        // Une etape refusee n'arrete pas la mission : les autres restent utiles.
+        this._metriques.refusPermission += 1;
+        resultats.push({ ...base, statut: ETAPE.REFUSEE, detail: `droits insuffisants (${etape.tool.permission})` });
+        this.journalEtape?.({ event: "mission_etape", run: runId, rang, statut: ETAPE.REFUSEE, outil: etape.nomOutil });
+        continue;
+      }
+
+      const verdict = this.politiques?.decider({ outil: etape.tool, params: etape.params, staff }) ?? null;
+      if (verdict?.decision === "AUTOMATIQUE") {
+        this._metriques.automatiques += 1;
+        this.politiques?.enregistrerExecution?.({ politique: verdict.politique, staff });
+      }
+
+      const r = await this._appelerAvecReprise({ etape, staff, runId, rang });
+      resultats.push({ ...base, ...r });
+      this.journalEtape?.({
+        event: "mission_etape", run: runId, rang, statut: r.statut, outil: etape.nomOutil,
+        lignes: r.agregat?.total ?? null, reprises: r.reprises ?? 0,
+      });
+    }
+
+    const bilan = rendreBilan({ but: verif.but, resultats });
+    await this.provider.sendText(msg.fromJid, bilan);
+    this._metriques.rapportsGeneres += 1;
+
+    const reussies = resultats.filter((r) => r.statut === ETAPE.REUSSIE).length;
+    this.audit.record({
+      runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
+      intent: "mission", params: { but: verif.but, etapes: verif.etapes.map((e) => e.nomOutil) },
+      result: reussies === resultats.length ? "SUCCESS" : reussies ? "PARTIAL" : "FAILURE",
+      durationMs: Date.now() - started,
+    });
+    this.journalEtape?.({ event: "mission_terminee", run: runId, reussies, total: resultats.length });
+
+    // Les responsables sont informes du rapport, pas sollicites pour l'autoriser.
+    await this._diffuserRapport({ but: verif.but, bilan, staff, runId });
+
+    return {
+      status: reussies ? Status.COMPLETED : Status.FAILED,
+      runId,
+      mission: { but: verif.but, reussies, total: resultats.length },
+    };
+  }
+
+  /**
+   * Appelle une consultation, avec une seconde tentative si la panne est
+   * passagere.
+   *
+   * La reprise ne vaut que pour les LECTURES : rejouer une ecriture dont le
+   * resultat est incertain creerait un doublon dans le dossier d'un eleve.
+   * Et un refus de permission n'est jamais reessaye — ce serait insister
+   * contre une decision de securite.
+   */
+  async _appelerAvecReprise({ etape, staff, runId, rang }) {
+    let reprises = 0;
+    for (let tentative = 1; tentative <= 2; tentative += 1) {
+      try {
+        const fn = this.guergne[etape.tool.action];
+        if (typeof fn !== "function") throw new Error(`action guergne absente : ${etape.tool.action}`);
+        const r = await fn.call(this.guergne, etape.params, { actorId: staff.id });
+        if (r?.ok === false) {
+          if (tentative === 1 && estTransitoire(r.message)) {
+            reprises += 1;
+            continue;
+          }
+          this._metriques.operationsEchouees += 1;
+          return { statut: ETAPE.ECHOUEE, detail: String(r.message ?? "refus").slice(0, 100), reprises };
+        }
+        if (reprises) this._metriques.repriseApresEchec += 1;
+        // Les etapes de mission ne passent pas par `_execute` : sans ce
+        // comptage, un bilan de quatre consultations en affichait zero.
+        this._metriques.consultations += 1;
+        this._metriques.operationsReussies += 1;
+        return { statut: ETAPE.REUSSIE, agregat: agreger(r?.data), reprises };
+      } catch (e) {
+        const message = String(e?.message ?? e);
+        if (tentative === 1 && estTransitoire(message)) {
+          reprises += 1;
+          this.journalEtape?.({ event: "mission_reprise", run: runId, rang, raison: message.slice(0, 80) });
+          continue;
+        }
+        this._metriques.operationsEchouees += 1;
+        return { statut: ETAPE.ECHOUEE, detail: message.slice(0, 100), reprises };
+      }
+    }
+    return { statut: ETAPE.ECHOUEE, detail: "echec apres reprise", reprises };
+  }
+
+  /** Transmet un rapport aux responsables, sans rien leur demander. */
+  async _diffuserRapport({ but, bilan, staff, runId }) {
+    const roles = this.rolesRapport ?? ["SUPER_ADMIN", "DIRECTION"];
+    const destinataires = (await this.destinatairesNotification?.(roles)) ?? [];
+    for (const jid of destinataires) {
+      // L'auteur de la demande vient de recevoir le bilan : le lui envoyer
+      // deux fois serait du bruit.
+      if (jid === `${staff.msisdn}@c.us`) continue;
+      try {
+        await this.provider.sendText(jid, `${but} (prepare automatiquement)\n\n${bilan}`);
+        this._metriques.notificationsEnvoyees += 1;
+      } catch (e) {
+        this.journalEtape?.({ event: "notification_echouee", run: runId, erreur: String(e?.message ?? e).slice(0, 120) });
+      }
     }
   }
 

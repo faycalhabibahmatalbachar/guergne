@@ -76,6 +76,10 @@ const CAS = [
   // inventer le chiffre. C'est le defaut que le contrat existe pour empecher.
   { demande: "Combien d'absences avons-nous aujourd'hui ?", pasConversation: true },
 
+  // --- Mission : plusieurs consultations avant de repondre.
+  { demande: "Prepare le bilan d'assiduite du mois et informe les responsables.", intention: "mission" },
+  { demande: "Compare les absences et les retards par classe.", intention: "mission" },
+
   // --- Clarification : une classe qui n'existe pas.
   { demande: "Montre les absences de la 7eme Z.", intention: "clarifier" },
 ];
@@ -101,7 +105,9 @@ for (const cas of CAS) {
     } else {
       ok = plan.type === cas.intention;
       detail =
-        plan.type === "conversation"
+        plan.type === "mission"
+          ? `mission « ${plan.but} » : ${plan.etapes.map((e) => e.outil ?? e.tool).join(" + ")}`
+          : plan.type === "conversation"
           ? `conversation : « ${plan.texte.slice(0, 60)} »`
           : plan.type === "clarifier"
             ? `clarifier : « ${plan.question.slice(0, 60)} »`

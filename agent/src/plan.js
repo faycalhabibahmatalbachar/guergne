@@ -34,6 +34,8 @@ export const INTENTIONS = {
   CONVERSATION: "conversation",
   OUTIL: "outil",
   CLARIFIER: "clarifier",
+  /** Plusieurs consultations enchainees, puis une synthese chiffree. */
+  MISSION: "mission",
 };
 
 /** Raisons de rejet d'un plan, pour le journal. */
@@ -42,6 +44,7 @@ export const REJETS = {
   INTENTION_INCONNUE: "INTENTION_INCONNUE",
   OUTIL_INCONNU: "OUTIL_INCONNU",
   CHAMP_MANQUANT: "CHAMP_MANQUANT",
+  MISSION_INVALIDE: "MISSION_INVALIDE",
   DONNEES_INVENTEES: "DONNEES_INVENTEES",
 };
 
@@ -110,6 +113,15 @@ export function normaliserPlan(brut, registre) {
     return { type: INTENTIONS.CONVERSATION, texte };
   }
 
+  // --- Mission : plusieurs consultations, puis une synthese ----------------
+  if (intention === INTENTIONS.MISSION) {
+    const etapes = Array.isArray(brut.etapes) ? brut.etapes : null;
+    if (!etapes || etapes.length === 0) {
+      return { type: "invalide", rejet: REJETS.CHAMP_MANQUANT, detail: "mission sans etape" };
+    }
+    return { type: INTENTIONS.MISSION, but: texteUtile(brut.but) ?? "Bilan", etapes };
+  }
+
   // --- Outil (forme actuelle et forme historique) --------------------------
   const nomOutil = texteUtile(brut.outil) ?? texteUtile(brut.tool);
   if (intention === INTENTIONS.OUTIL || (!intention && nomOutil)) {
@@ -140,13 +152,18 @@ export function normaliserPlan(brut, registre) {
  */
 export function inviteContrat() {
   return [
-    "Reponds TOUJOURS par un seul objet JSON, de l'une de ces trois formes :",
+    "Reponds TOUJOURS par un seul objet JSON, de l'une de ces quatre formes :",
     '1. {"intention":"conversation","reponse":"<texte naturel>"}',
     "   pour une salutation, un remerciement, une question sur toi, tes capacites",
     "   ou ton fonctionnement.",
     '2. {"intention":"outil","outil":"<nom exact>","params":{...}}',
     "   pour toute demande portant sur l'etablissement.",
-    '3. {"intention":"clarifier","question":"<question>"}',
+    '3. {"intention":"mission","but":"<ce que tu prepares>","etapes":[{"outil":"<nom>","params":{...},"libelle":"<titre court>"}]}',
+    "   pour une demande qui exige PLUSIEURS consultations avant de repondre :",
+    "   un bilan, un rapport, une comparaison entre classes ou entre periodes.",
+    "   Les etapes sont uniquement des CONSULTATIONS. Tu n'ecris aucun chiffre :",
+    "   ils sont calcules a partir des donnees reellement lues.",
+    '4. {"intention":"clarifier","question":"<question>"}',
     "   EN DERNIER RECOURS seulement.",
     "",
     'QUAND NE PAS UTILISER "clarifier" :',
