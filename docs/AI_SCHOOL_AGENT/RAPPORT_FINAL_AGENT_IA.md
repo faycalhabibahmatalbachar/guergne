@@ -10,6 +10,82 @@ Aucune clé, aucun numéro complet et aucune donnée scolaire réelle ne figure 
 
 ---
 
+## 0 quinquies. Missions — conduire un travail, pas un geste
+
+« Prépare le bilan d'assiduité du mois et informe les responsables » n'est pas
+un appel d'outil : c'est une suite d'étapes, des chiffres à calculer, une
+synthèse à rédiger. L'agent savait faire un geste à la fois ; il ne savait pas
+conduire un travail.
+
+### La règle qui gouverne ce module
+
+**Les chiffres sont calculés en code, à partir des lignes rendues par le
+backend. Le modèle ne les produit jamais.**
+
+Un modèle à qui l'on demande une synthèse chiffrée arrondit, invente une
+tendance, ajoute un total qui paraît juste — et le directeur qui le lit n'a
+aucun moyen de le savoir. Le modèle décide donc **quelles** données consulter ;
+`agreger()` dit **ce qu'elles contiennent**.
+
+### Ce qu'une mission ne change pas
+
+Chaque étape repasse par la chaîne complète : RBAC, politique, garde du
+backend. Une mission n'est pas un laissez-passer — c'est une suite d'appels
+dont chacun est contrôlé comme s'il était seul.
+
+Et elle ne contient **que des consultations**. Y glisser une écriture ferait
+exécuter en chaîne, sans confirmation ni regard, ce qui modifie des dossiers :
+le moteur refuse un tel plan **avant d'appeler quoi que ce soit**.
+
+Une étape qui échoue n'arrête pas la mission : les autres restent utiles, et le
+bilan dit ce qui manque. Un bilan muet sur ses trous laisserait croire que le
+reste est complet.
+
+### Reprise automatique
+
+Une panne passagère donne droit à une seconde tentative ; un refus de droits à
+aucune — réessayer serait insister contre une décision de sécurité. La reprise
+ne vaut que pour les lectures : rejouer une écriture dont le résultat est
+incertain créerait un doublon dans le dossier d'un élève.
+
+### Preuve de bout en bout — modèle réel, API réelle
+
+```
+« Prepare le bilan d'assiduite et de discipline, et indique les classes
+  les plus concernees. »
+
+  [nlu] groq/openai/gpt-oss-120b en 1783 ms
+  4 etapes planifiees par le modele, 4 reussies
+
+  • Absences : 100 resultats, 294 h, 56 justifiée, 44 non justifiée
+    classes les plus concernees : 5ème B (16), 2nde B (9), 3ème B (9)
+  • Retards : 100 resultats, 47 non justifiée, 53 justifiée
+    classes les plus concernees : 5ème A (12), 5ème B (11), 3ème B (10)
+  • Incidents : 82 resultats
+    classes les plus concernees : 2nde A (9), 1ère L (8), 5ème A (8)
+  • Sanctions : 0 resultat
+  4 consultations, chiffres issus de la base.
+```
+
+Indicateurs de la session : 6 consultations, 6 opérations automatiques,
+**0 confirmation demandée**, 2 rapports générés, **taux d'autonomie 1**.
+
+Au passage, un défaut de mes propres compteurs : les étapes de mission ne
+passaient pas par `_execute`, et un bilan de quatre consultations en affichait
+zéro. L'indicateur d'autonomie mentait par omission.
+
+### Livraison
+
+| Élément | État |
+|---|---|
+| Commit | `d206e51` |
+| Push | confirmé |
+| Déploiement Altare | **vérifié par condensat** — 11 fichiers identiques |
+| Tests | **343** (323 auparavant) |
+| Version chargée | en attente d'un redémarrage |
+
+---
+
 ## 0 quater. Autonomie — des autorisations permanentes
 
 L'agent demandait « répondez *oui* pour confirmer » à chaque opération
@@ -851,11 +927,11 @@ Trois conséquences qui dépassent la liste blanche :
 
 | Mesure | Valeur |
 |---|---|
-| Tests automatisés | **323** |
-| Réussites | **323** |
+| Tests automatisés | **343** |
+| Réussites | **343** |
 | Échecs | **0** |
 | Au début de la session | 136 |
-| Ajoutés | **+187** |
+| Ajoutés | **+207** |
 | Fichiers `web/` modifiés | **aucun** — cette recette n'a touché que `agent/` |
 | Commits | voir ci-dessous |
 | Déploiements | code + `.env` transférés ; **service non redémarré** |
