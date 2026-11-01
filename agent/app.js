@@ -11,6 +11,7 @@
  *   4. serveur de santé ;
  *   5. WhatsApp en dernier, une fois tout le reste prêt à recevoir.
  */
+import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import QRCode from "qrcode";
 import { chmodSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
@@ -60,7 +61,12 @@ console.log(
     .map((n) => `${n}=${confIA.desactives.includes(n) ? "desactive" : confIA.cles[n] ? "present" : "absent"}`)
     .join(" ")}`,
 );
-console.log(`[config] ordre=${confIA.ordre.join(">")}`);
+// L'ordre EFFECTIF, pas l'ordre théorique : afficher `xai` dans une file dont
+// la clé est absente laisse croire à quatre fournisseurs opérationnels.
+const ordreEffectif = confIA.ordre.filter((n) => confIA.cles[n] && !confIA.desactives.includes(n));
+console.log(`[config] ordre=${ordreEffectif.join(">") || "(aucun fournisseur utilisable)"}`);
+const ecartes = confIA.ordre.filter((n) => !ordreEffectif.includes(n));
+if (ecartes.length) console.log(`[config] hors file (cle absente ou desactive) : ${ecartes.join(", ")}`);
 
 const chemins = cheminsPersistants(CONF.donnees);
 mkdirSync(chemins.racine, { recursive: true });
@@ -134,7 +140,22 @@ const identites = new IdentityStorePersistant({
   chemin: join(chemins.racine, "identites.json"),
   journal: (e) => console.log(JSON.stringify({ ts: e.at, ...e })),
 });
+/**
+ * Sel d'empreinte, neuf à chaque démarrage.
+ *
+ * Les empreintes servent à comparer, dans les journaux, le numéro qui a écrit
+ * aux numéros du magasin — sans qu'aucun des deux n'apparaisse. Un sel neuf à
+ * chaque processus les rend incomparables d'un redémarrage à l'autre, donc
+ * inutilisables comme identifiant durable.
+ */
+const SEL_EMPREINTE = randomUUID();
+
 console.log(`[identites] ${identites.nombreActives} association(s) active(s)`);
+// Les empreintes du magasin au démarrage : sans elles, un refus ne dit pas si
+// le numéro qui a écrit est un autre numéro, ou le bon mal résolu.
+for (const a of identites.empreintes(SEL_EMPREINTE)) {
+  console.log(JSON.stringify({ type: "identite_chargee", ...a }));
+}
 
 // `Pairing` est l'UNIQUE autorité sur le cycle de vie du QR : pas de variable
 // parallèle qui pourrait diverger de son état.
@@ -174,6 +195,13 @@ const agent = new Agent({
   tools: outils,
   permissions: new MatricePermissions(),
   guergne,
+  // Journal d'identification : la seule facon de diagnostiquer un refus sans
+  // qu'aucun numero complet n'apparaisse. L'empreinte se compare a celles
+  // ecrites au demarrage (`identite_chargee`) : si elles different, le message
+  // vient d'un AUTRE numero ; si elles coincident, c'est l'etat de
+  // l'association qu'il faut regarder.
+  journalIdentite: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+  selEmpreinte: SEL_EMPREINTE,
   interpret: async (texte, ctx = {}) => {
     if (!ia) throw new Error("Aucun fournisseur IA configuré : compréhension indisponible.");
     // Deux sources, deux roles. L'invite vient du registre : c'est lui qui

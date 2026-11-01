@@ -19,6 +19,10 @@
  */
 import { normalizeIncoming } from "./normalize.js";
 import { SENSITIVE } from "./guard.js";
+import { RAISONS, analyserJid, empreinte, jidUtilisateur, resoudreNumeroDepuisJid } from "./jid.js";
+// `masquer` est la mise en forme canonique du projet : la redefinir ici ferait
+// diverger deux facons de masquer un numero.
+import { masquer } from "./identity-store.js";
 
 let counter = 0;
 const uid = (p) => `${p}_${Date.now().toString(36)}_${(counter++).toString(36)}`;
@@ -54,14 +58,62 @@ export class Agent {
     this.idempotency.remember(msg.id);
 
     // 2. Identité — un numéro non lié est refusé (brief §3.1)
-    const staff = this.identity.resolve(msg.fromJid);
+    //
+    // Le JID n'est pas toujours un numéro. Depuis la migration LID de WhatsApp,
+    // `msg.from` peut être un identifiant interne dont la partie numérique ne
+    // désigne aucun abonné. On résout donc le vrai numéro AVANT de chercher
+    // dans la liste blanche, et on refuse proprement si on n'y arrive pas.
+    const resolution = await resoudreNumeroDepuisJid({
+      jid: msg.fromJid,
+      resoudreLid: this.provider?.resoudreLid?.bind(this.provider),
+    });
+
+    let staff = null;
+    let raison = null;
+    if (!resolution.ok) {
+      raison = resolution.raison;
+    } else {
+      const jidTel = jidUtilisateur(resolution.numero);
+      staff = this.identity.resolve(jidTel);
+      if (!staff) {
+        // Distinguer « inconnu » de « suspendu » et de « révoqué » : ce sont
+        // trois situations qui appellent trois gestes d'administration
+        // différents, et les confondre fait chercher au mauvais endroit.
+        const etat = this.identity.etatDe?.(jidTel)?.statut;
+        raison =
+          etat === "suspendu"
+            ? RAISONS.IDENTITY_SUSPENDED
+            : etat === "revoque"
+              ? RAISONS.IDENTITY_REVOKED
+              : RAISONS.UNKNOWN_NUMBER;
+      }
+    }
+
+    // Journal d'identification : de quoi diagnostiquer un refus sans qu'aucun
+    // numéro complet n'apparaisse. L'empreinte permet de comparer « le numéro
+    // qui a écrit » aux numéros du magasin sans en divulguer un seul.
+    this.journalIdentite?.({
+      type: "identity_resolution",
+      run: runId,
+      jidType: analyserJid(msg.fromJid).serveur ?? "invalide",
+      viaLid: resolution.ok ? resolution.viaLid : null,
+      numeroMasque: resolution.ok ? masquer(resolution.numero) : null,
+      empreinte: resolution.ok ? empreinte(resolution.numero, this.selEmpreinte ?? "") : null,
+      normalisation: resolution.ok ? "success" : "failed",
+      associationPersistante: staff ? "active" : (raison ?? "absente"),
+      role: staff?.role ?? null,
+      decision: staff ? "ALLOW" : "DENY",
+      raison,
+    });
+
     if (!staff) {
       await this.provider.sendText(msg.fromJid, "Numéro non autorisé.");
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: null, role: null, channel: msg.kind,
-        message: msg.text, intent: null, result: "REFUSED_UNKNOWN", durationMs: Date.now() - started,
+        message: msg.text, intent: null, result: "REFUSED_UNKNOWN", raison,
+        durationMs: Date.now() - started,
       });
-      return { status: Status.REJECTED_UNKNOWN, runId };
+      return { status: Status.REJECTED_UNKNOWN, runId, raison };
     }
 
     // 3. Transcription vocale si nécessaire (brief §3.3)

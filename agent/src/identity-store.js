@@ -18,6 +18,7 @@
  * de données du serveur, provisionné séparément.
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { empreinte } from "./jid.js";
 import { dirname } from "node:path";
 
 /** Normalise un numéro en forme comparable : chiffres seuls. */
@@ -165,6 +166,24 @@ export class IdentityStorePersistant {
   }
 
   /** Liaisons actives, numéros masqués — jamais de liste de numéros en clair. */
+  /**
+   * Empreintes des associations, pour le diagnostic.
+   *
+   * Le calcul se fait ICI, et non chez l'appelant : c'est la seule façon de
+   * produire une empreinte sans que le numéro brut ne sorte du magasin. Sans
+   * cela, un refus ne dirait pas si le numéro qui a écrit est un AUTRE numéro
+   * ou le bon mal résolu — la question qu'il faut trancher en premier.
+   */
+  empreintes(sel = "") {
+    return [...this._parNumero.values()].map((a) => ({
+      numeroMasque: masquer(a.numero),
+      empreinte: empreinte(a.numero, sel),
+      utilisateurId: a.utilisateurId,
+      role: a.role,
+      actif: !a.revoqueLe && !a.suspendu,
+    }));
+  }
+
   listerActives() {
     return [...this._parNumero.values()]
       .filter((a) => !a.revoqueLe)

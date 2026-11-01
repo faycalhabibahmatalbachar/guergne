@@ -111,6 +111,8 @@ export class WwebjsProvider extends WhatsAppProvider {
     this._etat = "disconnected";
     this._handler = null;
     this._reconnexions = 0;
+    /** Cache LID → JID téléphonique : chaque résolution est un aller-retour. */
+    this._lidVersNumero = new Map();
   }
 
   getConnectionStatus() {
@@ -119,6 +121,40 @@ export class WwebjsProvider extends WhatsAppProvider {
 
   onMessage(handler) {
     this._handler = handler;
+  }
+
+  /**
+   * Numéro de téléphone réel derrière un identifiant LID.
+   *
+   * Depuis la migration de WhatsApp vers les LID, un message peut arriver de
+   * `…@lid`, dont la partie numérique est un identifiant interne — pas un
+   * abonné. `getContactLidAndPhone` est le mécanisme officiel de
+   * `whatsapp-web.js` 1.34 pour obtenir la correspondance ; il interroge
+   * WhatsApp, qui seul la connaît.
+   *
+   * Le résultat est mémorisé : un responsable envoie plusieurs messages, et
+   * chaque résolution est un aller-retour vers la page du navigateur.
+   *
+   * @returns {Promise<string|null>} le JID téléphonique (`…@c.us`), ou `null`
+   *   si WhatsApp ne sait pas répondre — auquel cas l'agent refuse l'identité
+   *   plutôt que de deviner.
+   */
+  async resoudreLid(jid) {
+    if (!this._client || typeof this._client.getContactLidAndPhone !== "function") return null;
+    const connu = this._lidVersNumero.get(jid);
+    if (connu !== undefined) return connu;
+    try {
+      const [r] = (await this._client.getContactLidAndPhone([jid])) ?? [];
+      const pn = r?.pn ?? null;
+      // On ne met en cache qu'une réponse exploitable : graver un échec
+      // condamnerait ce correspondant jusqu'au redémarrage, pour une panne
+      // d'une seconde.
+      if (pn) this._lidVersNumero.set(jid, pn);
+      return pn;
+    } catch (e) {
+      this._log.error?.(`[whatsapp] resolution LID impossible : ${e?.message ?? e}`);
+      return null;
+    }
   }
 
   async connect() {
