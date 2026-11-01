@@ -129,9 +129,11 @@ const agent = new Agent({
   tools: new ToolRegistry(ASSIDUITE_TOOLS),
   permissions,
   guergne,
-  interpret: async () => ({ tool: "assiduite.consulter_absences", params: { limite: 2 } }),
+  interpret: async () => plan ?? { tool: "assiduite.consulter_absences", params: { limite: 2 } },
 });
 
+/** Plan impose, quand une epreuve vise un outil precis. */
+let plan = null;
 let n = 0;
 async function parler(jid, texte = "Montre les 2 dernieres absences.") {
   const r = await agent.handle({ id: `verif-${Date.now()}-${n++}`, from: jid, body: texte });
@@ -204,6 +206,25 @@ for (const entree of liste) {
         "         le garde refuse donc un acteur inconnu malgre un jeton de service valide — c'est la bonne reponse.",
       );
     }
+  }
+
+  // 9. La preuve inverse. Qu'une lecture autorisee passe ne dit rien de ce qui
+  // doit etre refuse. `DIRECTION` peut consulter l'assiduite mais PAS la
+  // saisir : si cette ecriture aboutissait, le role ne servirait a rien.
+  if (!peutSaisir) {
+    const avant = JSON.stringify(audit.last());
+    plan = {
+      tool: "assiduite.enregistrer_appel",
+      params: { periodeId: "00000000-0000-0000-0000-000000000000", dateAbsence: "2026-01-01", absents: [], nbHeures: 1 },
+    };
+    const r = await parler(jid, "Enregistre une absence.");
+    plan = null;
+    verifier(
+      r.evenement?.result !== "SUCCESS",
+      `9. ecriture REFUSEE pour ${associe.role} — le role n'est pas decoratif`,
+      `resultat=${r.evenement?.result ?? "-"} perm=${r.evenement?.permission ?? "-"}`,
+    );
+    verifier(JSON.stringify(r.evenement) !== avant, "   le refus est bien trace dans l'audit");
   }
 }
 

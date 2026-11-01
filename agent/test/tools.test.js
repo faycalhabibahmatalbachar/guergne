@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { ToolRegistry, ASSIDUITE_TOOLS } from "../src/tools.js";
+import { GuergneHttpClient } from "../src/guergne-client.js";
 import { redact } from "../src/audit.js";
 import { READ, WRITE, SENSITIVE } from "../src/guard.js";
 
@@ -123,7 +128,10 @@ test("le catalogue NLU annonce les paramètres de chaque outil", () => {
   assert.match(texte, /limite \(facultatif/);
   assert.match(texte, /absenceIds \(obligatoire/);
   // Un outil sans paramètre le dit, plutôt que d'afficher une liste vide.
-  assert.match(texte, /assiduite\.controle_saisies \[read\] parametres : aucun parametre/);
+  const vide = new ToolRegistry([
+    { name: "x.sans_parametre", module: "x", permission: "p", sensitivity: "read", action: "a", validate: () => ({}) },
+  ]);
+  assert.match(vide.pourNlu(), /x\.sans_parametre \[read\] parametres : aucun parametre/);
 });
 
 test("le catalogue couvre TOUS les outils du registre", () => {
@@ -156,5 +164,54 @@ test("un paramètre déclaré existe vraiment dans la liste blanche de l'API", (
   };
   for (const [nom, champs] of Object.entries(attendus)) {
     assert.deepEqual(Object.keys(tool(nom).parametres), champs, nom);
+  }
+});
+
+// --- L'outil et la route doivent parler de la meme chose -------------------
+
+/**
+ * Liste blanche des actions, lue dans le fichier de la route plutot que
+ * recopiee ici.
+ *
+ * Une attente figee a la main ne protege de rien : c'est precisement comme cela
+ * que `controleSaisies` a pu rester au catalogue des mois alors qu'aucune route
+ * ne le servait. Chaque appel serait parti en 404, et l'utilisateur aurait vu
+ * un outil propose puis echouer.
+ */
+function actionsDeLaRoute() {
+  const chemin = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../../web/src/app/api/agent/[action]/route.ts",
+  );
+  const source = readFileSync(chemin, "utf8");
+  const debut = source.indexOf("const OUTILS");
+  assert.ok(debut > 0, "bloc OUTILS introuvable dans la route");
+  const noms = new Set();
+  for (const m of source.slice(debut).matchAll(/^\s{2}([a-zA-Z][a-zA-Z0-9]*):\s*\{/gm)) noms.add(m[1]);
+  return noms;
+}
+
+test("chaque outil du registre a une action REELLEMENT servie par la route", () => {
+  const servies = actionsDeLaRoute();
+  assert.ok(servies.size >= 10, `liste blanche suspecte : ${servies.size} action(s)`);
+  for (const t of reg.all()) {
+    assert.ok(servies.has(t.action), `${t.name} appelle « ${t.action} », absent de la liste blanche de l'API`);
+  }
+});
+
+test("chaque outil du registre a une methode dans le client guergne", () => {
+  // Un outil dont le client ignore l'action echoue a l'execution, pas au
+  // demarrage : le defaut ne se voit qu'au premier message d'un utilisateur.
+  for (const t of reg.all()) {
+    assert.equal(typeof GuergneHttpClient.prototype[t.action], "function", `${t.name} -> ${t.action}`);
+  }
+});
+
+test("le client n'expose pas de methode que la route ne sert pas", () => {
+  const servies = actionsDeLaRoute();
+  const ignorees = new Set(["constructor", "snapshot"]);
+  for (const nom of Object.getOwnPropertyNames(GuergneHttpClient.prototype)) {
+    if (ignorees.has(nom) || nom.startsWith("_")) continue;
+    assert.ok(servies.has(nom), `le client expose « ${nom} », absent de la liste blanche de l'API`);
   }
 });

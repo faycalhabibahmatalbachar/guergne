@@ -150,13 +150,123 @@ export const ASSIDUITE_TOOLS = [
       ),
   },
   {
-    name: "assiduite.controle_saisies",
+    // La route expose cette lecture depuis l'origine ; aucun outil ne
+    // l'offrait. Un surveillant ne pouvait donc pas demander les retards.
+    name: "assiduite.consulter_retards",
     module: "assiduite",
     permission: "assiduite:lire",
     sensitivity: READ,
-    action: "controleSaisies",
+    action: "listerRetards",
+    parametres: {
+      periodeId: "facultatif, identifiant de periode scolaire (UUID) ; par defaut toutes les periodes",
+      classeId: "facultatif, identifiant de classe (UUID) ; par defaut toutes les classes",
+      limite: "facultatif, nombre maximum de lignes ; 100 par defaut",
+    },
     validate: noErrs,
-    summarize: (p) => `Classes sans appel le ${p.date ?? "jour courant"}.`,
+    summarize: (p) => `Consulter les retards${p.classeId ? " de la classe " + p.classeId : ""}.`,
+    rendre: (lignes) =>
+      listeRendue(lignes, "Retards", (l) => {
+        const duree = l.dureeMinutes != null ? `${l.dureeMinutes} min` : "duree inconnue";
+        const arrivee = l.heureArrivee ? `, arrive ${String(l.heureArrivee).slice(0, 5)}` : "";
+        return `${nomComplet(l)} (${l.classe ?? "classe inconnue"}) — ${jour(l.dateRetard)}, ${duree}${arrivee}`;
+      }),
+  },
+  {
+    name: "assiduite.tableau_de_bord",
+    module: "assiduite",
+    permission: "assiduite:lire",
+    sensitivity: READ,
+    action: "statistiquesVieScolaire",
+    parametres: {
+      periodeId: "facultatif, identifiant de periode scolaire (UUID) ; par defaut la periode courante",
+    },
+    validate: noErrs,
+    summarize: () => "Chiffres du jour pour la vie scolaire.",
+    // Ce n'est pas une liste mais un seul objet de compteurs : `listeRendue`
+    // ne s'applique pas, et rendre un tableau de bord en puces le rendrait
+    // illisible sur un telephone.
+    rendre: (d) => {
+      if (!d || typeof d !== "object" || Array.isArray(d)) return null;
+      return [
+        "Vie scolaire — aujourd'hui :",
+        `• ${d.absencesJour ?? 0} absence(s) ce jour`,
+        `• ${d.retardsJour ?? 0} retard(s) ce jour`,
+        `• ${d.nonJustifiees ?? 0} absence(s) non justifiee(s) sur la periode`,
+        `• ${d.incidentsPeriode ?? 0} incident(s) sur la periode`,
+        `• ${d.alertes ?? 0} eleve(s) au-dela du seuil`,
+      ].join("\n");
+    },
+  },
+  {
+    name: "assiduite.conduite_classe",
+    module: "assiduite",
+    permission: "assiduite:lire",
+    sensitivity: READ,
+    action: "chargerConduiteClasse",
+    parametres: {
+      classeId: "OBLIGATOIRE, identifiant de classe (UUID)",
+      periodeId: "OBLIGATOIRE, identifiant de periode scolaire (UUID)",
+    },
+    // La route refuse l'appel sans ces deux parametres : mieux vaut le dire
+    // ici et demander une precision que de partir en erreur.
+    validate: (p) => {
+      const e = {};
+      if (!required(p.classeId)) e.classeId = "Classe requise.";
+      if (!required(p.periodeId)) e.periodeId = "Période requise.";
+      return e;
+    },
+    summarize: () => "Notes de conduite d'une classe sur une période.",
+    rendre: (lignes) =>
+      listeRendue(lignes, "Conduite", (l) => {
+        const note = l.note == null ? "non notee" : `${l.note}/20`;
+        const app = l.appreciation ? ` — ${String(l.appreciation).slice(0, 40)}` : "";
+        return `${l.eleve ?? "eleve inconnu"} (${l.matricule ?? "?"}) — ${note}${app}`;
+      }),
+  },
+  {
+    name: "discipline.consulter_incidents",
+    module: "discipline",
+    permission: "discipline:lire",
+    sensitivity: READ,
+    action: "listerIncidents",
+    parametres: {
+      periodeId: "facultatif, identifiant de periode scolaire (UUID) ; par defaut toutes les periodes",
+      classeId: "facultatif, identifiant de classe (UUID) ; par defaut toutes les classes",
+      limite: "facultatif, nombre maximum de lignes ; 100 par defaut",
+    },
+    validate: noErrs,
+    summarize: () => "Consulter les incidents déclarés.",
+    rendre: (lignes) =>
+      listeRendue(lignes, "Incidents", (l) => {
+        const sanctions = l.nbSanctions > 0 ? `, ${l.nbSanctions} sanction(s)` : "";
+        const notifies = l.parentsNotifies ? "" : ", tuteurs NON prevenus";
+        return (
+          `${nomComplet(l)} (${l.classe ?? "classe inconnue"}) — ${jour(l.dateIncident)}, ` +
+          `gravite ${l.gravite ?? "inconnue"}${l.lieu ? `, ${l.lieu}` : ""}${sanctions}${notifies}`
+        );
+      }),
+  },
+  {
+    name: "discipline.consulter_sanctions",
+    module: "discipline",
+    permission: "discipline:lire",
+    sensitivity: READ,
+    action: "listerSanctions",
+    parametres: {
+      periodeId: "facultatif, identifiant de periode scolaire (UUID) ; par defaut toutes les periodes",
+      classeId: "facultatif, identifiant de classe (UUID) ; par defaut toutes les classes",
+      limite: "facultatif, nombre maximum de lignes ; 100 par defaut",
+    },
+    validate: noErrs,
+    summarize: () => "Consulter les sanctions prononcées.",
+    rendre: (lignes) =>
+      listeRendue(lignes, "Sanctions", (l) => {
+        const periode = l.dateFin && l.dateFin !== l.dateDebut ? `${jour(l.dateDebut)} au ${jour(l.dateFin)}` : jour(l.dateDebut);
+        return (
+          `${nomComplet(l)} (${l.classe ?? "classe inconnue"}) — ${l.type ?? "type inconnu"}, ${periode}` +
+          `${l.executee ? "" : ", NON executee"}`
+        );
+      }),
   },
   {
     name: "assiduite.enregistrer_appel",
@@ -202,6 +312,14 @@ export const ASSIDUITE_TOOLS = [
     },
     validate: validateRetard,
     summarize: (p) => `Enregistrer un retard le ${p.dateRetard}.`,
+    // Le noyau d'ecriture ne renvoie aucun message pour cette operation : sans
+    // ce rendu, l'utilisateur recevait « Operation effectuee » et ne savait pas
+    // ce qui avait ete enregistre. La confirmation se formule donc a partir de
+    // ce qui a ete demande.
+    rendre: (_d, p = {}) => {
+      const duree = p.dureeMinutes != null ? `${p.dureeMinutes} min` : "duree non precisee";
+      return `Retard enregistre : ${duree}, le ${jour(p.dateRetard)}.`;
+    },
   },
   {
     name: "assiduite.justifier_absences",
@@ -232,6 +350,9 @@ export const ASSIDUITE_TOOLS = [
     },
     validate: validateSupprimer,
     summarize: (p) => `SUPPRIMER une absence (motif : ${p.motif}).`,
+    // Meme raison que pour le retard : une suppression confirmee doit se dire,
+    // d'autant qu'elle est irreversible.
+    rendre: (_d, p = {}) => `Absence supprimee (motif : ${p.motif ?? "non precise"}).`,
   },
 ];
 

@@ -68,7 +68,11 @@ export class GuergneHttpClient {
   // --- Outils Assiduité (mêmes noms d'action que le registre d'outils) ---
   listerAbsences(p, c) { return this._call("listerAbsences", p, c); }
   listerAlertes(p, c) { return this._call("listerAlertes", p, c); }
-  controleSaisies(p, c) { return this._call("controleSaisies", p, c); }
+  listerRetards(p, c) { return this._call("listerRetards", p, c); }
+  statistiquesVieScolaire(p, c) { return this._call("statistiquesVieScolaire", p, c); }
+  chargerConduiteClasse(p, c) { return this._call("chargerConduiteClasse", p, c); }
+  listerIncidents(p, c) { return this._call("listerIncidents", p, c); }
+  listerSanctions(p, c) { return this._call("listerSanctions", p, c); }
   enregistrerAppel(p, c) { return this._call("enregistrerAppel", p, c); }
   enregistrerRetard(p, c) { return this._call("enregistrerRetard", p, c); }
   justifierEnLot(p, c) { return this._call("justifierEnLot", p, c); }

@@ -360,14 +360,33 @@ lira — et non sur une copie locale.
 | 6. `resolve()` | null | **même compte** | null |
 | 7. refus si non associé | **REFUSED_UNKNOWN** | — | **REFUSED_UNKNOWN** |
 | 8a. pré-filtre de permission | — | **OK:assiduite:lire** | — |
-| 8b. verdict du backend | — | refus explicite (voir ci-dessous) | — |
+| 8b. donnée servie par le backend réel | — | **OK — « Absences — 2 résultats »** | — |
+| 9. écriture refusée (preuve inverse) | — | **DENIED:assiduite:saisir** | — |
 
-**Les deux barrières ne disent pas la même chose, et c'est voulu.** Le
-pré-filtre de l'agent a autorisé `assiduite:lire` ; le garde de la plateforme a
-refusé — **parce que ce compte vient de la production et que la branche de test
-ne le connaît pas**. Un acteur inconnu est refusé malgré un jeton de service
-valide : c'est la bonne réponse, et le refus est **explicite**, jamais un succès
-silencieux.
+**Un détour instructif.** Au premier passage, le pré-filtre de l'agent
+autorisait `assiduite:lire` mais le garde de la plateforme refusait. Non pas
+parce que `DIRECTION` manquait de droits, mais **parce que ce compte vient de la
+production et que la branche de test ne le connaissait pas** : un acteur inconnu
+est refusé malgré un jeton de service valide, et le refus est explicite, jamais
+un succès silencieux. Bon comportement — mais la chaîne restait non démontrée.
+
+Un **compte de recette** a donc été créé dans la branche de test
+(`agent/scripts/compte-test.mjs`), portant le même identifiant que le compte de
+production pour que le magasin déployé le résolve réellement. Le script refuse
+catégoriquement d'écrire ailleurs que sur la branche de test, marque le compte
+`ZZTEST-AGENT-DIRECTION` sur un domaine `example.invalid`, et ne lui pose
+**aucun mot de passe** : il ne peut pas se connecter au portail, il ne sert qu'à
+l'API agent. `--retirer` le supprime.
+
+La chaîne complète est alors démontrée, dans les deux sens :
+
+```
+lecture   OK:assiduite:lire       → « Absences — 2 résultats : … »
+ecriture  DENIED:assiduite:saisir → refusee, et tracee dans l'audit
+```
+
+**Le rôle n'est pas décoratif** : le directeur lié consulte l'assiduité et ne
+peut pas la saisir.
 
 J'ai vérifié que la matrice locale ne ment pas, contre la table `permissions`
 faisant autorité :
@@ -421,11 +440,11 @@ Trois conséquences qui dépassent la liste blanche :
 
 | Mesure | Valeur |
 |---|---|
-| Tests automatisés | **212** |
-| Réussites | **212** |
+| Tests automatisés | **216** |
+| Réussites | **216** |
 | Échecs | **0** |
 | Au début de la session | 136 |
-| Ajoutés | **+76** |
+| Ajoutés | **+80** |
 | Fichiers `web/` modifiés | **aucun** — cette recette n'a touché que `agent/` |
 | Commits | voir ci-dessous |
 | Déploiements | code + `.env` transférés ; **service non redémarré** |
@@ -444,6 +463,58 @@ révocation · persistance après redémarrage · contact sans compte · auteur
 invalide · auteur désactivé · auteur au rôle insuffisant · **résolution par
 l'annuaire du personnel** · **personnel sans compte** · **collision de numéro
 signalée mais jamais utilisée**.
+
+### Catalogue d'outils — un piège retiré, cinq capacités ouvertes
+
+`assiduite.controle_saisies` était au catalogue, dans le client, et proposé au
+modèle — mais **aucune route ne le servait**. Chaque appel serait parti en 404,
+après que l'agent l'eut annoncé à l'utilisateur. Aucune fonction de domaine ne
+le soutenait non plus : il a été **retiré**, plutôt que d'inventer une route.
+
+À l'inverse, cinq lectures que la route servait depuis l'origine n'étaient
+offertes par aucun outil. Elles le sont désormais, avec leurs paramètres réels
+et leur mise en forme :
+
+| Outil | Action | Permission |
+|---|---|---|
+| `assiduite.consulter_retards` | `listerRetards` | `assiduite:lire` |
+| `assiduite.tableau_de_bord` | `statistiquesVieScolaire` | `assiduite:lire` |
+| `assiduite.conduite_classe` | `chargerConduiteClasse` | `assiduite:lire` |
+| `discipline.consulter_incidents` | `listerIncidents` | `discipline:lire` |
+| `discipline.consulter_sanctions` | `listerSanctions` | `discipline:lire` |
+
+Le catalogue passe de 7 à **11 outils**, dont 7 lectures.
+
+**Le vrai correctif est le garde-fou**, pas la correction. Trois tests
+structurels lisent maintenant le fichier de la route et le client, au lieu de
+figer des attentes à la main — c'est précisément parce qu'elles étaient figées
+à la main que le défaut a survécu : toute action d'outil absente de la liste
+blanche, et toute méthode du client que la route ne sert pas, font désormais
+échouer la recette.
+
+Les 7 lectures ont été appelées une par une contre l'API réelle
+(`e2e-catalogue.mjs`) : **7/7 servies et rendues lisiblement**, aucune ne
+répondant « Opération effectuée ».
+
+### Écritures : les deux qui n'avaient jamais tourné
+
+`enregistrer_retard` et `justifier_absences` étaient écrits, testés
+unitairement, exposés au modèle — et **jamais exécutés une seule fois** contre
+la vraie base. « Écrit » n'est pas « éprouvé ».
+`e2e-retard-justification.mjs` les exécute, avec un nom volontairement abîmé :
+
+```
+Retard enregistre : 15 min, le 2026-11-01.      → 0 → 1, bon eleve, bonne duree
+1 absence(s) enregistré(s). Les tuteurs...      → NON_JUSTIFIEE
+Justifier 1 absence(s) → « oui »                → JUSTIFIEE
+Absence supprimee (motif : …) → « oui »         → retiree
+etat final : 0 retard, 0 absence  (etat initial identique)
+```
+
+Au passage, deux écritures répondaient encore « ✅ Opération effectuée. » : le
+noyau ne renvoie aucun message pour le retard ni pour la suppression. La
+confirmation se formule désormais à partir des paramètres — une suppression
+irréversible mérite mieux qu'un accusé générique.
 
 Tests réels (hors unitaires) : `GET /models` sur 3 comptes · appel « PONG » par
 fournisseur · réponse JSON par fournisseur · **repli réel sur 401** ·
