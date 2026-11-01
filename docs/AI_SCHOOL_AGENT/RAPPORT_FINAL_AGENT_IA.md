@@ -10,6 +10,101 @@ Aucune clé, aucun numéro complet et aucune donnée scolaire réelle ne figure 
 
 ---
 
+## 0 quater. Autonomie — des autorisations permanentes
+
+L'agent demandait « répondez *oui* pour confirmer » à chaque opération
+sensible. Pour un surveillant qui saisit l'appel de six classes, c'est six
+interruptions pour six gestes **déjà autorisés par son rôle**.
+
+Une confirmation qu'on donne machinalement soixante fois par jour ne protège
+plus rien : elle entraîne au réflexe, et le jour où la demande est anormale,
+elle est approuvée comme les autres.
+
+### La règle inviolable
+
+**Une politique ne donne JAMAIS une permission.** Elle répond à une seule
+question : *faut-il demander confirmation à un humain ?* L'ordre reste
+
+```
+identite → RBAC (pre-filtre) → politique → garde du backend
+```
+
+Un rôle sans le droit reste refusé, politique ou non. Une politique ne peut
+qu'**enlever une friction**, jamais ajouter un pouvoir. C'est le test central
+de la recette : sans lui, une politique serait une porte dérobée — et la pire
+qui soit, puisqu'elle serait documentée.
+
+### Une politique est une donnée, pas du code
+
+Sérialisable, versionnée, lisible par un administrateur. Si elle contenait des
+fonctions, personne ne pourrait dire ce que l'agent a le droit de faire sans
+lire le programme.
+
+Elle déclare : ses opérations (avec motifs `module.*`), ses rôles, ses bornes
+de paramètres, un **quota journalier compté par acteur** — un plafond commun
+laisserait une personne consommer celui de tous —, une fenêtre de jours et
+d'heures, et qui prévenir. `suspendre()` la désactive immédiatement, sans
+redéploiement.
+
+### Les trois politiques par défaut
+
+| Politique | Opérations | Rôles | Bornes |
+|---|---|---|---|
+| `lectures-vie-scolaire` | les 7 consultations | 6 rôles de personnel | `limite ≤ 500` |
+| `appel-quotidien` | appel, retard | SUPER_ADMIN, SURVEILLANT, ENSEIGNANT | ≤ 60 élèves, 0,5–12 h, 80/jour |
+| `justification-assiduite` | justification en lot | SUPER_ADMIN, SECRÉTARIAT, SURVEILLANT | ≤ 50 absences, motif requis, 40/jour |
+
+**La suppression d'une absence n'y figure pas, délibérément** : elle est
+irréversible et reste sous confirmation, pour tout le monde.
+
+### Les responsables sont informés, pas sollicités
+
+La notification rend compte d'un travail **déjà fait** : elle ne demande rien.
+Elle ne part que pour les opérations automatiques, selon ce que dit la
+politique (`jamais` / `echec` / `toujours`), et **ne porte aucune donnée
+d'élève** — une notification part sur WhatsApp, pas dans le portail. Une
+notification qui échoue ne fait pas échouer l'opération, qui a déjà eu lieu.
+
+### Mesure de l'autonomie
+
+Sans mesure, « l'agent travaille seul » reste une impression. `/sante` expose
+désormais : messages, conversations, consultations, écritures, opérations
+automatiques, confirmations demandées, réussites, échecs, refus d'identité,
+refus de permission, notifications, **taux d'autonomie** et durée moyenne.
+
+Le rapport entre `automatiques` et `confirmationsDemandees` dit si les
+politiques couvrent le travail quotidien, ou s'il faut en écrire d'autres.
+
+Le compteur de quotas est **persistant** : un quota journalier qui repart de
+zéro à chaque redémarrage n'est pas un quota.
+
+### Preuve contre l'API réelle, en configuration de production
+
+```
+enregistrer_retard   -> AUTOMATIQUE (appel-quotidien v1)
+enregistrer_appel    -> AUTOMATIQUE (appel-quotidien v1)
+justifier_absences   -> AUTOMATIQUE (justification-assiduite v1)
+supprimer_absence    -> CONFIRMATION (AUCUNE_POLITIQUE)
+etat final de la base identique a l'etat initial
+```
+
+La justification demandait auparavant une confirmation. L'appel et le retard
+passaient déjà sans, mais sans qu'aucune règle ne le dise : c'était un effet de
+leur classement `WRITE`, pas une décision d'établissement. Désormais, c'en est
+une, écrite et révisable.
+
+### Livraison
+
+| Élément | État |
+|---|---|
+| Commit | `c271de5` |
+| Push | confirmé |
+| Déploiement Altare | **vérifié par condensat** — 10 fichiers identiques |
+| Tests | **323** (288 auparavant) |
+| Version chargée | en attente d'un redémarrage |
+
+---
+
 ## 0 ter. Incident `Action inconnue.` — le contrat n'avait que deux cases
 
 Le transport, l'identité et l'IA fonctionnaient. `TEST AGENT` répondait, `Salut`
@@ -756,11 +851,11 @@ Trois conséquences qui dépassent la liste blanche :
 
 | Mesure | Valeur |
 |---|---|
-| Tests automatisés | **288** |
-| Réussites | **288** |
+| Tests automatisés | **323** |
+| Réussites | **323** |
 | Échecs | **0** |
 | Au début de la session | 136 |
-| Ajoutés | **+152** |
+| Ajoutés | **+187** |
 | Fichiers `web/` modifiés | **aucun** — cette recette n'a touché que `agent/` |
 | Commits | voir ci-dessous |
 | Déploiements | code + `.env` transférés ; **service non redémarré** |
