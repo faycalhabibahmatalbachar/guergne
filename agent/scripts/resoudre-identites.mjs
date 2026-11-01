@@ -31,7 +31,13 @@ import pg from "pg";
 import SftpClient from "ssh2-sftp-client";
 
 import { IdentityStorePersistant, masquer } from "../src/identity-store.js";
-import { ROLES_PILOTES, canoniser, resoudreCompteAutorise, verifierAuteur } from "../src/resolution-comptes.js";
+import {
+  ROLES_PILOTES,
+  canoniser,
+  resoudreCompteAutorise,
+  resoudreViaPersonnel,
+  verifierAuteur,
+} from "../src/resolution-comptes.js";
 
 const racine = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const ECRIRE = process.argv.includes("--ecrire");
@@ -116,22 +122,58 @@ async function compteDesigne(designation) {
   return rows;
 }
 
-async function candidatsPour(numero) {
-  const n = canoniser(numero);
-  const fin = n.slice(-8);
+/**
+ * Fiches de personnel portant ce numéro, avec le compte que l'établissement y a
+ * rattaché.
+ *
+ * Les deux annuaires sont interrogés : `personnels_non_enseignants`
+ * (administratif et technique) et `enseignants`. C'est la source faisant
+ * autorité pour un agent de l'établissement — pas la table des comptes, dont
+ * les numéros se sont révélés en collision avec ceux de l'annuaire.
+ */
+async function personnelsPour(numero) {
+  const fin = canoniser(numero).slice(-8);
   const { rows } = await client.query(
-    `select id, nom, prenom, role::text as role, actif, 'utilisateurs' as source
-       from utilisateurs
-      where telephone is not null
-        and right(regexp_replace(telephone, '\\D', '', 'g'), 8) = $1
+    `select p.id, p.nom, p.prenom, p.fonction, p.actif, p.utilisateur_id,
+            u.role::text as role, u.actif as compte_actif, 'administratif' as source
+       from personnels_non_enseignants p
+       left join utilisateurs u on u.id = p.utilisateur_id
+      where right(regexp_replace(coalesce(p.telephone,''), '\\D', '', 'g'), 8) = $1
       union all
-     select id, nom, prenom, 'PARENT' as role, true as actif, 'tuteurs' as source
-       from tuteurs
-      where right(regexp_replace(coalesce(telephone,''), '\\D', '', 'g'), 8) = $1
-         or right(regexp_replace(coalesce(telephone_secondaire,''), '\\D', '', 'g'), 8) = $1`,
+     select e.id, e.nom, e.prenom, 'ENSEIGNANT' as fonction, e.actif, e.utilisateur_id,
+            u.role::text as role, u.actif as compte_actif, 'enseignant' as source
+       from enseignants e
+       left join utilisateurs u on u.id = e.utilisateur_id
+      where right(regexp_replace(coalesce(e.telephone,''), '\\D', '', 'g'), 8) = $1`,
     [fin],
   );
-  return rows;
+  return rows.map((r) => ({
+    id: r.id,
+    nom: r.nom,
+    prenom: r.prenom,
+    fonction: r.fonction,
+    actif: r.actif,
+    source: r.source,
+    compte: r.utilisateur_id ? { id: r.utilisateur_id, role: r.role, actif: r.compte_actif } : null,
+  }));
+}
+
+/**
+ * Comptes portant ce numéro SANS être le compte rattaché à la fiche.
+ *
+ * Ils ne servent jamais à résoudre : seulement à signaler qu'un même numéro
+ * désigne deux personnes dans la plateforme — une anomalie à corriger.
+ */
+async function collisionsPour(numero, compteRetenu) {
+  const fin = canoniser(numero).slice(-8);
+  const { rows } = await client.query(
+    `select id, nom, prenom, role::text as role, actif
+       from utilisateurs
+      where telephone is not null
+        and right(regexp_replace(telephone, '\\D', '', 'g'), 8) = $1`,
+    [fin],
+  );
+  return rows.filter((r) => r.id !== compteRetenu);
 }
 
 // --- 3. Auteur du provisionnement -----------------------------------------
@@ -172,28 +214,37 @@ console.log(`\n[resolution] roles autorises a piloter l'agent : ${ROLES_PILOTES.
 const resultats = [];
 for (const entree of liste) {
   const n = canoniser(entree.numero);
-  let candidats = [];
   const designe = entree.compte ? String(entree.compte).trim() : null;
+  let r;
   try {
-    candidats = designe ? await compteDesigne(designe) : await candidatsPour(n);
+    if (designe) {
+      // Désignation explicite : l'administrateur dit au nom de quel compte ce
+      // numéro parle. Les contrôles restent entiers.
+      const candidats = await compteDesigne(designe);
+      if (candidats.length === 0) {
+        console.log(`  ${masquer(n)}  INCONNU            le compte designe « ${designe} » n'existe pas`);
+        resultats.push({ numero: n, statut: "inconnu", raison: `compte designe introuvable : ${designe}` });
+        continue;
+      }
+      r = resoudreCompteAutorise({ numero: n, candidats });
+    } else {
+      const personnels = await personnelsPour(n);
+      const pre = resoudreViaPersonnel({ numero: n, personnels });
+      r = { ...pre, collisions: await collisionsPour(n, pre.compte?.id) };
+    }
   } catch (e) {
     console.log(`  ${masquer(n)}  ECHEC DE LECTURE — ${e.message.slice(0, 80)}`);
     resultats.push({ numero: n, statut: "erreur_lecture", raison: e.message });
     continue; // une entrée impossible à lire ne bloque pas les autres
   }
-  if (designe && candidats.length === 0) {
-    console.log(`  ${masquer(n)}  INCONNU          -  le compte designe « ${designe} » n'existe pas`);
-    resultats.push({ numero: n, statut: "inconnu", raison: `compte designe introuvable : ${designe}` });
-    continue;
-  }
-  const r = resoudreCompteAutorise({ numero: n, candidats });
+
   resultats.push({ numero: n, ...r, designe });
-  const compte = r.compte ? `${r.compte.role} ${r.compte.prenom} ${r.compte.nom}` : "-";
-  console.log(`  ${masquer(n)}  ${r.statut.toUpperCase().padEnd(18)} ${compte.padEnd(34)} ${r.raison}`);
-  // Le numero WhatsApp peut differer de celui inscrit sur la fiche du compte :
-  // ce n'est pas une faute, mais cela se dit.
-  if (r.statut === "ok" && designe && r.compte.telephone && canoniser(r.compte.telephone) !== n) {
-    console.log(`  ${" ".repeat(11)}  note : la fiche de ce compte porte un AUTRE numero de telephone.`);
+  const compte = r.compte ? `${r.compte.role} ${r.compte.prenom ?? ""} ${r.compte.nom ?? ""}`.trim() : "-";
+  console.log(`  ${masquer(n)}  ${r.statut.toUpperCase().padEnd(22)} ${compte.padEnd(30)} ${r.raison}`);
+  for (const col of r.collisions ?? []) {
+    // Deux personnes derriere un meme numero : anomalie a corriger dans la
+    // plateforme, et raison pour laquelle on ne resout jamais par telephone.
+    console.log(`  ${" ".repeat(11)}  COLLISION : un compte ${col.role} (${col.prenom} ${col.nom}) porte aussi ce numero`);
   }
 }
 

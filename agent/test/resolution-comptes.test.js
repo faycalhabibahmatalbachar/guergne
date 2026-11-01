@@ -14,6 +14,7 @@ import {
   canoniser,
   numeroPlausible,
   resoudreCompteAutorise,
+  resoudreViaPersonnel,
   verifierAuteur,
 } from "../src/resolution-comptes.js";
 
@@ -151,4 +152,83 @@ test("seuls les rôles qui créent des utilisateurs peuvent autoriser une liaiso
 
 test("un auteur désactivé ne peut plus rien autoriser", () => {
   assert.equal(verifierAuteur(compte({ role: "DIRECTION", actif: false })).ok, false);
+});
+
+// --- Résolution par l'annuaire du personnel --------------------------------
+// C'est le chemin sûr, et il existe à cause d'un cas réel : sur la plateforme,
+// le numéro d'un DIRECTEUR de l'annuaire est porté, dans la table des comptes,
+// par un compte PARENT appartenant à quelqu'un d'autre.
+
+const fiche = (p = {}) => ({
+  id: "f1",
+  nom: "FAYCAL",
+  prenom: "Habib",
+  fonction: "DIRECTEUR",
+  actif: true,
+  compte: { id: "c1", role: "DIRECTION", actif: true },
+  ...p,
+});
+
+test("le role vient du compte RATTACHE par l'etablissement, pas d'une correspondance de numero", () => {
+  const r = resoudreViaPersonnel({
+    numero: NUM,
+    personnels: [fiche()],
+    // Un compte PARENT porte le meme numero. Il ne doit JAMAIS l'emporter.
+    collisions: [{ id: "autre", role: "PARENT", nom: "QUELQUUN", prenom: "Autre" }],
+  });
+  assert.equal(r.statut, "ok");
+  assert.equal(r.compte.role, "DIRECTION");
+  assert.equal(r.compte.id, "c1");
+  assert.equal(r.collisions.length, 1, "la collision est signalee, jamais utilisee");
+});
+
+test("personnel actif mais sans compte : on ne cree pas le compte", () => {
+  // Creer un compte est un acte d'administration de la plateforme, avec mot de
+  // passe et tracabilite propres. L'agent n'a pas a s'en charger.
+  const r = resoudreViaPersonnel({ numero: NUM, personnels: [fiche({ compte: null })] });
+  assert.equal(r.statut, "personnel_sans_compte");
+  assert.match(r.raison, /DIRECTEUR/);
+  assert.match(r.raison, /pas de compte/);
+});
+
+test("numero absent de l'annuaire : inconnu, meme si un compte porte ce numero", () => {
+  const r = resoudreViaPersonnel({
+    numero: NUM,
+    personnels: [],
+    collisions: [{ id: "p", role: "PARENT" }],
+  });
+  assert.equal(r.statut, "inconnu");
+  assert.match(r.raison, /aucune fiche de personnel/);
+});
+
+test("fiche desactivee dans l'annuaire : refus avant toute lecture du compte", () => {
+  const r = resoudreViaPersonnel({ numero: NUM, personnels: [fiche({ actif: false })] });
+  assert.equal(r.statut, "inactif");
+  assert.match(r.raison, /annuaire/);
+});
+
+test("compte rattache mais desactive : refus", () => {
+  const r = resoudreViaPersonnel({
+    numero: NUM,
+    personnels: [fiche({ compte: { id: "c1", role: "DIRECTION", actif: false } })],
+  });
+  assert.equal(r.statut, "inactif");
+});
+
+test("compte rattache au mauvais role : aucune elevation", () => {
+  const r = resoudreViaPersonnel({
+    numero: NUM,
+    personnels: [fiche({ compte: { id: "c1", role: "PARENT", actif: true } })],
+  });
+  assert.equal(r.statut, "role_refuse");
+});
+
+test("deux fiches pour un numero : jamais de choix au hasard", () => {
+  const r = resoudreViaPersonnel({ numero: NUM, personnels: [fiche(), fiche({ id: "f2" })] });
+  assert.equal(r.statut, "ambigu");
+  assert.equal(r.candidats.length, 2);
+});
+
+test("un numero non conforme est refuse avant toute recherche d'annuaire", () => {
+  assert.equal(resoudreViaPersonnel({ numero: "123", personnels: [fiche()] }).statut, "numero_invalide");
 });

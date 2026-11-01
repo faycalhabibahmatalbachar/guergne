@@ -133,6 +133,89 @@ export function resoudreCompteAutorise({ numero, candidats = [], rolesAutorises 
 }
 
 /**
+ * Résolution d'un numéro de PERSONNEL — la seule qui soit sûre.
+ *
+ * POURQUOI ON NE CHERCHE PAS DANS LA TABLE DES COMPTES
+ * -----------------------------------------------------
+ * Chercher le numéro directement parmi les comptes paraît naturel, et c'est un
+ * piège. Constaté sur la plateforme réelle : le numéro d'un DIRECTEUR de
+ * l'annuaire est porté, dans la table des comptes, par un compte PARENT
+ * appartenant à **quelqu'un d'autre**. Une résolution par téléphone aurait donc
+ * fait parler le directeur au nom d'un parent — ou l'inverse.
+ *
+ * La chaîne faisant autorité est donc :
+ *
+ *     numero -> fiche de l'annuaire du personnel -> compte lié -> rôle
+ *
+ * Le rôle vient du compte que l'établissement a LUI-MÊME rattaché à la fiche,
+ * jamais d'une correspondance de numéro. Les correspondances trouvées dans la
+ * table des comptes ne servent qu'à signaler la collision.
+ *
+ * @param {object} o
+ * @param {string} o.numero
+ * @param {Array<{id:string, nom:string, prenom:string, fonction?:string, actif:boolean,
+ *                compte:{id:string, role:string, actif:boolean}|null, source?:string}>} o.personnels
+ * @param {Array<object>} [o.collisions] comptes portant ce numéro sans être le compte lié
+ */
+export function resoudreViaPersonnel({ numero, personnels = [], collisions = [], rolesAutorises = ROLES_PILOTES }) {
+  const n = canoniser(numero);
+  const avec = (r) => ({ ...r, collisions });
+
+  if (!numeroPlausible(n)) {
+    return avec({ statut: "numero_invalide", raison: `numero non conforme apres normalisation (${n.length} chiffres)` });
+  }
+
+  if (personnels.length === 0) {
+    return avec({ statut: "inconnu", raison: "aucune fiche de personnel ne porte ce numero" });
+  }
+
+  if (personnels.length > 1) {
+    return avec({
+      statut: "ambigu",
+      candidats: personnels,
+      raison: `${personnels.length} fiches de personnel portent ce numero`,
+    });
+  }
+
+  const fiche = personnels[0];
+  const qui = `${fiche.prenom ?? ""} ${fiche.nom ?? ""}`.trim();
+
+  if (fiche.actif === false) {
+    return avec({ statut: "inactif", fiche, raison: `fiche de ${qui} desactivee dans l'annuaire` });
+  }
+
+  if (!fiche.compte) {
+    // L'agent ne crée pas de compte : c'est un acte d'administration de la
+    // plateforme, avec mot de passe et traçabilité propres.
+    return avec({
+      statut: "personnel_sans_compte",
+      fiche,
+      raison: `${qui} (${fiche.fonction ?? "fonction non precisee"}) n'a pas de compte d'acces au portail`,
+    });
+  }
+
+  if (fiche.compte.actif === false) {
+    return avec({ statut: "inactif", fiche, compte: fiche.compte, raison: `compte de ${qui} desactive` });
+  }
+
+  if (!rolesAutorises.includes(fiche.compte.role)) {
+    return avec({
+      statut: "role_refuse",
+      fiche,
+      compte: fiche.compte,
+      raison: `role ${fiche.compte.role} non autorise a piloter l'agent`,
+    });
+  }
+
+  return avec({
+    statut: "ok",
+    fiche,
+    compte: { ...fiche.compte, nom: fiche.nom, prenom: fiche.prenom },
+    raison: `${qui} — compte ${fiche.compte.role} actif, rattache par l'etablissement`,
+  });
+}
+
+/**
  * Qui a le droit d'autoriser une liaison ?
  *
  * `lier()` exige un auteur, et cet auteur doit être une personne réelle de la

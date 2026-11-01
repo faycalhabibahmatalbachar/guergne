@@ -98,6 +98,7 @@ manuelle n'est nécessaire** — et aucune n'a été faite.
 |---|---|---|
 | Code transféré par SFTP | FAIT | `src/verrou.js` présent, 2026-11-01T14:37Z |
 | Configuration `.env` déposée | FAIT | 4 variables, 453 octets, **mode 600** |
+| Magasin d'identités déposé | FAIT | `donnees/identites.json`, 301 octets, mode 600, 1 liaison |
 | Processus démarré | **NON** | `/sante` → `HTTP=000` |
 
 Altare n'expose **aucune route de redémarrage** : la console n'est pas un shell
@@ -297,85 +298,134 @@ arbitraire.
 |---|---|
 | Entrées transmises | 3 |
 | Numéros au format valide | 3 |
-| Comptes résolus dans la plateforme | 2 |
-| Liaisons actives créées | **0** |
-| En attente | **3** |
+| Comptes résolus | 1 |
+| **Liaisons actives créées** | **1** — déployée sur le serveur |
+| En attente | 2 |
 | Suspendus / révoqués | 0 |
 
-Résolution faite contre la **source faisant autorité** (base de la plateforme),
-**en lecture seule** :
+### Le piège qu'il fallait éviter
 
-| Numéro | Verdict | Motif |
+Chercher un numéro parmi les comptes paraît naturel. C'est faux ici, et
+dangereux. Constaté sur la plateforme réelle :
+
+| Numéro | Annuaire du personnel | Table des comptes |
 |---|---|---|
-| `235•••••737` | `ROLE_REFUSE` | compte **PARENT** — ne pilote pas l'agent |
-| `235•••••226` | `ROLE_REFUSE` | compte **PARENT** — ne pilote pas l'agent |
-| `235•••••262` | `INCONNU` | aucun compte de la plateforme ne porte ce numéro |
+| `235•••••737` | **HABIB FAYCAL**, DIRECTEUR | un compte **PARENT** au nom d'**Abakar ABAKAR** |
+| `235•••••226` | **ABDOULAYE ABDELHALIM**, DIRECTEUR | **deux** comptes : un DIRECTION et un PARENT |
 
-**Aucune liaison n'a été créée, et c'est le comportement correct.** Lier ces
-numéros aurait donné à l'agent des comptes de parents ; leur attribuer un rôle
-supérieur aurait contourné le RBAC de l'établissement. Ni l'un ni l'autre n'a
-été fait.
+Pour `•••737`, le compte qui porte le numéro appartient à **quelqu'un d'autre**.
+Une résolution par téléphone aurait fait parler un directeur au nom d'un parent.
+
+La chaîne faisant autorité est donc, et elle seule :
+
+```
+numero -> fiche de l'annuaire du personnel -> compte RATTACHE par l'etablissement -> role
+```
+
+Le rôle vient du compte que l'établissement a lui-même rattaché à la fiche,
+jamais d'une correspondance de numéro. Les correspondances trouvées dans la
+table des comptes ne servent qu'à **signaler la collision**.
+
+Deux annuaires sont interrogés : `personnels_non_enseignants` (administratif et
+technique) et `enseignants`.
+
+### Résultat, numéro par numéro
+
+| Numéro | Verdict | Détail |
+|---|---|---|
+| `235•••••226` | **OK — LIÉ** | ABDOULAYE ABDELHALIM, DIRECTEUR → compte **DIRECTION** actif |
+| `235•••••737` | `PERSONNEL_SANS_COMPTE` | HABIB FAYCAL, DIRECTEUR, fiche active — **aucun compte d'accès au portail** |
+| `235•••••262` | `INCONNU` | absent de l'annuaire comme de la table des comptes |
+
+L'agent **ne crée pas de compte** : c'est un acte d'administration de la
+plateforme, avec mot de passe et traçabilité propres. Pour `•••737`, un clic sur
+« Gérer » dans l'annuaire administratif suffit — ou la désignation explicite
+d'un compte existant dans la liste privée.
+
+Provisionnement : `donnees/identites.json` déposé sur le serveur, **301 octets,
+mode 600**, 1 liaison active, auteur **SUPER_ADMIN** réel (et non la personne
+liée elle-même, pour éviter l'auto-autorisation). `lier()` refuse « system ».
+
+### Tests réels, numéro par numéro
+
+Éprouvés sur le fichier **téléchargé depuis le serveur** — celui que le service
+lira — et non sur une copie locale.
+
+| Contrôle | `•••737` | `•••226` | `•••262` |
+|---|---|---|---|
+| 1. présent dans la liste blanche | oui | oui | oui |
+| 2. format normalisé (11 chiffres) | OK | OK | OK |
+| 3-4. compte réel, rôle et état | — | **DIRECTION actif** | — |
+| 5. association active | non (attendu) | **OK** | non (attendu) |
+| 6. `resolve()` | null | **même compte** | null |
+| 7. refus si non associé | **REFUSED_UNKNOWN** | — | **REFUSED_UNKNOWN** |
+| 8a. pré-filtre de permission | — | **OK:assiduite:lire** | — |
+| 8b. verdict du backend | — | refus explicite (voir ci-dessous) | — |
+
+**Les deux barrières ne disent pas la même chose, et c'est voulu.** Le
+pré-filtre de l'agent a autorisé `assiduite:lire` ; le garde de la plateforme a
+refusé — **parce que ce compte vient de la production et que la branche de test
+ne le connaît pas**. Un acteur inconnu est refusé malgré un jeton de service
+valide : c'est la bonne réponse, et le refus est **explicite**, jamais un succès
+silencieux.
+
+J'ai vérifié que la matrice locale ne ment pas, contre la table `permissions`
+faisant autorité :
+
+```
+DIRECTION    assiduite:lire     AUCUNE     → la matrice de l'agent dit true  ✔
+DIRECTION    assiduite:saisir   (absente)  → la matrice de l'agent dit false ✔
+```
+
+**Témoin positif**, avec un acteur que la branche de test connaît, pour ne pas
+ne prouver que des refus :
+
+```
+perm=OK:assiduite:lire  statut=COMPLETED
+• Zenaba TOGBE (6ème B) — 2026-07-14, 3.00 h, justifiée
+```
+
+**Refus** (sur une copie — le fichier du serveur n'est jamais modifié) :
+numéro inconnu refusé · suspendu refusé, état explicite · réactivé reconnu ·
+révoqué refusé · **toujours refusé après redémarrage** · fichier du serveur
+inchangé, vérifié octet pour octet.
+
+**Aucun message WhatsApp n'a été envoyé** : le service est à l'arrêt, le
+transport est simulé, tout le reste est réel.
 
 ### Ce que l'état de la plateforme révèle
 
 | Rôle | Comptes | Observation |
 |---|---|---|
 | `PARENT` | 233 actifs | — |
-| `SUPER_ADMIN` | 3 actifs | **aucun n'a de numéro de téléphone renseigné** |
+| `SUPER_ADMIN` | 3 actifs | aucun n'a de numéro de téléphone |
+| `DIRECTION` | 1 actif | rattaché à l'annuaire administratif |
 | `SURVEILLANT` | 3 **inactifs** | comptes de test `ZZTEST-AGENT-SURVEILLANT` |
-| `DIRECTION`, `CENSEUR`, `SECRETARIAT`, `COMPTABLE`, `ENSEIGNANT` | **0** | aucun compte |
+| `CENSEUR`, `SECRETARIAT`, `COMPTABLE`, `ENSEIGNANT` | **0** | aucun compte |
 
-Deux conséquences qui dépassent la liste blanche :
+Annuaires : 3 fiches administratives (2 avec téléphone, 1 avec un compte) et
+15 enseignants semés, dont **aucun n'a de compte**.
 
-1. **Il n'existe aujourd'hui aucun compte de surveillant actif.** Or
-   `assiduite:saisir` appartient au rôle `SURVEILLANT`. Personne, hormis un
-   `SUPER_ADMIN`, ne peut faire l'appel.
-2. **Deux comptes `SUPER_ADMIN` portent le même nom** et deux adresses
-   différentes — doublon à trancher avant de désigner un auteur de
-   provisionnement.
+Trois conséquences qui dépassent la liste blanche :
 
-### Mécanisme livré, prêt à servir
-
-- `agent/src/resolution-comptes.js` — canonisation des numéros (indicatif
-  ajouté **seulement** à une longueur nationale, pour ne pas maquiller une
-  saisie fautive), puis verdict : `inconnu`, `ambigu`, `contact_sans_compte`,
-  `inactif`, `role_refuse`, `ok`. Le module ne consulte rien : il choisit parmi
-  ce qu'on lui donne, donc **il ne peut rien inventer**.
-- Un numéro présent à la fois comme compte et comme fiche de tuteur **n'est pas
-  une ambiguïté** : c'est la même personne, avec une fiche de contact par
-  enfant. Les confondre bloquerait presque tous les numéros de l'établissement.
-- `ROLES_PILOTES` : les 7 rôles de personnel. `PARENT` et `ELEVE` en sont
-  exclus — ouvrir le canal aux familles est une décision d'établissement, pas
-  un réglage technique.
-- `ROLES_AUTORISANTS` : seuls `SUPER_ADMIN` et `DIRECTION` peuvent autoriser une
-  liaison. `lier()` exige un auteur réel ; **« system » est refusé**, il ne
-  répond de rien devant personne.
-- `agent/scripts/resoudre-identites.mjs` — rapport par défaut, dépôt seulement
-  avec `--ecrire`, sauvegarde préalable, et **refus de faire disparaître une
-  liaison active** non reconstituée.
-- Désignation explicite possible : `"compte": "<email ou id>"` dans la liste
-  privée. Le numéro devient le moyen de joindre l'agent, et l'administrateur dit
-  au nom de quel compte il parle — **sans dispenser d'aucun contrôle** (le
-  compte doit exister, être actif, avoir un rôle autorisé).
-
-La liste vit dans `identites-autorisees.json`, **hors Git** (`.gitignore`
-vérifié par `git check-ignore`). Aucun numéro complet n'apparaît dans un
-journal, un commit ou ce rapport.
-
-**Aucun message WhatsApp n'a été envoyé** : le service est à l'arrêt, et le test
-d'envoi autorisé n'a donc pas pu être fait.
-
----
+1. **Aucun surveillant actif n'existe.** Or `assiduite:saisir` appartient à
+   `SURVEILLANT`, `ENSEIGNANT` (sur ses propres classes) et `SUPER_ADMIN`.
+   **`DIRECTION` ne l'a pas** : le directeur lié peut consulter l'assiduité,
+   pas la saisir.
+2. **La contrainte d'unicité du téléphone est contournable par la mise en
+   forme.** Deux comptes portent le même numéro sous deux écritures
+   différentes, et `utilisateurs_telephone_key` ne l'a pas vu.
+3. **Les 15 enseignants n'ont aucun compte** : aucun ne peut saisir d'appel.
 
 ## F. Qualité et tests
 
 | Mesure | Valeur |
 |---|---|
-| Tests automatisés | **204** |
-| Réussites | **204** |
+| Tests automatisés | **212** |
+| Réussites | **212** |
 | Échecs | **0** |
 | Au début de la session | 136 |
-| Ajoutés | **+68** |
+| Ajoutés | **+76** |
 | Fichiers `web/` modifiés | **aucun** — cette recette n'a touché que `agent/` |
 | Commits | voir ci-dessous |
 | Déploiements | code + `.env` transférés ; **service non redémarré** |
@@ -391,7 +441,9 @@ verrou possédé · libération ne touchant jamais le verrou d'autrui.
 Couverture des identités : numéro valide · numéro inconnu · compte inconnu ·
 plusieurs comptes · mauvais rôle · numéro déjà associé · suspension ·
 révocation · persistance après redémarrage · contact sans compte · auteur
-invalide · auteur désactivé · auteur au rôle insuffisant.
+invalide · auteur désactivé · auteur au rôle insuffisant · **résolution par
+l'annuaire du personnel** · **personnel sans compte** · **collision de numéro
+signalée mais jamais utilisée**.
 
 Tests réels (hors unitaires) : `GET /models` sur 3 comptes · appel « PONG » par
 fournisseur · réponse JSON par fournisseur · **repli réel sur 401** ·
@@ -435,17 +487,34 @@ la file de notification à chaque absence insérée.
 - **Conséquence si non résolu** : rien ne fonctionne. Tout le reste est suspendu
   à ce démarrage.
 
-### 2. Les numéros autorisés ne correspondent à aucun compte de personnel — *institutionnel*
+### 2. Deux des trois numéros ne sont pas encore liables — *administratif*
 
-- **Cause** : deux des trois numéros sont rattachés à des comptes `PARENT`, le
-  troisième à aucun compte. Les 3 comptes `SUPER_ADMIN` n'ont pas de téléphone.
+- **Cause** : `235•••737` (HABIB FAYCAL, DIRECTEUR) a une fiche **active** dans
+  l'annuaire administratif mais **aucun compte d'accès au portail**.
+  `235•••262` n'apparaît ni dans l'annuaire, ni dans la table des comptes.
 - **Preuve** : tableau du §E, obtenu en lecture seule sur la source autoritaire.
-- **Intervention** : dire, pour chaque numéro, **au nom de quel compte** il
-  parle — puis renseigner `"compte"` dans `identites-autorisees.json` et lancer
-  `node agent/scripts/resoudre-identites.mjs --ecrire`. C'est une décision de
-  sécurité : un numéro lié à un `SUPER_ADMIN` dispose de toute la plateforme.
-- **Conséquence si non résolu** : aucun numéro n'est reconnu, donc **aucune
-  opération n'est possible**, même service démarré. C'est le défaut sûr.
+- **Intervention** : pour `•••737`, créer le compte depuis « **Gérer** » dans
+  l'annuaire administratif — c'est un clic, et c'est un acte d'administration
+  que l'agent ne doit pas faire à votre place. Pour `•••262`, créer la fiche ou
+  désigner un compte existant. Puis relancer
+  `node agent/scripts/resoudre-identites.mjs --auteur <email> --ecrire`.
+- **Conséquence si non résolu** : ces deux numéros restent inconnus et refusés.
+  Le troisième (`•••226`, DIRECTION) fonctionne déjà.
+
+### 2 bis. Collisions de numéros dans la table des comptes — *donnée à corriger*
+
+- **Cause** : un même numéro désigne deux personnes différentes. La contrainte
+  `utilisateurs_telephone_key` est contournée par la mise en forme (`+235 68…`
+  contre `68…`).
+- **Preuve** : `•••737` porté par un compte PARENT au nom d'**Abakar ABAKAR**,
+  alors que l'annuaire l'attribue à **HABIB FAYCAL** ; `•••226` porté par deux
+  comptes.
+- **Intervention** : nettoyer ces doublons, et normaliser les téléphones avant
+  insertion pour que l'unicité porte sur les chiffres seuls.
+- **Conséquence si non résolu** : aucune pour l'agent — il résout par l'annuaire
+  et signale la collision sans jamais l'utiliser. Mais toute autre
+  fonctionnalité qui chercherait un compte par téléphone se tromperait de
+  personne.
 
 ### 3. L'API agent n'est pas déployée — *institutionnel*
 
@@ -496,14 +565,19 @@ la file de notification à chaque absence insérée.
 
 1. **Démarrer le serveur depuis le panneau Altare**, puis lire `/sante` : c'est
    la seule chose qui manque pour passer de « déployé » à « opérationnel », et
-   la seule qu'un humain doive faire.
-2. **Désigner les comptes** des trois numéros, puis provisionner.
+   la seule qu'un humain doive faire. Le magasin d'identités déposé sera chargé
+   à ce démarrage, et `ABDOULAYE ABDELHALIM` sera reconnu.
+2. **Créer le compte d'accès de `HABIB FAYCAL`** depuis « Gérer » dans
+   l'annuaire administratif, puis relancer le provisionnement.
 3. **Décider du déploiement de l'API agent**, et seulement ensuite renseigner
    `SCHOOL_API_BASE_URL` — après avoir vérifié que l'URL répond 401.
 
 **Puis, pour faire de l'agent un véritable superviseur de la plateforme :**
-créer les comptes de personnel qui manquent (aucun `DIRECTION`, `CENSEUR`,
-`SECRETARIAT`, `COMPTABLE`, `ENSEIGNANT`, aucun `SURVEILLANT` actif). Le
-catalogue d'outils, le RBAC et le moteur sont prêts pour sept rôles ; la
-plateforme n'en peuple qu'un seul. C'est désormais là que se trouve l'écart
-entre ce que l'agent sait faire et ce qu'il peut servir.
+donner un compte aux personnes qui doivent s'en servir. Le catalogue d'outils,
+le RBAC et le moteur sont prêts pour sept rôles ; la plateforme compte
+aujourd'hui 1 compte DIRECTION, 3 SUPER_ADMIN, aucun surveillant actif et
+aucun compte pour ses 15 enseignants. **Le directeur lié peut consulter
+l'assiduité, mais pas la saisir** — `assiduite:saisir` appartient à
+`SURVEILLANT`, `ENSEIGNANT` et `SUPER_ADMIN`. C'est désormais là, et non dans le
+code de l'agent, que se trouve l'écart entre ce qu'il sait faire et ce qu'il
+peut servir.
