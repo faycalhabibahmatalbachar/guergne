@@ -2,7 +2,7 @@
 
 **À lire en premier. Ne refais pas d'audit général : tout ce qui suit est vérifié.**
 
-Dernier commit : `d107fb9` · Branche : `ai-school-agent-p0-audit` · 1er novembre 2026.
+Dernier commit : `40cc850` · Branche : `ai-school-agent-p0-audit` · 1er novembre 2026.
 
 ---
 
@@ -69,7 +69,7 @@ directement, 8 dynamiquement, et **23 ne sont citées nulle part** — la
 fonctionnalité métier n'existe pas. Le catalogue d'outils ne peut donc couvrir
 que **55 capacités**. Détail : `FULL_PLATFORM_AUDIT.md`.
 
-### Code livré et testé — **127 tests, 127 réussites** (`cd agent && npm test`)
+### Code livré et testé — **136 tests, 136 réussites** (`cd agent && npm test`)
 
 | Module | Rôle |
 |---|---|
@@ -84,6 +84,7 @@ que **55 capacités**. Détail : `FULL_PLATFORM_AUDIT.md`.
 | `src/providers/wwebjs.js` | transport réel, config Chromium de moov-ai |
 | `src/identity-store.js` | associations numéro → compte, persistantes |
 | `referentiel.js` | listes réelles classes/périodes, cache **par acteur** |
+| `resolution-eleves.js` | noms dictés → `inscriptionId`, dans la classe ; doute ⇒ demande |
 | `index.js` | **amorçage** : installe deps + Chromium, puis `app.js` |
 | `app.js` | application (ex-`index.js`) |
 
@@ -206,6 +207,43 @@ Clés IA **validées par appel réel** (aucune valeur affichée) :
    existe, `VERCEL_TOKEN=xxx npm run vercel:env` la pose. La CLI Vercel n'est
    **pas** authentifiée sur ce poste (aucun `auth.json`).
 
+### LOT 3 — FAIT : l'écriture d'assiduité marche de bout en bout
+
+Sur la branche Neon isolée `ai-school-agent-test`, **jamais la production**.
+`agent/scripts/e2e-ecriture.mjs` rejoue la chaîne complète et **refuse de
+démarrer** si le serveur ne pointe pas sur la branche de test — les 549 élèves
+ont tous un tuteur et un déclencheur alimente la file de notification à chaque
+insertion.
+
+```
+garde       : base ep-flat-thunder… confirmée ≠ production
+nom dicté   : « Fatim ABAKAR »   (prénom tronqué, à la façon du STT)
+élève réel  : « Fatimé ABAKAR » — résolu, vérifié par eleveId
+écriture    : 0 → 1 absence ; « 1 absence(s) enregistré(s). Les tuteurs seront notifiés. »
+relecture   : 2026-11-01, 2.00 h, NON_JUSTIFIEE
+suppression : confirmation exigée, puis « oui » → 1 → 0
+état final  : identique à l'état initial
+```
+
+Le verrou que signalait la version précédente de ce document — « resolveur.js
+n'est pas branché pour les élèves » — **est levé**. La recherche se limite à la
+classe : un nom y est bien plus souvent unique que parmi 549 élèves, et
+l'effectif passe par `x-acteur-id`, donc filtré par périmètre.
+
+**Résidu assumé sur la branche de test** : les deux absences insérées puis
+supprimées ont laissé des lignes dans la file de notification et dans le journal
+d'audit (immuable, cf. piège 10). Rien n'a jamais été envoyé — la file ne se
+vide que si on appelle le traitement, ce qui n'a pas été fait.
+
+### Décision en attente — l'écriture passe SANS confirmation
+
+`assiduite.enregistrer_appel` est `WRITE`, pas `SENSITIVE` : l'absence est
+insérée **dès le premier message**, sans « répondez oui ». La suppression, elle,
+demande confirmation. Or une insertion notifie les tuteurs : elle est donc, en
+pratique, aussi irréversible qu'une suppression du point de vue du parent qui a
+reçu le SMS. **À arbitrer** : ajouter `requiresConfirmation: true` sur
+l'enregistrement d'appel, ou l'assumer tel quel. Non modifié sans décision.
+
 ### Si tu reprends ici, dans cet ordre
 
 1. **Demander les deux choses à l'utilisateur, ensemble** : le mot de passe SFTP
@@ -225,20 +263,23 @@ Clés IA **validées par appel réel** (aucune valeur affichée) :
   (`tools.js`) *et* dans le client (`guergne-client.js`), mais absent de la
   liste blanche de la route : tout appel partirait en 404. Soit l'implémenter,
   soit le retirer du registre — en l'état il promet une capacité absente.
-- **`resolveur.js` n'est toujours pas branché pour les ÉLÈVES.** Les classes et
-  les périodes sont résolues par `referentiel.js` (le modèle recopie un
-  identifiant réel). Les élèves, non : il n'existe pas de recherche d'élève par
-  nom dans la liste blanche, seulement `listerElevesClasse(classeId)`. C'est le
-  verrou du **LOT 3** (écritures d'assiduité) : on ne peut pas poser une absence
-  sans résoudre « Mahamat Adam » en `inscriptionId`. Le chemin est tracé :
-  `listerElevesClasse` existe, et `resoudreEleve()` est écrit et testé.
+- **Un élève ne se résout que DANS une classe.** `classeId` est obligatoire pour
+  les écritures. « Enregistre l'absence de Mahamat Adam » sans classe fait
+  demander laquelle. C'est volontaire (unicité du nom, périmètre RBAC), mais si
+  l'usage réel montre que les surveillants omettent toujours la classe, il
+  faudra une recherche par nom à l'échelle de l'établissement — qui n'existe pas
+  dans la liste blanche aujourd'hui.
+- **`justifierEnLot` et `enregistrerRetard` n'ont pas été joués de bout en bout.**
+  Ils sont dans la liste blanche, testés unitairement, et `justifierEnLot` a eu
+  son bug de production corrigé — mais la chaîne complète depuis un message n'a
+  été vérifiée que pour l'appel et la suppression.
 - Le registre n'expose que l'Assiduité. L'audit borne le maximum atteignable à
   **55 capacités** (cf. `FULL_PLATFORM_AUDIT.md`).
 
 ## 5. Commandes de reprise
 
 ```bash
-cd agent && npm test                      # doit afficher 127/127
+cd agent && npm test                      # doit afficher 136/136
 node agent/scripts/audit-plateforme.mjs   # regenere l'inventaire
 curl -s http://se-kna02.altare.global:25278/sante   # etat reel du service
 MSYS_NO_PATHCONV=1 node agent/scripts/altare.mjs ls .   # arborescence distante
@@ -254,6 +295,13 @@ cd web && npm run dev
 
 ```bash
 node agent/scripts/e2e-lecture.mjs "les alertes du deuxieme trimestre"
+```
+
+Chaîne d'ÉCRITURE, sur la branche isolée uniquement (le script vérifie lui-même
+qu'il n'est pas sur la production, et nettoie ce qu'il écrit) :
+
+```bash
+node agent/scripts/e2e-ecriture.mjs
 ```
 
 Déposer la configuration privée sur Altare, dès que le SFTP répond. Sans
