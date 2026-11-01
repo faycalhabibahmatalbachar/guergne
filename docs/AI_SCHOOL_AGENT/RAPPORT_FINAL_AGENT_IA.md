@@ -10,6 +10,129 @@ Aucune clé, aucun numéro complet et aucune donnée scolaire réelle ne figure 
 
 ---
 
+## 0. Incident `REFUSED_UNKNOWN` — identification des responsables
+
+Le service démarrait, WhatsApp atteignait `ready`, le magasin chargeait son
+association active, et **tout message était refusé**. Neuf refus consécutifs.
+
+### A. Cause exacte
+
+Le refus naît à `agent/src/engine.js`, étape 2 : `identity.resolve(msg.fromJid)`
+rend `null`. Deux causes distinctes se superposaient, et il fallait les séparer.
+
+**Cause latente — un identifiant LID n'est pas un numéro.**
+L'agent comparait la partie numérique de `msg.from` à la liste blanche. Cela ne
+vaut que pour `…@c.us`. Depuis la migration de WhatsApp vers les identifiants
+LID, un message peut arriver de `…@lid`, dont la partie gauche est un
+identifiant interne de WhatsApp : **elle ne désigne aucun abonné
+téléphonique**. La comparer à la liste blanche a deux issues, toutes deux
+fausses :
+
+- aucune correspondance, et un responsable pourtant autorisé est refusé ;
+- une correspondance fortuite, et un inconnu obtient le compte d'un autre.
+
+**Cause immédiate probable — le numéro testé n'est pas celui qui est lié.**
+Le magasin déployé contient une seule association : `235•••••226`
+(ABDOULAYE ABDELHALIM, compte DIRECTION). Le numéro `235•••••737`
+(HABIB FAYCAL) n'a toujours **aucun compte d'accès au portail**, donc aucune
+association — un refus `UNKNOWN_NUMBER` y est le comportement correct, pas un
+défaut.
+
+Ces deux causes ne se départagent pas par raisonnement : il y fallait une
+preuve, et l'audit n'en donnait aucune. Il n'écrivait que `REFUSED_UNKNOWN`,
+sans jamais dire de quel numéro ni pour quelle raison. **C'est le défaut
+d'observabilité qui a rendu l'incident opaque**, autant que le défaut de code.
+
+### B. Correctifs
+
+| Fichier | Correctif |
+|---|---|
+| `src/jid.js` *(nouveau)* | Sépare ce qui porte un numéro de ce qui n'en porte pas. Refuse **catégoriquement** d'utiliser la partie gauche d'un LID en repli. |
+| `src/providers/wwebjs.js` | `resoudreLid()` via `getContactLidAndPhone` — mécanisme officiel de `whatsapp-web.js` 1.34. Résultat mis en cache ; un échec n'est jamais gravé. |
+| `src/engine.js` | Résout le vrai numéro **avant** de consulter la liste blanche ; émet le journal d'identification ; porte la raison du refus dans l'audit. |
+| `src/identity-store.js` | `empreintes(sel)` — le calcul vit **dans** le magasin, pour que le numéro brut n'en sorte jamais. |
+| `app.js` | Branche le journal, écrit les empreintes des associations au démarrage, et corrige l'ordre IA affiché. |
+
+Groupes, diffusions et JID invalides ont désormais leur propre refus au lieu de
+se fondre dans « numéro inconnu ». **Un refus d'identité n'est jamais présenté
+comme un refus de permission.**
+
+Raisons désormais distinguées : `INVALID_JID`, `NORMALIZATION_FAILED`,
+`GROUP_NOT_SUPPORTED`, `BROADCAST_NOT_SUPPORTED`, `LID_NOT_RESOLVED`,
+`UNKNOWN_NUMBER`, `IDENTITY_SUSPENDED`, `IDENTITY_REVOKED`.
+
+**Comment l'incident se diagnostiquera désormais.** Au démarrage, chaque
+association écrit son empreinte salée ; à chaque message, le journal
+d'identification écrit celle de l'expéditeur. Deux empreintes identiques
+signifient « c'est le bon numéro, regardez l'état de l'association » ; deux
+empreintes différentes signifient « le message vient d'un autre numéro ». Aucun
+numéro complet n'apparaît, et le sel est neuf à chaque démarrage — l'empreinte
+sert à comparer, pas à identifier durablement.
+
+```json
+{"type":"identity_resolution","run":"run_…","jidType":"lid","viaLid":true,
+ "numeroMasque":"235•••••226","empreinte":"…","normalisation":"success",
+ "associationPersistante":"active","role":"DIRECTION","decision":"ALLOW","raison":null}
+```
+
+### C. Identités — état au 2026-11-01
+
+| Numéro | État | Ce qui manque |
+|---|---|---|
+| `235•••••226` | **Autorisé et déployé** | rien — compte DIRECTION actif |
+| `235•••••737` | **En attente** | fiche DIRECTEUR active, mais aucun compte portail |
+| `235•••••262` | **Inconnu** | absent de l'annuaire du personnel |
+
+Aucun numéro PARENT n'a été réintroduit. Aucune identité n'a été fabriquée.
+
+### D. Tests
+
+**247 tests passent** (216 avant cet incident), dont 31 nouveaux sur
+l'identification.
+
+JID et numérotation : `@c.us` · `@s.whatsapp.net` · `@lid` résolu · `@lid` non
+résolu · `@lid` rendant un LID · `@lid` levant une exception · `@g.us` ·
+`broadcast` · suffixe d'appareil · serveur inconnu · JID vide, nul, sans
+arobase · **LID dont les chiffres valent un numéro autorisé**.
+
+Liste blanche : autorisé et actif · inconnu · suspendu · révoqué · persistance
+après redémarrage · exactitude du compte associé · journal sans aucun numéro
+complet · empreinte du message égale à celle du magasin.
+
+RBAC, avec le compte DIRECTION réel : `assiduite:lire` **autorisé et servi**,
+`assiduite:saisir` **refusé** (`DENIED:assiduite:saisir`), refus tracé.
+
+Le test de sécurité central : **un LID dont la partie numérique vaut un numéro
+autorisé reste refusé.** Sans lui, la correction pourrait être défaite sans que
+rien ne le signale.
+
+### E. Livraison
+
+| Élément | État |
+|---|---|
+| Branche | `ai-school-agent-p0-audit` |
+| Commit du correctif | `1d98798` |
+| Push GitHub | **refusé par la politique de permissions de la session** — en attente d'autorisation |
+| Déploiement SFTP Altare | **fait** — `src/jid.js`, `engine.js`, `app.js`, `wwebjs.js`, `identity-store.js` |
+| Version chargée par le processus | **l'ancienne** — le processus tourne depuis 3 h, un redémarrage est nécessaire |
+
+### F. Résultat final
+
+**Pas encore.** Le correctif est écrit, testé et transféré, mais **le processus
+en cours exécute toujours l'ancien code**. Deux actes restent, et aucun n'est
+technique :
+
+1. **Redémarrer le service depuis le panneau Altare** pour charger le correctif.
+2. **Créer le compte portail de HABIB FAYCAL** (bouton « Gérer » dans l'annuaire
+   administratif) pour que `235•••••737` puisse être lié.
+
+Après le redémarrage, `235•••••226` doit être reconnu quel que soit l'adressage
+WhatsApp. Il répondra toutefois « Backend scolaire non configuré » : l'API agent
+n'est toujours pas déployée (§D), ce qui est un blocage distinct et déjà
+documenté.
+
+---
+
 ## A. Récupération Altare
 
 ### État initial constaté
@@ -440,11 +563,11 @@ Trois conséquences qui dépassent la liste blanche :
 
 | Mesure | Valeur |
 |---|---|
-| Tests automatisés | **216** |
-| Réussites | **216** |
+| Tests automatisés | **247** |
+| Réussites | **247** |
 | Échecs | **0** |
 | Au début de la session | 136 |
-| Ajoutés | **+80** |
+| Ajoutés | **+111** |
 | Fichiers `web/` modifiés | **aucun** — cette recette n'a touché que `agent/` |
 | Commits | voir ci-dessous |
 | Déploiements | code + `.env` transférés ; **service non redémarré** |
