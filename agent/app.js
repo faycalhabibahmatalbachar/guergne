@@ -19,7 +19,7 @@ import { join } from "node:path";
 import { AuditLog } from "./src/audit.js";
 import { Agent } from "./src/engine.js";
 import { GuergneHttpClient } from "./src/guergne-client.js";
-import { IdentityStore } from "./src/identity.js";
+import { IdentityStorePersistant } from "./src/identity-store.js";
 import { MoteurIA } from "./src/ia.js";
 import { Pairing, jetonAleatoire, pageAppairage } from "./src/pairing.js";
 import { MatricePermissions } from "./src/permissions-matrix.js";
@@ -95,7 +95,11 @@ const outils = new ToolRegistry(ASSIDUITE_TOOLS);
 // L'association numéro → compte interne vit en base côté guergne. Tant que ce
 // point n'est pas branché, le magasin démarre vide : AUCUN numéro n'est reconnu,
 // donc aucune opération n'est possible. C'est le défaut sûr.
-const identites = new IdentityStore();
+const identites = new IdentityStorePersistant({
+  chemin: join(chemins.racine, "identites.json"),
+  journal: (e) => console.log(JSON.stringify({ ts: e.at, ...e })),
+});
+console.log(`[identites] ${identites.nombreActives} association(s) active(s)`);
 
 // `Pairing` est l'UNIQUE autorité sur le cycle de vie du QR : pas de variable
 // parallèle qui pourrait diverger de son état.
