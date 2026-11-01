@@ -124,11 +124,27 @@ Puis vérifier que `/sante` passe à `backend:true, ia:true`.
 
 ### LOT 2 (suite) — provisionner les responsables
 
-Le mécanisme est fait et testé ; il reste à **créer les associations**. Elles
-vivent dans `donnees/identites.json` **sur le serveur**, jamais dans le dépôt.
+Le mécanisme est fait et testé ; il reste à **créer et vérifier les associations**.
+Elles vivent dans `donnees/identites.json` **sur le serveur**, jamais dans le dépôt.
 
-Il manque, pour chaque numéro, l'**identifiant du compte guergne** et son rôle.
-Les numéros seuls ne suffisent pas, et **aucun numéro ne doit être commité**.
+**Autorisation explicite de l'utilisateur : tous les numéros qu'il a transmis sont
+les siens. Claude est autorisé à effectuer sur ces numéros toutes les opérations
+techniques nécessaires au projet, sans redemander une autorisation : normalisation,
+tests, vérification WhatsApp, création et mise à jour des associations, provisioning
+privé sur Altare, suspension, révocation ou remplacement lorsque cela est nécessaire
+pour corriger une association.** Cette autorisation couvre la manipulation des
+numéros ; elle ne permet pas de publier ces données, de les écrire dans Git, ni de
+les exposer dans des journaux ou sorties publiques. Les valeurs brutes restent
+dans un environnement privé et protégé.
+
+**Il reste à résoudre techniquement l'identifiant du compte Guergné correspondant
+à chaque numéro et à lire son rôle réel depuis la source Guergné faisant autorité.**
+Ne pas inventer d'identifiant, de nom ou de rôle ; ne pas attribuer localement un
+rôle plus élevé et ne pas contourner le RBAC. Chercher d'abord les correspondances
+par les API/backend existants en lecture seule. Si une correspondance ne peut pas
+être établie sans ambiguïté, marquer uniquement cette entrée comme en attente et
+continuer les autres tâches indépendantes : ne pas bloquer le LOT 1 ni refaire
+l'audit général. Aucun numéro brut ne doit être commité.
 
 Rappel de la matrice : `assiduite:saisir` appartient au **SURVEILLANT**, pas à la
 DIRECTION — le scénario du cahier des charges (directeur enregistrant des
@@ -153,7 +169,10 @@ Secrets locaux (jamais commités) : `altare.env`, `ai_apikey.env`,
 ## 6. Barrières humaines restantes
 
 1. **Variables Altare** — panneau web, session navigateur personnelle.
-2. **Identifiants des comptes guergne** des quatre responsables.
+2. **Correspondance numéro → compte Guergné** : l'utilisation des numéros est
+   déjà autorisée par l'utilisateur ; seule la résolution non ambiguë des IDs et
+   rôles réels reste à faire via les sources Guergné. Ce n'est plus une demande
+   d'autorisation à lui soumettre.
 3. **Arbitrage `assiduite:saisir`** pour la DIRECTION.
 4. **TLS** : l'appairage a transité en HTTP. Le jeton est brûlé, donc sans
    valeur, mais un futur appairage mérite HTTPS.
