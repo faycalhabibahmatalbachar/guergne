@@ -18,7 +18,7 @@
  * vérifie à chaque exécution de la recette.
  */
 import { READ } from "./guard.js";
-import { jour, listeRendue, nomComplet } from "./rendu.js";
+import { jour, listeRendue, nomComplet, val } from "./rendu.js";
 
 const noErrs = () => ({});
 const required = (v) => v !== undefined && v !== null && v !== "";
@@ -66,7 +66,7 @@ export const PILOTAGE_TOOLS = [
     parametres: { anneeId: ANNEE },
     validate: noErrs,
     summarize: () => "Effectifs par niveau.",
-    rendre: (l) => listeRendue(l, "Effectifs par niveau", (x) => `${x.niveau} (${x.cycle}) — ${x.total} eleves : ${x.garcons} G / ${x.filles} F`),
+    rendre: (l) => listeRendue(l, "Effectifs par niveau", (x) => `${val(x.niveau, "niveau inconnu")} (${val(x.cycle)}) — ${val(x.total, 0)} eleves : ${val(x.garcons, 0)} G / ${val(x.filles, 0)} F`),
   },
   {
     name: "pilotage.absences_par_mois",
@@ -79,7 +79,7 @@ export const PILOTAGE_TOOLS = [
     validate: noErrs,
     summarize: () => "Absences par mois.",
     rendre: (l) =>
-      listeRendue(l, "Absences par mois", (x) => `${x.libelle} — ${x.nonJustifiees} h non justifiees, ${x.justifiees} h justifiees`),
+      listeRendue(l, "Absences par mois", (x) => `${val(x.libelle, val(x.mois, "mois inconnu"))} — ${val(x.nonJustifiees, 0)} h non justifiees, ${val(x.justifiees, 0)} h justifiees`),
   },
   {
     name: "pilotage.moyennes_par_classe",
@@ -92,7 +92,7 @@ export const PILOTAGE_TOOLS = [
     validate: noErrs,
     summarize: () => "Moyennes par classe.",
     rendre: (l) =>
-      listeRendue(l, "Moyennes par classe", (x) => `${x.classe} (${x.effectif} eleves) — ${nb(x.moyenne, "/20")}, reussite ${nb(x.tauxReussite, " %")}`),
+      listeRendue(l, "Moyennes par classe", (x) => `${val(x.classe, "classe inconnue")} (${val(x.effectif, 0)} eleves) — ${nb(x.moyenne, "/20")}, reussite ${nb(x.tauxReussite, " %")}`),
   },
   {
     name: "pilotage.classement_classes",
@@ -105,7 +105,7 @@ export const PILOTAGE_TOOLS = [
     validate: noErrs,
     summarize: () => "Classement des classes.",
     rendre: (l) =>
-      listeRendue(l, "Classement des classes", (x) => `${x.rang}. ${x.classe} — ${nb(x.moyenne, "/20")} (ecart ${nb(x.ecart)})`),
+      listeRendue(l, "Classement des classes", (x) => `${val(x.rang, "?")}. ${val(x.classe, "classe inconnue")} — ${nb(x.moyenne, "/20")} (ecart ${nb(x.ecart)})`),
   },
   {
     name: "pilotage.resultats_par_matiere",
@@ -119,7 +119,7 @@ export const PILOTAGE_TOOLS = [
     parametres: { periodeId: "OBLIGATOIRE, identifiant de periode scolaire (UUID)" },
     validate: (p) => (required(p.periodeId) ? {} : { periodeId: "Période requise." }),
     summarize: () => "Resultats par matiere.",
-    rendre: (l) => listeRendue(l, "Resultats par matiere", (x) => `${x.matiere} — ${nb(x.moyenne, "/20")} sur ${x.nbNotes} note(s)`),
+    rendre: (l) => listeRendue(l, "Resultats par matiere", (x) => `${val(x.matiere, "matiere inconnue")} — ${nb(x.moyenne, "/20")} sur ${val(x.nbNotes, 0)} note(s)`),
   },
   {
     name: "etablissement.statistiques",
@@ -159,7 +159,7 @@ export const PILOTAGE_TOOLS = [
       const lignes = Array.isArray(d) ? d : d?.lignes;
       if (!Array.isArray(lignes)) return null;
       const titre = d?.total != null ? `Eleves (${d.total} au total)` : "Eleves";
-      return listeRendue(lignes, titre, (x) => `${nomComplet(x)} — ${x.matricule ?? "sans matricule"}${x.classe ? `, ${x.classe}` : ""}`);
+      return listeRendue(lignes, titre, (x) => `${nomComplet(x)} — ${val(x.matricule, "sans matricule")}${x.classe ? `, ${x.classe}` : ""}`);
     },
   },
   {
@@ -193,7 +193,7 @@ export const PILOTAGE_TOOLS = [
     validate: (p) => (required(p.eleveId) ? {} : { eleveId: "Élève requis." }),
     summarize: () => "Responsables d'un eleve.",
     rendre: (l) =>
-      listeRendue(l, "Responsables", (x) => `${nomComplet(x)} — ${x.lienParente ?? "lien non precise"}${x.principal ? " (principal)" : ""}`),
+      listeRendue(l, "Responsables", (x) => `${nomComplet(x)} — ${val(x.lienParente, "lien non precise")}${x.principal ? " (principal)" : ""}`),
   },
 
   // --- Personnel ------------------------------------------------------------
@@ -208,7 +208,7 @@ export const PILOTAGE_TOOLS = [
     validate: noErrs,
     summarize: () => "Annuaire des enseignants.",
     rendre: (l) =>
-      listeRendue(l, "Enseignants", (x) => `${nomComplet(x)} — ${x.matricule ?? "?"}${x.specialite ? `, ${x.specialite}` : ""}${x.statut ? ` (${x.statut})` : ""}`),
+      listeRendue(l, "Enseignants", (x) => `${nomComplet(x)} — ${val(x.matricule)}${x.specialite ? `, ${x.specialite}` : ""}${x.statut ? ` (${x.statut})` : ""}`),
   },
 
   // --- Pédagogie ------------------------------------------------------------
@@ -227,7 +227,7 @@ export const PILOTAGE_TOOLS = [
     validate: (p) => (required(p.periodeId) ? {} : { periodeId: "Période requise." }),
     summarize: () => "Evaluations de la periode.",
     rendre: (l) =>
-      listeRendue(l, "Evaluations", (x) => `${x.titre ?? "sans titre"} — ${x.classe ?? "?"}, ${x.matiere ?? "?"}, ${jour(x.dateEvaluation)} (${x.statut ?? "?"})`),
+      listeRendue(l, "Evaluations", (x) => `${val(x.titre, "sans titre")} — ${val(x.classe)}, ${val(x.matiere)}, ${jour(x.dateEvaluation)} (${val(x.statut)})`),
   },
 
   // --- Finances -------------------------------------------------------------
@@ -260,6 +260,6 @@ export const PILOTAGE_TOOLS = [
     validate: noErrs,
     summarize: () => "Recouvrement par classe.",
     rendre: (l) =>
-      listeRendue(l, "Recouvrement par classe", (x) => `${x.classe} — ${fcfa(x.totalPaye)} encaisses sur ${fcfa(x.totalDu)}, ${x.nbEnRetard ?? 0} en retard`),
+      listeRendue(l, "Recouvrement par classe", (x) => `${val(x.classe, "classe inconnue")} — ${fcfa(x.totalPaye)} encaisses sur ${fcfa(x.totalDu)}, ${x.nbEnRetard ?? 0} en retard`),
   },
 ];

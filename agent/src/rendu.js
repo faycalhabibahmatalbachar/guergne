@@ -22,17 +22,36 @@ export const nomComplet = (l) => `${l.prenom ?? ""} ${l.nom ?? ""}`.trim() || "�
 /** Les dates arrivent en ISO ; seule la partie calendaire intéresse le lecteur. */
 export const jour = (d) => String(d ?? "").slice(0, 10) || "date inconnue";
 
+/**
+ * Valeur affichable, ou une mention franche quand elle manque.
+ *
+ * Laisser passer `undefined` est pire qu'un trou : le mot a l'air d'un
+ * resultat, et un lecteur presse le prend pour une donnee.
+ */
+export const val = (v, defaut = "?") => (v === null || v === undefined || v === "" ? defaut : String(v));
+
 export function listeRendue(lignes, titre, ligne) {
   if (!Array.isArray(lignes)) return null;
-  if (lignes.length === 0) return `${titre} : aucun résultat.`;
-  const montrees = lignes.slice(0, MAX_LIGNES);
-  const reste = lignes.length - montrees.length;
+  // Une ligne vide ou mal formee ne doit pas emporter la reponse entiere : le
+  // backend peut rendre une colonne absente, et l'utilisateur merite les
+  // autres lignes.
+  const utilisables = lignes.filter((l) => l !== null && l !== undefined);
+  if (utilisables.length === 0) return `${titre} : aucun résultat.`;
+  const montrees = utilisables.slice(0, MAX_LIGNES);
+  const reste = utilisables.length - montrees.length;
+  const rendue = (l) => {
+    try {
+      const t = ligne(l);
+      return typeof t === "string" && t.trim() ? t : "ligne illisible";
+    } catch {
+      return "ligne illisible";
+    }
+  };
   return [
-    `${titre} — ${lignes.length} résultat${lignes.length > 1 ? "s" : ""} :`,
-    ...montrees.map((l) => `• ${ligne(l)}`),
+    `${titre} — ${utilisables.length} résultat${utilisables.length > 1 ? "s" : ""} :`,
+    ...montrees.map((l) => `• ${rendue(l)}`),
     reste > 0 ? `… et ${reste} de plus.` : null,
   ]
     .filter(Boolean)
     .join("\n");
 }
-
