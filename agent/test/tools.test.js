@@ -55,3 +55,106 @@ test("redact masque les secrets dans les paramètres journalisés", () => {
   assert.equal(out.nested.token, "[redacted]");
   assert.equal(out.nested.ok, 1);
 });
+
+// --- Rendu des lectures -----------------------------------------------------
+// Une consultation qui répond « ✅ Opération effectuée. » perd la donnée qu'elle
+// vient de chercher. Ces tests verrouillent le contraire.
+
+test("rendu des absences : la réponse porte les lignes, pas un accusé vide", () => {
+  const rendre = tool("assiduite.consulter_absences").rendre;
+  const texte = rendre([
+    { prenom: "Zenaba", nom: "TOGBE", classe: "6ème B", dateAbsence: "2026-07-14", nbHeures: "2", statut: "NON_JUSTIFIEE" },
+  ]);
+  assert.match(texte, /1 résultat :/);
+  assert.match(texte, /Zenaba TOGBE/);
+  assert.match(texte, /6ème B/);
+  assert.match(texte, /2026-07-14/);
+  assert.match(texte, /non justifiée/);
+});
+
+test("rendu des absences : l'affichage est borné et le reste est annoncé", () => {
+  const rendre = tool("assiduite.consulter_absences").rendre;
+  const lignes = Array.from({ length: 100 }, (_, i) => ({
+    prenom: "Eleve", nom: "N" + i, classe: "6ème B", dateAbsence: "2026-07-14", nbHeures: "1", statut: "JUSTIFIEE",
+  }));
+  const texte = rendre(lignes);
+  // Le total réel est annoncé : on ne laisse jamais croire qu'il n'y a que 10 lignes.
+  assert.match(texte, /100 résultats :/);
+  assert.equal(texte.split("\n").filter((l) => l.startsWith("• ")).length, 10);
+  assert.match(texte, /… et 90 de plus\./);
+});
+
+test("rendu des absences : une liste vide le dit, sans inventer", () => {
+  const texte = tool("assiduite.consulter_absences").rendre([]);
+  assert.match(texte, /aucun résultat/i);
+});
+
+test("rendu : une date ou un nom manquant ne produit pas de ligne trompeuse", () => {
+  const texte = tool("assiduite.consulter_absences").rendre([{ classe: "5ème A" }]);
+  assert.match(texte, /élève inconnu/);
+  assert.match(texte, /date inconnue/);
+});
+
+test("rendu des alertes : heures non justifiées, retards et seuil", () => {
+  const texte = tool("assiduite.alertes").rendre([
+    { prenom: "Mariam", nom: "BENDOUNGA", classe: "5ème A", heuresNonJustifiees: "14", nbRetards: 3, seuil: 10 },
+  ]);
+  assert.match(texte, /Mariam BENDOUNGA/);
+  assert.match(texte, /14 h non justifiées/);
+  assert.match(texte, /3 retard\(s\)/);
+  assert.match(texte, /seuil 10/);
+});
+
+test("rendu : une donnée non tabulaire renvoie null (l'accusé générique reprend la main)", () => {
+  assert.equal(tool("assiduite.consulter_absences").rendre(undefined), null);
+  assert.equal(tool("assiduite.alertes").rendre({ pas: "un tableau" }), null);
+});
+
+// --- Catalogue et invite transmis au modèle ---------------------------------
+// Ce texte vivait dans une fonction fléchée au fond de `app.js` : il n'était
+// évalué qu'à l'arrivée d'un message, donc une faute ne se voyait qu'en
+// production, et `node --check` la laissait passer (deux gabarits adjacents
+// forment un appel de gabarit balisé, syntaxiquement valide). Ces tests
+// l'évaluent réellement.
+
+test("le catalogue NLU annonce les paramètres de chaque outil", () => {
+  const texte = reg.pourNlu();
+  assert.match(texte, /assiduite\.consulter_absences \[read\]/);
+  assert.match(texte, /limite \(facultatif/);
+  assert.match(texte, /absenceIds \(obligatoire/);
+  // Un outil sans paramètre le dit, plutôt que d'afficher une liste vide.
+  assert.match(texte, /assiduite\.controle_saisies \[read\] parametres : aucun parametre/);
+});
+
+test("le catalogue couvre TOUS les outils du registre", () => {
+  const texte = reg.pourNlu();
+  for (const t of reg.all()) assert.ok(texte.includes(t.name), `absent du catalogue : ${t.name}`);
+  assert.equal(texte.split("\n").length, reg.all().length);
+});
+
+test("l'invite système s'évalue et porte les consignes qui comptent", () => {
+  const invite = reg.invitePourNlu();
+  assert.equal(typeof invite, "string");
+  assert.ok(invite.length > 200);
+  assert.match(invite, /Tu choisis UN outil parmi :/);
+  // Les deux garde-fous : ne rien inventer, ne pas réclamer un facultatif.
+  assert.match(invite, /n'invente aucune valeur, surtout pas un identifiant/);
+  assert.match(invite, /ne le demande JAMAIS a l'utilisateur/);
+  assert.match(invite, /"clarify"/);
+  // Le catalogue est bien inclus : l'invite et la liste ne peuvent pas diverger.
+  assert.ok(invite.includes(reg.pourNlu()));
+});
+
+test("un paramètre déclaré existe vraiment dans la liste blanche de l'API", () => {
+  // Annoncer au modèle un paramètre que la route ignore produirait une réponse
+  // qui paraît filtrée sans l'être. On fige donc la liste attendue.
+  const attendus = {
+    "assiduite.consulter_absences": ["periodeId", "classeId", "statut", "depuis", "jusqua", "limite"],
+    "assiduite.alertes": ["periodeId"],
+    "assiduite.justifier_absences": ["absenceIds", "statut", "motif"],
+    "assiduite.supprimer_absence": ["absenceId", "motif"],
+  };
+  for (const [nom, champs] of Object.entries(attendus)) {
+    assert.deepEqual(Object.keys(tool(nom).parametres), champs, nom);
+  }
+});

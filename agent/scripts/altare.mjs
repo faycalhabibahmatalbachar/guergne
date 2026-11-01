@@ -52,7 +52,9 @@ async function connecter(c) {
     port: c.port,
     username: c.username,
     password: c.password,
-    readyTimeout: 20_000,
+    // L'hote Altare est lent a repondre : une prise de contact de 20 s echouait
+    // regulierement par expiration, ce qui ressemblait a tort a un blocage.
+    readyTimeout: Number(process.env.ALTARE_READY_TIMEOUT_MS ?? 120_000),
   });
   return sftp;
 }

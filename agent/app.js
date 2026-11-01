@@ -141,14 +141,13 @@ const agent = new Agent({
   guergne,
   interpret: async (texte) => {
     if (!ia) throw new Error("Aucun fournisseur IA configuré : compréhension indisponible.");
-    const catalogue = outils.all().map((t) => `${t.name} (${t.sensitivity})`).join(", ");
+    // L'invite vient du registre : c'est lui qui connait les parametres que
+    // l'API honore. Un modele a qui l'on ne decrit aucun parametre ne peut en
+    // remplir aucun, et toute consultation retombe sur les valeurs par defaut.
     const r = await ia.completerJson([
       {
         role: "system",
-        content:
-          `Tu choisis UN outil parmi : ${catalogue}. ` +
-          `Reponds en JSON {"tool":"<nom>","params":{}}. ` +
-          `Si la demande est ambigue ou incomplete, reponds {"clarify":"<question>"}.`,
+        content: outils.invitePourNlu(),
       },
       { role: "user", content: texte },
     ]);

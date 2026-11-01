@@ -43,10 +43,6 @@ if (!SERVICE_TOKEN || !GROQ_KEY) {
 
 /** NLU réel : Groq choisit un outil du registre et ses paramètres. */
 function interpretGroq(registre) {
-  const catalogue = registre
-    .all()
-    .map((t) => `${t.name} (${t.sensitivity})`)
-    .join(", ");
   return async (texte) => {
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -55,13 +51,7 @@ function interpretGroq(registre) {
         model: "openai/gpt-oss-120b",
         temperature: 0,
         messages: [
-          {
-            role: "system",
-            content:
-              `Tu choisis UN outil parmi : ${catalogue}. ` +
-              `Reponds UNIQUEMENT en JSON {"tool":"<nom>","params":{...}}. ` +
-              `Si la demande est ambigue, reponds {"clarify":"<question>"}.`,
-          },
+          { role: "system", content: registre.invitePourNlu() },
           { role: "user", content: texte },
         ],
       }),

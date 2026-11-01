@@ -177,7 +177,22 @@ export class Agent {
     });
 
     if (ok) {
-      await this.provider.sendText(msg.fromJid, result.message ?? "✅ Opération effectuée.");
+      // Les écritures portent leur propre message ; les lectures renvoient
+      // `data` et rien d'autre. Sans mise en forme, l'utilisateur recevait un
+      // accusé vide — « ✅ Opération effectuée. » — et la donnée qu'il avait
+      // demandée était perdue en route. Le rendu appartient au registre, qui
+      // connaît la forme des lignes.
+      let texte = result.message;
+      if (!texte && typeof tool.rendre === "function") {
+        // Un rendu qui échoue ne doit pas transformer une lecture réussie en
+        // échec : on retombe sur l'accusé générique.
+        try {
+          texte = tool.rendre(result.data, params);
+        } catch {
+          texte = null;
+        }
+      }
+      await this.provider.sendText(msg.fromJid, texte || "✅ Opération effectuée.");
       return { status: Status.COMPLETED, runId, result };
     }
     await this.provider.sendText(msg.fromJid, result && result.message ? result.message : "❌ L'opération a échoué.");

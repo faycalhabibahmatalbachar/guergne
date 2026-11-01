@@ -48,10 +48,63 @@ function validateSupprimer(p) {
 }
 
 /**
+ * Rendu des lectures pour WhatsApp.
+ *
+ * POURQUOI ICI
+ * ------------
+ * Une consultation qui répond « ✅ Opération effectuée. » ne sert à rien :
+ * l'agent est allé chercher la donnée, puis l'a jetée. La mise en forme vit
+ * donc dans le registre, à côté de l'outil — c'est le seul endroit qui
+ * connaisse la forme des lignes que `action` renvoie.
+ *
+ * CONTRAINTE DU CANAL
+ * -------------------
+ * Un message WhatsApp se lit sur un téléphone. Déverser les cent lignes que
+ * `listerAbsences` renvoie par défaut le rendrait illisible : on borne
+ * l'affichage et on annonce le reste, sans jamais prétendre que le reste
+ * n'existe pas.
+ */
+const MAX_LIGNES = 10;
+
+const STATUT_LISIBLE = { JUSTIFIEE: "justifiée", NON_JUSTIFIEE: "non justifiée" };
+
+const nomComplet = (l) => `${l.prenom ?? ""} ${l.nom ?? ""}`.trim() || "élève inconnu";
+/** Les dates arrivent en ISO ; seule la partie calendaire intéresse le lecteur. */
+const jour = (d) => String(d ?? "").slice(0, 10) || "date inconnue";
+
+function listeRendue(lignes, titre, ligne) {
+  if (!Array.isArray(lignes)) return null;
+  if (lignes.length === 0) return `${titre} : aucun résultat.`;
+  const montrees = lignes.slice(0, MAX_LIGNES);
+  const reste = lignes.length - montrees.length;
+  return [
+    `${titre} — ${lignes.length} résultat${lignes.length > 1 ? "s" : ""} :`,
+    ...montrees.map((l) => `• ${ligne(l)}`),
+    reste > 0 ? `… et ${reste} de plus.` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
  * Outils du module Assiduité / Vie scolaire.
  * `action` = nom de la fonction guergne appelée à l'exécution.
  * `requiresConfirmation` force une confirmation même pour une écriture ordinaire
  * (cas des modifications en lot).
+ */
+/**
+ * PARAMÈTRES ET NLU
+ * -----------------
+ * Chaque outil déclare les paramètres que l'API agent traite réellement
+ * (`web/src/app/api/agent/[action]/route.ts`). Ils sont ici pour une raison
+ * précise et mesurée : le catalogue transmis au modèle ne portait que le nom de
+ * l'outil et sa sensibilité. Le modèle ne pouvait donc pas remplir un paramètre
+ * dont on ne lui avait jamais parlé — « les 3 dernières absences » produisait
+ * `params:{}`, et la lecture renvoyait les 100 lignes par défaut.
+ *
+ * N'y figurent QUE des paramètres que la route honore. En annoncer d'autres
+ * ferait inventer au modèle des filtres silencieusement ignorés, ce qui est
+ * pire qu'un filtre absent : la réponse paraîtrait filtrée sans l'être.
  */
 export const ASSIDUITE_TOOLS = [
   {
@@ -60,8 +113,21 @@ export const ASSIDUITE_TOOLS = [
     permission: "assiduite:lire",
     sensitivity: READ,
     action: "listerAbsences",
+    parametres: {
+      periodeId: "facultatif, identifiant de periode scolaire (UUID) ; par defaut toutes les periodes",
+      classeId: "facultatif, identifiant de classe (UUID) ; par defaut toutes les classes",
+      statut: "facultatif, JUSTIFIEE ou NON_JUSTIFIEE ; par defaut les deux",
+      depuis: "facultatif, date de debut incluse (AAAA-MM-JJ)",
+      jusqua: "facultatif, date de fin incluse (AAAA-MM-JJ)",
+      limite: "facultatif, nombre maximum de lignes ; 100 par defaut",
+    },
     validate: noErrs,
     summarize: (p) => `Consulter les absences${p.classeId ? " de la classe " + p.classeId : ""}.`,
+    rendre: (lignes) =>
+      listeRendue(lignes, "Absences", (l) => {
+        const statut = STATUT_LISIBLE[l.statut] ?? l.statut ?? "statut inconnu";
+        return `${nomComplet(l)} (${l.classe ?? "classe inconnue"}) — ${jour(l.dateAbsence)}, ${l.nbHeures ?? "?"} h, ${statut}`;
+      }),
   },
   {
     name: "assiduite.alertes",
@@ -69,8 +135,19 @@ export const ASSIDUITE_TOOLS = [
     permission: "assiduite:lire",
     sensitivity: READ,
     action: "listerAlertes",
+    parametres: {
+      periodeId: "facultatif, identifiant de periode scolaire (UUID) ; par defaut toutes les periodes",
+    },
     validate: noErrs,
     summarize: () => "Lister les alertes d'assiduité (seuils dépassés).",
+    rendre: (lignes) =>
+      listeRendue(
+        lignes,
+        "Alertes d'assiduité",
+        (l) =>
+          `${nomComplet(l)} (${l.classe ?? "classe inconnue"}) — ${l.heuresNonJustifiees ?? "?"} h non justifiées, ` +
+          `${l.nbRetards ?? 0} retard(s), seuil ${l.seuil ?? "?"}`,
+      ),
   },
   {
     name: "assiduite.controle_saisies",
@@ -87,6 +164,12 @@ export const ASSIDUITE_TOOLS = [
     permission: "assiduite:saisir",
     sensitivity: WRITE,
     action: "enregistrerAppel",
+    parametres: {
+      periodeId: "obligatoire, identifiant de periode (UUID)",
+      dateAbsence: "obligatoire (AAAA-MM-JJ)",
+      nbHeures: "facultatif, entre 0.5 et 12 ; 1 par defaut",
+      absents: "obligatoire, liste d'identifiants d'inscription",
+    },
     validate: validateAppel,
     summarize: (p) =>
       `Enregistrer l'appel du ${p.dateAbsence} : ${(p.absents || []).length} absent(s), ${(p.retards || []).length} retard(s).`,
@@ -97,6 +180,12 @@ export const ASSIDUITE_TOOLS = [
     permission: "retard:saisir",
     sensitivity: WRITE,
     action: "enregistrerRetard",
+    parametres: {
+      inscriptionId: "obligatoire, inscription de l'eleve (UUID)",
+      periodeId: "obligatoire, identifiant de periode (UUID)",
+      dateRetard: "obligatoire (AAAA-MM-JJ)",
+      dureeMinutes: "facultatif, entre 0 et 480",
+    },
     validate: validateRetard,
     summarize: (p) => `Enregistrer un retard le ${p.dateRetard}.`,
   },
@@ -107,6 +196,11 @@ export const ASSIDUITE_TOOLS = [
     sensitivity: WRITE,
     requiresConfirmation: true,
     action: "justifierEnLot",
+    parametres: {
+      absenceIds: "obligatoire, 200 identifiants d'absence au maximum",
+      statut: "obligatoire, JUSTIFIEE ou NON_JUSTIFIEE",
+      motif: "obligatoire si JUSTIFIEE, au moins 3 caracteres",
+    },
     validate: validateJustifier,
     summarize: (p) =>
       `${p.statut === "JUSTIFIEE" ? "Justifier" : "Repasser en non justifiée"} ${(p.absenceIds || []).length} absence(s).`,
@@ -118,6 +212,10 @@ export const ASSIDUITE_TOOLS = [
     sensitivity: SENSITIVE,
     requiresConfirmation: true,
     action: "supprimerAbsence",
+    parametres: {
+      absenceId: "obligatoire, identifiant de l'absence (UUID)",
+      motif: "obligatoire, au moins 3 caracteres",
+    },
     validate: validateSupprimer,
     summarize: (p) => `SUPPRIMER une absence (motif : ${p.motif}).`,
   },
@@ -136,5 +234,49 @@ export class ToolRegistry {
   }
   all() {
     return [...this._byName.values()];
+  }
+
+  /**
+   * Catalogue destiné au NLU : un outil par ligne, avec ses paramètres.
+   *
+   * Le registre est la seule source de ce texte. Il existait auparavant en deux
+   * exemplaires — un dans `app.js`, un dans le script de démonstration — qui
+   * pouvaient diverger sans que rien ne le signale : un outil ajouté ici restait
+   * invisible du modèle là-bas.
+   */
+  /**
+   * Invite systeme complete pour le NLU.
+   *
+   * Elle vit ici, et non dans `app.js`, pour deux raisons. D'abord elle depend
+   * entierement du registre : ce sont les outils qui dictent ce qu'on peut
+   * demander au modele. Ensuite, construite dans une fonction flechee au fond
+   * de `app.js`, elle n'etait evaluee qu'a l'arrivee d'un message : une faute
+   * de syntaxe dans ce texte ne se manifestait donc qu'en production, et
+   * `node --check` ne la voyait pas. Ici, un test l'evalue.
+   */
+  invitePourNlu() {
+    return [
+      "Tu choisis UN outil parmi :",
+      this.pourNlu(),
+      'Reponds en JSON {"tool":"<nom>","params":{...}}.',
+      "Renseigne les parametres que la demande precise, et EUX SEULS :",
+      "n'invente aucune valeur, surtout pas un identifiant.",
+      'Un parametre marque "facultatif" doit rester absent si la demande ne le',
+      "precise pas : ne le demande JAMAIS a l'utilisateur.",
+      "Si un parametre OBLIGATOIRE manque, ou si la demande est ambigue,",
+      'reponds {"clarify":"<question>"}.',
+    ].join("\n");
+  }
+
+  pourNlu() {
+    return this.all()
+      .map((t) => {
+        const noms = Object.entries(t.parametres ?? {});
+        const parametres = noms.length
+          ? noms.map(([n, role]) => `${n} (${role})`).join(", ")
+          : "aucun parametre";
+        return `- ${t.name} [${t.sensitivity}] parametres : ${parametres}`;
+      })
+      .join("\n");
   }
 }
