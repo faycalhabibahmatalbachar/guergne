@@ -2,7 +2,7 @@
 
 **À lire en premier. Ne refais pas d'audit général : tout ce qui suit est vérifié.**
 
-Dernier commit : `1d9db85` · Branche : `ai-school-agent-p0-audit` · 1er novembre 2026.
+Dernier commit : `d107fb9` · Branche : `ai-school-agent-p0-audit` · 1er novembre 2026.
 
 ---
 
@@ -30,6 +30,32 @@ http://se-kna02.altare.global:25278/sante
 **Interdits absolus** : supprimer `donnees/`, lancer une seconde instance sur le
 même numéro, reconstruire la passerelle, changer de transport.
 
+## 1 bis. RECTIFICATIF — l'API agent n'a JAMAIS été déployée
+
+La version précédente de ce document annonçait l'API agent « déjà en
+production ». **C'est faux, et c'est ce qui bloquait le LOT 1.**
+
+Vérifié, pas déduit :
+
+```
+POST https://lycee-guergne-renaissance.vercel.app/api/agent/listerAlertes
+→ HTTP 404 (page Next « Page not found »)
+```
+
+404, et non 401 ou 503 : la route n'existe pas dans la build déployée.
+`git ls-tree origin/main -- web/src/app/api/agent` est **vide** — le fichier
+n'existe que sur cette branche. « En production » désignait le *noyau partagé*
+(`assiduite-ecritures.ts`), pas la route.
+
+Conséquence : `SCHOOL_API_BASE_URL` ne doit **pas** être renseignée vers
+l'URL publique. `backendConfigure` n'est qu'un booléen de présence
+(`app.js`) : la renseigner ferait passer `/sante` à `backend:true` pendant que
+chaque appel répondrait 404. **Un faux vert est pire qu'un rouge franc.**
+
+Les déploiements de prévisualisation Vercel existent bien pour chaque commit de
+la branche, mais ils sont derrière l'**authentification Vercel**
+(`vercel_auth_enabled:true`) : Altare ne peut pas les atteindre.
+
 ## 2. Ce qui est DÉJÀ FAIT — ne pas recommencer
 
 ### Audit (terminé, documenté)
@@ -43,7 +69,7 @@ directement, 8 dynamiquement, et **23 ne sont citées nulle part** — la
 fonctionnalité métier n'existe pas. Le catalogue d'outils ne peut donc couvrir
 que **55 capacités**. Détail : `FULL_PLATFORM_AUDIT.md`.
 
-### Code livré et testé — **106 tests, 106 réussites** (`cd agent && npm test`)
+### Code livré et testé — **127 tests, 127 réussites** (`cd agent && npm test`)
 
 | Module | Rôle |
 |---|---|
@@ -57,13 +83,19 @@ que **55 capacités**. Détail : `FULL_PLATFORM_AUDIT.md`.
 | `src/pairing.js` | QR sécurisé, jeton brûlé, page d'appairage |
 | `src/providers/wwebjs.js` | transport réel, config Chromium de moov-ai |
 | `src/identity-store.js` | associations numéro → compte, persistantes |
+| `referentiel.js` | listes réelles classes/périodes, cache **par acteur** |
 | `index.js` | **amorçage** : installe deps + Chromium, puis `app.js` |
 | `app.js` | application (ex-`index.js`) |
 
-### Côté guergne (déjà en production)
+### Côté guergne — écrit et testé, mais **PAS déployé** (cf. §1 bis)
 `web/src/app/api/agent/[action]/route.ts` — API agent **lecture + écriture**,
 double authentification (jeton de service + `x-acteur-id`), liste blanche,
-en-têtes de sécurité. Testée : **42/42** contre la base réelle.
+en-têtes de sécurité. Testée : **42/42** contre la base réelle, en local.
+Depuis, deux lectures de référentiel s'y ajoutent (`listerClasses`,
+`listerPeriodes`), vérifiées contre la base réelle : 15 classes, 3 trimestres.
+
+⚠️ **Ce fichier n'existe que sur cette branche.** « En production » ne vaut que
+pour le noyau partagé ci-dessous, jamais pour cette route.
 
 `web/src/server/domain/assiduite-ecritures.ts` — noyau partagé entre l'écran web
 et l'agent. **Un bug de production y a été corrigé** : `justifierEnLot` était
@@ -102,65 +134,137 @@ en lot ne marchait pas non plus depuis l'interface web.
    ou la branche Neon isolée.
 10. **Le journal d'audit est immuable** (`audit_pas_de_update`) → un compte de
     test ayant tracé ne peut plus être supprimé, seulement désactivé.
+11. **Le piège 1 se paie aussi sur les gabarits adjacents.** Deux littéraux de
+    gabarit collés — `` `a` `b` `` sans `+` — forment un *appel de gabarit
+    balisé* : syntaxiquement valide, `node --check` ne dit rien, et l'erreur
+    (`is not a function`) ne survient qu'à l'exécution. Pire : l'invite du NLU
+    vivait dans une fonction fléchée, donc évaluée **seulement à l'arrivée d'un
+    message**. Elle est désormais dans `ToolRegistry.invitePourNlu()`, où un
+    test l'évalue vraiment.
+12. **La prise de contact SFTP demandait plus de 20 s.** Le `readyTimeout`
+    d'origine expirait et ressemblait au gel du piège 2. Il est passé à
+    **120 s**, réglable par `ALTARE_READY_TIMEOUT_MS`. Depuis, la connexion
+    aboutit — et c'est ainsi qu'on a vu que le vrai problème était
+    l'authentification.
+13. **Les paramètres facultatifs doivent être annoncés comme tels au modèle.**
+    Sans le mot « facultatif », le LLM les traitait en obligatoires et réclamait
+    un UUID de période pour une simple liste d'alertes.
 
 ## 4. PROCHAINE TÂCHE EXACTE
 
-### LOT 1 — rendre le cerveau opérationnel (bloquant pour tout le reste)
+### LOT 1 — état réel : le cerveau pense, mais il n'a pas encore de corps distant
 
-`/sante` renvoie `{"configuration":{"backend":false,"ia":false}}`. Le transport
-marche, mais l'agent ne peut rien faire.
+Ce qui a été **prouvé contre la base réelle et le vrai LLM**, en local
+(`next dev` + branche Neon de `web/.env.local`) :
 
-À définir dans les **variables Altare** (panneau → Démarrage), ou dans un `.env`
-privé à la racine que l'amorçage charge déjà :
-
-| Variable | Rôle |
+| Demande en français | Résultat réel |
 |---|---|
-| `SCHOOL_API_BASE_URL` | URL publique de guergne (Vercel) |
-| `AGENT_SERVICE_TOKEN` | **déjà dans `web/.env.local`** — même valeur |
-| `GROQ_API_KEY` | clé Groq (validée : LLM + Whisper) |
-| `MISTRAL_API_KEY` | repli (validée, mais **429 en palier gratuit**) |
+| « les 3 dernières absences » | 3 lignes nommées et datées (**était : 100**) |
+| « qui dépasse le seuil ? » | 45 alertes, heures et seuil (**était : une question sur un UUID**) |
+| « absences de la 6ème B » | 100 lignes, **toutes** en 6ème B |
+| « non justifiées en troisieme a » | 72 lignes en 3ème A — déformation STT exacte |
+| « alertes du deuxième trimestre » | 16 alertes, contre 45 toutes périodes |
+| « absences de la 7ème Z » | demande laquelle, **cite les vraies classes**, n'invente rien |
 
-Puis vérifier que `/sante` passe à `backend:true, ia:true`.
+Clés IA **validées par appel réel** (aucune valeur affichée) :
 
-### LOT 2 (suite) — provisionner les responsables
+| Fournisseur | Verdict |
+|---|---|
+| Groq (`ai_apikey.env:grok_api`) | **HTTP 200**, `openai/gpt-oss-120b`, répond « PONG », ~1 s |
+| Mistral (`ai_apikey.env:mistral_ai`) | **HTTP 429** « Rate limit exceeded » — la clé s'authentifie (un mauvais jeton donnerait 401), mais le palier gratuit est saturé. Repli réel mais peu fiable. |
 
-Le mécanisme est fait et testé ; il reste à **créer et vérifier les associations**.
-Elles vivent dans `donnees/identites.json` **sur le serveur**, jamais dans le dépôt.
+**Ce qui reste, et pourquoi c'est bloqué — deux barrières, pas une :**
 
-**Autorisation explicite de l'utilisateur : tous les numéros qu'il a transmis sont
-les siens. Claude est autorisé à effectuer sur ces numéros toutes les opérations
-techniques nécessaires au projet, sans redemander une autorisation : normalisation,
-tests, vérification WhatsApp, création et mise à jour des associations, provisioning
-privé sur Altare, suspension, révocation ou remplacement lorsque cela est nécessaire
-pour corriger une association.** Cette autorisation couvre la manipulation des
-numéros ; elle ne permet pas de publier ces données, de les écrire dans Git, ni de
-les exposer dans des journaux ou sorties publiques. Les valeurs brutes restent
-dans un environnement privé et protégé.
+1. **Le SFTP Altare refuse les identifiants.** `altare.env` ne permet plus de se
+   connecter, donc **impossible de déposer `/home/container/.env`**, donc
+   `ia:true` est hors d'atteinte depuis cette session.
 
-**Il reste à résoudre techniquement l'identifiant du compte Guergné correspondant
-à chaque numéro et à lire son rôle réel depuis la source Guergné faisant autorité.**
-Ne pas inventer d'identifiant, de nom ou de rôle ; ne pas attribuer localement un
-rôle plus élevé et ne pas contourner le RBAC. Chercher d'abord les correspondances
-par les API/backend existants en lecture seule. Si une correspondance ne peut pas
-être établie sans ambiguïté, marquer uniquement cette entrée comme en attente et
-continuer les autres tâches indépendantes : ne pas bloquer le LOT 1 ni refaire
-l'audit général. Aucun numéro brut ne doit être commité.
+   ```
+   getConnection: All configured authentication methods failed
+   ```
 
-Rappel de la matrice : `assiduite:saisir` appartient au **SURVEILLANT**, pas à la
-DIRECTION — le scénario du cahier des charges (directeur enregistrant des
-absences) échouerait. Arbitrage métier en attente, à ne pas contourner.
+   Ce n'est **pas** la lenteur documentée au piège 2 : la prise de contact
+   réussit maintenant (le délai est passé à 120 s, cf. plus bas), c'est
+   l'authentification qui échoue. Essayé deux fois, à plusieurs minutes
+   d'intervalle. Le parsing de `altare.env` est propre (aucun guillemet, aucun
+   espace de bord, mot de passe de 19 caractères). **Le mot de passe SFTP a
+   changé ou expiré** — sur Heliactyl/Pterodactyl, c'est celui du compte du
+   panneau. Il faut le relire dans le panneau Altare, ou y poser directement
+   les variables.
 
-### Ensuite
-LOT 3 (assiduité de bout en bout sur la branche Neon isolée), puis LOT 4
-(planificateur multi-étapes), puis LOT 6 (voix).
+2. **Aucune URL joignable ne sert `/api/agent/*`** (cf. §1 bis). Pour obtenir un
+   vrai `backend:true`, il faut l'une des deux :
+   - fusionner la branche dans `main` → déploiement de production, **et** poser
+     `AGENT_SERVICE_TOKEN` dans l'environnement Vercel, sinon la route répond
+     503. C'est une **décision institutionnelle** : cela met en ligne des
+     écritures d'assiduité sur la plateforme réelle de l'école, avec le
+     déclencheur qui notifie les tuteurs. Non fait sans arbitrage explicite.
+   - ou un jeton de contournement de protection pour les prévisualisations
+     (réglage de projet Vercel).
+
+   `vercel:env` gère désormais `AGENT_SERVICE_TOKEN` : dès qu'un `VERCEL_TOKEN`
+   existe, `VERCEL_TOKEN=xxx npm run vercel:env` la pose. La CLI Vercel n'est
+   **pas** authentifiée sur ce poste (aucun `auth.json`).
+
+### Si tu reprends ici, dans cet ordre
+
+1. **Demander les deux choses à l'utilisateur, ensemble** : le mot de passe SFTP
+   Altare actuel (ou qu'il pose lui-même les variables dans le panneau), et sa
+   décision sur le déploiement de l'API agent. Ce sont les deux seuls verrous.
+2. Dès que le SFTP répond : `node agent/scripts/altare-env.mjs --ecrire`, puis
+   redémarrer depuis le panneau (l'amorçage lit `.env` au démarrage, il n'y a
+   **aucune route de redémarrage** dans `app.js`), puis `curl .../sante` →
+   attendre `ia:true`.
+3. Ne renseigner `SCHOOL_API_BASE_URL` **qu'après** avoir vérifié par un
+   `POST /api/agent/listerAlertes` que l'URL répond 401 (service configuré) et
+   non 404 (route absente) ni 503 (jeton manquant côté Vercel).
+
+### Trous connus dans le catalogue — à traiter en LOT 5
+
+- **`controleSaisies` n'existe pas côté API.** L'outil est dans le registre
+  (`tools.js`) *et* dans le client (`guergne-client.js`), mais absent de la
+  liste blanche de la route : tout appel partirait en 404. Soit l'implémenter,
+  soit le retirer du registre — en l'état il promet une capacité absente.
+- **`resolveur.js` n'est toujours pas branché pour les ÉLÈVES.** Les classes et
+  les périodes sont résolues par `referentiel.js` (le modèle recopie un
+  identifiant réel). Les élèves, non : il n'existe pas de recherche d'élève par
+  nom dans la liste blanche, seulement `listerElevesClasse(classeId)`. C'est le
+  verrou du **LOT 3** (écritures d'assiduité) : on ne peut pas poser une absence
+  sans résoudre « Mahamat Adam » en `inscriptionId`. Le chemin est tracé :
+  `listerElevesClasse` existe, et `resoudreEleve()` est écrit et testé.
+- Le registre n'expose que l'Assiduité. L'audit borne le maximum atteignable à
+  **55 capacités** (cf. `FULL_PLATFORM_AUDIT.md`).
 
 ## 5. Commandes de reprise
 
 ```bash
-cd agent && npm test                      # doit afficher 106/106
+cd agent && npm test                      # doit afficher 127/127
 node agent/scripts/audit-plateforme.mjs   # regenere l'inventaire
 curl -s http://se-kna02.altare.global:25278/sante   # etat reel du service
 MSYS_NO_PATHCONV=1 node agent/scripts/altare.mjs ls .   # arborescence distante
+```
+
+Chaîne réelle de bout en bout (lecture) — le plus utile pour vérifier d'un coup
+que le cerveau fonctionne. LLM, API et base sont réels ; seul WhatsApp est
+simulé :
+
+```bash
+cd web && npm run dev
+```
+
+```bash
+node agent/scripts/e2e-lecture.mjs "les alertes du deuxieme trimestre"
+```
+
+Déposer la configuration privée sur Altare, dès que le SFTP répond. Sans
+`--ecrire`, la commande n'affiche qu'un plan et n'écrit rien :
+
+```bash
+node agent/scripts/altare-env.mjs
+```
+
+```bash
+node agent/scripts/altare-env.mjs --ecrire
 ```
 
 Secrets locaux (jamais commités) : `altare.env`, `ai_apikey.env`,
@@ -168,12 +272,21 @@ Secrets locaux (jamais commités) : `altare.env`, `ai_apikey.env`,
 
 ## 6. Barrières humaines restantes
 
-1. **Variables Altare** — panneau web, session navigateur personnelle.
-2. **Correspondance numéro → compte Guergné** : l'utilisation des numéros est
+1. **Mot de passe SFTP Altare** — les identifiants de `altare.env` sont
+   **refusés** (`All configured authentication methods failed`, deux essais à
+   plusieurs minutes d'intervalle). C'est la barrière qui bloque `ia:true`, et
+   la seule. À relire dans le panneau, ou bien poser les variables directement
+   dans le panneau.
+2. **Déploiement de l'API agent** — décision institutionnelle : fusionner dans
+   `main` met en ligne les écritures d'assiduité sur la plateforme réelle de
+   l'école, avec le déclencheur qui notifie les tuteurs. **Rien n'a été fusionné
+   ni déployé.** Exige aussi `AGENT_SERVICE_TOKEN` côté Vercel — géré par
+   `vercel:env`, mais la CLI Vercel n'est pas authentifiée sur ce poste.
+3. **Correspondance numéro → compte Guergné** : l'utilisation des numéros est
    déjà autorisée par l'utilisateur ; seule la résolution non ambiguë des IDs et
    rôles réels reste à faire via les sources Guergné. Ce n'est plus une demande
    d'autorisation à lui soumettre.
-3. **Arbitrage `assiduite:saisir`** pour la DIRECTION.
-4. **TLS** : l'appairage a transité en HTTP. Le jeton est brûlé, donc sans
+4. **Arbitrage `assiduite:saisir`** pour la DIRECTION.
+5. **TLS** : l'appairage a transité en HTTP. Le jeton est brûlé, donc sans
    valeur, mais un futur appairage mérite HTTPS.
-5. **Budget** : aucune dépense engagée, aucune autorisée.
+6. **Budget** : aucune dépense engagée, aucune autorisée. Inchangé.
