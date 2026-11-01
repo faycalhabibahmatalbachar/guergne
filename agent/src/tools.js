@@ -7,6 +7,8 @@
  */
 import { READ, WRITE, SENSITIVE } from "./guard.js";
 import { inviteContrat } from "./plan.js";
+import { STATUT_LISIBLE, jour, listeRendue, nomComplet } from "./rendu.js";
+import { PILOTAGE_TOOLS } from "./tools-pilotage.js";
 
 const required = (v) => v !== undefined && v !== null && v !== "";
 const noErrs = () => ({});
@@ -65,28 +67,6 @@ function validateSupprimer(p) {
  * l'affichage et on annonce le reste, sans jamais prétendre que le reste
  * n'existe pas.
  */
-const MAX_LIGNES = 10;
-
-const STATUT_LISIBLE = { JUSTIFIEE: "justifiée", NON_JUSTIFIEE: "non justifiée" };
-
-const nomComplet = (l) => `${l.prenom ?? ""} ${l.nom ?? ""}`.trim() || "élève inconnu";
-/** Les dates arrivent en ISO ; seule la partie calendaire intéresse le lecteur. */
-const jour = (d) => String(d ?? "").slice(0, 10) || "date inconnue";
-
-function listeRendue(lignes, titre, ligne) {
-  if (!Array.isArray(lignes)) return null;
-  if (lignes.length === 0) return `${titre} : aucun résultat.`;
-  const montrees = lignes.slice(0, MAX_LIGNES);
-  const reste = lignes.length - montrees.length;
-  return [
-    `${titre} — ${lignes.length} résultat${lignes.length > 1 ? "s" : ""} :`,
-    ...montrees.map((l) => `• ${ligne(l)}`),
-    reste > 0 ? `… et ${reste} de plus.` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
 /**
  * Outils du module Assiduité / Vie scolaire.
  * `action` = nom de la fonction guergne appelée à l'exécution.
@@ -107,7 +87,7 @@ function listeRendue(lignes, titre, ligne) {
  * ferait inventer au modèle des filtres silencieusement ignorés, ce qui est
  * pire qu'un filtre absent : la réponse paraîtrait filtrée sans l'être.
  */
-export const ASSIDUITE_TOOLS = [
+const OUTILS_ASSIDUITE = [
   {
     name: "assiduite.consulter_absences",
     description: "lister les absences enregistrees (par classe, periode, statut ou dates)",
@@ -367,6 +347,14 @@ export const ASSIDUITE_TOOLS = [
     rendre: (_d, p = {}) => `Absence supprimee (motif : ${p.motif ?? "non precise"}).`,
   },
 ];
+
+/**
+ * Catalogue complet.
+ *
+ * Le nom `ASSIDUITE_TOOLS` est historique : il date du temps ou l'agent ne
+ * savait rien faire d'autre. Il reste pour ne pas casser les appelants.
+ */
+export const ASSIDUITE_TOOLS = [...OUTILS_ASSIDUITE, ...PILOTAGE_TOOLS];
 
 export class ToolRegistry {
   constructor(tools = []) {

@@ -33,8 +33,8 @@ describe("libelleAppreciationTravail", () => {
       [15.99, "Bien"],
       [16, "Très bien"],
       [17.99, "Très bien"],
-      [18, "Excellent Travail"],
-      [20, "Excellent Travail"],
+      [18, "Excellent"],
+      [20, "Excellent"],
     ] as const;
 
     for (const [moyenne, attendu] of cas) {

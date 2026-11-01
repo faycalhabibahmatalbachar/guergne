@@ -1,26 +1,6 @@
-import type { Principal } from "@/server/auth/session";
 import { principalParId } from "@/server/auth/session";
-import {
-  enregistrerAppelPour,
-  enregistrerRetardPour,
-  justifierEnLotPour,
-  supprimerAbsencePour,
-} from "@/server/domain/assiduite-ecritures";
-import {
-  chargerConduiteClasse,
-  listerAbsences,
-  listerAlertes,
-  listerElevesClasse,
-  listerIncidents,
-  listerRetards,
-  listerSanctions,
-  statistiquesVieScolaire,
-} from "@/server/domain/vie-scolaire";
-import { listerClassesCourantes } from "@/server/domain/eleves";
-import { listerPeriodes } from "@/server/domain/parametres";
-import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
+import { trouverOperation } from "@/server/agent/operations";
 import { ErreurAutorisation, exigerPermissionPour } from "@/server/guard";
-import type { Action } from "@/server/guard/permissions";
 
 import { timingSafeEqual } from "node:crypto";
 
@@ -40,152 +20,20 @@ import { timingSafeEqual } from "node:crypto";
  * AUCUN SQL ARBITRAIRE
  * ---------------------
  * Le modèle d'IA ne choisit pas une requête : il choisit un nom dans la liste
- * blanche ci-dessous. Tout nom hors liste est un 404.
+ * blanche de `@/server/agent/operations`. Tout nom hors liste est un 404.
+ *
+ * LECTURES ET ÉCRITURES NE VOYAGENT PAS ENSEMBLE
+ * -----------------------------------------------
+ * Le catalogue est scindé par risque. Les écritures ne répondent que si
+ * `AGENT_ECRITURES_ACTIVES=true` : mettre les consultations en ligne ne doit
+ * pas mettre en ligne, du même geste, la création et la suppression
+ * d'absences — qui déclenchent la notification des tuteurs.
  */
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-type Executeur = (params: Record<string, unknown>, acteur: Principal) => Promise<unknown>;
-
-interface OutilExpose {
-  permission: Action;
-  executer: Executeur;
-}
-
 const s = (v: unknown): string | undefined => (typeof v === "string" && v.length > 0 ? v : undefined);
-
-/**
- * Liste blanche des opérations exposées à l'agent.
- *
- * Cette première livraison n'expose que des **lectures** : elles sont sans risque
- * et suffisent déjà au contrôle des saisies et aux rapports. Les écritures
- * (appel, retard, justification, suppression) seront ajoutées après extraction
- * d'un noyau commun avec les actions serveur, pour qu'il n'existe jamais deux
- * chemins d'écriture divergents.
- */
-const OUTILS: Record<string, OutilExpose> = {
-  listerAbsences: {
-    permission: "assiduite:lire",
-    executer: (p) =>
-      listerAbsences({
-        periodeId: s(p.periodeId),
-        classeId: s(p.classeId),
-        statut: s(p.statut),
-        depuis: s(p.depuis),
-        jusqua: s(p.jusqua),
-        limite: typeof p.limite === "number" ? p.limite : 100,
-      }),
-  },
-  listerRetards: {
-    permission: "assiduite:lire",
-    executer: (p) =>
-      listerRetards({
-        periodeId: s(p.periodeId),
-        classeId: s(p.classeId),
-        limite: typeof p.limite === "number" ? p.limite : 100,
-      }),
-  },
-  listerAlertes: {
-    permission: "assiduite:lire",
-    executer: (p) => listerAlertes(s(p.periodeId)),
-  },
-  statistiquesVieScolaire: {
-    permission: "assiduite:lire",
-    executer: (p) => statistiquesVieScolaire(s(p.periodeId) ?? null),
-  },
-  listerElevesClasse: {
-    permission: "eleve:lire",
-    executer: (p) => {
-      const classeId = s(p.classeId);
-      if (!classeId) throw new TypeError("classeId requis");
-      return listerElevesClasse(classeId);
-    },
-  },
-  chargerConduiteClasse: {
-    permission: "assiduite:lire",
-    executer: (p) => {
-      const classeId = s(p.classeId);
-      const periodeId = s(p.periodeId);
-      if (!classeId || !periodeId) throw new TypeError("classeId et periodeId requis");
-      return chargerConduiteClasse(classeId, periodeId);
-    },
-  },
-  listerIncidents: {
-    permission: "discipline:lire",
-    executer: (p) =>
-      listerIncidents({
-        periodeId: s(p.periodeId),
-        classeId: s(p.classeId),
-        limite: typeof p.limite === "number" ? p.limite : 100,
-      }),
-  },
-  listerSanctions: {
-    permission: "discipline:lire",
-    executer: (p) =>
-      listerSanctions({
-        periodeId: s(p.periodeId),
-        classeId: s(p.classeId),
-        limite: typeof p.limite === "number" ? p.limite : 100,
-      }),
-  },
-
-  // --- Référentiel ---------------------------------------------------------
-  // Sans ces deux lectures, l'agent est inutilisable par un humain. Le reste du
-  // catalogue ne parle qu'en UUID, alors qu'un surveillant dit « la 6ème B » et
-  // « le deuxième trimestre ». `agent/src/resolveur.js` sait faire la
-  // correspondance — y compris sur une transcription vocale abîmée — mais il lui
-  // faut la liste réelle de l'établissement, qu'aucune route ne fournissait.
-  // L'agent demandait donc à l'utilisateur de saisir un UUID : une question à
-  // laquelle personne ne peut répondre depuis WhatsApp.
-  //
-  // Ce sont des libellés et des dates, pas des données d'élèves ; elles restent
-  // néanmoins derrière le même garde et les mêmes permissions réelles.
-  listerClasses: {
-    permission: "classe:lire",
-    executer: () => listerClassesCourantes(),
-  },
-  listerPeriodes: {
-    permission: "assiduite:lire",
-    executer: async (p) => {
-      // L'année courante est le défaut utile : c'est la seule dont on saisit
-      // l'assiduité. Un `anneeId` explicite reste accepté pour une consultation
-      // d'archive.
-      const anneeId = s(p.anneeId) ?? (await chargerAnneeCourante())?.id;
-      if (!anneeId) return [];
-      return listerPeriodes(anneeId);
-    },
-  },
-
-  // --- Écritures -----------------------------------------------------------
-  // Elles passent par le MÊME noyau que les actions de l'écran Assiduité
-  // (`@/server/domain/assiduite-ecritures`) : une seule implémentation, donc
-  // aucune divergence possible entre le chemin web et le chemin WhatsApp.
-  enregistrerAppel: {
-    permission: "assiduite:saisir",
-    executer: (p, acteur) => enregistrerAppelPour(acteur, p),
-  },
-  enregistrerRetard: {
-    permission: "retard:saisir",
-    executer: (p, acteur) => enregistrerRetardPour(acteur, p),
-  },
-  justifierEnLot: {
-    permission: "assiduite:justifier",
-    executer: (p, acteur) => {
-      const ids = Array.isArray(p.absenceIds) ? (p.absenceIds as string[]) : [];
-      const statut = p.statut === "NON_JUSTIFIEE" ? "NON_JUSTIFIEE" : "JUSTIFIEE";
-      return justifierEnLotPour(acteur, ids, statut, s(p.motif) ?? "");
-    },
-  },
-  supprimerAbsence: {
-    permission: "assiduite:saisir",
-    executer: (p, acteur) => {
-      const id = s(p.absenceId);
-      if (!id) throw new TypeError("absenceId requis");
-      return supprimerAbsencePour(acteur, id, s(p.motif) ?? "");
-    },
-  },
-};
 
 /** Comparaison à temps constant : une comparaison naïve fuite la longueur du préfixe. */
 function jetonValide(fourni: string | null): boolean {
@@ -227,10 +75,19 @@ export async function POST(requete: Request, { params }: { params: Promise<{ act
   }
 
   // 3. L'opération doit figurer dans la liste blanche.
-  const outil = OUTILS[action];
-  if (!outil) {
-    return json({ ok: false, message: `Opération inconnue : ${action}.` }, 404);
+  const trouvee = trouverOperation(action);
+  if ("erreur" in trouvee) {
+    // Un nom hors catalogue est une erreur du modele ; une ecriture eteinte
+    // est une decision de deploiement. Les confondre ferait chercher au
+    // mauvais endroit.
+    return trouvee.erreur === "desactivee"
+      ? json(
+          { ok: false, code: "ECRITURES_DESACTIVEES", message: "Les ecritures de l'agent ne sont pas activees sur ce deploiement." },
+          403,
+        )
+      : json({ ok: false, message: `Opération inconnue : ${action}.` }, 404);
   }
+  const outil = trouvee.outil;
 
   let params_: Record<string, unknown> = {};
   try {

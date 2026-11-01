@@ -97,7 +97,28 @@ const PARAMS = {
   "assiduite.conduite_classe": { classeId: classe?.id, periodeId: periode?.id },
   "discipline.consulter_incidents": { limite: 3 },
   "discipline.consulter_sanctions": { limite: 3 },
+  "pilotage.indicateurs": {},
+  "pilotage.effectifs_par_niveau": {},
+  "pilotage.absences_par_mois": {},
+  "pilotage.moyennes_par_classe": { periodeId: periode?.id },
+  "pilotage.classement_classes": { periodeId: periode?.id },
+  "pilotage.resultats_par_matiere": { periodeId: periode?.id },
+  "etablissement.statistiques": {},
+  "eleves.rechercher": { parPage: 3 },
+  "eleves.statistiques": {},
+  "parents.tuteurs_de_l_eleve": { eleveId: null },
+  "personnel.enseignants": {},
+  "pedagogie.evaluations": { periodeId: periode?.id },
+  "finances.statistiques": {},
+  "finances.recouvrement_par_classe": {},
 };
+
+// `tuteurs_de_l_eleve` exige un eleve reel : on en prend un de la classe
+// choisie plutot que d'inventer un identifiant.
+const effectif = await guergne.listerElevesClasse({ classeId: classe?.id }, { actorId: ACTEUR });
+const premierEleve = effectif?.data?.[0];
+if (premierEleve) PARAMS["parents.tuteurs_de_l_eleve"] = { eleveId: premierEleve.eleveId };
+else delete PARAMS["parents.tuteurs_de_l_eleve"];
 
 let echecs = 0;
 let n = 0;

@@ -197,15 +197,17 @@ test("un paramètre déclaré existe vraiment dans la liste blanche de l'API", (
  * un outil propose puis echouer.
  */
 function actionsDeLaRoute() {
-  const chemin = resolve(
-    dirname(fileURLToPath(import.meta.url)),
-    "../../web/src/app/api/agent/[action]/route.ts",
-  );
+  // Le catalogue vit desormais dans `operations.ts`, scinde par risque :
+  // lectures d'un cote, ecritures de l'autre.
+  const chemin = resolve(dirname(fileURLToPath(import.meta.url)), "../../web/src/server/agent/operations.ts");
   const source = readFileSync(chemin, "utf8");
-  const debut = source.indexOf("const OUTILS");
-  assert.ok(debut > 0, "bloc OUTILS introuvable dans la route");
   const noms = new Set();
-  for (const m of source.slice(debut).matchAll(/^\s{2}([a-zA-Z][a-zA-Z0-9]*):\s*\{/gm)) noms.add(m[1]);
+  for (const bloc of ["OPERATIONS_LECTURE", "OPERATIONS_ECRITURE"]) {
+    const debut = source.indexOf(`export const ${bloc}`);
+    assert.ok(debut > 0, `bloc ${bloc} introuvable`);
+    const fin = source.indexOf("\n};", debut);
+    for (const m of source.slice(debut, fin).matchAll(/^\s{2}([a-zA-Z][a-zA-Z0-9]*):\s*\{/gm)) noms.add(m[1]);
+  }
   return noms;
 }
 

@@ -73,6 +73,30 @@ export class GuergneHttpClient {
   chargerConduiteClasse(p, c) { return this._call("chargerConduiteClasse", p, c); }
   listerIncidents(p, c) { return this._call("listerIncidents", p, c); }
   listerSanctions(p, c) { return this._call("listerSanctions", p, c); }
+
+  // --- Pilotage, pedagogie, finances, annuaire ---
+  anneeCourante(p, c) { return this._call("anneeCourante", p, c); }
+  rechercherEleves(p, c) { return this._call("rechercherEleves", p, c); }
+  statistiquesEleves(p, c) { return this._call("statistiquesEleves", p, c); }
+  rechercherTuteurs(p, c) { return this._call("rechercherTuteurs", p, c); }
+  statistiquesParents(p, c) { return this._call("statistiquesParents", p, c); }
+  tuteursDeLEleve(p, c) { return this._call("tuteursDeLEleve", p, c); }
+  listerEnseignants(p, c) { return this._call("listerEnseignants", p, c); }
+  listerClassesEtMatieres(p, c) { return this._call("listerClassesEtMatieres", p, c); }
+  chargerEmploiDuTemps(p, c) { return this._call("chargerEmploiDuTemps", p, c); }
+  listerEvaluations(p, c) { return this._call("listerEvaluations", p, c); }
+  calendrierEvaluations(p, c) { return this._call("calendrierEvaluations", p, c); }
+  releveEleve(p, c) { return this._call("releveEleve", p, c); }
+  indicateursCles(p, c) { return this._call("indicateursCles", p, c); }
+  effectifsParNiveau(p, c) { return this._call("effectifsParNiveau", p, c); }
+  absencesParMois(p, c) { return this._call("absencesParMois", p, c); }
+  moyennesParClasse(p, c) { return this._call("moyennesParClasse", p, c); }
+  classementClasses(p, c) { return this._call("classementClasses", p, c); }
+  resultatsParMatiere(p, c) { return this._call("resultatsParMatiere", p, c); }
+  statistiquesEtablissement(p, c) { return this._call("statistiquesEtablissement", p, c); }
+  statistiquesFinancieres(p, c) { return this._call("statistiquesFinancieres", p, c); }
+  recouvrementParClasse(p, c) { return this._call("recouvrementParClasse", p, c); }
+  listerSituationsFinancieres(p, c) { return this._call("listerSituationsFinancieres", p, c); }
   enregistrerAppel(p, c) { return this._call("enregistrerAppel", p, c); }
   enregistrerRetard(p, c) { return this._call("enregistrerRetard", p, c); }
   justifierEnLot(p, c) { return this._call("justifierEnLot", p, c); }
