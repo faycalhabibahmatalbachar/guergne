@@ -182,7 +182,13 @@ export class Agent {
       // accusé vide — « ✅ Opération effectuée. » — et la donnée qu'il avait
       // demandée était perdue en route. Le rendu appartient au registre, qui
       // connaît la forme des lignes.
-      let texte = result.message;
+      // Deux enveloppes se superposent : la route repond
+      // `{ok:true, data:<Resultat>}`, et c'est le `Resultat` du domaine qui
+      // porte le message utile — « 1 absence enregistre(s). Les tuteurs seront
+      // notifies. » En ne lisant que `result.message`, l'agent repondait un
+      // accuse generique et escamotait justement l'avertissement sur la
+      // notification aux tuteurs.
+      let texte = result.message ?? (Array.isArray(result.data) ? undefined : result.data?.message);
       if (!texte && typeof tool.rendre === "function") {
         // Un rendu qui échoue ne doit pas transformer une lecture réussie en
         // échec : on retombe sur l'accusé générique.

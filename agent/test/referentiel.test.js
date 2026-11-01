@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { Referentiel } from "../src/referentiel.js";
+import { resoudreNomsEleves, separerNoms } from "../src/resolution-eleves.js";
 
 const CLASSES = [
   { id: "11111111-1111-1111-1111-111111111111", libelle: "6ème B", effectif: 45 },
@@ -129,4 +130,122 @@ test("au-delà du plafond, le reste est annoncé et non passé sous silence", ()
 
 test("un client absent est refusé à la construction", () => {
   assert.throws(() => new Referentiel({}), /client guergne requis/);
+});
+
+// --- Résolution des noms d'élèves ------------------------------------------
+// Une absence posée sur le mauvais élève remonte au bulletin et déclenche une
+// convocation. Ces tests verrouillent la règle : au moindre doute, demander.
+
+const EFFECTIF = [
+  { inscriptionId: "aaaa1111-0000-0000-0000-000000000001", eleveId: "e1", nom: "ABAKAR", prenom: "Fatimé" },
+  { inscriptionId: "aaaa1111-0000-0000-0000-000000000002", eleveId: "e2", nom: "ADAM", prenom: "Mahamat" },
+  { inscriptionId: "aaaa1111-0000-0000-0000-000000000003", eleveId: "e3", nom: "ADAM", prenom: "Mahamadou" },
+];
+
+const clientEffectif = (effectif = EFFECTIF, ok = true) => ({
+  async listerElevesClasse() {
+    return ok ? { ok: true, data: effectif } : { ok: false, message: "Droits insuffisants." };
+  },
+});
+
+const OUTIL_APPEL = {
+  nommes: { eleves: { vers: "absents", liste: true, role: "noms" } },
+};
+
+test("separerNoms decoupe les formulations naturelles", () => {
+  assert.deepEqual(separerNoms("Mahamat, Zara et Issa"), ["Mahamat", "Zara", "Issa"]);
+  assert.deepEqual(separerNoms(["Déjà", "une", "liste"]), ["Déjà", "une", "liste"]);
+  assert.deepEqual(separerNoms(""), []);
+});
+
+test("un nom abîmé par la transcription est résolu", async () => {
+  // Cas réel documenté : « Fatimé » ressort « Fatim ».
+  const r = await resoudreNomsEleves({
+    outil: OUTIL_APPEL,
+    params: { classeId: "c1", eleves: "Fatim ABAKAR" },
+    guergne: clientEffectif(),
+    acteurId: "a1",
+  });
+  assert.equal(r.statut, "ok");
+  assert.deepEqual(r.params.absents, ["aaaa1111-0000-0000-0000-000000000001"]);
+  // Le champ nommé disparaît : l'API ne doit jamais recevoir un nom.
+  assert.equal(r.params.eleves, undefined);
+});
+
+test("un homonyme n'est JAMAIS tranché au hasard", async () => {
+  const r = await resoudreNomsEleves({
+    outil: OUTIL_APPEL,
+    params: { classeId: "c1", eleves: "Adam" },
+    guergne: clientEffectif(),
+    acteurId: "a1",
+  });
+  assert.equal(r.statut, "clarifier");
+  assert.match(r.question, /plusieurs eleves/);
+  assert.match(r.question, /Mahamat ADAM/);
+  assert.match(r.question, /Mahamadou ADAM/);
+});
+
+test("un nom introuvable fait demander, pas inventer", async () => {
+  const r = await resoudreNomsEleves({
+    outil: OUTIL_APPEL,
+    params: { classeId: "c1", eleves: "Jean DUPONT" },
+    guergne: clientEffectif(),
+    acteurId: "a1",
+  });
+  assert.equal(r.statut, "clarifier");
+  assert.match(r.question, /aucun eleve nomme/);
+});
+
+test("sans classe, on refuse de chercher dans tout l'établissement", async () => {
+  const r = await resoudreNomsEleves({
+    outil: OUTIL_APPEL,
+    params: { eleves: "Mahamat Adam" },
+    guergne: clientEffectif(),
+    acteurId: "a1",
+  });
+  assert.equal(r.statut, "clarifier");
+  assert.match(r.question, /De quelle classe/);
+});
+
+test("effectif illisible : on abandonne au lieu de deviner un identifiant", async () => {
+  const r = await resoudreNomsEleves({
+    outil: OUTIL_APPEL,
+    params: { classeId: "c1", eleves: "Fatim ABAKAR" },
+    guergne: clientEffectif(EFFECTIF, false),
+    acteurId: "a1",
+  });
+  assert.equal(r.statut, "clarifier");
+  assert.match(r.question, /Operation abandonnee/);
+});
+
+test("plusieurs noms donnent plusieurs identifiants, dans l'ordre", async () => {
+  const r = await resoudreNomsEleves({
+    outil: OUTIL_APPEL,
+    params: { classeId: "c1", eleves: "Fatim ABAKAR, Mahamat ADAM" },
+    guergne: clientEffectif(),
+    acteurId: "a1",
+  });
+  assert.equal(r.statut, "ok");
+  assert.deepEqual(r.params.absents, [
+    "aaaa1111-0000-0000-0000-000000000001",
+    "aaaa1111-0000-0000-0000-000000000002",
+  ]);
+});
+
+test("un outil sans paramètre nommé passe sans rien toucher", async () => {
+  const params = { classeId: "c1", limite: 3 };
+  const r = await resoudreNomsEleves({ outil: {}, params, guergne: clientEffectif(), acteurId: "a1" });
+  assert.equal(r.statut, "ok");
+  assert.deepEqual(r.params, params);
+});
+
+test("un champ non-liste reçoit un identifiant simple, pas un tableau", async () => {
+  const r = await resoudreNomsEleves({
+    outil: { nommes: { eleve: { vers: "inscriptionId", liste: false, role: "nom" } } },
+    params: { classeId: "c1", eleve: "Fatim ABAKAR" },
+    guergne: clientEffectif(),
+    acteurId: "a1",
+  });
+  assert.equal(r.statut, "ok");
+  assert.equal(r.params.inscriptionId, "aaaa1111-0000-0000-0000-000000000001");
 });

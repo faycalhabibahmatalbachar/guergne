@@ -61,6 +61,9 @@ export class GuergneHttpClient {
   // réelle de l'établissement, dans le périmètre de l'acteur.
   listerClasses(p, c) { return this._call("listerClasses", p, c); }
   listerPeriodes(p, c) { return this._call("listerPeriodes", p, c); }
+  // L'effectif d'une classe porte `inscriptionId` — la cle que les ecritures
+  // d'assiduite exigent, et que personne ne dicte de memoire.
+  listerElevesClasse(p, c) { return this._call("listerElevesClasse", p, c); }
 
   // --- Outils Assiduité (mêmes noms d'action que le registre d'outils) ---
   listerAbsences(p, c) { return this._call("listerAbsences", p, c); }

@@ -24,6 +24,7 @@ import { MoteurIA } from "./src/ia.js";
 import { Pairing, jetonAleatoire, pageAppairage } from "./src/pairing.js";
 import { MatricePermissions } from "./src/permissions-matrix.js";
 import { Referentiel } from "./src/referentiel.js";
+import { resoudreNomsEleves } from "./src/resolution-eleves.js";
 import { DedupPersistant, VerrouInstance, cheminsPersistants } from "./src/persistance.js";
 import { WwebjsProvider } from "./src/providers/wwebjs.js";
 import { ASSIDUITE_TOOLS, ToolRegistry } from "./src/tools.js";
@@ -158,7 +159,22 @@ const agent = new Agent({
       { role: "system", content: Referentiel.enTexte(listes) },
       { role: "user", content: texte },
     ]);
-    return r.objet ?? { clarify: "Je n'ai pas compris la demande." };
+    const plan = r.objet;
+    if (!plan) return { clarify: "Je n'ai pas compris la demande." };
+    if (plan.clarify || !plan.tool) return plan;
+
+    // Les noms d'eleves deviennent des identifiants AVANT toute execution. Au
+    // moindre doute, on demande : une absence posee sur le mauvais eleve remonte
+    // au bulletin et declenche une convocation.
+    const outil = outils.get(plan.tool);
+    const conv = await resoudreNomsEleves({
+      outil,
+      params: plan.params ?? {},
+      guergne,
+      acteurId: ctx.staff?.id,
+    });
+    if (conv.statut === "clarifier") return { clarify: conv.question };
+    return { ...plan, params: conv.params };
   },
   transcribe: async (media) => {
     if (!ia) throw new Error("Aucun fournisseur IA configuré : transcription indisponible.");

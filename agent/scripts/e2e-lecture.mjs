@@ -25,6 +25,7 @@ import { MatricePermissions } from "../src/permissions-matrix.js";
 import { ToolRegistry, ASSIDUITE_TOOLS } from "../src/tools.js";
 import { GuergneHttpClient } from "../src/guergne-client.js";
 import { Referentiel } from "../src/referentiel.js";
+import { resoudreNomsEleves } from "../src/resolution-eleves.js";
 
 const racine = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const lire = (f, k) => {

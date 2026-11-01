@@ -164,7 +164,17 @@ export const ASSIDUITE_TOOLS = [
     permission: "assiduite:saisir",
     sensitivity: WRITE,
     action: "enregistrerAppel",
+    // L'utilisateur dicte des NOMS, l'API exige des identifiants d'inscription.
+    // La conversion est faite avant l'appel, contre l'effectif reel de la classe.
+    nommes: {
+      eleves: {
+        vers: "absents",
+        liste: true,
+        role: "noms des eleves absents, tels que dictes, separes par des virgules",
+      },
+    },
     parametres: {
+      classeId: "obligatoire, identifiant de classe (UUID) : sert a retrouver les eleves nommes et a verifier le perimetre",
       periodeId: "obligatoire, identifiant de periode (UUID)",
       dateAbsence: "obligatoire (AAAA-MM-JJ)",
       nbHeures: "facultatif, entre 0.5 et 12 ; 1 par defaut",
@@ -180,7 +190,11 @@ export const ASSIDUITE_TOOLS = [
     permission: "retard:saisir",
     sensitivity: WRITE,
     action: "enregistrerRetard",
+    nommes: {
+      eleve: { vers: "inscriptionId", liste: false, role: "nom de l'eleve en retard, tel que dicte" },
+    },
     parametres: {
+      classeId: "obligatoire, identifiant de classe (UUID) : sert a retrouver l'eleve nomme et a verifier le perimetre",
       inscriptionId: "obligatoire, inscription de l'eleve (UUID)",
       periodeId: "obligatoire, identifiant de periode (UUID)",
       dateRetard: "obligatoire (AAAA-MM-JJ)",
@@ -271,11 +285,13 @@ export class ToolRegistry {
   pourNlu() {
     return this.all()
       .map((t) => {
-        const noms = Object.entries(t.parametres ?? {});
-        const parametres = noms.length
-          ? noms.map(([n, role]) => `${n} (${role})`).join(", ")
-          : "aucun parametre";
-        return `- ${t.name} [${t.sensitivity}] parametres : ${parametres}`;
+        // Un parametre nomme REMPLACE celui qu'il alimente : demander a la fois
+        // `eleves` et `absents` ferait inventer au modele des identifiants.
+        const vers = new Set(Object.values(t.nommes ?? {}).map((d) => d.vers));
+        const declares = Object.entries(t.parametres ?? {}).filter(([n]) => !vers.has(n));
+        const nommes = Object.entries(t.nommes ?? {}).map(([n, d]) => `${n} (${d.role})`);
+        const noms = [...nommes, ...declares.map(([n, role]) => `${n} (${role})`)];
+        return `- ${t.name} [${t.sensitivity}] parametres : ${noms.length ? noms.join(", ") : "aucun parametre"}`;
       })
       .join("\n");
   }
