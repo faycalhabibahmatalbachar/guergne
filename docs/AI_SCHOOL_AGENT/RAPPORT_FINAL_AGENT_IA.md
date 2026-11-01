@@ -10,6 +10,109 @@ Aucune clé, aucun numéro complet et aucune donnée scolaire réelle ne figure 
 
 ---
 
+## 0 ter. Incident `Action inconnue.` — le contrat n'avait que deux cases
+
+Le transport, l'identité et l'IA fonctionnaient. `TEST AGENT` répondait, `Salut`
+répondait. Mais « Bonjour, présente-moi tes capacités » recevait
+**`Action inconnue.`** — exactement 16 caractères, ce que vos logs voyaient
+partir.
+
+### A. Cause racine
+
+Les journaux étaient sans ambiguïté : le modèle avait répondu en 1 158 ms un
+JSON valide portant `description` et `examples`. **Il n'avait pas tort.**
+
+Le contrat n'offrait que deux issues : appeler un outil, ou demander une
+précision. Aucune case pour « répondre ». Le moteur tombait donc dans
+`tools.get(undefined)` et renvoyait un message opaque qui ne renseignait ni
+l'utilisateur, ni le diagnostic — il laissait même croire à un refus métier.
+
+**Ce n'était pas une erreur du modèle, mais un contrat incomplet.**
+
+### B. Correctifs
+
+`src/plan.js` pose trois intentions, avec **une seule source de vérité** : le
+texte de l'invite y vit à côté de sa validation, pour que la consigne donnée au
+modèle et la règle appliquée au code ne puissent pas diverger.
+
+| Intention | Effet |
+|---|---|
+| `conversation` | réponse en langage naturel, **sans toucher à aucune donnée** |
+| `outil` | exécution d'une capacité réelle, sous permission |
+| `clarifier` | demande de la précision qui manque, **en dernier recours** |
+
+Tout le reste est nommé, journalisé, jamais transformé en réponse trompeuse.
+Un outil inexistant figure dans l'audit **avec le nom tenté**.
+
+**Garde-fou sur les chiffres inventés.** Une réponse conversationnelle ne lit
+aucune donnée : tout chiffre scolaire qu'elle contiendrait serait inventé — et
+lu par un directeur comme un relevé de son établissement.
+`citeDesDonneesScolaires` rejette ces réponses. Mieux vaut une question qu'un
+chiffre faux.
+
+**Le catalogue n'annonçait que le NOM des outils.** Le modèle devait deviner, et
+« qui dépasse le seuil d'absences ? » tombait sur `consulter_absences` au lieu
+de `alertes`. Chaque outil déclare désormais sa description, et le catalogue la
+transmet.
+
+### C. Preuve contre le vrai modèle, par le chemin de production
+
+```
+OK  « Salut »                                  → conversation
+OK  « peux-tu me presenter tes capacites ? »   → conversation
+OK  « Merci beaucoup ! »                       → conversation
+OK  « les trois dernieres absences ? »         → consulter_absences {limite:3}
+OK  « qui depasse le seuil d'absences ? »      → alertes
+OK  « les absences de la 6eme B »              → consulter_absences {classeId}
+OK  « combien de retards cette semaine ? »     → consulter_retards {periodeId}
+OK  « quels incidents ont ete declares ? »     → consulter_incidents
+OK  « combien d'absences aujourd'hui ? »       → tableau_de_bord
+OK  « les absences de la 7eme Z »              → clarifier
+10/10
+```
+
+Le dernier cas de la liste est un piège délibéré : une question scolaire traitée
+en conversation ferait inventer le chiffre. Le contrat l'interdit, et le modèle
+choisit bien un outil.
+
+À noter : Groq a produit 2 réponses vides sur 6 lors d'une passe, et OpenRouter
+a pris le relais sans que l'utilisateur le voie. Le repli fonctionne en
+conditions réelles.
+
+### D. Tests
+
+**288 tests** (267 avant cet incident). Dont : l'objet exact qui produisait
+`Action inconnue.` est désormais nommé `INTENTION_INCONNUE` avec les **noms** des
+champs reçus et jamais leurs valeurs · un chiffre scolaire inventé n'atteint
+jamais l'utilisateur · un outil inexistant figure dans l'audit avec son nom ·
+les formes historiques restent comprises · le garde-fou ne se déclenche pas sur
+une phrase ordinaire.
+
+Les sept lectures restent servies par l'API réelle : **7/7**.
+
+### E. Livraison
+
+| Élément | État |
+|---|---|
+| Commit | `770b0bc` |
+| Push | confirmé |
+| Déploiement Altare | **vérifié par condensat** — 8 fichiers identiques |
+| Version chargée | en attente d'un redémarrage |
+
+### F. Ce qui reste bloqué
+
+`backend:false`. L'API agent n'est pas déployée en production
+(`POST /api/agent/listerAlertes` → **404**, re-testé). Toute demande scolaire
+répondra donc « Backend scolaire non configuré ». Les scénarios 2 à 5 de la
+recette — consultation réelle, comparaison, rapport, opération — **ne peuvent
+pas être validés** tant que la route n'est pas en ligne, ce qui demande une
+fusion dans `main` et la revue de sécurité qui va avec.
+
+Les scénarios 1 et 6 — conversation naturelle, refus d'un non-autorisé — sont
+eux prouvés.
+
+---
+
 ## 0 bis. Incident « l'agent ne répond plus » — le silence
 
 Après la correction d'identité, le refus « Numéro non autorisé » a cessé — et
@@ -653,11 +756,11 @@ Trois conséquences qui dépassent la liste blanche :
 
 | Mesure | Valeur |
 |---|---|
-| Tests automatisés | **267** |
-| Réussites | **267** |
+| Tests automatisés | **288** |
+| Réussites | **288** |
 | Échecs | **0** |
 | Au début de la session | 136 |
-| Ajoutés | **+131** |
+| Ajoutés | **+152** |
 | Fichiers `web/` modifiés | **aucun** — cette recette n'a touché que `agent/` |
 | Commits | voir ci-dessous |
 | Déploiements | code + `.env` transférés ; **service non redémarré** |
