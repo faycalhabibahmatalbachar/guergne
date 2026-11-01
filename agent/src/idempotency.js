@@ -13,4 +13,8 @@ export class IdempotencyStore {
   remember(id) {
     if (id != null) this._seen.add(id);
   }
+  /** Relache une revendication : le message pourra etre retraite. */
+  oublier(id) {
+    if (id != null) this._seen.delete(id);
+  }
 }

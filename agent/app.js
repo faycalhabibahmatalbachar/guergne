@@ -201,7 +201,35 @@ const agent = new Agent({
   // vient d'un AUTRE numero ; si elles coincident, c'est l'etat de
   // l'association qu'il faut regarder.
   journalIdentite: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+  // Journal d'etape : il porte le meme `run` que le transport, de la reception
+  // a la reponse. Sans cette correlation, un message disparu ne laisse aucune
+  // piste a suivre.
+  journalEtape: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), type: "agent", ...e })),
   selEmpreinte: SEL_EMPREINTE,
+  /**
+   * Etat des dependances, pour la commande de diagnostic.
+   *
+   * On annonce ce qui est VERIFIE, pas ce qui est configure : une cle presente
+   * ne prouve pas qu'elle fonctionne, et une URL posee ne prouve pas que la
+   * route repond.
+   */
+  diagnostic: async () => {
+    const etats = ia?.etatFournisseurs ?? {};
+    const dispo = Object.entries(etats)
+      .filter(([, e]) => e.statut === "disponible")
+      .map(([n]) => n);
+    const configures = Object.entries(etats)
+      .filter(([, e]) => e.statut !== "non_configure" && e.statut !== "desactive")
+      .map(([n]) => n);
+    return {
+      ia: !ia
+        ? "aucun fournisseur"
+        : dispo.length
+          ? `disponible (${dispo.join(", ")})`
+          : `configure mais pas encore eprouve (${configures.join(", ") || "aucun"})`,
+      backend: backendConfigure ? "configure" : "non configure",
+    };
+  },
   interpret: async (texte, ctx = {}) => {
     if (!ia) throw new Error("Aucun fournisseur IA configuré : compréhension indisponible.");
     // Deux sources, deux roles. L'invite vient du registre : c'est lui qui

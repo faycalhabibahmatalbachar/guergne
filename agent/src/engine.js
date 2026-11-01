@@ -39,6 +39,15 @@ export const Status = {
   REJECTED_UNKNOWN: "REJECTED_UNKNOWN",
 };
 
+/**
+ * Commande de diagnostic.
+ *
+ * Volontairement exacte et en majuscules : une formulation libre serait
+ * confondue avec une demande scolaire, et le but est precisement de ne
+ * dependre d'aucune comprehension.
+ */
+const COMMANDE_TEST = /^\s*TEST\s+AGENT\s*$/i;
+
 const YES = /^(oui|confirme|confirmer|ok|valide|valider)\b/i;
 const NO = /^(non|annule|annuler|cancel|stop)\b/i;
 
@@ -46,16 +55,64 @@ export class Agent {
   constructor(deps) {
     Object.assign(this, deps);
     this.pending = new Map(); // jid -> { tool, params, runId }
+    /** runIds ayant atteint une action metier : leur revendication ne se relache pas. */
+    this._actionsEngagees = new Set();
   }
 
+  /**
+   * Point d'entrée. Garantit qu'un message obtient TOUJOURS une réponse.
+   *
+   * Un message a cessé d'obtenir quoi que ce soit : ni réponse, ni refus, ni
+   * erreur. Pour l'utilisateur, le silence et la panne se ressemblent, et il
+   * renvoie son message — ce qui ne change rien. Cette enveloppe transforme
+   * toute défaillance en message explicite.
+   */
   async handle(raw) {
-    const runId = uid("run");
-    const started = Date.now();
+    const runId = raw?.runId ?? uid("run");
     const msg = normalizeIncoming(raw);
+    const started = Date.now();
+    try {
+      return await this._traiter(raw, msg, runId, started);
+    } catch (e) {
+      const erreur = String(e?.message ?? e);
+      this.journalEtape?.({ event: "handler_failed", run: runId, erreur: erreur.slice(0, 200) });
 
+      // Aucune action métier engagée : la revendication est relâchée pour que
+      // le message puisse être retraité. Si une écriture a eu lieu, on la
+      // garde — rejouer une absence en créerait une seconde.
+      if (!this._actionsEngagees.has(runId)) this.idempotency.oublier?.(msg.id);
+      this._actionsEngagees.delete(runId);
+
+      // L'envoi peut échouer à son tour ; cela ne doit pas masquer la cause.
+      try {
+        await this.provider.sendText(
+          msg.fromJid,
+          "Une erreur technique m'a empêché de traiter votre message. Réessayez dans un instant.",
+        );
+      } catch {
+        /* le journal porte déjà l'échec */
+      }
+
+      this.audit.record({
+        runId, sender: msg.senderMsisdn, identity: null, role: null, channel: msg.kind,
+        intent: null, result: "FAILED", error: erreur, durationMs: Date.now() - started,
+      });
+      return { status: Status.FAILED, runId, error: erreur };
+    }
+  }
+
+  async _traiter(raw, msg, runId, started) {
     // 1. Idempotence — un même message n'est traité qu'une fois (brief §11)
-    if (this.idempotency.seen(msg.id)) return { status: Status.DUPLICATE, runId };
+    if (msg.id == null) {
+      // Sans identifiant, la protection contre les doublons ne peut rien : on
+      // le dit, plutôt que de laisser croire qu'elle veille.
+      this.journalEtape?.({ event: "message_id_missing", run: runId });
+    } else if (this.idempotency.seen(msg.id)) {
+      this.journalEtape?.({ event: "message_duplicate_detected", run: runId });
+      return { status: Status.DUPLICATE, runId };
+    }
     this.idempotency.remember(msg.id);
+    this.journalEtape?.({ event: "message_id_claimed", run: runId });
 
     // 2. Identité — un numéro non lié est refusé (brief §3.1)
     //
@@ -114,6 +171,26 @@ export class Agent {
         durationMs: Date.now() - started,
       });
       return { status: Status.REJECTED_UNKNOWN, runId, raison };
+    }
+
+    // 2 bis. Commande de diagnostic — deterministe, avant toute dependance.
+    //
+    // Elle existe pour une raison precise : quand l'agent se tait, il faut
+    // pouvoir separer le transport de l'intelligence artificielle et du
+    // backend. Cette commande prouve la chaine reception → identite → envoi,
+    // sans LLM, sans reseau scolaire, sans ecriture.
+    if (COMMANDE_TEST.test(msg.text ?? "")) {
+      const etat = (await this.diagnostic?.()) ?? {};
+      const texte =
+        `Agent WhatsApp connecte. Identite reconnue : ${staff.role}. ` +
+        `Service IA : ${etat.ia ?? "inconnu"}. Backend scolaire : ${etat.backend ?? "inconnu"}.`;
+      await this.provider.sendText(msg.fromJid, texte);
+      this.journalEtape?.({ event: "commande_diagnostic", run: runId, role: staff.role });
+      this.audit.record({
+        runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
+        intent: "diagnostic", result: "SUCCESS", durationMs: Date.now() - started,
+      });
+      return { status: Status.COMPLETED, runId, diagnostic: true };
     }
 
     // 3. Transcription vocale si nécessaire (brief §3.3)
@@ -207,6 +284,10 @@ export class Agent {
     try {
       const fn = this.guergne[tool.action];
       if (typeof fn !== "function") throw new Error(`action guergne absente : ${tool.action}`);
+      // A partir d'ici, l'effet metier est incertain : meme si l'appel echoue,
+      // l'ecriture a pu aboutir cote plateforme. La revendication ne sera donc
+      // plus relachee — rejouer creerait un doublon dans le dossier d'un eleve.
+      this._actionsEngagees.add(runId);
       result = await fn.call(this.guergne, params, { actorId: staff.id });
     } catch (e) {
       error = e;

@@ -18,6 +18,42 @@ import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 
 import { WhatsAppProvider } from "../provider.js";
+import { avecDelai } from "../delai.js";
+import { analyserJid } from "../jid.js";
+
+/**
+ * Bornes des appels sortants.
+ *
+ * La resolution LID traverse Puppeteer et le reseau : 10 s suffisent largement
+ * quand WhatsApp repond, et transforment une requete en suspens en refus
+ * explicite plutot qu'en silence.
+ */
+const DELAI_LID_MS = Number(process.env.DELAI_LID_MS ?? 10_000);
+/** L'envoi d'un message : genereux, mais fini. */
+const DELAI_ENVOI_MS = Number(process.env.DELAI_ENVOI_MS ?? 30_000);
+
+const typeJid = (jid) => analyserJid(jid).serveur ?? "invalide";
+
+/**
+ * Empreinte courte d'un identifiant de message.
+ *
+ * Un identifiant WhatsApp porte le numero du correspondant : le journaliser
+ * tel quel reviendrait a publier des numeros. L'empreinte permet de suivre un
+ * message d'un bout a l'autre de la chaine sans rien divulguer.
+ */
+function empreinteCourte(valeur) {
+  const v = String(valeur ?? "");
+  if (!v) return null;
+  let h = 0x811c9dc5;
+  for (const c of v) {
+    h ^= c.codePointAt(0);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
+}
+
+let compteur = 0;
+const nouveauRun = () => `run_${Date.now().toString(36)}_${(compteur++).toString(36)}`;
 
 /** Verrous laissés par un Chrome tué : ils empêchent le redémarrage s'ils subsistent. */
 function nettoyerVerrousChrome(dossierSession, clientId) {
@@ -115,6 +151,11 @@ export class WwebjsProvider extends WhatsAppProvider {
     this._lidVersNumero = new Map();
   }
 
+  /** Trace structuree du transport. Jamais de numero, jamais de contenu. */
+  _tracer(champs) {
+    this._log.log?.(JSON.stringify({ ts: new Date().toISOString(), type: "whatsapp", ...champs }));
+  }
+
   getConnectionStatus() {
     return { state: this._etat, reconnexions: this._reconnexions };
   }
@@ -144,7 +185,16 @@ export class WwebjsProvider extends WhatsAppProvider {
     const connu = this._lidVersNumero.get(jid);
     if (connu !== undefined) return connu;
     try {
-      const [r] = (await this._client.getContactLidAndPhone([jid])) ?? [];
+      // Cet appel traverse Puppeteer jusqu'a la page WhatsApp, qui interroge le
+      // reseau. Sans borne, une requete en suspens suspend le traitement du
+      // message — sans erreur, sans reponse, sans trace. C'est exactement la
+      // panne qui a rendu l'agent muet.
+      const [r] =
+        (await avecDelai(() => this._client.getContactLidAndPhone([jid]), {
+          ms: DELAI_LID_MS,
+          operation: "resolution LID",
+          defaut: [],
+        })) ?? [];
       const pn = r?.pn ?? null;
       // On ne met en cache qu'une réponse exploitable : graver un échec
       // condamnerait ce correspondant jusqu'au redémarrage, pour une panne
@@ -195,10 +245,52 @@ export class WwebjsProvider extends WhatsAppProvider {
       await this.reconnect();
     });
     this._client.on("message", async (msg) => {
-      if (!this._handler) return;
+      // Un `runId` naît ICI, au plus tôt, et accompagne le message jusqu'à la
+      // réponse. Sans lui, un message disparu ne laisse aucune piste à suivre.
+      const run = nouveauRun();
+      const debut = Date.now();
+      this._tracer({
+        event: "message_received",
+        run,
+        idMessage: empreinteCourte(msg?.id?._serialized),
+        jidType: typeJid(msg?.from),
+        typeMessage: msg?.type ?? "inconnu",
+        fromMe: Boolean(msg?.fromMe),
+        aMedia: Boolean(msg?.hasMedia),
+      });
+
+      if (!this._handler) {
+        // Aucun gestionnaire : le message serait perdu sans que rien ne le dise.
+        this._tracer({ event: "handler_absent", run });
+        return;
+      }
+
       try {
-        await this._handler(await this._normaliser(msg));
+        const normalise = await this._normaliser(msg);
+        this._tracer({
+          event: "message_normalized",
+          run,
+          jidType: typeJid(normalise.from),
+          kind: normalise.kind,
+          aTexte: Boolean(normalise.body),
+        });
+
+        this._tracer({ event: "handler_started", run });
+        const r = await this._handler({ ...normalise, runId: run });
+        this._tracer({
+          event: "handler_completed",
+          run,
+          statut: r?.status ?? "inconnu",
+          raison: r?.raison ?? null,
+          dureeMs: Date.now() - debut,
+        });
       } catch (e) {
+        this._tracer({
+          event: "handler_error",
+          run,
+          dureeMs: Date.now() - debut,
+          erreur: String(e?.message ?? e).slice(0, 200),
+        });
         this._log.error?.("[whatsapp] traitement du message:", e?.message ?? e);
       }
     });
@@ -235,8 +327,33 @@ export class WwebjsProvider extends WhatsAppProvider {
   }
 
   async sendText(jid, texte) {
-    await this._client.sendMessage(jid, texte);
-    return { ok: true };
+    const debut = Date.now();
+    this._tracer({ event: "reply_started", jidType: typeJid(jid), taille: texte?.length ?? 0 });
+    try {
+      // La promesse resolue prouve que WhatsApp a ACCEPTE le message. Elle ne
+      // prouve ni la livraison ni la lecture : ne pas confondre les trois.
+      const envoye = await avecDelai(() => this._client.sendMessage(jid, texte), {
+        ms: DELAI_ENVOI_MS,
+        operation: "envoi WhatsApp",
+      });
+      this._tracer({
+        event: "reply_accepted",
+        jidType: typeJid(jid),
+        dureeMs: Date.now() - debut,
+        idMessage: empreinteCourte(envoye?.id?._serialized),
+      });
+      return { ok: true };
+    } catch (e) {
+      // Une reponse qui ne part pas doit etre bruyante : l'utilisateur, lui,
+      // ne verra qu'un silence.
+      this._tracer({
+        event: "reply_failed",
+        jidType: typeJid(jid),
+        dureeMs: Date.now() - debut,
+        erreur: String(e?.message ?? e).slice(0, 160),
+      });
+      throw e;
+    }
   }
 
   async sendMedia(jid, { data, mimetype, filename, caption } = {}) {

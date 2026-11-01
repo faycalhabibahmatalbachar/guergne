@@ -70,6 +70,21 @@ export class DedupPersistant {
     this._sauver();
   }
 
+  /**
+   * Relache une revendication.
+   *
+   * Un message dont le traitement a echoue AVANT toute action metier doit
+   * pouvoir etre retente : le marquer vu a vie le condamnerait pour une panne
+   * d'une seconde. L'appelant ne doit jamais relacher une revendication dont
+   * l'ecriture metier est incertaine — rejouer une absence en creerait une
+   * seconde.
+   */
+  oublier(id) {
+    if (id == null || !this._vus.delete(id)) return false;
+    this._sauver();
+    return true;
+  }
+
   get taille() {
     return this._vus.size;
   }
