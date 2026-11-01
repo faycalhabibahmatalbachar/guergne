@@ -161,3 +161,70 @@ test("normalisation des numéros et des JID", () => {
   assert.equal(numeroDeJid("23568663737@c.us"), "23568663737");
   assert.match(masquer("23500000001"), /^235•+001$/);
 });
+
+// --- Rechargement a chaud ---------------------------------------------------
+// Sans lui, provisionner un responsable exigeait de redemarrer le service :
+// couper WhatsApp, reprendre le verrou, et faire appuyer un humain sur un
+// bouton — pour une ligne ajoutee dans un fichier.
+
+test("une association ajoutee par un autre processus est vue sans redemarrage", () => {
+  const d = bac();
+  try {
+    const f = join(d, "identites.json");
+    const lecteur = new IdentityStorePersistant({ chemin: f });
+    assert.equal(lecteur.resolve(`${NUM}@c.us`), null);
+
+    // Un autre processus provisionne (c'est ce que fait le script de dépôt).
+    const ecrivain = new IdentityStorePersistant({ chemin: f });
+    ecrivain.lier({ numero: NUM, utilisateurId: "u-1", nom: "Awa", role: "DIRECTION", parQui: "admin-1" });
+
+    assert.equal(lecteur.resolve(`${NUM}@c.us`)?.id, "u-1", "le lecteur doit voir la nouvelle association");
+    assert.equal(lecteur.nombreActives, 1);
+  } finally {
+    rmSync(d, { recursive: true, force: true });
+  }
+});
+
+test("une revocation faite dans le fichier prend effet immediatement", () => {
+  const d = bac();
+  try {
+    const f = join(d, "identites.json");
+    const ecrivain = new IdentityStorePersistant({ chemin: f });
+    ecrivain.lier({ numero: NUM, utilisateurId: "u-1", nom: "Awa", role: "DIRECTION", parQui: "admin-1" });
+    const lecteur = new IdentityStorePersistant({ chemin: f });
+    assert.ok(lecteur.resolve(`${NUM}@c.us`));
+
+    ecrivain.revoquer({ numero: NUM, parQui: "admin-1" });
+    assert.equal(lecteur.resolve(`${NUM}@c.us`), null, "retirer un acces ne doit pas attendre un redemarrage");
+  } finally {
+    rmSync(d, { recursive: true, force: true });
+  }
+});
+
+test("un fichier devenu illisible ne fait perdre aucune association", () => {
+  // Ecraser l'etat connu parce qu'une ecriture s'est mal passee priverait
+  // l'etablissement de son acces.
+  const d = bac();
+  try {
+    const f = join(d, "identites.json");
+    const m = new IdentityStorePersistant({ chemin: f });
+    m.lier({ numero: NUM, utilisateurId: "u-1", nom: "Awa", role: "DIRECTION", parQui: "admin-1" });
+    writeFileSync(f, "{tronque", "utf8");
+    assert.equal(m.resolve(`${NUM}@c.us`)?.id, "u-1", "l'etat connu doit survivre a un fichier corrompu");
+  } finally {
+    rmSync(d, { recursive: true, force: true });
+  }
+});
+
+test("un fichier inchange n'est pas relu a chaque message", () => {
+  const d = bac();
+  try {
+    const f = join(d, "identites.json");
+    const m = new IdentityStorePersistant({ chemin: f });
+    m.lier({ numero: NUM, utilisateurId: "u-1", nom: "Awa", role: "DIRECTION", parQui: "admin-1" });
+    m.resolve(`${NUM}@c.us`);
+    assert.equal(m.rafraichir(), false, "aucun rechargement inutile");
+  } finally {
+    rmSync(d, { recursive: true, force: true });
+  }
+});

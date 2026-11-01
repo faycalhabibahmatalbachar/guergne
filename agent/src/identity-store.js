@@ -17,7 +17,7 @@
  * Les numéros ne sont jamais écrits dans le dépôt : ils vivent dans le fichier
  * de données du serveur, provisionné séparément.
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { empreinte } from "./jid.js";
 import { dirname } from "node:path";
 
@@ -55,13 +55,51 @@ export class IdentityStorePersistant {
     if (!this._chemin || !existsSync(this._chemin)) return;
     try {
       const d = JSON.parse(readFileSync(this._chemin, "utf8"));
+      const chargees = new Map();
       for (const a of Array.isArray(d) ? d : []) {
-        if (a?.numero) this._parNumero.set(normaliserNumero(a.numero), a);
+        if (a?.numero) chargees.set(normaliserNumero(a.numero), a);
       }
+      // Remplacement d'un bloc : un fichier amputé doit retirer les
+      // associations disparues, pas les laisser vivre en mémoire. Une
+      // révocation faite sur le fichier doit prendre effet.
+      this._parNumero = chargees;
+      this._empreinteFichier = this._signature();
     } catch {
-      // Fichier illisible : on repart vide plutôt que de reconnaître n'importe
-      // qui. Le défaut sûr est de ne reconnaître personne.
+      // Fichier illisible : on ne touche à rien. Écraser des associations
+      // valides parce qu'une écriture s'est mal passée priverait
+      // l'établissement de son accès ; le défaut sûr est de garder l'état
+      // connu et de réessayer au prochain message.
     }
+  }
+
+  /** Signature bon marché du fichier : taille et date de dernière écriture. */
+  _signature() {
+    try {
+      const s = statSync(this._chemin);
+      return `${s.size}:${s.mtimeMs}`;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Relit le fichier s'il a changé depuis la dernière lecture.
+   *
+   * POURQUOI
+   * --------
+   * Les associations étaient lues une seule fois, au démarrage. Provisionner un
+   * responsable exigeait donc de redémarrer le service — donc de couper
+   * WhatsApp, de reprendre le verrou, et de demander à un humain d'appuyer sur
+   * un bouton, pour une ligne ajoutée dans un fichier. Un `stat` par message
+   * coûte moins qu'un aller-retour réseau, et supprime cette friction.
+   */
+  rafraichir() {
+    if (!this._chemin) return false;
+    const signature = this._signature();
+    if (signature === this._empreinteFichier) return false;
+    this._charger();
+    this._journal?.({ type: "identite", evenement: "rechargement", at: this._horloge(), actives: this.nombreActives });
+    return true;
   }
 
   _sauver() {
@@ -77,6 +115,7 @@ export class IdentityStorePersistant {
    * trois situations distinctes, mais une seule conséquence : aucune action.
    */
   resolve(jid) {
+    this.rafraichir();
     const a = this._parNumero.get(numeroDeJid(jid));
     if (!a || a.revoqueLe || a.suspendu) return null;
     return { id: a.utilisateurId, nom: a.nom, role: a.role, msisdn: a.numero };
@@ -84,6 +123,7 @@ export class IdentityStorePersistant {
 
   /** État détaillé, pour l'administration et le diagnostic. */
   etatDe(jid) {
+    this.rafraichir();
     const a = this._parNumero.get(numeroDeJid(jid));
     if (!a) return { statut: "inconnu" };
     if (a.revoqueLe) return { statut: "revoque", revoqueLe: a.revoqueLe };
