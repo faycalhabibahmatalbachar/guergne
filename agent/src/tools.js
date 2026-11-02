@@ -313,9 +313,14 @@ const OUTILS_ASSIDUITE = [
     // ce rendu, l'utilisateur recevait « Operation effectuee » et ne savait pas
     // ce qui avait ete enregistre. La confirmation se formule donc a partir de
     // ce qui a ete demande.
-    rendre: (_d, p = {}) => {
-      const duree = p.dureeMinutes != null ? `${p.dureeMinutes} min` : "duree non precisee";
-      return `Retard enregistre : ${duree}, le ${jour(p.dateRetard)}.`;
+    // `p = {}` ne couvre que `undefined` : un `null` traverserait et ferait
+    // lever ce rendu APRES l'ecriture, donc le retard serait enregistre sans
+    // que l'utilisateur en soit informe. L'engine normalise deja les
+    // parametres, mais un rendu ne doit pas dependre de cette garantie.
+    rendre: (_d, p) => {
+      const q = p ?? {};
+      const duree = q.dureeMinutes != null ? `${q.dureeMinutes} min` : "duree non precisee";
+      return `Retard enregistre : ${duree}, le ${jour(q.dateRetard)}.`;
     },
   },
   {
@@ -351,7 +356,7 @@ const OUTILS_ASSIDUITE = [
     summarize: (p) => `SUPPRIMER une absence (motif : ${p.motif}).`,
     // Meme raison que pour le retard : une suppression confirmee doit se dire,
     // d'autant qu'elle est irreversible.
-    rendre: (_d, p = {}) => `Absence supprimee (motif : ${p.motif ?? "non precise"}).`,
+    rendre: (_d, p) => `Absence supprimee (motif : ${p?.motif ?? "non precise"}).`,
   },
 ];
 
