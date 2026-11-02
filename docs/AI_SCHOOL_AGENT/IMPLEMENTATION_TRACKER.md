@@ -52,7 +52,7 @@ de test. Chiffres obtenus : 548 élèves, 15 classes, 15 enseignants,
 | B-01 | Séparation lecture / écriture du catalogue | `web/src/server/agent/operations.ts`, `porte.ts` | 6 | **7** |
 | B-02 | Écritures éteintes par défaut | `porte.ts` | 6 | **7** |
 | B-03 | 21 opérations de lecture exposées | `operations.ts` | structurels + e2e | **7** |
-| B-04 | Connexion en production | — | — | **11** — voir blocage ci-dessous |
+| B-04 | Connexion en production | PR #81 **fusionnee** | — | **11** — une variable Vercel |
 
 ## Observabilité, notifications, fiabilité
 
@@ -72,30 +72,48 @@ de test. Chiffres obtenus : 548 élèves, 15 classes, 15 enseignants,
 
 | ID | Besoin | Pourquoi ce n'est pas fait | État |
 |---|---|---|---|
-| T-01 | Génération de fichiers PDF / XLSX | à implémenter ; les rapports sont aujourd'hui du texte WhatsApp | **2** |
+| T-01 | Génération de fichiers XLSX / CSV | `src/document.js`, 10 tests, piece jointe WhatsApp | **5** |
 | T-02 | Écritures dans les missions | le conducteur n'accepte que des consultations, par choix de sûreté ; à ouvrir sous politique | **2** |
-| T-03 | File de notifications avec reprise et déduplication | l'envoi est direct, sans file | **2** |
-| T-04 | Mesure de couverture chiffrée | `node --experimental-test-coverage` à câbler et consigner | **2** |
+| T-03 | File de notifications avec reprise et déduplication | `src/notifications.js`, 14 tests | **5** |
+| T-04 | Mesure de couverture chiffrée | **96,31 % lignes / 84,03 % branches** mesurees | **5** |
 | T-05 | Outils d'écriture hors assiduité (élèves, notes) | aucune opération backend exposée pour l'instant ; exige B-04 | **1** |
 
 ---
 
 ## Blocage externe unique
 
-**B-04 — l'API agent n'est pas en production.**
+**La route agent est EN LIGNE depuis la fusion de la PR #81** (2026-11-02).
+`POST /api/agent/listerAlertes` est passé de **404** à **503** — la route
+répond, et dit ce qui lui manque :
 
-`POST https://lycee-guergne-renaissance.vercel.app/api/agent/listerAlertes`
-répond **404** : la route n'existe que sur `ai-school-agent-p0-audit`.
-`/api/sante` répond 405, ce qui prouve que le déploiement est en ligne — c'est
-bien la route qui manque, pas le site.
+```
+{"ok":false,"message":"API agent non configurée."}
+```
 
-**Ce qui a été fait pour lever ce blocage sans risque :** le catalogue est
-désormais scindé par risque, et les écritures sont **éteintes par défaut**
-(`AGENT_ECRITURES_ACTIVES` absent ⇒ 403 `ECRITURES_DESACTIVEES`). Fusionner la
-branche met donc en ligne **les consultations seules**. Les écritures restent
-dans le dépôt, testées, et s'ouvrent par une variable d'environnement — un
-retour arrière est un changement de configuration, pas un déploiement.
+503 signifie `AGENT_SERVICE_TOKEN` absent côté Vercel. C'est la **dernière**
+action externe, et elle ne peut pas être faite depuis cet environnement : le
+projet est bien lié (`web/.vercel/project.json` porte `projectId` et `orgId`),
+mais aucun `VERCEL_TOKEN` n'y existe.
 
-**Action externe restante :** fusionner la PR, puis poser `SCHOOL_API_BASE_URL`
-et `AGENT_SERVICE_TOKEN` sur Vercel. Vérifier avant de renseigner l'URL qu'elle
-répond **401** (route présente, jeton exigé) et non 404 ni 503.
+**Action, au choix :**
+
+```bash
+cd web && VERCEL_TOKEN=xxxxx npm run vercel:env
+```
+
+ou bien ajouter `AGENT_SERVICE_TOKEN` dans les variables d'environnement du
+projet sur le tableau de bord Vercel (sa valeur est dans `web/.env.local`).
+
+**Puis**, et seulement une fois que la route répond **401** :
+
+```bash
+node agent/scripts/altare-env.mjs --ecrire   # ajoute SCHOOL_API_BASE_URL
+```
+
+Ne pas poser `AGENT_ECRITURES_ACTIVES` : les écritures restent éteintes
+jusqu'à leur recette en production.
+
+**Ce qui est déjà prouvé, et n'attend que cette variable :** le parcours
+complet « Montre les absences de la 6ème A » — référentiel, NLU, politique,
+garde, base — avec l'identifiant réel `fb5fa8be-…ec39`, 100 lignes rendues,
+toutes en 6ème A. Voir `agent/scripts/e2e-6eme-a.mjs`.
