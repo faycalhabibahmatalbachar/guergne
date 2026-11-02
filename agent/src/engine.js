@@ -23,6 +23,7 @@ import { DECISIONS, MOTIFS, NOTIFIER } from "./politiques.js";
 import { RAISONS, analyserJid, empreinte, jidUtilisateur, resoudreNumeroDepuisJid } from "./jid.js";
 import { INTENTIONS, normaliserPlan } from "./plan.js";
 import { documentDeMission, genererDocument } from "./document.js";
+import { cleNotification } from "./notifications.js";
 import { ETAPE, agreger, estTransitoire, rendreBilan, validerMission } from "./mission.js";
 // `masquer` est la mise en forme canonique du projet : la redefinir ici ferait
 // diverger deux facons de masquer un numero.
@@ -81,6 +82,8 @@ export class Agent {
       refusPermission: 0,
       refusIdentite: 0,
       notificationsEnvoyees: 0,
+      notificationsDedoublonnees: 0,
+      notificationsEnAttente: 0,
       rapportsGeneres: 0,
       documentsGeneres: 0,
       repriseApresEchec: 0,
@@ -572,6 +575,39 @@ export class Agent {
     }
   }
 
+  /**
+   * Confie une notification a la file.
+   *
+   * La file dedoublonne, reessaie et persiste. Sans elle, une coupure d'une
+   * seconde faisait disparaitre une alerte sans que personne ne le sache :
+   * l'operation, elle, avait reussi.
+   *
+   * L'echec n'est JAMAIS propage a l'appelant — l'operation notifiee a deja eu
+   * lieu, et la perdre pour un probleme d'envoi serait absurde.
+   */
+  async _mettreEnFile({ jid, texte, media = null, run, sujet }) {
+    const cle = cleNotification({ run, sujet, jid });
+    if (!this.notifications) {
+      // Sans file configuree (tests, demonstrations), on envoie directement.
+      try {
+        await this.provider.sendText(jid, texte);
+        if (media && typeof this.provider.sendMedia === "function") await this.provider.sendMedia(jid, media);
+        this._metriques.notificationsEnvoyees += 1;
+      } catch (e) {
+        this.journalEtape?.({ event: "notification_echouee", run, erreur: String(e?.message ?? e).slice(0, 120) });
+      }
+      return;
+    }
+    try {
+      const r = await this.notifications.envoyerMaintenant({ jid, texte, media, cle, run });
+      if (r.envoyee) this._metriques.notificationsEnvoyees += 1;
+      else if (r.raison === "doublon") this._metriques.notificationsDedoublonnees += 1;
+      else this._metriques.notificationsEnAttente += 1;
+    } catch (e) {
+      this.journalEtape?.({ event: "notification_echouee", run, erreur: String(e?.message ?? e).slice(0, 120) });
+    }
+  }
+
   /** Transmet un rapport aux responsables, sans rien leur demander. */
   async _diffuserRapport({ but, bilan, staff, runId, fichier = null }) {
     const roles = this.rolesRapport ?? ["SUPER_ADMIN", "DIRECTION"];
@@ -580,22 +616,18 @@ export class Agent {
       // L'auteur de la demande vient de recevoir le bilan : le lui envoyer
       // deux fois serait du bruit.
       if (jid === `${staff.msisdn}@c.us`) continue;
-      try {
-        await this.provider.sendText(jid, `${but} (prepare automatiquement)\n\n${bilan}`);
-        this._metriques.notificationsEnvoyees += 1;
-        // Le MÊME fichier, pas un second calcul : deux rapports qui
-        // différeraient d'une ligne seraient impossibles à rapprocher.
-        if (fichier && typeof this.provider.sendMedia === "function") {
-          await this.provider.sendMedia(jid, {
-            data: fichier.data,
-            mimetype: fichier.mimetype,
-            filename: fichier.nomFichier,
-            caption: but,
-          });
-        }
-      } catch (e) {
-        this.journalEtape?.({ event: "notification_echouee", run: runId, erreur: String(e?.message ?? e).slice(0, 120) });
-      }
+      // Le MÊME fichier, pas un second calcul : deux rapports qui
+      // différeraient d'une ligne seraient impossibles à rapprocher.
+      const media = fichier
+        ? { data: fichier.data, mimetype: fichier.mimetype, filename: fichier.nomFichier, caption: but }
+        : null;
+      await this._mettreEnFile({
+        jid,
+        texte: `${but} (prepare automatiquement)\n\n${bilan}`,
+        media,
+        run: runId,
+        sujet: "rapport",
+      });
     }
   }
 
@@ -629,14 +661,7 @@ export class Agent {
       `Reference : ${runId}`;
 
     for (const jid of destinataires) {
-      try {
-        await this.provider.sendText(jid, texte);
-        this._metriques.notificationsEnvoyees += 1;
-      } catch (e) {
-        // Une notification qui echoue ne doit pas faire echouer l'operation :
-        // celle-ci a deja eu lieu.
-        this.journalEtape?.({ event: "notification_echouee", run: runId, erreur: String(e?.message ?? e).slice(0, 120) });
-      }
+      await this._mettreEnFile({ jid, texte, run: runId, sujet: `operation:${tool.name}` });
     }
   }
 

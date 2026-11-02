@@ -33,6 +33,7 @@ import {
   VerrouInstance,
   cheminsPersistants,
 } from "./src/persistance.js";
+import { FileNotifications } from "./src/notifications.js";
 import { MoteurPolitiques, POLITIQUES_DEFAUT } from "./src/politiques.js";
 import { WwebjsProvider } from "./src/providers/wwebjs.js";
 import { ASSIDUITE_TOOLS, ToolRegistry } from "./src/tools.js";
@@ -210,8 +211,30 @@ for (const p of politiques.politiques) {
   console.log(`[politique] ${p.id} v${p.version} ${p.suspendue ? "SUSPENDUE" : "active"}`);
 }
 
+/**
+ * File de notifications sortantes.
+ *
+ * Elle persiste sur le volume : un avis en vol ne doit pas disparaitre avec le
+ * processus, et un avis deja parti ne doit pas repartir apres un redemarrage.
+ */
+const notifications = new FileNotifications({
+  chemin: join(chemins.racine, "notifications.json"),
+  envoyer: (jid, texte) => provider.sendText(jid, texte),
+  envoyerMedia: (jid, media) => provider.sendMedia(jid, media),
+  journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+});
+console.log(`[notifications] ${JSON.stringify(notifications.etat)}`);
+
+// Les reprises ne doivent pas attendre le message suivant : une alerte qui a
+// echoue a 8 h ne peut pas partir a 14 h parce que personne n'a ecrit entre-temps.
+const relance = setInterval(() => {
+  notifications.traiter().catch(() => {});
+}, 60_000);
+relance.unref?.();
+
 const agent = new Agent({
   politiques,
+  notifications,
   // Les responsables sont INFORMES des operations automatiques, jamais
   // sollicites pour les autoriser.
   destinatairesNotification: async (roles) => identites.destinatairesParRole(roles),
@@ -399,6 +422,7 @@ createServer(async (req, res) => {
     // Sans mesure, « l'agent travaille seul » reste une impression.
     autonomie: agent.metriques,
     politiques: politiques.politiques,
+    notifications: notifications.etat,
     appairage: pairing.etat().etat,
     appairageOuvert: pairing.actif,
     memoireMo: Math.round(process.memoryUsage().rss / 1024 / 1024),
@@ -412,6 +436,10 @@ createServer(async (req, res) => {
 async function arreter(signal) {
   console.log(`[arret] ${signal} recu`);
   clearInterval(battement);
+  clearInterval(relance);
+  // Une derniere tentative avant de partir : un avis en attente a plus de
+  // chances d'aboutir maintenant qu'apres un redemarrage.
+  await notifications.traiter().catch(() => {});
   try {
     await provider.disconnect();
   } finally {
