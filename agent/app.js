@@ -35,6 +35,7 @@ import {
 } from "./src/persistance.js";
 import { DiagnosticNotification } from "./src/diagnostic-notification.js";
 import { SurveillantConnexion } from "./src/surveillance-connexion.js";
+import { releverRessources, resumerRessources } from "./src/ressources.js";
 import { FileNotifications } from "./src/notifications.js";
 import { MoteurPolitiques, POLITIQUES_DEFAUT } from "./src/politiques.js";
 import { WwebjsProvider } from "./src/providers/wwebjs.js";
@@ -495,6 +496,9 @@ createServer(async (req, res) => {
     // derniere erreur. « connecting » tout seul n'a rien permis de
     // diagnostiquer pendant sept heures.
     whatsappDetaille: wa.machine ?? null,
+    // Releve au demarrage, pas a chaque appel : c'est l'etat dans lequel
+    // Chromium a demarre qui explique son sort, pas celui d'apres.
+    ressources,
     verrou: { detenu: verrou.detientToujours(), instance: verrou.instanceId.slice(0, 8), pid: process.pid },
     // Sans mesure, « l'agent travaille seul » reste une impression.
     autonomie: agent.metriques,
@@ -535,6 +539,20 @@ process.on("SIGINT", () => arreter("SIGINT"));
 if (!verrou.detientToujours()) {
   console.error("[verrou] le verrou a change de main pendant le demarrage ; arret avant connexion WhatsApp.");
   process.exit(1);
+}
+
+// Les trois chiffres qui manquaient au diagnostic du 2 novembre 2026 :
+// plafond memoire du conteneur, memoire disponible, espace disque. Releves
+// JUSTE AVANT le lancement de Chromium, puisque c'est l'etat dans lequel il
+// va demarrer — et consignes meme si tout se passe bien, parce qu'on ne les
+// aura plus le jour ou cela se passera mal.
+const ressources = releverRessources();
+console.log(`[ressources] ${resumerRessources(ressources)}`);
+if (ressources.memoireSuspecte) {
+  console.warn(
+    "[ressources] le plafond memoire est bas pour Chromium : un effondrement au " +
+      "lancement devient probable. C'est la piste a verifier en premier si la connexion echoue.",
+  );
 }
 
 console.log("[demarrage] connexion WhatsApp...");
