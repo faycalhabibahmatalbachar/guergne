@@ -49,12 +49,15 @@ const web = lireEnv("web/.env.local");
 /**
  * Les variables attendues par `app.js`, et où chacune est puisée.
  *
- * `SCHOOL_API_BASE_URL` est absente À DESSEIN : la plateforme guergné déployée
- * ne sert pas encore `/api/agent/*` (la route n'existe que sur cette branche),
- * et les déploiements de prévisualisation sont derrière l'authentification
- * Vercel. La renseigner maintenant ferait passer `/sante` à `backend:true`
- * alors que chaque appel échouerait : un faux vert est pire qu'un rouge franc.
- * Elle sera ajoutée le jour où une URL réellement joignable existe.
+ * `SCHOOL_API_BASE_URL` est restée absente tant que la route `/api/agent/*`
+ * n'était pas déployée : `app.js` ne fait qu'un test de PRÉSENCE
+ * (`Boolean(url && jeton)`), si bien que la poser sur une route répondant 404
+ * aurait affiché `backend: true` pendant que chaque appel échouait. Un faux
+ * vert est pire qu'un rouge franc.
+ *
+ * Elle est posée depuis le 2026-11-02, la condition étant remplie et vérifiée :
+ * `POST /api/agent/listerAlertes` répond **401** sans jeton (route présente et
+ * protégée) et **200** avec le jeton de service et un acteur réel.
  */
 const VARIABLES = [
   // ATTENTION : `ai_apikey.env` nomme `grok_api` une clé qui est en réalité une
@@ -70,6 +73,14 @@ const VARIABLES = [
   // Sans `SCHOOL_API_BASE_URL`, ce jeton ne configure rien (`app.js` exige les
   // deux) : le déposer d'avance évite un second passage le jour du branchement.
   { nom: "AGENT_SERVICE_TOKEN", valeur: web.AGENT_SERVICE_TOKEN, source: "web/.env.local", requise: false },
+  // L'URL n'est pas un secret, mais elle n'est pas devinee pour autant : c'est
+  // celle qui sert `/api/sante` et `/api/agent/*`, verifiee par appel.
+  {
+    nom: "SCHOOL_API_BASE_URL",
+    valeur: process.env.SCHOOL_API_BASE_URL ?? "https://lycee-guergne-renaissance.vercel.app",
+    source: "plateforme deployee (verifiee par appel)",
+    requise: true,
+  },
 ];
 
 const presentes = VARIABLES.filter((v) => v.valeur);
@@ -80,7 +91,7 @@ for (const v of presentes) console.log(`  OK      ${v.nom}  <- ${v.source}`);
 for (const v of absentes) {
   console.log(`  ${v.requise ? "ABSENTE" : "ABSENTE"} ${v.nom}  <- ${v.source}${v.requise ? "" : "  (facultative)"}`);
 }
-console.log("  OMISE   SCHOOL_API_BASE_URL  (aucun deploiement joignable : voir l'en-tete)");
+
 
 const manquantesRequises = absentes.filter((v) => v.requise);
 if (manquantesRequises.length) {
