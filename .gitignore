@@ -75,3 +75,6 @@ donnees-privees/
 
 # Rapports produits par les demonstrations de bout en bout.
 agent/.rapports/
+
+# Apercus de QR WhatsApp : un QR de session EST un identifiant de connexion.
+qr-*.png

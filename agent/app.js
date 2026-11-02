@@ -33,6 +33,7 @@ import {
   VerrouInstance,
   cheminsPersistants,
 } from "./src/persistance.js";
+import { DiagnosticNotification } from "./src/diagnostic-notification.js";
 import { FileNotifications } from "./src/notifications.js";
 import { MoteurPolitiques, POLITIQUES_DEFAUT } from "./src/politiques.js";
 import { WwebjsProvider } from "./src/providers/wwebjs.js";
@@ -232,6 +233,23 @@ const relance = setInterval(() => {
 }, 60_000);
 relance.unref?.();
 
+/**
+ * Declencheur de notification de test.
+ *
+ * La session WhatsApp etant detenue par ce seul processus, eprouver une
+ * notification sortante exige de la lui demander. La route est bornee aux
+ * identites DIRIGEANTES ACTIVES du magasin — jamais a une valeur fournie par
+ * l'appelant — et a un contenu fige : voir `diagnostic-notification.js`.
+ */
+const diagnostic = new DiagnosticNotification({
+  jetonAttendu: CONF.jetonService,
+  file: notifications,
+  // Le magasin d'identites est la seule source de numeros, et il vit sur le
+  // volume du serveur : aucun numero ne transite par le depot.
+  destinataires: async (role) => identites.destinatairesParRole([role]),
+  journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+});
+
 const agent = new Agent({
   politiques,
   notifications,
@@ -403,6 +421,20 @@ createServer(async (req, res) => {
     }
 
     res.writeHead(404, entetesSurs()).end();
+    return;
+  }
+
+  // --- Diagnostic : declencher une notification de TEST ------------------
+  if (url === "/diagnostic/notification") {
+    if (req.method !== "POST") {
+      res.writeHead(405, entetesSurs({ allow: "POST" })).end();
+      return;
+    }
+    const entete = req.headers["authorization"];
+    const jeton = typeof entete === "string" && entete.startsWith("Bearer ") ? entete.slice(7) : null;
+    const cible = new URL(req.url, "http://local").searchParams.get("cible") ?? "tous";
+    const r = await diagnostic.declencher({ jeton, cible });
+    res.writeHead(r.status, entetesSurs({ "content-type": "application/json" })).end(JSON.stringify(r.corps));
     return;
   }
 

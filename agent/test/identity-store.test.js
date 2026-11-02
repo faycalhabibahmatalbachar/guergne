@@ -157,8 +157,8 @@ test("la liste des actives masque les numéros", () => {
 });
 
 test("normalisation des numéros et des JID", () => {
-  assert.equal(normaliserNumero("+235 686-637 37"), "23568663737");
-  assert.equal(numeroDeJid("23568663737@c.us"), "23568663737");
+  assert.equal(normaliserNumero("+235 600-000 01"), "23560000001");
+  assert.equal(numeroDeJid("23560000001@c.us"), "23560000001");
   assert.match(masquer("23500000001"), /^235•+001$/);
 });
 

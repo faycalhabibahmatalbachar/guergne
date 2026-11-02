@@ -256,7 +256,7 @@ export class IdentityStorePersistant {
   }
 }
 
-/** `23568663737` → `235•••••737` : identifiable sans être divulgué. */
+/** `23500000001` → `235•••••001` : identifiable sans être divulgué. */
 export function masquer(numero) {
   const n = normaliserNumero(numero);
   if (n.length < 7) return "•".repeat(n.length);

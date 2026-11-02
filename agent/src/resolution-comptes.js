@@ -44,7 +44,7 @@ const INDICATIF_TCHAD = "235";
  * Forme canonique d'un numéro : chiffres seuls, indicatif pays compris.
  *
  * Les numéros se transmettent de mille façons — « +235 68 66 37 37 »,
- * « 0023568663737 », ou simplement « 68663737 » entre gens du pays. WhatsApp,
+ * « 0023500000001 », ou simplement « 00000001 » entre gens du pays. WhatsApp,
  * lui, ne connaît qu'une forme. Comparer sans canoniser ferait passer pour
  * inconnu un numéro pourtant autorisé.
  *
