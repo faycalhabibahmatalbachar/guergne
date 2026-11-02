@@ -231,6 +231,32 @@ const schemaSaisie = z.object({
 });
 
 /**
+ * Motifs des traces de création et de suppression d'une note.
+ *
+ * POURQUOI UN MOTIF ÉCRIT, ET NON UN CHAMP VIDE
+ * ----------------------------------------------
+ * `historique_notes` ne connaît ni l'utilisateur applicatif ni son intention :
+ * le déclencheur PostgreSQL garantit qu'aucune écriture n'échappe à la trace,
+ * mais c'est ici, et seulement ici, qu'on sait PAR QUEL GESTE la note est
+ * apparue ou a disparu. Un `motif` NULL laisse, des mois plus tard, un
+ * historique qui dit « note supprimée » sans dire si c'est une case vidée par
+ * inadvertance ou une correction assumée — et c'est cette question-là qu'on
+ * pose en cas de contestation.
+ *
+ * On ne formule donc que ce qui est CONSTATÉ (le geste et l'évaluation
+ * concernée). La raison pédagogique, elle, appartient à l'enseignant : aucune
+ * phrase n'est inventée à sa place, et le jour où la saisie lui demandera une
+ * justification, c'est son texte qui prendra cette place.
+ */
+function motifCreation(titre: string): string {
+  return `Première saisie de la note pour « ${titre} » (saisie de classe).`;
+}
+
+function motifSuppression(titre: string): string {
+  return `Case vidée lors de la saisie de « ${titre} » : la note est retirée, sa trace est conservée.`;
+}
+
+/**
  * Enregistre la grille de notes d'une évaluation.
  *
  * Écriture en une transaction : une saisie de classe est un tout. Si une seule
@@ -301,6 +327,7 @@ export async function enregistrerNotes(donnees: unknown): Promise<Resultat> {
               eleveId: insc.eleveId,
               avant: { valeur: existante.valeur, statut: existante.statut },
               apres: { statut: "SUPPRIMEE", valeur: null },
+              motif: motifSuppression(evaluation.titre),
             });
             supprimees++;
           }
@@ -335,6 +362,7 @@ export async function enregistrerNotes(donnees: unknown): Promise<Resultat> {
           eleveId: insc.eleveId,
           avant: existante ? { valeur: existante.valeur, statut: existante.statut } : null,
           apres: { valeur: valeurs.valeur, statut: valeurs.statut, evaluationId: v.evaluationId },
+          motif: existante ? null : motifCreation(evaluation.titre),
         });
         ecrites++;
       }

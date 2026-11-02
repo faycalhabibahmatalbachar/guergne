@@ -15,6 +15,13 @@ import {
   type Ponderation,
 } from "./notes";
 import { libelleAppreciationTravail } from "./appreciations-travail";
+import { deciderGeneration } from "./generation-bulletins-decision";
+
+export {
+  deciderGeneration,
+  type DecisionGeneration,
+  type EntreeDecisionGeneration,
+} from "./generation-bulletins-decision";
 
 /**
  * Production des bulletins d'une classe pour une période.
@@ -42,7 +49,41 @@ import { libelleAppreciationTravail } from "./appreciations-travail";
  * bulletin soit publié ou non. Un conseil de classe qui verrait ses
  * appréciations effacées par un recalcul ne referait jamais confiance à
  * l'outil.
+ *
+ * ET ON NE RÉGÉNÈRE PAS CE QUI EST PUBLIÉ OU VERROUILLÉ
+ * ------------------------------------------------------
+ * Conserver l'appréciation ne suffisait pas : les CHIFFRES, eux, étaient
+ * réécrits. Une période verrouillée ou un bulletin déjà publié arrête
+ * désormais la génération d'entrée de jeu (`deciderGeneration`), avant la
+ * première transaction. Une dérogation nommée, motivée et journalisée reste
+ * possible — c'est le seul chemin.
  */
+
+/**
+ * Refus opposé à une régénération, avant toute écriture.
+ *
+ * Une classe d'erreur à part, et non un `Error` nu : l'appelant doit pouvoir
+ * distinguer « la plateforme a dit non, et voici pourquoi » d'une panne
+ * technique, pour afficher la phrase telle quelle au lieu d'un message
+ * d'échec générique.
+ */
+export class ErreurGenerationRefusee extends Error {
+  constructor(raison: string) {
+    super(raison);
+    this.name = "ErreurGenerationRefusee";
+  }
+}
+
+/**
+ * Dérogation au verrou, telle que l'appelant doit la formuler.
+ *
+ * Le champ s'appelle `forcerMalgreVerrou` et non `force` : le nom doit dire ce
+ * qu'on enfreint, pour qu'on ne le passe pas à `true` par réflexe.
+ */
+export interface DerogationGeneration {
+  forcerMalgreVerrou: boolean;
+  motif: string;
+}
 
 export interface RapportGeneration {
   classe: string;
@@ -53,6 +94,8 @@ export interface RapportGeneration {
   sansNote: number;
   /** Élèves dont la moyenne n'a pas pu être calculée, avec la raison. */
   ignores: Array<{ nom: string; raison: string }>;
+  /** Renseigné uniquement si la génération a eu lieu malgré un verrou. */
+  motifDerogation?: string;
 }
 
 interface LigneNote extends Record<string, unknown> {
@@ -110,14 +153,45 @@ async function ponderations(
 export async function genererBulletins(
   classeId: string,
   periodeId: string,
+  derogation?: DerogationGeneration,
 ): Promise<RapportGeneration> {
-  const contexte = await db.execute<{ classe: string; periode: string; verrouillee: boolean }>(sql`
-    SELECT c.libelle AS classe, p.libelle AS periode, p.est_verrouillee AS verrouillee
+  // `verrouillee` et `publies` sont lus dans la MÊME requête que les libellés :
+  // ils servent à décider, et la décision doit être prise sur l'état constaté
+  // juste avant d'écrire, pas sur un état relu plus tard.
+  const contexte = await db.execute<{
+    classe: string;
+    periode: string;
+    verrouillee: boolean;
+    publies: string;
+  }>(sql`
+    SELECT c.libelle AS classe, p.libelle AS periode, p.est_verrouillee AS verrouillee,
+           (SELECT count(*) FROM bulletins b
+              JOIN inscriptions i ON i.id = b.inscription_id
+             WHERE i.classe_id = c.id
+               AND b.periode_id = p.id
+               AND b.est_publie)::text AS publies
       FROM classes c, periodes p
      WHERE c.id = ${classeId}::uuid AND p.id = ${periodeId}::uuid
   `);
   const ctx = contexte.rows[0];
   if (!ctx) throw new Error("Classe ou période introuvable.");
+
+  // LE REFUS EST ICI, ET NULLE PART AILLEURS DANS LA FONCTION.
+  // Avant la liste des inscrits, avant les notes, avant la moindre
+  // transaction : une régénération interdite ne doit pas même avoir commencé.
+  // Les inscriptions inactives sont volontairement comptées parmi les
+  // bulletins publiés — un élève parti garde un bulletin qui a été vu.
+  const decision = deciderGeneration({
+    classe: ctx.classe,
+    periode: ctx.periode,
+    periodeVerrouillee: ctx.verrouillee,
+    bulletinsPublies: Number(ctx.publies),
+    forcer: derogation?.forcerMalgreVerrou === true,
+    motif: derogation?.motif ?? null,
+  });
+  if (!decision.autorise) {
+    throw new ErreurGenerationRefusee(decision.raison ?? "Génération refusée.");
+  }
 
   const inscrits = await db.execute<{ id: string; nom: string; prenom: string }>(sql`
     SELECT i.id, e.nom, e.prenom
@@ -135,6 +209,7 @@ export async function genererBulletins(
     moyennesEcrites: 0,
     sansNote: 0,
     ignores: [],
+    motifDerogation: decision.motifDerogation,
   };
 
   if (inscrits.rows.length === 0) return rapport;
