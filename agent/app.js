@@ -105,7 +105,7 @@ const battement = setInterval(() => {
   if (!verrou.rafraichir()) {
     console.error("[verrou] verrou perdu au profit d'une autre instance ; arret immediat.");
     clearInterval(battement);
-  clearInterval(garde);
+    clearInterval(garde);
     provider.disconnect().finally(() => process.exit(1));
   }
 }, 20_000);
@@ -490,6 +490,11 @@ createServer(async (req, res) => {
     // elle est bloquee depuis des heures. C'est la difference entre patienter
     // et intervenir.
     transport,
+    // Les huit etats, l'instant du dernier changement, le cumul passe en
+    // connexion, le dernier message recu et traite, le dernier envoi et la
+    // derniere erreur. « connecting » tout seul n'a rien permis de
+    // diagnostiquer pendant sept heures.
+    whatsappDetaille: wa.machine ?? null,
     verrou: { detenu: verrou.detientToujours(), instance: verrou.instanceId.slice(0, 8), pid: process.pid },
     // Sans mesure, « l'agent travaille seul » reste une impression.
     autonomie: agent.metriques,
@@ -509,6 +514,7 @@ async function arreter(signal) {
   console.log(`[arret] ${signal} recu`);
   clearInterval(battement);
   clearInterval(relance);
+  clearInterval(garde);
   // Une derniere tentative avant de partir : un avis en attente a plus de
   // chances d'aboutir maintenant qu'apres un redemarrage.
   await notifications.traiter().catch(() => {});
@@ -532,5 +538,21 @@ if (!verrou.detientToujours()) {
 }
 
 console.log("[demarrage] connexion WhatsApp...");
-await provider.connect();
+// UN ECHEC DE CONNEXION NE DOIT PLUS EMPORTER LE DEMARRAGE.
+//
+// Cet `await` etait nu. Quand Chromium s'est effondre le 2 novembre 2026,
+// `initialize()` est reste suspendu et le demarrage avec lui : le service a
+// ete muet 7 h 27, et la derniere ligne du journal etait « connexion
+// WhatsApp... ». Desormais l'echec est nomme, le processus continue de servir
+// `/sante` — c'est par la qu'on diagnostique — et le chien de garde reprend
+// la main.
+try {
+  await provider.connect();
+  console.log("[demarrage] WhatsApp connecte");
+} catch (e) {
+  console.error(
+    `[demarrage] la connexion WhatsApp a echoue : ${String(e?.message ?? e).slice(0, 200)}` +
+      " — le service reste en ligne pour /sante et le chien de garde reessaiera.",
+  );
+}
 // Le QR est transmis directement à Pairing par le callback surQr ; aucun état parallèle ici.

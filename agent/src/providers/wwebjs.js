@@ -18,7 +18,8 @@ import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 
 import { WhatsAppProvider } from "../provider.js";
-import { avecDelai } from "../delai.js";
+import { DelaiDepasse, avecDelai } from "../delai.js";
+import { ETATS, EtatWhatsApp } from "../etat-whatsapp.js";
 import { analyserJid } from "../jid.js";
 
 /**
@@ -88,6 +89,22 @@ function nettoyerVerrousChrome(dossierSession, clientId) {
  * économise de la mémoire mais **casse l'envoi de médias image** — piège
  * documenté dans moov-ai, où la photo ne partait plus.
  */
+/**
+ * Plafond de l'initialisation du client.
+ *
+ * `initialize()` lance Chromium puis charge WhatsApp Web. Le 2 novembre 2026,
+ * Chromium s'est effondre — un `core` de 1,16 Go le prouve, nomme
+ * `chrome-linux64/chrome` et ecrit a la seconde du demarrage — et Puppeteer
+ * n'a PAS rejete : la promesse est restee suspendue. Le `await` au niveau du
+ * module a gele le demarrage, et le service est reste muet 7 h 27 sans qu'une
+ * seule ligne de journal le dise.
+ *
+ * Six minutes suffisent largement a restaurer une session sur un conteneur
+ * modeste. Au-dela, ce n'est plus de la lenteur : c'est un blocage, et il doit
+ * devenir une erreur nommee plutot qu'un silence.
+ */
+const DELAI_INITIALISATION_MS = Number(process.env.WHATSAPP_DELAI_INIT_MS || 6 * 60 * 1000);
+
 const ARGS_CHROME = [
   // Indispensables en conteneur : pas de namespace de sandbox, et un /dev/shm
   // trop petit fait planter Chrome au bout de quelques pages.
@@ -147,6 +164,15 @@ export class WwebjsProvider extends WhatsAppProvider {
     this._etat = "disconnected";
     this._handler = null;
     this._reconnexions = 0;
+    /**
+     * Observation riche, a cote de `_etat`.
+     *
+     * `_etat` garde ses quatre valeurs historiques, dont dependent `/sante`,
+     * le surveillant et leurs tests. La machine raconte en plus : depuis quand,
+     * ce qui a ete tente, la derniere erreur, le dernier message. Enrichir ne
+     * doit pas casser ce qui marche.
+     */
+    this.machine = new EtatWhatsApp({ journal: (e) => this._tracer(e) });
     /** Cache LID → JID téléphonique : chaque résolution est un aller-retour. */
     this._lidVersNumero = new Map();
   }
@@ -157,7 +183,7 @@ export class WwebjsProvider extends WhatsAppProvider {
   }
 
   getConnectionStatus() {
-    return { state: this._etat, reconnexions: this._reconnexions };
+    return { state: this._etat, reconnexions: this._reconnexions, machine: this.machine.resume() };
   }
 
   onMessage(handler) {
@@ -215,6 +241,7 @@ export class WwebjsProvider extends WhatsAppProvider {
     const { Client, LocalAuth } = wweb;
 
     this._etat = "connecting";
+    this.machine.transiter(ETATS.WHATSAPP_INITIALIZING, { raison: "lancement de Chromium" });
     this._client = new Client({
       authStrategy: new LocalAuth({ clientId: this._clientId, dataPath: this._dossier }),
       puppeteer: {
@@ -226,28 +253,55 @@ export class WwebjsProvider extends WhatsAppProvider {
 
     this._client.on("qr", (qr) => {
       this._etat = "qr";
+      this.machine.qrPropose();
       this._log.info?.("[whatsapp] QR a scanner (non journalise)");
       this._surQr?.(qr);
     });
     this._client.on("ready", () => {
       this._etat = "ready";
+      this.machine.transiter(ETATS.WHATSAPP_READY);
       this._log.info?.("[whatsapp] session prete");
       this._surPret?.();
     });
     this._client.on("auth_failure", (m) => {
       this._etat = "disconnected";
+      this.machine.transiter(ETATS.WHATSAPP_AUTH_FAILURE, { raison: String(m ?? "echec d'authentification") });
       this._log.error?.("[whatsapp] echec d'authentification", m);
     });
     this._client.on("disconnected", async (raison) => {
       this._etat = "disconnected";
+      this.machine.transiter(ETATS.WHATSAPP_DISCONNECTED, { raison: String(raison ?? "sans raison"), compterReconnexion: true });
       this._log.warn?.("[whatsapp] deconnecte:", raison);
       this._surDeconnexion?.(raison);
       await this.reconnect();
     });
+    // Ces trois evenements n'etaient pas ecoutes, et ce sont EXACTEMENT ceux
+    // qui auraient dit ou le demarrage s'arretait. `authenticated` prouve que
+    // la session restauree est acceptee ; `loading_screen` prouve que la page
+    // progresse ; `change_state` nomme l'etat interne de WhatsApp Web. Sans
+    // eux, « connecting » couvrait indifferemment un Chromium mort, une page
+    // blanche et une session refusee.
+    this._client.on("authenticated", () => {
+      this.machine.transiter(ETATS.WHATSAPP_AUTHENTICATED, { raison: "session restauree et acceptee" });
+      this._log.info?.("[whatsapp] authentifie");
+    });
+    this._client.on("loading_screen", (pourcent, message) => {
+      this.machine.transiter(ETATS.WHATSAPP_CONNECTING, { raison: `chargement ${pourcent ?? "?"}% ${message ?? ""}`.trim() });
+    });
+    this._client.on("change_state", (etat) => {
+      // L'etat interne de WhatsApp Web n'est pas le notre : on le consigne
+      // sans le laisser ecraser la machine, sauf s'il annonce un conflit.
+      this._tracer({ event: "change_state", etat: String(etat ?? "") });
+      if (String(etat) === "CONFLICT" || String(etat) === "UNPAIRED") {
+        this.machine.transiter(ETATS.WHATSAPP_ERROR, { raison: `WhatsApp Web signale ${etat}` });
+      }
+    });
+
     this._client.on("message", async (msg) => {
       // Un `runId` naît ICI, au plus tôt, et accompagne le message jusqu'à la
       // réponse. Sans lui, un message disparu ne laisse aucune piste à suivre.
       const run = nouveauRun();
+      this.machine.messageRecu();
       const debut = Date.now();
       this._tracer({
         event: "message_received",
@@ -295,7 +349,55 @@ export class WwebjsProvider extends WhatsAppProvider {
       }
     });
 
-    await this._client.initialize();
+    // LE POINT QUI A COUTE 7 H 27 DE SILENCE.
+    //
+    // `initialize()` lance Chromium puis charge WhatsApp Web. Quand Chromium
+    // s'effondre, Puppeteer ne rejette pas toujours : la promesse reste
+    // suspendue. Ce module bornait deja la resolution LID et l'envoi de
+    // message — mais pas cet appel-ci, le seul capable de geler le demarrage
+    // entier, puisqu'il est attendu au niveau du module.
+    try {
+      await avecDelai(() => this._client.initialize(), {
+        ms: DELAI_INITIALISATION_MS,
+        operation: "whatsapp.initialize",
+      });
+    } catch (e) {
+      const bloque = e instanceof DelaiDepasse;
+      const raison = bloque
+        ? `initialisation suspendue au-dela de ${Math.round(DELAI_INITIALISATION_MS / 60000)} min ` +
+          `(Chromium lance mais aucun evenement recu) ; dernier etat connu : ${this.machine.etat}`
+        : `initialisation en echec : ${String(e?.message ?? e).slice(0, 180)}`;
+      this._etat = "disconnected";
+      this.machine.transiter(ETATS.WHATSAPP_ERROR, { raison });
+      this._log.error?.(`[whatsapp] ${raison}`);
+      this._tracer({ event: "initialize_echec", bloque, raison });
+      // On remonte : l'appelant doit pouvoir decider de continuer a servir
+      // `/sante` plutot que de mourir, et le surveillant doit pouvoir
+      // reessayer. Avaler ici reproduirait le silence qu'on corrige.
+      throw e;
+    }
+
+    // Chromium peut mourir APRES une initialisation reussie. Sans cette
+    // ecoute, sa disparition se manifeste seulement par des envois qui
+    // echouent, un par un, sans que l'etat change jamais.
+    try {
+      const navigateur = this._client.pupBrowser;
+      navigateur?.on?.("disconnected", () => {
+        this._etat = "disconnected";
+        this.machine.transiter(ETATS.WHATSAPP_ERROR, { raison: "le navigateur s'est detache (Chromium arrete ou tombe)" });
+        this._log.error?.("[whatsapp] le navigateur s'est detache");
+      });
+      this._client.pupPage?.on?.("error", (e) => {
+        // Une page qui meurt n'interrompt pas le processus Node : sans cette
+        // trace, l'incident est invisible.
+        this.machine.erreur(`page Chromium : ${String(e?.message ?? e)}`);
+        this._tracer({ event: "page_error", erreur: String(e?.message ?? e).slice(0, 200) });
+      });
+    } catch (e) {
+      // L'absence de ces poignees n'est pas une raison de refuser une session
+      // qui fonctionne : on le note et on continue.
+      this._tracer({ event: "surveillance_navigateur_indisponible", erreur: String(e?.message ?? e).slice(0, 120) });
+    }
   }
 
   /** Traduit un message whatsapp-web.js en forme stable attendue par l'agent. */
