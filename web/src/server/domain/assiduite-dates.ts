@@ -27,10 +27,9 @@
 // résout les modules en ESM : un spécificateur relatif SANS extension y est une
 // erreur de résolution, et le test ne démarrait pas. Le compilateur de Next.js,
 // lui, refuse l'extension explicite tant que `allowImportingTsExtensions` n'est
-// pas activé (TS5097) — et `tsconfig.json` n'appartient pas à ce changement.
-// L'extension satisfait le lanceur de tests et les bundlers ; la suppression
-// ciblée satisfait le compilateur, sans masquer autre chose que ce seul point.
-// @ts-expect-error TS5097 : extension « .ts » exigée par le lanceur de tests de Node.
+// activé dans `tsconfig.json`, après vérification que `next build` l'accepte.
+// L'extension satisfait le lanceur de tests et les bundlers, et le drapeau
+// évite d'avoir à masquer une erreur du compilateur dans du code applicatif.
 import { type DateISO, evenementsPourDate, jourSemaineISO, parserDateISO } from "./calendrier-scolaire.ts";
 
 /**

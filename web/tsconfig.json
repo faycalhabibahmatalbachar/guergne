@@ -6,6 +6,14 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    // Un module applicatif peut avoir besoin d'importer avec l'extension
+    // « .ts » explicite : le lanceur de tests natif de Node l'exige pour
+    // resoudre toute la chaine d'imports, et un module de domaine teste
+    // directement se retrouve donc coince entre les deux. Verifie : `next
+    // build` accepte cette syntaxe. Sans ce drapeau, le seul recours etait un
+    // `@ts-expect-error` dans du code de production, c'est-a-dire une erreur
+    // du compilateur rendue invisible.
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
