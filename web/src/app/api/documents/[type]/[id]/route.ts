@@ -1,7 +1,12 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { requirePermission } from "@/server/guard";
-import { produireDocumentEleve, produireRecu, type TypeDocument } from "@/server/pdf/service";
+import {
+  EmissionRefusee,
+  produireDocumentEleve,
+  produireRecu,
+  type TypeDocument,
+} from "@/server/pdf/service";
 
 /**
  * Édition des documents officiels en PDF.
@@ -13,6 +18,12 @@ import { produireDocumentEleve, produireRecu, type TypeDocument } from "@/server
  *
  * Chaque édition exige le droit `document:emettre` et laisse une trace dans
  * `documents_emis`.
+ *
+ * Un GET est idempotent : réouvrir le même document pour le même élève rend
+ * l'exemplaire déjà émis, avec son numéro et son code d'origine. Pour en
+ * émettre un neuf, il faut le demander explicitement par `?reemettre=1` ET
+ * fournir `&raison=…` ; la réémission est journalisée. Sans ce couple, la route
+ * refuse plutôt que de consommer un numéro officiel à l'insu de l'agent.
  */
 
 export const dynamic = "force-dynamic";
@@ -60,17 +71,23 @@ export async function GET(
     return new Response("Non autorisé", { status: 403 });
   }
 
+  const parametres = new URL(requete.url).searchParams;
+  const reemission = {
+    demandee: parametres.has("reemettre"),
+    raison: parametres.get("raison"),
+  };
+
   try {
     const document =
       typeDocument === "RECU_PAIEMENT"
         ? await produireRecu(id, acteur)
-        : await produireDocumentEleve(typeDocument, id, acteur);
+        : await produireDocumentEleve(typeDocument, id, acteur, reemission);
 
     if (!document) return new Response("Dossier introuvable", { status: 404 });
 
     // `inline` ouvre le PDF dans le navigateur ; `?telecharger` force
     // l'enregistrement. Au guichet on imprime, à distance on télécharge.
-    const telecharger = new URL(requete.url).searchParams.has("telecharger");
+    const telecharger = parametres.has("telecharger");
 
     return new Response(new Uint8Array(document.contenu), {
       headers: {
@@ -81,6 +98,15 @@ export async function GET(
       },
     });
   } catch (erreur) {
+    // 409 : la demande est compréhensible mais l'état du registre s'y oppose
+    // (numéro déjà attribué, contenu figé illisible, réémission sans motif).
+    // Le message est destiné à l'agent du guichet, il est donc renvoyé tel quel.
+    if (erreur instanceof EmissionRefusee) {
+      return new Response(erreur.message, {
+        status: 409,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
     console.error("[document]", erreur);
     return new Response("La production du document a échoué.", { status: 500 });
   }
