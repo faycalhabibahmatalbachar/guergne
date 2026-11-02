@@ -1,10 +1,11 @@
-import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
-import { db } from "@/server/db";
+import { and, eq } from "drizzle-orm";
+
 import { roleAutoriseAdministration } from "@/lib/acces-administration";
-import { affectations, eleveTuteur, enseignants, permissions, tuteurs } from "@/server/db/schema";
 import { type Principal, sessionCourante } from "@/server/auth/session";
+import { db } from "@/server/db";
+import { affectations, eleveTuteur, enseignants, permissions, tuteurs } from "@/server/db/schema";
 
 import type { Action, Portee, RoleUtilisateur } from "./permissions";
 
@@ -85,16 +86,10 @@ export function invaliderMatrice(): void {
  * On vérifie l'affectation, pas une liste de classes portée par la session :
  * une affectation retirée le matin doit fermer l'accès l'après-midi même.
  */
-async function enseignantCouvre(
-  utilisateurId: string,
-  perimetre: Perimetre,
-): Promise<boolean> {
+async function enseignantCouvre(utilisateurId: string, perimetre: Perimetre): Promise<boolean> {
   if (!perimetre.classeId) return false;
 
-  const conditions = [
-    eq(affectations.classeId, perimetre.classeId),
-    eq(affectations.active, true),
-  ];
+  const conditions = [eq(affectations.classeId, perimetre.classeId), eq(affectations.active, true)];
   if (perimetre.matiereId) {
     conditions.push(eq(affectations.matiereId, perimetre.matiereId));
   }
@@ -130,11 +125,7 @@ async function parentCouvre(utilisateurId: string, perimetre: Perimetre): Promis
 // ---------------------------------------------------------------------------
 
 /** Vérifie sans lever : utile pour afficher ou masquer un élément d'interface. */
-export async function peut(
-  principal: Principal | null,
-  action: Action,
-  perimetre?: Perimetre,
-): Promise<boolean> {
+export async function peut(principal: Principal | null, action: Action, perimetre?: Perimetre): Promise<boolean> {
   if (!principal || !roleAutoriseAdministration(principal.role)) return false;
 
   const matrice = await chargerMatrice();
@@ -152,14 +143,27 @@ export async function peut(
  * Exige une permission. Lève `ErreurAutorisation` si elle n'est pas accordée.
  * À utiliser dans les actions serveur et les routes d'API.
  */
-export async function requirePermission(
-  action: Action,
-  perimetre?: Perimetre,
-): Promise<Principal> {
+export async function requirePermission(action: Action, perimetre?: Perimetre): Promise<Principal> {
   const principal = await sessionCourante();
   if (!principal) {
     throw new ErreurAutorisation("Session absente ou expirée.", "NON_AUTHENTIFIE");
   }
+  return exigerPermissionPour(principal, action, perimetre);
+}
+
+/**
+ * Même contrôle de rôle et de périmètre, mais sur un `Principal` déjà résolu.
+ *
+ * Sert à l'API agent (`/api/agent/*`), qui agit AU NOM d'un membre du personnel
+ * sans cookie de session. Le point essentiel : c'est exactement la même logique
+ * que pour une session navigateur — matrice en base, puis périmètre. L'agent ne
+ * dispose d'aucun privilège propre et ne peut pas contourner le RBAC.
+ */
+export async function exigerPermissionPour(
+  principal: Principal,
+  action: Action,
+  perimetre?: Perimetre,
+): Promise<Principal> {
   if (!roleAutoriseAdministration(principal.role)) {
     throw new ErreurAutorisation("Espace réservé au personnel de l’établissement.", "ROLE_INSUFFISANT");
   }
@@ -168,10 +172,7 @@ export async function requirePermission(
   const portee = matrice.get(`${principal.role}:${action}`);
 
   if (portee === undefined) {
-    throw new ErreurAutorisation(
-      `Le rôle ${principal.role} ne dispose pas de l'action ${action}.`,
-      "ROLE_INSUFFISANT",
-    );
+    throw new ErreurAutorisation(`Le rôle ${principal.role} ne dispose pas de l'action ${action}.`, "ROLE_INSUFFISANT");
   }
 
   if (portee !== "AUCUNE") {
@@ -181,10 +182,7 @@ export async function requirePermission(
         : await parentCouvre(principal.id, perimetre ?? {});
 
     if (!couvre) {
-      throw new ErreurAutorisation(
-        "La ressource demandée est hors de votre périmètre.",
-        "HORS_PERIMETRE",
-      );
+      throw new ErreurAutorisation("La ressource demandée est hors de votre périmètre.", "HORS_PERIMETRE");
     }
   }
 
@@ -214,5 +212,5 @@ export async function exigerSession(): Promise<Principal> {
   return principal;
 }
 
-export type { Principal };
 export type { Action, RoleUtilisateur } from "./permissions";
+export type { Principal };

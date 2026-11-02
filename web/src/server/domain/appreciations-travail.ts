@@ -5,7 +5,7 @@
  * 0–2,99 Travail nul ; 3–4,99 Médiocre ; 5–5,99 Très faible ;
  * 6–7,99 Faible ; 8–9,99 Insuffisant ; 10–10,99 Moyen ;
  * 11–11,99 Passable ; 12–13,99 Assez-bien ; 14–15,99 Bien ;
- * 16–17,99 Très bien ; 18–20 Excellent Travail.
+ * 16–17,99 Très bien ; 18–20 Excellent.
  */
 export function libelleAppreciationTravail(moyenne: number | null): string | null {
   if (moyenne === null || !Number.isFinite(moyenne) || moyenne < 0 || moyenne > 20) return null;

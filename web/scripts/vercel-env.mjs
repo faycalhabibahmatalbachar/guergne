@@ -73,6 +73,16 @@ const VARIABLES = [
     secret: true,
     role: "Ouvre /api/notifications/traiter à une tâche planifiée",
   },
+  {
+    nom: "AGENT_SERVICE_TOKEN",
+    secret: true,
+    // Sans elle, `/api/agent/*` répond 503 « API agent non configurée » et
+    // refuse tout : l'agent WhatsApp est alors muet sur les données scolaires.
+    // C'est un refus volontaire — une API agent ouverte vaudrait un accès
+    // anonyme au dossier des élèves — mais il est silencieux pour qui déploie
+    // sans avoir posé la variable.
+    role: "Authentifie le service agent auprès de /api/agent/*",
+  },
 ];
 
 /** Vercel distingue trois environnements ; le portail n'en sert qu'un vraiment. */
@@ -138,7 +148,7 @@ for (const { nom, secret, role } of VARIABLES) {
   if (!valeur) {
     // Une variable vide localement n'est pas une raison d'effacer celle qui
     // est en ligne : le poste de développement n'est pas la référence.
-    console.log(`·  ${nom.padEnd(18)} non renseignée localement — ${distante ? "laissée en l'état" : "absente des deux côtés"}`);
+    console.log(`·  ${nom.padEnd(19)} non renseignée localement — ${distante ? "laissée en l'état" : "absente des deux côtés"}`);
     ignorees += 1;
     continue;
   }
@@ -151,7 +161,7 @@ for (const { nom, secret, role } of VARIABLES) {
   const comparable = distante && distante.type !== "encrypted";
 
   if (comparable && distante.value === valeur) {
-    console.log(`=  ${nom.padEnd(18)} déjà à jour`);
+    console.log(`=  ${nom.padEnd(19)} déjà à jour`);
     inchangees += 1;
     continue;
   }
@@ -164,7 +174,7 @@ for (const { nom, secret, role } of VARIABLES) {
       : comparable
         ? "à mettre à jour"
         : "à réécrire (chiffrée, non relisible)";
-    console.log(`~  ${nom.padEnd(18)} ${etat} (${apercu})`);
+    console.log(`~  ${nom.padEnd(19)} ${etat} (${apercu})`);
     continue;
   }
 
@@ -181,10 +191,10 @@ for (const { nom, secret, role } of VARIABLES) {
       method: "PATCH",
       body: JSON.stringify({ value: valeur, target: CIBLES, comment: role }),
     });
-    console.log(`↻  ${nom.padEnd(18)} mise à jour (${apercu})`);
+    console.log(`↻  ${nom.padEnd(19)} mise à jour (${apercu})`);
   } else {
     await api(`/v10/projects/${PROJET.projectId}/env`, { method: "POST", body: JSON.stringify(corps) });
-    console.log(`+  ${nom.padEnd(18)} créée (${apercu})`);
+    console.log(`+  ${nom.padEnd(19)} créée (${apercu})`);
   }
   posees += 1;
 }

@@ -60,3 +60,18 @@ mobile/ios/Pods/
 
 # Livrables compilés — jamais dans le dépôt
 livraison/
+
+# Secrets IA locaux (jamais commites)
+grok.env
+*.env
+!.env.example
+
+# Contexte local neonctl
+.neon
+
+# Liste blanche des numeros autorises — donnees personnelles, jamais dans Git.
+identites-autorisees.json
+donnees-privees/
+
+# Rapports produits par les demonstrations de bout en bout.
+agent/.rapports/
