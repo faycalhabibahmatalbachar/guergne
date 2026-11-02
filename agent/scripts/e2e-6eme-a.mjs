@@ -30,6 +30,7 @@ import { MatricePermissions } from "../src/permissions-matrix.js";
 import { MoteurPolitiques, POLITIQUES_DEFAUT } from "../src/politiques.js";
 import { FakeProvider } from "../src/provider.js";
 import { Referentiel } from "../src/referentiel.js";
+import { lignesDe, totalDe } from "../src/rendu.js";
 import { ASSIDUITE_TOOLS, ToolRegistry } from "../src/tools.js";
 
 const racine = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -124,7 +125,10 @@ verifier(classe?.libelle?.toLowerCase().includes("6") ?? false, "son libelle est
 console.log("\n=== 2. Y a-t-il des absences dans cette classe ? ===");
 const direct = await guergne.listerAbsences({ classeId: CLASSE_6A, limite: 200 }, { actorId: ACTEUR });
 verifier(direct.ok !== false, "l'API repond", direct.message ?? "");
-const lignes = direct.data ?? [];
+// `listerAbsences` rend desormais `{ lignes, total }` : la lecture doit
+// suivre, sinon le controle porterait sur un objet et non sur des lignes.
+const lignes = lignesDe(direct.data) ?? [];
+const totalReel = totalDe(direct.data);
 verifier(lignes.length > 0, "des absences existent", `${lignes.length} ligne(s)`);
 verifier(
   lignes.every((l) => (l.classe ?? "").toLowerCase().includes("6")),

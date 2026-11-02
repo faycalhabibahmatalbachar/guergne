@@ -30,7 +30,19 @@ export const jour = (d) => String(d ?? "").slice(0, 10) || "date inconnue";
  */
 export const val = (v, defaut = "?") => (v === null || v === undefined || v === "" ? defaut : String(v));
 
-export function listeRendue(lignes, titre, ligne) {
+/**
+ * Lignes portees par une reponse, quelle que soit sa forme.
+ *
+ * Certaines lectures rendent un tableau, d'autres `{ lignes, total }` parce
+ * qu'elles sont bornees et doivent dire combien il y en a vraiment. Les
+ * appelants ne doivent pas avoir a connaitre la difference.
+ */
+export const lignesDe = (d) => (Array.isArray(d) ? d : Array.isArray(d?.lignes) ? d.lignes : null);
+
+/** Total reel d'une reponse bornee, ou `null` si elle n'en annonce pas. */
+export const totalDe = (d) => (Array.isArray(d) ? null : typeof d?.total === "number" ? d.total : null);
+
+export function listeRendue(lignes, titre, ligne, { total = null } = {}) {
   if (!Array.isArray(lignes)) return null;
   // Une ligne vide ou mal formee ne doit pas emporter la reponse entiere : le
   // backend peut rendre une colonne absente, et l'utilisateur merite les
@@ -47,10 +59,19 @@ export function listeRendue(lignes, titre, ligne) {
       return "ligne illisible";
     }
   };
+  // Dire « 100 resultats » quand il y en a 211 fait tirer une conclusion
+  // fausse, et rien dans la reponse ne le signale. On annonce donc l'ecart.
+  const decompte =
+    total !== null && total > utilisables.length
+      ? `${utilisables.length} affichées sur ${total}`
+      : `${utilisables.length} résultat${utilisables.length > 1 ? "s" : ""}`;
   return [
-    `${titre} — ${utilisables.length} résultat${utilisables.length > 1 ? "s" : ""} :`,
+    `${titre} — ${decompte} :`,
     ...montrees.map((l) => `• ${rendue(l)}`),
-    reste > 0 ? `… et ${reste} de plus.` : null,
+    reste > 0 ? `… et ${reste} de plus dans cette liste.` : null,
+    total !== null && total > utilisables.length
+      ? `Precisez une classe, une periode ou des dates pour voir le reste.`
+      : null,
   ]
     .filter(Boolean)
     .join("\n");

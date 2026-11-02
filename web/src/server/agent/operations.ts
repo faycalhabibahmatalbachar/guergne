@@ -22,6 +22,7 @@ import {
 import { chargerAnneeCourante, chargerStatistiques } from "@/server/domain/tableau-de-bord";
 import {
   chargerConduiteClasse,
+  compterAbsences,
   listerAbsences,
   listerAlertes,
   listerElevesClasse,
@@ -90,15 +91,20 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
   // --- Vie scolaire ---------------------------------------------------------
   listerAbsences: {
     permission: "assiduite:lire",
-    executer: (p) =>
-      listerAbsences({
+    // La reponse porte le TOTAL a cote des lignes. Sans lui, 100 lignes sur
+    // 211 se lisent comme « 100 absences », et rien ne signale le contraire.
+    executer: async (p) => {
+      const filtres = {
         periodeId: s(p.periodeId),
         classeId: s(p.classeId),
         statut: s(p.statut),
         depuis: s(p.depuis),
         jusqua: s(p.jusqua),
-        limite: n(p.limite, 100),
-      }),
+      };
+      const limite = Math.min(n(p.limite, 100), 500);
+      const [lignes, total] = await Promise.all([listerAbsences({ ...filtres, limite }), compterAbsences(filtres)]);
+      return { lignes, total, limite, tronque: total > lignes.length };
+    },
   },
   listerRetards: {
     permission: "assiduite:lire",

@@ -33,6 +33,7 @@ import { MatricePermissions } from "../src/permissions-matrix.js";
 import { MoteurPolitiques, POLITIQUES_DEFAUT } from "../src/politiques.js";
 import { FakeProvider } from "../src/provider.js";
 import { Referentiel } from "../src/referentiel.js";
+import { lignesDe } from "../src/rendu.js";
 import { resoudreNomsEleves } from "../src/resolution-eleves.js";
 import { ASSIDUITE_TOOLS, ToolRegistry } from "../src/tools.js";
 
@@ -153,8 +154,7 @@ const compterRetards = async () =>
     (l) => String(l.dateRetard).slice(0, 10) === JOUR && l.eleveId === eleve.eleveId,
   );
 const lireAbsences = async () =>
-  (await guergne.listerAbsences({ classeId: classe.id, depuis: JOUR, jusqua: JOUR, limite: 200 }, { actorId: ACTEUR }))
-    .data ?? [];
+  lignesDe((await guergne.listerAbsences({ classeId: classe.id, depuis: JOUR, jusqua: JOUR, limite: 200 }, { actorId: ACTEUR })).data) ?? [];
 
 const retardsAvant = (await compterRetards()).length;
 const absencesAvant = (await lireAbsences()).length;

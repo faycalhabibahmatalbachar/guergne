@@ -82,11 +82,35 @@ test("rendu des absences : l'affichage est borné et le reste est annoncé", () 
   const lignes = Array.from({ length: 100 }, (_, i) => ({
     prenom: "Eleve", nom: "N" + i, classe: "6ème B", dateAbsence: "2026-07-14", nbHeures: "1", statut: "JUSTIFIEE",
   }));
+  // Forme historique : un simple tableau, sans total annoncé.
   const texte = rendre(lignes);
-  // Le total réel est annoncé : on ne laisse jamais croire qu'il n'y a que 10 lignes.
   assert.match(texte, /100 résultats :/);
   assert.equal(texte.split("\n").filter((l) => l.startsWith("• ")).length, 10);
-  assert.match(texte, /… et 90 de plus\./);
+  assert.match(texte, /… et 90 de plus/);
+});
+
+test("rendu des absences : 100 lignes sur 211 ne se lisent JAMAIS « 100 absences »", () => {
+  // Le défaut constaté en production : la 6ème A compte 211 absences, la
+  // lecture en rend 100, et la réponse disait « 100 résultats ». Un directeur
+  // en tirait une conclusion fausse sans que rien ne le signale.
+  const rendre = tool("assiduite.consulter_absences").rendre;
+  const lignes = Array.from({ length: 100 }, (_, i) => ({
+    prenom: "Eleve", nom: "N" + i, classe: "6ème A", dateAbsence: "2026-07-14", nbHeures: "1", statut: "JUSTIFIEE",
+  }));
+  const texte = rendre({ lignes, total: 211, limite: 100, tronque: true });
+  assert.match(texte, /100 affichées sur 211/);
+  assert.ok(!/100 résultats/.test(texte), "la formulation trompeuse ne doit plus apparaître");
+  // Et on dit comment voir le reste, plutôt que de laisser l'utilisateur deviner.
+  assert.match(texte, /Precisez une classe, une periode ou des dates/);
+});
+
+test("rendu des absences : quand rien n'est tronqué, on ne parle pas de reste", () => {
+  const rendre = tool("assiduite.consulter_absences").rendre;
+  const lignes = [{ prenom: "A", nom: "B", classe: "6ème A", dateAbsence: "2026-07-14", nbHeures: "1", statut: "JUSTIFIEE" }];
+  const texte = rendre({ lignes, total: 1, limite: 100, tronque: false });
+  assert.match(texte, /1 résultat :/);
+  assert.ok(!/affichées sur/.test(texte));
+  assert.ok(!/Precisez/.test(texte));
 });
 
 test("rendu des absences : une liste vide le dit, sans inventer", () => {

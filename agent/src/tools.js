@@ -7,7 +7,7 @@
  */
 import { READ, WRITE, SENSITIVE } from "./guard.js";
 import { inviteContrat } from "./plan.js";
-import { STATUT_LISIBLE, jour, listeRendue, nomComplet } from "./rendu.js";
+import { STATUT_LISIBLE, jour, lignesDe, listeRendue, nomComplet, totalDe } from "./rendu.js";
 import { PILOTAGE_TOOLS } from "./tools-pilotage.js";
 
 const required = (v) => v !== undefined && v !== null && v !== "";
@@ -105,11 +105,18 @@ const OUTILS_ASSIDUITE = [
     },
     validate: noErrs,
     summarize: (p) => `Consulter les absences${p.classeId ? " de la classe " + p.classeId : ""}.`,
-    rendre: (lignes) =>
-      listeRendue(lignes, "Absences", (l) => {
-        const statut = STATUT_LISIBLE[l.statut] ?? l.statut ?? "statut inconnu";
-        return `${nomComplet(l)} (${l.classe ?? "classe inconnue"}) — ${jour(l.dateAbsence)}, ${l.nbHeures ?? "?"} h, ${statut}`;
-      }),
+    // La reponse porte desormais `{ lignes, total }` : on annonce le total,
+    // sans quoi 100 lignes sur 211 se lisent comme « 100 absences ».
+    rendre: (d) =>
+      listeRendue(
+        lignesDe(d),
+        "Absences",
+        (l) => {
+          const statut = STATUT_LISIBLE[l.statut] ?? l.statut ?? "statut inconnu";
+          return `${nomComplet(l)} (${l.classe ?? "classe inconnue"}) — ${jour(l.dateAbsence)}, ${l.nbHeures ?? "?"} h, ${statut}`;
+        },
+        { total: totalDe(d) },
+      ),
   },
   {
     name: "assiduite.alertes",

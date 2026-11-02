@@ -69,8 +69,12 @@ const STATUT_LISIBLE = { JUSTIFIEE: "justifiée", NON_JUSTIFIEE: "non justifiée
  * Chaque nombre de la synthèse vient d'ici, et d'ici seulement. La fonction est
  * pure : on peut la relire, la tester, et refaire le calcul à la main.
  */
-export function agreger(lignes) {
-  if (!Array.isArray(lignes)) return { total: 0, parClasse: [], parStatut: {}, heures: 0 };
+export function agreger(donnees) {
+  // Certaines lectures rendent `{ lignes, total }` parce qu'elles sont bornees.
+  // Agreger l'objet au lieu de ses lignes donnerait un bilan vide.
+  const lignes = Array.isArray(donnees) ? donnees : Array.isArray(donnees?.lignes) ? donnees.lignes : null;
+  const totalReel = !Array.isArray(donnees) && typeof donnees?.total === "number" ? donnees.total : null;
+  if (!Array.isArray(lignes)) return { total: 0, parClasse: [], parStatut: {}, heures: 0, totalReel: null };
 
   const parClasse = new Map();
   const parStatut = {};
@@ -87,6 +91,8 @@ export function agreger(lignes) {
 
   return {
     total: lignes.length,
+    // `totalReel` dit combien il y en a VRAIMENT quand la lecture est bornee.
+    totalReel,
     // Tri décroissant, puis alphabétique : deux classes à égalité doivent
     // sortir dans un ordre stable, sinon deux bilans du même jour diffèrent.
     parClasse: [...parClasse.entries()]
@@ -109,7 +115,11 @@ export function rendreBilan({ but, resultats }) {
       continue;
     }
     const a = r.agregat;
-    const detail = [`${a.total} resultat${a.total > 1 ? "s" : ""}`];
+    const detail = [
+      a.totalReel !== null && a.totalReel > a.total
+        ? `${a.total} sur ${a.totalReel}`
+        : `${a.total} resultat${a.total > 1 ? "s" : ""}`,
+    ];
     if (a.heures > 0) detail.push(`${a.heures} h`);
     for (const [s, n] of Object.entries(a.parStatut)) detail.push(`${n} ${STATUT_LISIBLE[s] ?? s}`);
     lignes.push(`• ${r.libelle} : ${detail.join(", ")}`);

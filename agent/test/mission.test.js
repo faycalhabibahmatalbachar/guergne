@@ -58,10 +58,29 @@ test("agreger ne se laisse pas surprendre par des donnees incompletes", () => {
   assert.equal(a.total, 3);
   assert.equal(a.heures, 0);
   assert.equal(a.parClasse[0].classe, "classe inconnue");
-  assert.deepEqual(agreger(null), { total: 0, parClasse: [], parStatut: {}, heures: 0 });
+  assert.deepEqual(agreger(null), { total: 0, parClasse: [], parStatut: {}, heures: 0, totalReel: null });
 });
 
 // --- Validation d'un plan de mission ---------------------------------------
+
+test("agreger accepte la forme bornée, et retient le total réel", () => {
+  // Agréger l'objet au lieu de ses lignes donnerait un bilan vide ; ignorer son
+  // total ferait écrire « 100 » dans un rapport qui en couvre 211.
+  const a = agreger({ lignes: [{ classe: "6ème A" }, { classe: "6ème A" }], total: 211 });
+  assert.equal(a.total, 2);
+  assert.equal(a.totalReel, 211);
+  assert.deepEqual(a.parClasse, [{ classe: "6ème A", n: 2 }]);
+});
+
+test("le bilan dit « 2 sur 211 » quand la lecture est bornée", () => {
+  const texte = rendreBilan({
+    but: "Bilan",
+    resultats: [
+      { libelle: "Absences", statut: ETAPE.REUSSIE, agregat: agreger({ lignes: [{ classe: "A" }, { classe: "A" }], total: 211 }) },
+    ],
+  });
+  assert.match(texte, /Absences : 2 sur 211/);
+});
 
 test("une mission ne contient que des CONSULTATIONS", () => {
   // Y glisser une ecriture ferait executer en chaine, sans confirmation ni

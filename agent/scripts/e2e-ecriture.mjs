@@ -30,6 +30,7 @@ import { IdentityStore } from "../src/identity.js";
 import { MatricePermissions } from "../src/permissions-matrix.js";
 import { FakeProvider } from "../src/provider.js";
 import { Referentiel } from "../src/referentiel.js";
+import { lignesDe } from "../src/rendu.js";
 import { resoudreNomsEleves } from "../src/resolution-eleves.js";
 import { ASSIDUITE_TOOLS, ToolRegistry } from "../src/tools.js";
 
@@ -183,7 +184,7 @@ console.log(`[contexte] eleve reel = ${eleve.prenom} ${eleve.nom}`);
 console.log(`[contexte] nom DICTE  = ${nomDicte}  (prenom tronque volontairement)`);
 
 const avant = await guergne.listerAbsences({ classeId: classe.id, depuis: JOUR, jusqua: JOUR, limite: 200 }, { actorId: ACTEUR });
-console.log(`[contexte] absences deja presentes ce jour dans cette classe : ${avant.data?.length ?? "?"}`);
+console.log(`[contexte] absences deja presentes ce jour dans cette classe : ${(lignesDe(avant.data) ?? []).length ?? "?"}`);
 
 // --- 1. Écriture : le nom abîmé doit être résolu ---------------------------
 await dire(
@@ -193,8 +194,8 @@ await dire(
 
 // --- 2. Relecture : l'écriture a-t-elle vraiment atteint la base ? --------
 const apres = await guergne.listerAbsences({ classeId: classe.id, depuis: JOUR, jusqua: JOUR, limite: 200 }, { actorId: ACTEUR });
-const lignes = apres.data ?? [];
-console.log(`\n[verif] absences ce jour dans cette classe : ${lignes.length} (avant : ${avant.data?.length ?? "?"})`);
+const lignes = lignesDe(apres.data) ?? [];
+console.log(`\n[verif] absences ce jour dans cette classe : ${lignes.length} (avant : ${(lignesDe(avant.data) ?? []).length ?? "?"})`);
 const posee = lignes.find((l) => l.eleveId === eleve.eleveId);
 if (!posee) {
   console.error("[verif] ECHEC : aucune absence trouvee pour cet eleve. Rien a nettoyer.");
@@ -208,7 +209,7 @@ await dire(`Supprime l'absence ${posee.id}, motif : test automatise de bout en b
 await dire("oui");
 
 const final = await guergne.listerAbsences({ classeId: classe.id, depuis: JOUR, jusqua: JOUR, limite: 200 }, { actorId: ACTEUR });
-const reste = (final.data ?? []).some((l) => l.id === posee.id);
+const reste = (lignesDe(final.data) ?? []).some((l) => l.id === posee.id);
 console.log(`\n[nettoyage] l'absence de test est ${reste ? "TOUJOURS PRESENTE — a retirer a la main" : "supprimee"}`);
-console.log(`[nettoyage] absences ce jour : ${final.data?.length ?? "?"} (etat initial : ${avant.data?.length ?? "?"})`);
+console.log(`[nettoyage] absences ce jour : ${(lignesDe(final.data) ?? []).length ?? "?"} (etat initial : ${(lignesDe(avant.data) ?? []).length ?? "?"})`);
 process.exit(reste ? 1 : 0);

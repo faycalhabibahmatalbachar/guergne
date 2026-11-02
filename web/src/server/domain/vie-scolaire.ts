@@ -97,6 +97,42 @@ export async function listerAbsences(filtres: {
     .limit(filtres.limite ?? 100);
 }
 
+/**
+ * Nombre total d'absences correspondant aux memes filtres.
+ *
+ * POURQUOI CETTE FONCTION EXISTE
+ * -------------------------------
+ * `listerAbsences` borne son resultat — 100 lignes par defaut. Rendre ces 100
+ * lignes sans dire combien il y en a vraiment fait lire « 100 absences » la ou
+ * il y en a 211. Un directeur en tire une conclusion fausse, et rien dans la
+ * reponse ne le lui signale.
+ *
+ * Les conditions sont rigoureusement celles de `listerAbsences` : un comptage
+ * qui filtrerait autrement donnerait un total sans rapport avec les lignes
+ * affichees, ce qui serait pire que pas de total du tout.
+ */
+export async function compterAbsences(filtres: {
+  periodeId?: string;
+  classeId?: string;
+  statut?: string;
+  depuis?: string;
+  jusqua?: string;
+}): Promise<number> {
+  const conditions = [];
+  if (filtres.periodeId) conditions.push(eq(absences.periodeId, filtres.periodeId));
+  if (filtres.classeId) conditions.push(eq(inscriptions.classeId, filtres.classeId));
+  if (filtres.statut) conditions.push(sql`${absences.statut} = ${filtres.statut}`);
+  if (filtres.depuis) conditions.push(gte(absences.dateAbsence, filtres.depuis));
+  if (filtres.jusqua) conditions.push(lte(absences.dateAbsence, filtres.jusqua));
+
+  const [r] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(absences)
+    .innerJoin(inscriptions, eq(inscriptions.id, absences.inscriptionId))
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
+  return r?.n ?? 0;
+}
+
 export interface AlerteAssiduite {
   eleveId: string;
   matricule: string;
