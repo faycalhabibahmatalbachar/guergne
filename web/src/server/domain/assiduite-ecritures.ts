@@ -1,12 +1,14 @@
 import { revalidatePath } from "next/cache";
 
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { journaliser } from "@/server/audit";
 import type { Principal } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { absences, retards } from "@/server/db/schema";
+import { absences, evenementsCalendrier, periodes, retards } from "@/server/db/schema";
+
+import { type PlageVacances, validerDateAssiduite } from "./assiduite-dates";
 
 /**
  * Noyau des écritures de vie scolaire.
@@ -45,6 +47,62 @@ export function messagesZod(e: z.ZodError): Record<string, string> {
 }
 
 // ---------------------------------------------------------------------------
+// Contrôle du calendrier, commun à l'appel et au retard
+// ---------------------------------------------------------------------------
+
+/**
+ * Confronte la date saisie à la période visée et au calendrier de l'année.
+ *
+ * POURQUOI CE CONTRÔLE EXISTE
+ * ----------------------------
+ * La production porte 23 absences datées d'un dimanche : rien n'a jamais
+ * regardé la date. Une absence hors jour de classe gonfle le cumul horaire du
+ * bulletin et fait partir une notification aux tuteurs pour un cours qui n'a
+ * pas eu lieu.
+ *
+ * CE QU'IL LIT, ET CE QU'IL NE PEUT PAS LIRE
+ * -------------------------------------------
+ * Les bornes viennent de la période elle-même, les fermetures des événements
+ * `VACANCES` de l'année. Les JOURS OUVRÉS, eux, ne sont lisibles nulle part :
+ * les profils horaires journaliers de 0036 ne sont pas encore reflétés dans le
+ * schéma TypeScript généré. On laisse donc `validerDateAssiduite` appliquer
+ * son défaut documenté (lundi à samedi, le samedi étant ouvré au Tchad).
+ *
+ * La période introuvable n'est pas traitée comme un refus de date : l'identifiant
+ * est déjà validé en UUID, et c'est à l'écriture de signaler qu'il ne désigne rien.
+ */
+async function controlerDateAssiduite(periodeId: string, date: string, champ: string): Promise<Resultat> {
+  const [periode] = await db
+    .select({ anneeId: periodes.anneeId, dateDebut: periodes.dateDebut, dateFin: periodes.dateFin })
+    .from(periodes)
+    .where(eq(periodes.id, periodeId));
+
+  if (!periode) return { ok: false, message: "Cette période scolaire n'existe pas (ou plus)." };
+
+  const vacances: PlageVacances[] = await db
+    .select({
+      id: evenementsCalendrier.id,
+      titre: evenementsCalendrier.titre,
+      type: evenementsCalendrier.type,
+      dateDebut: evenementsCalendrier.dateDebut,
+      dateFin: evenementsCalendrier.dateFin,
+    })
+    .from(evenementsCalendrier)
+    .where(and(eq(evenementsCalendrier.anneeId, periode.anneeId), eq(evenementsCalendrier.type, "VACANCES")));
+
+  const verdict = validerDateAssiduite({
+    date,
+    debutPeriode: periode.dateDebut,
+    finPeriode: periode.dateFin,
+    vacances,
+  });
+
+  // La clé d'erreur porte le nom du champ de l'appelant : c'est elle qui place
+  // le message sous le bon champ du formulaire d'assiduité.
+  return verdict.valide ? OK : { ok: false, erreurs: { [champ]: verdict.raison ?? "Date refusée." } };
+}
+
+// ---------------------------------------------------------------------------
 // Appel (absences + retards du cours)
 // ---------------------------------------------------------------------------
 
@@ -68,18 +126,48 @@ export async function enregistrerAppelPour(acteur: Principal, donnees: unknown):
     return { ok: true, message: "Appel enregistré : classe au complet." };
   }
 
+  // Avant toute écriture : la date doit être un jour de classe de cette période.
+  const calendrier = await controlerDateAssiduite(v.periodeId, v.dateAbsence, "dateAbsence");
+  if (!calendrier.ok) return calendrier;
+
+  // Nombre d'absences RÉELLEMENT créées : un rejeu ignoré ne doit pas être
+  // annoncé comme une saisie, sinon le message ment à l'agent.
+  let absencesCreees = 0;
+
   if (v.absents.length > 0) {
-    await db.insert(absences).values(
-      v.absents.map((inscriptionId) => ({
-        inscriptionId,
-        periodeId: v.periodeId,
-        type: v.matiereId ? ("COURS" as const) : ("JOURNEE" as const),
-        dateAbsence: v.dateAbsence,
-        matiereId: v.matiereId ?? null,
-        nbHeures: String(v.nbHeures),
-        saisiePar: acteur.id,
-      })),
-    );
+    // `ON CONFLICT DO NOTHING` sans cible : c'est l'index unique de 0038
+    // (uq_absence_inscription_date_seance) qui définit le doublon, et le dire
+    // en SQL serait le redire deux fois — d'autant que la clé de 0038 est en
+    // NULLS NOT DISTINCT, ce que la cible explicite de Drizzle n'exprime pas.
+    //
+    // POURQUOI ÇA, ET PAS UN SELECT PRÉALABLE
+    // ----------------------------------------
+    // Un appel se rejoue : le réseau coupe, l'agent renvoie, ou la saisie
+    // navigateur et l'API agent passent au même moment. Un « est-ce que ça
+    // existe déjà ? » suivi d'un INSERT laisse exactement cette fenêtre
+    // ouverte, et chaque doublon qui s'y glisse envoie un second message au
+    // tuteur. Seule la base peut arbitrer sans fenêtre.
+    //
+    // IGNORER plutôt que METTRE À JOUR est délibéré : si un rejeu porte un
+    // `nb_heures` différent, c'est la première saisie qui fait foi. Décider
+    // laquelle doit l'emporter est un arbitrage de vie scolaire, pas un
+    // détail technique, et il n'est pas tranché ici.
+    const creees = await db
+      .insert(absences)
+      .values(
+        v.absents.map((inscriptionId) => ({
+          inscriptionId,
+          periodeId: v.periodeId,
+          type: v.matiereId ? ("COURS" as const) : ("JOURNEE" as const),
+          dateAbsence: v.dateAbsence,
+          matiereId: v.matiereId ?? null,
+          nbHeures: String(v.nbHeures),
+          saisiePar: acteur.id,
+        })),
+      )
+      .onConflictDoNothing()
+      .returning({ id: absences.id });
+    absencesCreees = creees.length;
   }
 
   if (v.retards.length > 0) {
@@ -101,6 +189,7 @@ export async function enregistrerAppelPour(acteur: Principal, donnees: unknown):
     apres: {
       date: v.dateAbsence,
       nbAbsents: v.absents.length,
+      nbAbsencesCreees: absencesCreees,
       nbRetards: v.retards.length,
       matiereId: v.matiereId,
     },
@@ -109,10 +198,16 @@ export async function enregistrerAppelPour(acteur: Principal, donnees: unknown):
   revalidatePath("/dashboard/assiduite");
 
   const parties = [];
-  if (v.absents.length > 0) parties.push(`${v.absents.length} absence(s)`);
+  if (absencesCreees > 0) parties.push(`${absencesCreees} absence(s)`);
   if (v.retards.length > 0) parties.push(`${v.retards.length} retard(s)`);
 
-  return { ok: true, message: `${parties.join(" et ")} enregistré(s). Les tuteurs seront notifiés.` };
+  const ignorees = v.absents.length - absencesCreees;
+  if (parties.length === 0) {
+    return { ok: true, message: "Cet appel était déjà enregistré : rien n'a été ajouté." };
+  }
+
+  const rappel = ignorees > 0 ? ` ${ignorees} absence(s) déjà saisie(s) ont été ignorée(s).` : "";
+  return { ok: true, message: `${parties.join(" et ")} enregistré(s). Les tuteurs seront notifiés.${rappel}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -159,6 +254,16 @@ export async function enregistrerRetardPour(acteur: Principal, donnees: unknown)
   if (!a.success) return { ok: false, erreurs: messagesZod(a.error) };
 
   const v = a.data;
+
+  // Même contrôle que pour l'appel : un retard un dimanche n'existe pas plus
+  // qu'une absence un dimanche.
+  const calendrier = await controlerDateAssiduite(v.periodeId, v.dateRetard, "dateRetard");
+  if (!calendrier.ok) return calendrier;
+
+  // Pas de `ON CONFLICT` ici : la table `retards` n'a pas de contrainte
+  // d'unicité, et 0038 ne lui en pose pas. Un même élève peut arriver en
+  // retard à deux cours le même jour, et rien dans les données actuelles ne
+  // dit à quel grain le doublon devrait être défini.
   await db.insert(retards).values({
     inscriptionId: v.inscriptionId,
     periodeId: v.periodeId,
