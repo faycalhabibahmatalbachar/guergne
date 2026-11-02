@@ -19,6 +19,7 @@ import {
   inscriptions,
   tuteurs,
 } from "@/server/db/schema";
+import { memePersonne } from "@/server/domain/identite-eleve";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 import { reveillerFile } from "@/server/notifications/reveil";
 
@@ -139,6 +140,18 @@ const schemaInscription = z
     observations: z.string().trim().optional(),
 
     tuteurs: z.array(schemaTuteur).min(1, "Au moins un tuteur est requis"),
+
+    /**
+     * Passage outre d'un homonyme détecté (P0).
+     *
+     * Deux enfants peuvent réellement porter le même nom, le même prénom et
+     * naître le même jour — une fratrie de cousins, un prénom de saison. Le
+     * refus doit donc pouvoir être levé, mais JAMAIS par défaut : la valeur
+     * est à `false` tant que l'utilisateur ne l'a pas cochée en connaissance
+     * du dossier qu'on lui a montré. Un formulaire qui ne l'envoie pas
+     * obtient le refus, ce qui est le comportement voulu.
+     */
+    confirmerDoublon: z.boolean().default(false),
   })
   .refine((v) => new Date(v.dateNaissance) < new Date(), {
     message: "La date de naissance doit être dans le passé",
@@ -157,6 +170,58 @@ const schemaInscription = z
     message: "Désignez exactement un tuteur principal",
     path: ["tuteurs"],
   });
+
+/** Nombre d'homonymes décrits dans le message : au-delà, l'écran est illisible. */
+const HOMONYMES_MONTRES = 3;
+
+/**
+ * Cherche les élèves déjà au fichier qui désignent probablement le même enfant.
+ *
+ * POURQUOI PARTIR DE LA DATE DE NAISSANCE
+ * ----------------------------------------
+ * La règle de `memePersonne` exige la même date au jour près. On demande donc
+ * à PostgreSQL le seul critère qu'il sait comparer exactement — une poignée de
+ * lignes, indexée par la migration 0039 — puis on applique la normalisation
+ * d'identité en mémoire. Comparer les noms en SQL demanderait soit un index
+ * fonctionnel sur `unaccent()` (que la migration 0032 a refusé, à raison), soit
+ * une égalité brute, c'est-à-dire l'erreur que fait l'import en masse en
+ * distinguant « MAHAMAT » de « Mahamat ».
+ *
+ * On ne retourne que le strict nécessaire pour reconnaître le dossier :
+ * matricule, nom, classe, année. Ni tuteur, ni téléphone, ni adresse — on
+ * signale une collision, on n'ouvre pas un dossier que l'utilisateur n'a pas
+ * encore le droit d'avoir sous les yeux.
+ */
+async function chercherHomonymes(nom: string, prenom: string, dateNaissance: string) {
+  const candidats = await db
+    .select({
+      id: eleves.id,
+      matricule: eleves.matricule,
+      nom: eleves.nom,
+      prenom: eleves.prenom,
+      dateNaissance: eleves.dateNaissance,
+      classeLibelle: classes.libelle,
+      anneeLibelle: anneesScolaires.libelle,
+    })
+    .from(eleves)
+    // Inscription ACTIVE seulement : on veut dire où l'enfant est aujourd'hui,
+    // pas rappeler chacune de ses années.
+    .leftJoin(inscriptions, and(eq(inscriptions.eleveId, eleves.id), eq(inscriptions.active, true)))
+    .leftJoin(classes, eq(classes.id, inscriptions.classeId))
+    .leftJoin(anneesScolaires, eq(anneesScolaires.id, inscriptions.anneeId))
+    .where(eq(eleves.dateNaissance, dateNaissance))
+    .limit(50);
+
+  const vus = new Set<string>();
+  const homonymes = [];
+  for (const c of candidats) {
+    if (vus.has(c.id)) continue;
+    if (!memePersonne({ nom, prenom, dateNaissance }, c)) continue;
+    vus.add(c.id);
+    homonymes.push(c);
+  }
+  return homonymes;
+}
 
 /**
  * Inscrit un nouvel élève.
@@ -190,6 +255,45 @@ export async function inscrireEleve(donnees: unknown): Promise<Resultat> {
 
     if (!classe || classe.anneeId !== annee.id) {
       return { ok: false, erreurs: { classeId: "Cette classe n'appartient pas à l'année en cours." } };
+    }
+
+    // Détection de doublon (P0).
+    //
+    // CE QUE COÛTE UN DOSSIER EN DOUBLE
+    // ----------------------------------
+    // Deux matricules pour un enfant, c'est deux échéanciers de frais, deux
+    // feuilles d'appel, deux bulletins, et un parent qui paie deux fois ou
+    // pas du tout. Rien ne le signalait : l'unicité en base porte sur
+    // (eleve_id, annee_id), ce qui n'empêche pas de créer un SECOND élève
+    // pour le même enfant.
+    //
+    // L'inscription s'arrête donc, et elle dit QUI elle a trouvé. Elle ne
+    // choisit rien : l'identifiant de l'homonyme n'est pas renvoyé dans
+    // `id` — ce champ sert à rediriger vers le dossier CRÉÉ, et y glisser un
+    // dossier existant ferait une sélection automatique que personne n'a
+    // demandée. L'utilisateur relit le dossier signalé, puis décide.
+    if (!v.confirmerDoublon) {
+      const homonymes = await chercherHomonymes(v.nom, v.prenom, v.dateNaissance);
+      if (homonymes.length > 0) {
+        const descriptions = homonymes.slice(0, HOMONYMES_MONTRES).map((h) => {
+          const situation = h.classeLibelle
+            ? `${h.classeLibelle}${h.anneeLibelle ? ` — ${h.anneeLibelle}` : ""}`
+            : "sans inscription active";
+          return `${h.nom} ${h.prenom} (matricule ${h.matricule}, ${situation})`;
+        });
+        const reste = homonymes.length - descriptions.length;
+        const detail = descriptions.join(" ; ") + (reste > 0 ? ` ; et ${reste} autre(s)` : "");
+        return {
+          ok: false,
+          message:
+            `Un dossier existe déjà pour cette identité et cette date de naissance : ${detail}. ` +
+            "Ouvrez-le pour vérifier. S'il s'agit bien d'un autre enfant, confirmez " +
+            "explicitement le doublon pour créer un second dossier.",
+          // Clé lue par le formulaire pour afficher le détail à côté de la
+          // date de naissance, qui est le champ qui tranche.
+          erreurs: { dateNaissance: `Homonyme déjà inscrit : ${detail}` },
+        };
+      }
     }
 
     const eleveId = await db.transaction(async (tx) => {
@@ -315,6 +419,9 @@ export async function inscrireEleve(donnees: unknown): Promise<Resultat> {
           nom: `${v.prenom} ${v.nom}`,
           classe: classe.libelle,
           numeroInscription: numero,
+          // Trace du passage outre : si deux dossiers se révèlent plus tard
+          // être le même enfant, il faut pouvoir dire qui a levé l'alerte.
+          ...(v.confirmerDoublon ? { doublonConfirme: true } : {}),
         },
       });
 
