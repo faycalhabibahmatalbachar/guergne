@@ -1,0 +1,52 @@
+# Validation de l'agent IA.
+#
+# POURQUOI CE FICHIER EXISTE
+# ---------------------------
+# `web-validation.yml` ne se déclenche que sur les chemins `web/**`. L'agent
+# WhatsApp, qui porte plus de quatre cents tests, n'était donc couvert par
+# AUCUNE intégration continue : ses tests ne s'exécutaient que lorsque
+# quelqu'un y pensait. Un test qui ne tourne pas ne protège rien.
+#
+# POURQUOI PAS DE `npm ci`
+# -------------------------
+# `agent/` n'a que des dépendances optionnelles pour les tests (`exceljs` est
+# en `optionalDependencies`, et le code retombe sur un CSV quand il est
+# absent). Installer est donc inutile ici, et surtout : installer masquerait
+# une régression du chemin de repli, celui qui sert précisément quand la
+# dépendance manque.
+name: Validation de l'agent IA
+
+on:
+  pull_request:
+    paths:
+      - "agent/**"
+      - ".github/workflows/agent-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    name: Tests unitaires de l'agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Un défaut de syntaxe doit échouer ici, avant les tests, où le message
+      # est clair. `app.js` n'est pas importable sans effets de bord (il prend
+      # le verrou d'instance) : on le vérifie donc sans l'exécuter.
+      - name: Syntaxe
+        run: |
+          node --check app.js
+          for f in src/*.js; do node --check "$f"; done
+
+      - name: Tests
+        run: node --test "test/*.test.js"

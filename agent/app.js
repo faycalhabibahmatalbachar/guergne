@@ -34,6 +34,7 @@ import {
   cheminsPersistants,
 } from "./src/persistance.js";
 import { DiagnosticNotification } from "./src/diagnostic-notification.js";
+import { SurveillantConnexion } from "./src/surveillance-connexion.js";
 import { FileNotifications } from "./src/notifications.js";
 import { MoteurPolitiques, POLITIQUES_DEFAUT } from "./src/politiques.js";
 import { WwebjsProvider } from "./src/providers/wwebjs.js";
@@ -104,6 +105,7 @@ const battement = setInterval(() => {
   if (!verrou.rafraichir()) {
     console.error("[verrou] verrou perdu au profit d'une autre instance ; arret immediat.");
     clearInterval(battement);
+  clearInterval(garde);
     provider.disconnect().finally(() => process.exit(1));
   }
 }, 20_000);
@@ -232,6 +234,37 @@ const relance = setInterval(() => {
   notifications.traiter().catch(() => {});
 }, 60_000);
 relance.unref?.();
+
+/**
+ * Chien de garde de la connexion.
+ *
+ * Le 2 novembre 2026, l'agent est reste 6 h 36 en « connecting » : vivant,
+ * tenant son verrou, battant toutes les 20 s — et incapable de recevoir ou
+ * d'envoyer un message. `reconnect()` existait deja ; personne ne l'appelait.
+ *
+ * La decision vit dans `surveillance-connexion.js`, ou elle est eprouvee sans
+ * navigateur. Ici, on ne fait qu'agir sur elle.
+ */
+const surveillant = new SurveillantConnexion({
+  journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+});
+
+const garde = setInterval(() => {
+  const { state } = provider.getConnectionStatus();
+  const d = surveillant.evaluer({ etat: state });
+  if (d.action === "forcer") {
+    console.warn(`[garde] ${d.raison}`);
+    // Une relance qui echoue ne doit pas emporter le processus : le
+    // surveillant reessaiera, puis abandonnera de lui-meme.
+    provider.reconnect().catch((e) => console.error("[garde] reconnexion impossible:", e.message));
+  } else if (d.action === "abandonner") {
+    // On le dit une fois, fort, et on arrete d'insister : relancer en boucle
+    // ferait bannir le numero de l'etablissement, ce qui est pire que la
+    // panne. `/sante` porte desormais l'etat degrade, et il repond deja 503.
+    console.error(`[garde] ${d.raison}`);
+  }
+}, 30_000);
+garde.unref?.();
 
 /**
  * Declencheur de notification de test.
@@ -443,13 +476,20 @@ createServer(async (req, res) => {
     return;
   }
   const wa = provider.getConnectionStatus();
+  const transport = surveillant.sante({ etat: wa.state });
   const corps = {
-    processus: "ok",
+    // « ok » decrivait le processus Node, qui va tres bien pendant que le
+    // service est indisponible. Ce champ parle desormais du SERVICE.
+    processus: transport.degrade ? "degrade" : "ok",
     whatsapp: wa.state,
     reconnexions: wa.reconnexions,
     fournisseursIA: ia?.etatFournisseurs ?? {},
     configuration: { backend: backendConfigure, ia: Boolean(ia) },
     attenteScanQr: wa.state === "qr",
+    // « connecting » tout court ne disait pas si la session se restaure ou si
+    // elle est bloquee depuis des heures. C'est la difference entre patienter
+    // et intervenir.
+    transport,
     verrou: { detenu: verrou.detientToujours(), instance: verrou.instanceId.slice(0, 8), pid: process.pid },
     // Sans mesure, « l'agent travaille seul » reste une impression.
     autonomie: agent.metriques,
