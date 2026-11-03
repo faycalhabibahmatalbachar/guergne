@@ -71,7 +71,7 @@ test("une clarification conserve l'outil et reprend après redémarrage", async 
       return {
         intention: "outil",
         outil: "eleves.rechercher",
-        params: { classeId, parPage: 25 },
+        params: { classeId: classId, parPage: 25 },
       };
     },
   });
