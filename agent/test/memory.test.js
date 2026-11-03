@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { chiffrer, dechiffrer, empreintePair, lireCleMemoire } from "../src/memory.js";
+import { chiffrer, dechiffrer, empreintePair, empreinteMessageId, lireCleMemoire } from "../src/memory.js";
 
 test("AES-256-GCM chiffre et déchiffre les messages", () => {
   const key = randomBytes(32);
@@ -30,4 +30,16 @@ test("le HMAC du JID est stable et ne contient pas le numéro", () => {
   assert.match(a, /^[a-f0-9]{64}$/);
   assert.equal(a.includes(jid), false);
   assert.notEqual(a, empreintePair(jid, randomBytes(32)));
+});
+
+
+test("les identifiants de message fournisseur sont pseudonymisés par HMAC", () => {
+  const key = randomBytes(32);
+  const id = "wamid.ABC123456789";
+  const digest = empreinteMessageId(id, key);
+  assert.match(digest, /^[a-f0-9]{64}$/);
+  assert.equal(digest, empreinteMessageId(id, key));
+  assert.notEqual(digest, id);
+  assert.notEqual(digest, empreinteMessageId(id, randomBytes(32)));
+  assert.equal(empreinteMessageId(null, key), null);
 });
