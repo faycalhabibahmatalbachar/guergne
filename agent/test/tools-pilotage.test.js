@@ -124,7 +124,12 @@ test("la recherche d'eleves annonce le total, pas seulement la page", () => {
     total: 549,
     lignes: [{ prenom: "Amina", nom: "ABAKAR", matricule: "LGR-2025-1274", classe: "6ème B" }],
   });
-  assert.match(texte, /Eleves \(549 au total\)/);
+  // La tournure a change : le total est desormais annonce par `listeRendue`,
+  // qui dit AUSSI combien de lignes sont montrees et comment voir le reste.
+  // L'exigence, elle, n'a pas bouge — le nombre reel doit apparaitre, et le
+  // nombre de lignes affichees ne doit pas se faire passer pour lui.
+  assert.match(texte, /549/, "le total reel doit apparaitre");
+  assert.match(texte, /1 affichées sur 549/, "la page ne doit pas se faire passer pour le total");
   assert.match(texte, /Amina ABAKAR — LGR-2025-1274, 6ème B/);
 });
 

@@ -18,6 +18,7 @@
  * vérifie à chaque exécution de la recette.
  */
 import { READ } from "./guard.js";
+import { avertissementHomonymes } from "./homonymes.js";
 import { jour, listeRendue, nomComplet, val } from "./rendu.js";
 
 const noErrs = () => ({});
@@ -158,8 +159,32 @@ export const PILOTAGE_TOOLS = [
     rendre: (d) => {
       const lignes = Array.isArray(d) ? d : d?.lignes;
       if (!Array.isArray(lignes)) return null;
-      const titre = d?.total != null ? `Eleves (${d.total} au total)` : "Eleves";
-      return listeRendue(lignes, titre, (x) => `${nomComplet(x)} — ${val(x.matricule, "sans matricule")}${x.classe ? `, ${x.classe}` : ""}`);
+      // Le total est desormais passe a `listeRendue`, qui l'annonce lui-meme
+      // et signale la troncature. Le repeter dans le titre donnait
+      // « Eleves (2 au total) — 2 resultats ».
+      const titre = "Eleves";
+      // `x.classe` n'a jamais existe : le service rend `classeLibelle`. La
+      // classe etait donc ABSENTE de chaque resultat depuis l'origine — et
+      // c'est precisement ce qui distingue deux homonymes. Le repli sur
+      // `classe` est garde au cas ou une autre source la nomme ainsi.
+      const classeDe = (x) => x.classeLibelle ?? x.classe ?? null;
+      const liste = listeRendue(
+        lignes,
+        titre,
+        (x) => {
+          const c = classeDe(x);
+          return `${nomComplet(x)} — ${val(x.matricule, "sans matricule")}${c ? `, ${c}` : ", sans classe"}`;
+        },
+        { total: d?.total ?? null },
+      );
+      if (liste === null) return null;
+      // Deux enfants peuvent porter le meme nom et le meme prenom : c'est le
+      // cas en production. Montrer la fiche du mauvais ne se verrait pas,
+      // alors qu'un zero resultat se voit. On signale, on ne choisit pas.
+      const alerte = avertissementHomonymes(lignes);
+      return alerte ? `${liste}
+
+${alerte}` : liste;
     },
   },
   {
