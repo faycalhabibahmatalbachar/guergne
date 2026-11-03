@@ -51,22 +51,40 @@ Aucune de ces briques n'est présentée comme opérationnelle tant qu'elle n'est
 branchée et testée (Règle 9).
 
 
-## Mémoire conversationnelle Neon (v1)
+## Mémoire conversationnelle Neon
 
 La mémoire WhatsApp est désactivée par défaut. Elle s'active uniquement lorsque
-`AGENT_MEMORY_ENABLED=true` et que les variables `AGENT_MEMORY_DATABASE_URL`,
-`AGENT_MEMORY_ENCRYPTION_KEY` et `AGENT_MEMORY_HMAC_KEY` sont configurées dans
-le fichier privé `/home/container/.env` sur Altare.
+`AGENT_MEMORY_ENABLED=true` et que les variables privées
+`AGENT_MEMORY_DATABASE_URL`, `AGENT_MEMORY_ENCRYPTION_KEY` et
+`AGENT_MEMORY_HMAC_KEY` sont configurées sur Altare.
 
-Les deux clés cryptographiques sont indépendantes et font 32 octets chacune
-(base64 ou hexadécimal). Ne jamais les commiter ni les afficher dans les journaux.
-Les contenus de messages et les paramètres conversationnels sont chiffrés avec
-AES-256-GCM ; le JID WhatsApp et l'identifiant de message du fournisseur sont
-stockés sous forme d'empreintes HMAC-SHA256. La fenêtre transmise au modèle est
-limitée aux 12 derniers messages. Les faits mémorisés sont limités aux catégories
-non sensibles autorisées ; les données scolaires restent consultées dans le
-backend métier avec les permissions habituelles.
+Les messages entrants sont d'abord enregistrés comme métadonnées. Après
+classification de l'intention, le texte n'est conservé que pour une conversation
+générale non scolaire, si `AGENT_MEMORY_STORE_GENERAL_CHAT=true`, et si le
+filtre de sécurité ne détecte ni données scolaires ni identifiants. Cette option
+est désactivée par défaut. Les demandes sur les élèves, les dossiers, les notes,
+les absences, les retards et les résultats métier ne sont donc pas réinjectés
+dans le contexte du modèle. Les réponses issues du backend ne sont pas conservées
+comme contenu conversationnel.
 
-La migration `db/migrations/0037_memorisation_conversationnelle_whatsapp.sql`
-est déjà appliquée sur la branche Neon de test `ai-school-agent-test`. Elle ne
-doit être appliquée à `main` qu'après validation et approbation de la PR.
+Les états de clarification et de confirmation nécessaires à la reprise après
+redémarrage restent chiffrés et expirent après 48 heures. Les messages autorisés
+ont une rétention de 30 jours. Les préférences durables sont limitées à trois
+valeurs explicitement demandées : langue, style de réponse et format des rapports.
+Aucun fait sur un élève n'est accepté par l'API de mémoire durable.
+
+Commandes WhatsApp disponibles lorsque la mémoire est activée :
+- `Retiens que je préfère les réponses courtes`
+- `Retiens que je préfère le français`
+- `Retiens que je préfère les rapports au format PDF`
+- `Mémoire` pour consulter les préférences enregistrées
+- `Oublie ma mémoire` pour effacer les préférences, résumés, messages et états du compte authentifié
+
+Le contenu des messages et les paramètres temporaires sont chiffrés avec
+AES-256-GCM ; les JID et identifiants de messages fournisseur sont stockés sous
+forme d'empreintes HMAC-SHA256. Les clés doivent être indépendantes (32 octets),
+stockées dans les variables privées d'Altare et jamais commitées.
+
+La migration `0037_memorisation_conversationnelle_whatsapp.sql` est installée
+sur la branche Neon de test `ai-school-agent-test`. Elle n'est pas appliquée à
+`main` et la mémoire n'est pas activée en production.
