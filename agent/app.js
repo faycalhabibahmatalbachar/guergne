@@ -150,6 +150,7 @@ const memoire = memoireActivee
       connectionString: requis("AGENT_MEMORY_DATABASE_URL"),
       encryptionKey: requis("AGENT_MEMORY_ENCRYPTION_KEY"),
       hmacKey: requis("AGENT_MEMORY_HMAC_KEY"),
+      storeGeneralChat: String(env("AGENT_MEMORY_STORE_GENERAL_CHAT", "false")).toLowerCase() === "true",
       logger: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), type: "memory", ...e })),
     })
   : null;
