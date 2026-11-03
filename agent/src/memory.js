@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes } from "node:crypto";
 import pg from "pg";
+import { estTexteGeneralMemorisable } from "./memory-policy.js";
 
 const { Pool } = pg;
 const VERSION_CLE = 1;
@@ -48,7 +49,7 @@ export function empreintePair(jid, hmacKey) {
   return createHmac("sha256", hmacKey).update("peer:" + jid, "utf8").digest("hex");
 }
 
-function empreinteMessageId(messageId, hmacKey) {
+export function empreinteMessageId(messageId, hmacKey) {
   if (messageId == null) return null;
   return createHmac("sha256", hmacKey)
     .update("message:" + String(messageId).slice(0, 512), "utf8")
@@ -60,7 +61,7 @@ function typeMessage(type) {
 }
 
 export class NeonConversationMemory {
-  constructor({ connectionString, encryptionKey, hmacKey, pool = null, logger = null, maxConnections = 4 } = {}) {
+  constructor({ connectionString, encryptionKey, hmacKey, pool = null, logger = null, maxConnections = 4, storeGeneralChat = false } = {}) {
     if (!connectionString && !pool) throw new Error("AGENT_MEMORY_DATABASE_URL est obligatoire.");
     this.encryptionKey = lireCle(encryptionKey, "AGENT_MEMORY_ENCRYPTION_KEY");
     this.hmacKey = lireCle(hmacKey, "AGENT_MEMORY_HMAC_KEY");
@@ -72,6 +73,7 @@ export class NeonConversationMemory {
       application_name: "guergne-whatsapp-memory",
     });
     this.logger = logger;
+    this.storeGeneralChat = storeGeneralChat === true;
     this.enabled = true;
     this.lastPurgeAt = 0;
   }
@@ -198,16 +200,18 @@ export class NeonConversationMemory {
         }
       });
 
-      const encrypted = chiffrer(String(text ?? "").slice(0, MAX_TEXTE), this.encryptionKey);
+      // Le texte entrant reste en mémoire applicative le temps de classifier
+      // l'intention. La base ne reçoit d'abord que les métadonnées : après le
+      // NLU, annotateInbound ne conservera le texte que si la politique l'autorise.
       const providerId = empreinteMessageId(providerMessageId, this.hmacKey);
       await client.query(
         "INSERT INTO public.wa_messages " +
         "(conversation_id, provider_message_id, direction, type_message, contenu_chiffre, nonce_chiffrement, " +
         "tag_authentification, version_cle, statut, metadonnees) " +
-        "VALUES ($1, $2, 'inbound', $3, $4, $5, $6, $7, 'received', $8::jsonb) " +
+        "VALUES ($1, $2, 'inbound', $3, NULL, NULL, NULL, $4, 'received', $5::jsonb) " +
         "ON CONFLICT (conversation_id, provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING",
-        [conversationId, providerId, typeMessage(messageType), encrypted.ciphertext, encrypted.nonce,
-          encrypted.tag, encrypted.keyVersion, JSON.stringify({ origin: "whatsapp", schemaVersion: 1 })],
+        [conversationId, providerId, typeMessage(messageType), VERSION_CLE,
+          JSON.stringify({ origin: "whatsapp", schemaVersion: 1, memoryClass: "pending-classification" })],
       );
       await client.query(
         "UPDATE public.wa_conversations SET dernier_message_le = now(), modifie_le = now() WHERE id = $1",
@@ -228,20 +232,41 @@ export class NeonConversationMemory {
     return { conversationId, actorId, history, pending, summaries, facts };
   }
 
-  async appendMessage({ session, text = "", direction = "outbound", messageType = "text", providerMessageId = null, intent = null, tool = null } = {}) {
+  async annotateInbound({ session, providerMessageId, text = "", intention = null, tool = null, retainContent = false } = {}) {
+    if (!session?.conversationId || providerMessageId == null) return;
+    const providerId = empreinteMessageId(providerMessageId, this.hmacKey);
+    const keep = this.storeGeneralChat && retainContent && estTexteGeneralMemorisable(text);
+    const encrypted = keep ? chiffrer(String(text).slice(0, MAX_TEXTE), this.encryptionKey) : null;
+    await this.pool.query(
+      "UPDATE public.wa_messages SET intention = $3, outil = $4, statut = 'processed', " +
+      "contenu_chiffre = $5, nonce_chiffrement = $6, tag_authentification = $7, version_cle = $8, " +
+      "metadonnees = COALESCE(metadonnees, '{}'::jsonb) || jsonb_build_object('memoryClass', $9::text) " +
+      "WHERE conversation_id = $1 AND provider_message_id = $2",
+      [session.conversationId, providerId, intention, tool, encrypted?.ciphertext ?? null,
+        encrypted?.nonce ?? null, encrypted?.tag ?? null, VERSION_CLE,
+        keep ? "safe-general-chat" : "metadata-only"],
+    );
+  }
+
+  async appendMessage({
+    session, text = "", direction = "outbound", messageType = "text",
+    providerMessageId = null, intent = null, tool = null, retainContent = false,
+  } = {}) {
     if (!session?.conversationId) return;
     if (!["inbound", "outbound", "system"].includes(direction)) throw new Error("Direction mémoire invalide.");
-    const encrypted = chiffrer(String(text ?? "").slice(0, MAX_TEXTE), this.encryptionKey);
-    const providerId = providerMessageId == null ? null : String(providerMessageId).slice(0, 512);
+    const keep = this.storeGeneralChat && retainContent && estTexteGeneralMemorisable(text);
+    const encrypted = keep ? chiffrer(String(text).slice(0, MAX_TEXTE), this.encryptionKey) : null;
+    const providerId = empreinteMessageId(providerMessageId, this.hmacKey);
     await this.pool.query(
       "INSERT INTO public.wa_messages " +
       "(conversation_id, provider_message_id, direction, type_message, contenu_chiffre, nonce_chiffrement, " +
       "tag_authentification, version_cle, statut, intention, outil, metadonnees) " +
       "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb) " +
       "ON CONFLICT (conversation_id, provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING",
-      [session.conversationId, providerId, direction, typeMessage(messageType), encrypted.ciphertext,
-        encrypted.nonce, encrypted.tag, encrypted.keyVersion, direction === "outbound" ? "sent" : "processed",
-        intent, tool, JSON.stringify({ origin: "whatsapp", schemaVersion: 1 })],
+      [session.conversationId, providerId, direction, typeMessage(messageType),
+        encrypted?.ciphertext ?? null, encrypted?.nonce ?? null, encrypted?.tag ?? null, VERSION_CLE,
+        direction === "outbound" ? "sent" : "processed", intent, tool,
+        JSON.stringify({ origin: "whatsapp", schemaVersion: 1, memoryClass: keep ? "safe-general-chat" : "metadata-only" })],
     );
     await this.pool.query(
       "UPDATE public.wa_conversations SET dernier_message_le = now(), modifie_le = now() WHERE id = $1",
@@ -285,15 +310,27 @@ export class NeonConversationMemory {
   }
 
   async saveFact({ actorId, category, key, value, confidence = 1, importance = 3, source = "user_explicit", expiresAt = null } = {}) {
-    if (!actorId || !value || String(value).length > 2_000) throw new Error("Fait mémoire invalide.");
-    if (!["preference", "procedure", "contexte_non_sensible"].includes(category)) {
-      throw new Error("Cette catégorie de fait ne peut pas être mémorisée.");
+    const valeursAutorisees = {
+      language: new Set(["français", "arabe", "anglais"]),
+      response_style: new Set(["réponses courtes", "réponses détaillées"]),
+      report_format: new Set(["PDF", "EXCEL", "WORD"]),
+    };
+    const valeur = String(value ?? "").trim();
+    if (!actorId || !valeur || valeur.length > 80) throw new Error("Fait mémoire invalide.");
+    if (category !== "preference" || !valeursAutorisees[key]?.has(valeur)) {
+      throw new Error("Seules les préférences autorisées (langue, style, format) peuvent être mémorisées.");
     }
-    if (!/^[a-z0-9_.:-]{1,80}$/.test(String(key ?? ""))) throw new Error("Clé de fait invalide.");
-    if (!["user_explicit", "user_confirmed", "conversation_inferred"].includes(source)) {
-      throw new Error("Source de fait invalide.");
+    if (!["user_explicit", "user_confirmed"].includes(source)) {
+      throw new Error("Un fait durable doit être explicitement demandé ou confirmé.");
     }
-    const encrypted = chiffrer(String(value), this.encryptionKey);
+    let expiration = null;
+    if (expiresAt != null) {
+      expiration = new Date(expiresAt);
+      if (!Number.isFinite(expiration.getTime()) || expiration.getTime() <= Date.now()) {
+        throw new Error("Date d'expiration mémoire invalide.");
+      }
+    }
+    const encrypted = chiffrer(valeur, this.encryptionKey);
     await this.pool.query(
       "INSERT INTO public.wa_memory_facts " +
       "(acteur_id, categorie, cle, valeur_chiffree, nonce_chiffrement, tag_authentification, " +
@@ -307,8 +344,55 @@ export class NeonConversationMemory {
       "confirme_le = EXCLUDED.confirme_le, expire_le = EXCLUDED.expire_le, modifie_le = now()",
       [actorId, category, key, encrypted.ciphertext, encrypted.nonce, encrypted.tag,
         encrypted.keyVersion, Math.max(0, Math.min(1, Number(confidence) || 0)),
-        Math.max(1, Math.min(5, Number(importance) || 3)), source, expiresAt],
+        Math.max(1, Math.min(5, Number(importance) || 3)), source, expiration],
     );
+  }
+
+  async listFacts(actorId) {
+    if (!actorId) throw new Error("Acteur requis pour lire la mémoire.");
+    const result = await this.pool.query(
+      "SELECT categorie, cle, valeur_chiffree, nonce_chiffrement, tag_authentification, confiance, importance, source " +
+      "FROM public.wa_memory_facts WHERE acteur_id = $1 AND (expire_le IS NULL OR expire_le > now()) " +
+      "ORDER BY importance DESC, modifie_le DESC LIMIT 20",
+      [actorId],
+    );
+    return result.rows.flatMap((row) => {
+      try {
+        return [{
+          category: row.categorie,
+          key: row.cle,
+          value: this._dechiffrerRow(row, "valeur_chiffree"),
+          confidence: Number(row.confiance),
+          importance: row.importance,
+          source: row.source,
+        }];
+      } catch {
+        this._log("memory_fact_decrypt_failed");
+        return [];
+      }
+    });
+  }
+
+  async forgetActor(actorId) {
+    if (!actorId) throw new Error("Acteur requis pour effacer la mémoire.");
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const summaries = await client.query("DELETE FROM public.wa_memory_summaries WHERE acteur_id = $1", [actorId]);
+      const facts = await client.query("DELETE FROM public.wa_memory_facts WHERE acteur_id = $1", [actorId]);
+      const conversations = await client.query("DELETE FROM public.wa_conversations WHERE acteur_id = $1", [actorId]);
+      await client.query("COMMIT");
+      return {
+        summaries: summaries.rowCount ?? 0,
+        facts: facts.rowCount ?? 0,
+        conversations: conversations.rowCount ?? 0,
+      };
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async purgeExpired() {
@@ -318,15 +402,22 @@ export class NeonConversationMemory {
       this.pool.query("DELETE FROM public.wa_memory_summaries WHERE expire_le <= now()"),
       this.pool.query("DELETE FROM public.wa_memory_facts WHERE expire_le IS NOT NULL AND expire_le <= now()"),
     ]);
+    const conversations = await this.pool.query(
+      "DELETE FROM public.wa_conversations c " +
+      "WHERE COALESCE(c.dernier_message_le, c.cree_le) < now() - interval '180 days' " +
+      "AND NOT EXISTS (SELECT 1 FROM public.wa_messages m WHERE m.conversation_id = c.id) " +
+      "AND NOT EXISTS (SELECT 1 FROM public.wa_conversation_state s WHERE s.conversation_id = c.id)",
+    );
     return {
       messages: messages.rowCount ?? 0,
       states: states.rowCount ?? 0,
       summaries: summaries.rowCount ?? 0,
       facts: facts.rowCount ?? 0,
+      conversations: conversations.rowCount ?? 0,
     };
   }
 
   async close() {
-    await this.pool.end();
+    await this.pool.end?.();
   }
 }
