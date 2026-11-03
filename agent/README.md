@@ -49,3 +49,24 @@ pas branchés car ils demandent un accès que l'environnement actuel n'a pas :
 
 Aucune de ces briques n'est présentée comme opérationnelle tant qu'elle n'est pas
 branchée et testée (Règle 9).
+
+
+## Mémoire conversationnelle Neon (v1)
+
+La mémoire WhatsApp est désactivée par défaut. Elle s'active uniquement lorsque
+`AGENT_MEMORY_ENABLED=true` et que les variables `AGENT_MEMORY_DATABASE_URL`,
+`AGENT_MEMORY_ENCRYPTION_KEY` et `AGENT_MEMORY_HMAC_KEY` sont configurées dans
+le fichier privé `/home/container/.env` sur Altare.
+
+Les deux clés cryptographiques sont indépendantes et font 32 octets chacune
+(base64 ou hexadécimal). Ne jamais les commiter ni les afficher dans les journaux.
+Les contenus de messages et les paramètres conversationnels sont chiffrés avec
+AES-256-GCM ; le JID WhatsApp et l'identifiant de message du fournisseur sont
+stockés sous forme d'empreintes HMAC-SHA256. La fenêtre transmise au modèle est
+limitée aux 12 derniers messages. Les faits mémorisés sont limités aux catégories
+non sensibles autorisées ; les données scolaires restent consultées dans le
+backend métier avec les permissions habituelles.
+
+La migration `db/migrations/0037_memorisation_conversationnelle_whatsapp.sql`
+est déjà appliquée sur la branche Neon de test `ai-school-agent-test`. Elle ne
+doit être appliquée à `main` qu'après validation et approbation de la PR.

@@ -26,6 +26,8 @@ import { Pairing, jetonAleatoire, pageAppairage } from "./src/pairing.js";
 import { MatricePermissions } from "./src/permissions-matrix.js";
 import { Referentiel } from "./src/referentiel.js";
 import { resoudreNomsEleves } from "./src/resolution-eleves.js";
+import { resoudreClasse } from "./src/resolveur.js";
+import { NeonConversationMemory } from "./src/memory.js";
 import {
   CompteurJournalierPersistant,
   DedupPersistant,
@@ -140,6 +142,24 @@ const outils = new ToolRegistry(ASSIDUITE_TOOLS);
 // Les listes reelles de classes et de periodes, dans le perimetre de l'acteur.
 const referentiel = new Referentiel({ guergne });
 
+// La mémoire est opt-in. En mode activé, une connexion Neon invalide fait
+// échouer le démarrage : ne jamais prétendre mémoriser si la base est absente.
+const memoireActivee = String(env("AGENT_MEMORY_ENABLED", "false")).toLowerCase() === "true";
+const memoire = memoireActivee
+  ? new NeonConversationMemory({
+      connectionString: requis("AGENT_MEMORY_DATABASE_URL"),
+      encryptionKey: requis("AGENT_MEMORY_ENCRYPTION_KEY"),
+      hmacKey: requis("AGENT_MEMORY_HMAC_KEY"),
+      logger: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), type: "memory", ...e })),
+    })
+  : null;
+if (memoire) {
+  await memoire.ping();
+  console.log("[memory] Neon conversationnelle active");
+} else {
+  console.log("[memory] desactivee (AGENT_MEMORY_ENABLED=false)");
+}
+
 // L'association numéro → compte interne vit en base côté guergne. Tant que ce
 // point n'est pas branché, le magasin démarre vide : AUCUN numéro n'est reconnu,
 // donc aucune opération n'est possible. C'est le défaut sûr.
@@ -233,6 +253,7 @@ const agent = new Agent({
   // piste a suivre.
   journalEtape: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), type: "agent", ...e })),
   selEmpreinte: SEL_EMPREINTE,
+  memory: memoire,
   /**
    * Etat des dependances, pour la commande de diagnostic.
    *
@@ -255,40 +276,144 @@ const agent = new Agent({
           ? `disponible (${dispo.join(", ")})`
           : `configure mais pas encore eprouve (${configures.join(", ") || "aucun"})`,
       backend: backendConfigure ? "configure" : "non configure",
+      memoire: memoire ? "Neon active" : "desactivee",
     };
   },
   interpret: async (texte, ctx = {}) => {
     if (!ia) throw new Error("Aucun fournisseur IA configuré : compréhension indisponible.");
-    // Deux sources, deux roles. L'invite vient du registre : c'est lui qui
-    // connait les parametres que l'API honore — un modele a qui l'on ne decrit
-    // aucun parametre ne peut en remplir aucun. Le referentiel vient de la
-    // plateforme : il porte les classes et les periodes que l'utilisateur
-    // nomme, pour que le modele recopie un identifiant reel au lieu d'en
-    // reclamer un a quelqu'un qui ne le connait pas.
-    // Le moteur passe `{ staff, tools }` : l'identite de l'acteur est dans
-    // `staff.id`, et c'est elle qui determine le perimetre des listes.
     const listes = await referentiel.pour(ctx.staff?.id);
-    const r = await ia.completerJson([
+    const mem = ctx.memory ?? {};
+    const pending = mem.pending ?? null;
+
+    // Une réponse courte à une clarification est résolue sans LLM.
+    if (
+      pending?.intention === "clarification" &&
+      pending.tool === "eleves.rechercher" &&
+      (pending.missingFields ?? []).includes("classeId")
+    ) {
+      const resolution = resoudreClasse(listes.classes, texte);
+      if (resolution.statut === "unique") {
+        return {
+          intention: "outil",
+          outil: "eleves.rechercher",
+          params: { ...(pending.params ?? {}), classeId: resolution.classe.id },
+        };
+      }
+      const candidats = (resolution.candidats ?? []).map((c) => c.libelle ?? c.code ?? c.nom ?? "?");
+      return {
+        intention: "clarifier",
+        question: resolution.statut === "ambigu"
+          ? "Plusieurs classes correspondent. Précisez laquelle : " + candidats.join(", ") + "."
+          : "Je ne retrouve pas cette classe dans le référentiel. Indiquez son libellé exact.",
+        outil: "eleves.rechercher",
+        params: pending.params ?? {},
+        missingFields: ["classeId"],
+      };
+    }
+
+    // Cas fréquent : le responsable demande la liste sans préciser la classe.
+    const demandeListeEleves =
+      /\b(?:quels?\s+sont|quelles?\s+sont|qui\s+sont|liste|affiche|montre|donne)\b[\s\S]{0,100}\b(?:eleves?|élèves?)\b/iu.test(texte) &&
+      /\bclasse\b/iu.test(texte);
+    if (demandeListeEleves) {
+      const match = String(texte).match(/\bclasse\b(?:\s+(?:de|du|des|la))?\s+(.+?)(?:[?.!,;]|$)/iu);
+      const libelle = match?.[1]?.trim();
+      if (!libelle) {
+        return {
+          intention: "clarifier",
+          question: "De quelle classe souhaitez-vous consulter la liste des élèves ?",
+          outil: "eleves.rechercher",
+          params: {},
+          missingFields: ["classeId"],
+        };
+      }
+      const resolution = resoudreClasse(listes.classes, libelle);
+      if (resolution.statut === "unique") {
+        return {
+          intention: "outil",
+          outil: "eleves.rechercher",
+          params: { classeId: resolution.classe.id },
+        };
+      }
+      const candidats = (resolution.candidats ?? []).map((c) => c.libelle ?? c.code ?? c.nom ?? "?");
+      return {
+        intention: "clarifier",
+        question: resolution.statut === "ambigu"
+          ? "Plusieurs classes correspondent. Précisez laquelle : " + candidats.join(", ") + "."
+          : "Je ne retrouve pas cette classe dans le référentiel. Indiquez son libellé exact.",
+        outil: "eleves.rechercher",
+        params: {},
+        missingFields: ["classeId"],
+      };
+    }
+
+    const messages = [
       { role: "system", content: outils.invitePourNlu() },
       { role: "system", content: Referentiel.enTexte(listes) },
-      { role: "user", content: texte },
-    ]);
+      {
+        role: "system",
+        content: "L'historique aide à comprendre les réponses courtes et les pronoms. " +
+          "Les données scolaires officielles doivent toujours être consultées avec un outil réel ; " +
+          "ne les déduis jamais d'un ancien message.",
+      },
+    ];
+    for (const resume of mem.summaries ?? []) {
+      messages.push({ role: "system", content: "Résumé antérieur : " + resume });
+    }
+    for (const fait of mem.facts ?? []) {
+      messages.push({
+        role: "system",
+        content: "Contexte non sensible mémorisé (" + fait.category + ") : " + fait.key + " = " + fait.value,
+      });
+    }
+    if (pending?.intention === "clarification" && pending.tool) {
+      messages.push({
+        role: "system",
+        content: "REPRISE OBLIGATOIRE : l'utilisateur répond à ta question précédente. " +
+          "Conserve l'outil " + pending.tool + ", les paramètres déjà collectés " +
+          JSON.stringify(pending.params ?? {}) + " et complète uniquement les champs manquants " +
+          JSON.stringify(pending.missingFields ?? []) + ". Utilise le référentiel fourni, n'invente aucun identifiant.",
+      });
+    }
+    for (const message of (mem.history ?? []).slice(-12)) {
+      if (["user", "assistant"].includes(message.role) && typeof message.content === "string") {
+        messages.push({ role: message.role, content: message.content.slice(-8_000) });
+      }
+    }
+    messages.push({ role: "user", content: texte });
+
+    const r = await ia.completerJson(messages);
     const plan = r.objet;
     if (!plan) return { clarify: "Je n'ai pas compris la demande." };
-    if (plan.clarify || !plan.tool) return plan;
+    if (plan.clarify) {
+      return {
+        intention: "clarifier",
+        question: plan.clarify,
+        outil: plan.tool ?? plan.outil ?? undefined,
+        params: plan.params ?? {},
+        missingFields: plan.missingFields ?? [],
+      };
+    }
+    const nomOutil = plan.tool ?? plan.outil;
+    if (!nomOutil) return plan;
 
-    // Les noms d'eleves deviennent des identifiants AVANT toute execution. Au
-    // moindre doute, on demande : une absence posee sur le mauvais eleve remonte
-    // au bulletin et declenche une convocation.
-    const outil = outils.get(plan.tool);
+    const outil = outils.get(nomOutil);
     const conv = await resoudreNomsEleves({
       outil,
       params: plan.params ?? {},
       guergne,
       acteurId: ctx.staff?.id,
     });
-    if (conv.statut === "clarifier") return { clarify: conv.question };
-    return { ...plan, params: conv.params };
+    if (conv.statut === "clarifier") {
+      return {
+        intention: "clarifier",
+        question: conv.question,
+        outil: nomOutil,
+        params: plan.params ?? {},
+        missingFields: ["recherche"],
+      };
+    }
+    return { ...plan, tool: nomOutil, params: conv.params };
   },
   transcribe: async (media) => {
     if (!ia) throw new Error("Aucun fournisseur IA configuré : transcription indisponible.");

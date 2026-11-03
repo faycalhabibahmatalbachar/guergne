@@ -98,7 +98,19 @@ export function normaliserPlan(brut, registre) {
   const question = texteUtile(brut.question) ?? texteUtile(brut.clarify);
   if (intention === INTENTIONS.CLARIFIER || (!intention && question && !brut.tool)) {
     if (!question) return { type: "invalide", rejet: REJETS.CHAMP_MANQUANT, detail: "clarifier sans question" };
-    return { type: INTENTIONS.CLARIFIER, question };
+    const nomOutilEnAttente =
+      texteUtile(brut.outil) ?? texteUtile(brut.tool) ?? texteUtile(brut.pendingTool);
+    const outilEnAttente = nomOutilEnAttente ? registre?.get?.(nomOutilEnAttente) : undefined;
+    return {
+      type: INTENTIONS.CLARIFIER,
+      question,
+      ...(outilEnAttente ? {
+        tool: outilEnAttente,
+        nomOutil: nomOutilEnAttente,
+        params: brut.params ?? {},
+        missingFields: Array.isArray(brut.missingFields) ? brut.missingFields.map(String) : [],
+      } : {}),
+    };
   }
 
   // --- Conversation ---------------------------------------------------------

@@ -94,7 +94,7 @@ export function resoudreClasse(classes, demande) {
   if (!cible) return { statut: "aucun", candidats: [] };
 
   const notes = classes
-    .map((c) => ({ classe: c, score: proximite(cible, canoniserClasse(c.libelle ?? c.nom ?? "")) }))
+    .map((c) => ({ classe: c, score: proximite(cible, canoniserClasse(c.libelle ?? c.code ?? c.nom ?? "")) }))
     .sort((a, b) => b.score - a.score);
 
   const exacts = notes.filter((n) => n.score === 1);

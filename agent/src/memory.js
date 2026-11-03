@@ -45,7 +45,14 @@ export function dechiffrer(enveloppe, key) {
 
 export function empreintePair(jid, hmacKey) {
   if (!jid || typeof jid !== "string") throw new Error("JID WhatsApp absent.");
-  return createHmac("sha256", hmacKey).update(jid, "utf8").digest("hex");
+  return createHmac("sha256", hmacKey).update("peer:" + jid, "utf8").digest("hex");
+}
+
+function empreinteMessageId(messageId, hmacKey) {
+  if (messageId == null) return null;
+  return createHmac("sha256", hmacKey)
+    .update("message:" + String(messageId).slice(0, 512), "utf8")
+    .digest("hex");
 }
 
 function typeMessage(type) {
@@ -192,7 +199,7 @@ export class NeonConversationMemory {
       });
 
       const encrypted = chiffrer(String(text ?? "").slice(0, MAX_TEXTE), this.encryptionKey);
-      const providerId = providerMessageId == null ? null : String(providerMessageId).slice(0, 512);
+      const providerId = empreinteMessageId(providerMessageId, this.hmacKey);
       await client.query(
         "INSERT INTO public.wa_messages " +
         "(conversation_id, provider_message_id, direction, type_message, contenu_chiffre, nonce_chiffrement, " +
