@@ -6,12 +6,16 @@ class MemoryFake {
   enabled = true;
   pending = null;
   messages = [];
+  facts = [];
+  annotations = [];
   async prepare({ actorId, jid, text }) {
-    const history = this.messages.map((m) => ({
-      role: m.direction === "outbound" ? "assistant" : "user",
-      content: m.text,
-    }));
-    this.messages.push({ text, direction: "inbound", actorId, jid });
+    const history = this.messages
+      .filter((m) => typeof m.text === "string")
+      .map((m) => ({
+        role: m.direction === "outbound" ? "assistant" : "user",
+        content: m.text,
+      }));
+    this.messages.push({ text: null, direction: "inbound", actorId, jid, pendingText: text });
     return {
       conversationId: "conv-test",
       actorId,
@@ -21,8 +25,30 @@ class MemoryFake {
       facts: [],
     };
   }
-  async appendMessage({ text, direction }) {
-    this.messages.push({ text, direction });
+  async annotateInbound({ providerMessageId, text, intention, tool, retainContent }) {
+    this.annotations.push({ providerMessageId, intention, tool, retainContent });
+    const last = this.messages[this.messages.length - 1];
+    if (last?.direction === "inbound") {
+      last.text = retainContent ? text : null;
+      delete last.pendingText;
+    }
+  }
+  async appendMessage({ text, direction, retainContent = false }) {
+    this.messages.push({ text: retainContent ? text : null, direction });
+  }
+  async saveFact(fact) {
+    this.facts = this.facts.filter((f) => f.key !== fact.key);
+    this.facts.push({ ...fact });
+  }
+  async listFacts(actorId) {
+    return this.facts.filter((f) => f.actorId === actorId);
+  }
+  async forgetActor(actorId) {
+    const count = this.facts.filter((f) => f.actorId === actorId).length;
+    this.facts = this.facts.filter((f) => f.actorId !== actorId);
+    this.messages = [];
+    this.pending = null;
+    return { summaries: 0, facts: count, conversations: 1 };
   }
   async saveState(_session, state) {
     this.pending = { ...state };
@@ -66,8 +92,10 @@ test("une clarification conserve l'outil et reprend après redémarrage", async 
     interpret: async (_text, ctx) => {
       assert.equal(ctx.memory.pending.tool, "eleves.rechercher");
       assert.deepEqual(ctx.memory.pending.params, {});
-      assert.ok(ctx.memory.history.some((m) => m.content.includes("Quels sont les élèves")));
-      assert.ok(ctx.memory.history.some((m) => m.content.includes("De quelle classe")));
+      assert.equal(ctx.memory.history.some((m) => m.content.includes("Quels sont les élèves")), false);
+      assert.equal(ctx.memory.history.some((m) => m.content.includes("De quelle classe")), false);
+      assert.equal(memory.messages.some((m) => m.text?.includes("Quels sont les élèves")), false);
+      assert.deepEqual(memory.annotations.map((a) => a.retainContent), [false]);
       return {
         intention: "outil",
         outil: "eleves.rechercher",
@@ -81,4 +109,30 @@ test("une clarification conserve l'outil et reprend après redémarrage", async 
   assert.equal(sim.countOf("rechercherEleves"), 1);
   assert.equal(memory.pending, null);
   assert.ok(memory.messages.some((m) => m.direction === "outbound" && m.text.includes("OK rechercherEleves")));
+});
+
+
+test("les préférences sont explicites, consultables et effaçables", async () => {
+  const memory = new MemoryFake();
+  const { agent, provider } = makeAgent({ memory });
+
+  const saved = await agent.handle(incoming({
+    id: "memory-pref-1",
+    text: "Retiens que je préfère les réponses courtes.",
+  }));
+  assert.equal(saved.status, "COMPLETED");
+  assert.equal(memory.facts.length, 1);
+  assert.equal(memory.facts[0].actorId, "staff-1");
+  assert.equal(memory.facts[0].key, "response_style");
+  assert.equal(memory.facts[0].value, "réponses courtes");
+
+  const listed = await agent.handle(incoming({ id: "memory-pref-2", text: "Mémoire" }));
+  assert.equal(listed.status, "COMPLETED");
+  assert.match(provider.lastTextTo("23566000001@c.us"), /réponses courtes/u);
+
+  const forgotten = await agent.handle(incoming({ id: "memory-pref-3", text: "Oublie ma mémoire" }));
+  assert.equal(forgotten.status, "COMPLETED");
+  assert.equal(memory.facts.length, 0);
+  assert.equal(memory.messages.length, 0);
+  assert.match(provider.lastTextTo("23566000001@c.us"), /effacée/u);
 });
