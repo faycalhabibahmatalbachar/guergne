@@ -22,6 +22,7 @@ import { SENSITIVE } from "./guard.js";
 import { DECISIONS, MOTIFS, NOTIFIER } from "./politiques.js";
 import { RAISONS, analyserJid, empreinte, jidUtilisateur, resoudreNumeroDepuisJid } from "./jid.js";
 import { INTENTIONS, normaliserPlan } from "./plan.js";
+import { analyserCommandeMemoire } from "./memory-policy.js";
 import { documentDeMission, genererDocument } from "./document.js";
 import { ETAPE, agreger, estTransitoire, rendreBilan, validerMission } from "./mission.js";
 // `masquer` est la mise en forme canonique du projet : la redefinir ici ferait
@@ -107,7 +108,7 @@ export class Agent {
    * renvoie son message — ce qui ne change rien. Cette enveloppe transforme
    * toute défaillance en message explicite.
    */
-  async _sendText(msg, texte) {
+  async _sendText(msg, texte, { remember = false, intention = null, tool = null } = {}) {
     await this.provider.sendText(msg.fromJid, texte);
     if (this.memory?.enabled && msg?.memoryContext?.conversationId) {
       try {
@@ -116,6 +117,9 @@ export class Agent {
           text: texte,
           direction: "outbound",
           messageType: "text",
+          retainContent: remember,
+          intent: intention,
+          tool,
         });
       } catch (error) {
         this.journalEtape?.({ event: "memory_reply_save_failed", code: error?.code ?? "unknown" });
@@ -291,6 +295,57 @@ export class Agent {
       }
     }
 
+    // Commandes explicites de mémoire. Elles sont traitées après authentification
+    // et avant le NLU ; aucune donnée scolaire n'est envoyée au modèle pour cela.
+    const commandeMemoire = analyserCommandeMemoire(text);
+    if (commandeMemoire) {
+      if (!this.memory?.enabled) {
+        await this._sendText(msg, "La mémoire conversationnelle n'est pas activée.");
+        return { status: Status.COMPLETED, runId, memory: "disabled" };
+      }
+      if (commandeMemoire.type === "remember") {
+        await this.memory.saveFact({
+          actorId: staff.id,
+          category: commandeMemoire.category,
+          key: commandeMemoire.key,
+          value: commandeMemoire.value,
+          source: "user_explicit",
+          importance: 4,
+        });
+        await this._sendText(msg,
+          "C'est noté. Je retiendrai votre préférence : " + commandeMemoire.value +
+          ". Vous pouvez dire « Mémoire » pour la consulter ou « Oublie ma mémoire » pour l'effacer.");
+        return { status: Status.COMPLETED, runId, memory: "saved" };
+      }
+      if (commandeMemoire.type === "show") {
+        const facts = await this.memory.listFacts(staff.id);
+        const texte = facts.length
+          ? "Voici les préférences que j'ai mémorisées :\n" +
+            facts.map((f) => "• " + f.key + " : " + f.value).join("\n")
+          : "Je n'ai encore aucune préférence durable enregistrée.";
+        await this._sendText(msg, texte);
+        return { status: Status.COMPLETED, runId, memory: "listed", count: facts.length };
+      }
+      if (commandeMemoire.type === "forget") {
+        this.pending.delete(msg.fromJid);
+        const deleted = await this.memory.forgetActor(staff.id);
+        msg.memoryContext = null;
+        await this.provider.sendText(
+          msg.fromJid,
+          "Votre mémoire conversationnelle a été effacée : préférences, résumés, historique et demandes en attente.",
+        );
+        this.journalEtape?.({ event: "memory_forgotten", run: runId, ...deleted });
+        return { status: Status.COMPLETED, runId, memory: "forgotten", deleted };
+      }
+      if (commandeMemoire.type === "unsupported_remember") {
+        await this._sendText(msg,
+          "Pour protéger les informations des élèves, je mémorise uniquement trois préférences : " +
+          "la langue, le style de réponse et le format des rapports. Exemple : « Retiens que je préfère les réponses courtes ». " +
+          "Aucun nom, dossier ou renseignement scolaire n'est conservé comme préférence.");
+        return { status: Status.WAITING_INPUT, runId, memory: "unsupported" };
+      }
+    }
+
     // 4. Réponse à une confirmation en attente ?
     const pendingMemory = memoryContext?.pending;
     const persistedApproval = pendingMemory?.intention === "approval"
@@ -345,6 +400,20 @@ export class Agent {
       },
     });
     const plan = normaliserPlan(brut, this.tools);
+    if (memoryContext && typeof this.memory?.annotateInbound === "function") {
+      try {
+        await this.memory.annotateInbound({
+          session: memoryContext,
+          providerMessageId: msg.id,
+          text,
+          intention: plan.type,
+          tool: plan.nomOutil ?? null,
+          retainContent: plan.type === INTENTIONS.CONVERSATION,
+        });
+      } catch (error) {
+        this.journalEtape?.({ event: "memory_message_classification_failed", code: error?.code ?? "unknown" });
+      }
+    }
     this.journalEtape?.({
       event: "intent_detected",
       run: runId,
@@ -357,7 +426,7 @@ export class Agent {
 
     // 5a. Conversation — aucune donnée n'est touchée, aucune permission en jeu.
     if (plan.type === INTENTIONS.CONVERSATION) {
-      await this._sendText(msg, plan.texte);
+      await this._sendText(msg, plan.texte, { remember: true, intention: "conversation" });
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
         intent: "conversation", result: "SUCCESS", durationMs: Date.now() - started,
