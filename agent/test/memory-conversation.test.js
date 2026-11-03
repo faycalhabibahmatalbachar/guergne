@@ -77,7 +77,7 @@ test("une clarification conserve l'outil et reprend après redémarrage", async 
   });
 
   const secondResult = await second.agent.handle(incoming({ id: "memory-in-2", text: "6e" }));
-  assert.equal(secondResult.status, "COMPLETED");
+  assert.equal(secondResult.status, "COMPLETED", JSON.stringify(secondResult));
   assert.equal(sim.countOf("rechercherEleves"), 1);
   assert.equal(memory.pending, null);
   assert.ok(memory.messages.some((m) => m.direction === "outbound" && m.text.includes("OK rechercherEleves")));
