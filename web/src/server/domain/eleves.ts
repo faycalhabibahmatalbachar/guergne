@@ -1,9 +1,10 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { StatutEleve as StatutEleveType } from "@/lib/eleves-constantes";
 import { db } from "@/server/db";
+import { motsRecherche } from "@/server/domain/identite-eleve";
 import {
   anneesScolaires,
   classes,
@@ -102,11 +103,31 @@ export async function listerEleves(filtres: FiltresEleves = {}): Promise<Resulta
 
   const conditions = [];
 
-  if (filtres.recherche?.trim()) {
-    const motif = `%${filtres.recherche.trim()}%`;
-    conditions.push(
-      or(ilike(eleves.nom, motif), ilike(eleves.prenom, motif), ilike(eleves.matricule, motif)),
-    );
+  // Recherche sans accents, mot à mot (P0).
+  //
+  // POURQUOI DÉCOUPER AU LIEU DE COLLER
+  // ------------------------------------
+  // Un seul motif non découpé ne trouvait rien pour « Mahamat Ali » : les deux
+  // morceaux sont dans deux colonnes, et aucune ne contient la chaîne entière.
+  // Chaque mot est donc cherché dans le nom, le prénom et le matricule, et
+  // TOUS doivent être trouvés — « Ali Mahamat » et « Mahamat Ali » ramènent le
+  // même dossier, l'ordre de saisie n'ayant aucune raison d'être su.
+  //
+  // `unaccent` des deux côtés, comme la recherche globale de la palette
+  // (migration 0032) : personne ne tape les accents au guichet. Le matricule
+  // reste comparé brut — il n'en porte pas, et c'est le seul membre que le
+  // planificateur peut indexer (voir migration 0039).
+  //
+  // Aucune échappée de `%` ni de `_` n'est nécessaire ici : `motsRecherche`
+  // ne rend que des lettres et des chiffres, les métacaractères LIKE ayant
+  // déjà disparu au découpage.
+  for (const mot of motsRecherche(filtres.recherche)) {
+    const motif = `%${mot}%`;
+    conditions.push(sql`(
+      unaccent(${eleves.nom}) ILIKE unaccent(${motif})
+      OR unaccent(${eleves.prenom}) ILIKE unaccent(${motif})
+      OR ${eleves.matricule} ILIKE ${motif}
+    )`);
   }
   if (filtres.statut) conditions.push(eq(eleves.statut, filtres.statut));
   if (filtres.classeId) conditions.push(eq(inscriptions.classeId, filtres.classeId));
