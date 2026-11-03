@@ -32,7 +32,7 @@ export function analyserCommandeMemoire(texte) {
   if (!match) return null;
 
   const phrase = normaliser(match[1]);
-  let m = phrase.match(/^(?:je prefere|je veux)\s+(?:recevoir\s+)?(?:des?\s+)?reponses?\s+(courtes?|detaillees?)$/u);
+  let m = phrase.match(/^(?:je prefere|je veux)\s+(?:recevoir\s+)?(?:(?:les?|des?)\s+)?reponses?\s+(courtes?|detaillees?)$/u);
   if (m) {
     return {
       type: "remember",
