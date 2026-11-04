@@ -7,6 +7,36 @@ const VERSION_CLE = 1;
 const VERSION_HMAC = 1;
 const MAX_TEXTE = 12_000;
 const MAX_HISTORIQUE = 12;
+const PARAMETRES_CONTEXTE_AUTORISES = new Set([
+  "classeId", "periodeId", "depuis", "jusqua", "statut", "limite",
+]);
+
+function filtrerParametresContexte(params = {}) {
+  const propres = {};
+  for (const [cle, valeur] of Object.entries(params ?? {})) {
+    if (!PARAMETRES_CONTEXTE_AUTORISES.has(cle) || valeur == null || valeur === "") continue;
+    if (["classeId", "periodeId"].includes(cle)) {
+      if (typeof valeur === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(valeur)) {
+        propres[cle] = valeur;
+      }
+      continue;
+    }
+    if (["depuis", "jusqua"].includes(cle)) {
+      if (typeof valeur === "string" && /^\d{4}-\d{2}-\d{2}$/.test(valeur) &&
+          Number.isFinite(Date.parse(valeur + "T00:00:00Z"))) propres[cle] = valeur;
+      continue;
+    }
+    if (cle === "statut" && ["JUSTIFIEE", "NON_JUSTIFIEE"].includes(valeur)) {
+      propres[cle] = valeur;
+      continue;
+    }
+    if (cle === "limite" && Number.isInteger(Number(valeur)) && Number(valeur) >= 1 && Number(valeur) <= 1000) {
+      propres[cle] = Number(valeur);
+    }
+  }
+  return propres;
+}
 
 function lireCle(value, nom) {
   if (!value || typeof value !== "string") {
@@ -104,6 +134,7 @@ export class NeonConversationMemory {
     let pending = null;
     let summaries = [];
     let facts = [];
+    let lastTask = null;
 
     try {
       await client.query("BEGIN");
@@ -137,6 +168,31 @@ export class NeonConversationMemory {
           return [];
         }
       });
+
+      const contextResult = await client.query(
+        "SELECT outil, parametres_chiffres, nonce_chiffrement, tag_authentification, modifie_le, expire_le " +
+        "FROM public.wa_conversation_context WHERE conversation_id = $1 AND expire_le > now() LIMIT 1",
+        [conversationId],
+      );
+      if (contextResult.rows?.length) {
+        const row = contextResult.rows[0];
+        try {
+          const params = JSON.parse(dechiffrer({
+            ciphertext: row.parametres_chiffres,
+            nonce: row.nonce_chiffrement,
+            tag: row.tag_authentification,
+          }, this.encryptionKey));
+          lastTask = {
+            tool: row.outil,
+            params: filtrerParametresContexte(params),
+            updatedAt: row.modifie_le,
+            expiresAt: row.expire_le,
+          };
+        } catch {
+          this._log("memory_context_decrypt_failed");
+          lastTask = null;
+        }
+      }
 
       const stateResult = await client.query(
         "SELECT intention_en_attente, outil_en_attente, parametres_chiffres, " +
@@ -229,7 +285,7 @@ export class NeonConversationMemory {
       this.lastPurgeAt = Date.now();
       this.purgeExpired().catch(() => this._log("memory_purge_failed"));
     }
-    return { conversationId, actorId, history, pending, summaries, facts };
+    return { conversationId, actorId, history, pending, summaries, facts, lastTask };
   }
 
   async annotateInbound({ session, providerMessageId, text = "", intention = null, tool = null, retainContent = false } = {}) {
@@ -271,6 +327,25 @@ export class NeonConversationMemory {
     await this.pool.query(
       "UPDATE public.wa_conversations SET dernier_message_le = now(), modifie_le = now() WHERE id = $1",
       [session.conversationId],
+    );
+  }
+
+  async saveLastTask(session, { tool, params = {} } = {}) {
+    if (!session?.conversationId) return;
+    if (typeof tool !== "string" || !/^[a-z0-9_.]{1,100}$/.test(tool)) {
+      throw new Error("Outil mémoire invalide.");
+    }
+    const propres = filtrerParametresContexte(params);
+    const encrypted = chiffrer(JSON.stringify(propres), this.encryptionKey);
+    await this.pool.query(
+      "INSERT INTO public.wa_conversation_context " +
+      "(conversation_id, outil, parametres_chiffres, nonce_chiffrement, tag_authentification, version_cle, expire_le, modifie_le) " +
+      "VALUES ($1, $2, $3, $4, $5, $6, now() + interval '7 days', now()) " +
+      "ON CONFLICT (conversation_id) DO UPDATE SET outil = EXCLUDED.outil, " +
+      "parametres_chiffres = EXCLUDED.parametres_chiffres, nonce_chiffrement = EXCLUDED.nonce_chiffrement, " +
+      "tag_authentification = EXCLUDED.tag_authentification, version_cle = EXCLUDED.version_cle, " +
+      "expire_le = EXCLUDED.expire_le, modifie_le = now()",
+      [session.conversationId, tool, encrypted.ciphertext, encrypted.nonce, encrypted.tag, encrypted.keyVersion],
     );
   }
 
@@ -401,18 +476,22 @@ export class NeonConversationMemory {
       this.pool.query("DELETE FROM public.wa_conversation_state WHERE expire_le <= now()"),
       this.pool.query("DELETE FROM public.wa_memory_summaries WHERE expire_le <= now()"),
       this.pool.query("DELETE FROM public.wa_memory_facts WHERE expire_le IS NOT NULL AND expire_le <= now()"),
+      this.pool.query("DELETE FROM public.wa_conversation_context WHERE expire_le <= now()"),
     ]);
+    const contexts = await this.pool.query("DELETE FROM public.wa_conversation_context WHERE expire_le <= now()");
     const conversations = await this.pool.query(
       "DELETE FROM public.wa_conversations c " +
       "WHERE COALESCE(c.dernier_message_le, c.cree_le) < now() - interval '180 days' " +
       "AND NOT EXISTS (SELECT 1 FROM public.wa_messages m WHERE m.conversation_id = c.id) " +
-      "AND NOT EXISTS (SELECT 1 FROM public.wa_conversation_state s WHERE s.conversation_id = c.id)",
+      "AND NOT EXISTS (SELECT 1 FROM public.wa_conversation_state s WHERE s.conversation_id = c.id) " +
+      "AND NOT EXISTS (SELECT 1 FROM public.wa_conversation_context x WHERE x.conversation_id = c.id)",
     );
     return {
       messages: messages.rowCount ?? 0,
       states: states.rowCount ?? 0,
       summaries: summaries.rowCount ?? 0,
       facts: facts.rowCount ?? 0,
+      contexts: contexts.rowCount ?? 0,
       conversations: conversations.rowCount ?? 0,
     };
   }
