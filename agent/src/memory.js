@@ -11,7 +11,7 @@ const PARAMETRES_CONTEXTE_AUTORISES = new Set([
   "classeId", "periodeId", "depuis", "jusqua", "statut", "limite",
 ]);
 
-function filtrerParametresContexte(params = {}) {
+export function filtrerParametresContexte(params = {}) {
   const propres = {};
   for (const [cle, valeur] of Object.entries(params ?? {})) {
     if (!PARAMETRES_CONTEXTE_AUTORISES.has(cle) || valeur == null || valeur === "") continue;
