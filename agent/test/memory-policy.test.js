@@ -52,8 +52,9 @@ test("une demande de suivi hérite de la classe précédente après une nouvelle
   });
   assert.deepEqual(suite.parametres, {
     classeId: lastTask.params.classeId,
+    periodeId: lastTask.params.periodeId,
   });
-  assert.deepEqual(suite.champsHerites, ["classeId"]);
+  assert.deepEqual(suite.champsHerites, ["classeId", "periodeId"]);
 });
 
 test("la référence à la même classe reprend le périmètre et une autre classe le remplace", () => {
@@ -100,6 +101,25 @@ test("le contexte précédent n'est jamais hérité pour une écriture ou une de
   }).parametres, {});
 });
 
+
+test("une nouvelle période explicite n'hérite pas de l'ancienne période", () => {
+  const lastTask = {
+    tool: "assiduite.consulter_absences",
+    params: {
+      classeId: "00000000-0000-4000-8000-000000000006",
+      periodeId: "00000000-0000-4000-8000-000000000099",
+    },
+  };
+  const suite = completerParametresContexte({
+    texte: "Et les retards cette semaine ?",
+    dernierTravail: lastTask,
+    outilLecture: true,
+    parametres: {},
+  });
+  assert.equal(suite.parametres.classeId, lastTask.params.classeId);
+  assert.equal(suite.parametres.periodeId, undefined);
+  assert.deepEqual(suite.champsHerites, ["classeId"]);
+});
 
 test("les relances courtes sélectionnent un vrai outil et reprennent le périmètre", () => {
   const lastTask = {
