@@ -135,6 +135,10 @@ try {
       "GROQ_API_KEY",
       "SCHOOL_API_BASE_URL",
       "AGENT_SERVICE_TOKEN",
+      "AGENT_MEMORY_ENABLED",
+      "AGENT_MEMORY_DATABASE_URL",
+      "AGENT_MEMORY_ENCRYPTION_KEY",
+      "AGENT_MEMORY_HMAC_KEY",
     ];
     const absentes = ATTENDUES.filter((k) => !vus.has(k));
     console.log(`  manquantes parmi les attendues : ${absentes.length ? absentes.join(", ") : "aucune"}`);
