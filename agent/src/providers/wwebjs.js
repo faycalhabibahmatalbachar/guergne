@@ -19,7 +19,7 @@ import { join } from "node:path";
 
 import { WhatsAppProvider } from "../provider.js";
 import { DelaiDepasse, avecDelai } from "../delai.js";
-import { ETATS, EtatWhatsApp } from "../etat-whatsapp.js";
+import { ETATS, EtatWhatsApp, doitSuivreChargement } from "../etat-whatsapp.js";
 import { analyserJid } from "../jid.js";
 
 /**
@@ -286,7 +286,20 @@ export class WwebjsProvider extends WhatsAppProvider {
       this._log.info?.("[whatsapp] authentifie");
     });
     this._client.on("loading_screen", (pourcent, message) => {
-      this.machine.transiter(ETATS.WHATSAPP_CONNECTING, { raison: `chargement ${pourcent ?? "?"}% ${message ?? ""}`.trim() });
+      // NE PAS REGRESSER DEPUIS « READY ».
+      //
+      // Defaut observe en production : apres avoir atteint READY, WhatsApp Web
+      // emet encore des `loading_screen` lors de ses re-synchronisations. Cette
+      // transition inconditionnelle ramenait donc l'etat a CONNECTING, ou il
+      // est reste 5 h 42 pendant que le client servait normalement — un etat
+      // detaille qui contredisait `whatsapp = ready`.
+      //
+      // Le chargement reste trace, parce qu'il est utile ; il ne change
+      // simplement plus un etat deja etabli.
+      const chargement = `chargement ${pourcent ?? "?"}% ${message ?? ""}`.trim();
+      this._tracer({ event: "loading_screen", detail: chargement });
+      if (!doitSuivreChargement(this.machine.etat)) return;
+      this.machine.transiter(ETATS.WHATSAPP_CONNECTING, { raison: chargement });
     });
     this._client.on("change_state", (etat) => {
       // L'etat interne de WhatsApp Web n'est pas le notre : on le consigne

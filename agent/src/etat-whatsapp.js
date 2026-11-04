@@ -60,6 +60,22 @@ export function versEtatHistorique(etat, attenteQr) {
   }
 }
 
+/**
+ * Un écran de chargement doit-il changer l'état ?
+ *
+ * Non quand la session est déjà prête. WhatsApp Web émet encore des
+ * `loading_screen` lors de ses re-synchronisations, bien après `ready` : les
+ * suivre ferait régresser l'état vers CONNECTING alors que le client sert
+ * normalement. C'est exactement ce qui est arrivé en production — l'état
+ * détaillé a annoncé CONNECTING pendant 5 h 42 en contredisant `ready`.
+ *
+ * Une vraie déconnexion, elle, passe par l'événement `disconnected`, qui n'est
+ * pas concerné par ce garde.
+ */
+export function doitSuivreChargement(etatCourant) {
+  return etatCourant !== ETATS.WHATSAPP_READY;
+}
+
 /** Un message tronqué, sans contenu de conversation ni numéro. */
 const extrait = (v, n = 200) => String(v ?? "").slice(0, n);
 

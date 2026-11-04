@@ -7,7 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { ETATS, EtatWhatsApp, versEtatHistorique } from "../src/etat-whatsapp.js";
+import { ETATS, EtatWhatsApp, doitSuivreChargement, versEtatHistorique } from "../src/etat-whatsapp.js";
 
 function horlogeFactice(depart = 1_000_000) {
   let t = depart;
@@ -171,4 +171,39 @@ test("une raison trop longue est tronquee, pas recopiee entiere", () => {
   const { m } = monter(h);
   m.transiter(ETATS.WHATSAPP_ERROR, { raison: "x".repeat(5000) });
   assert.ok(m.resume().derniereErreur.message.length <= 200);
+});
+
+// --- Le défaut observé en production le 4 novembre 2026 -------------------
+
+test("un ecran de chargement ne fait PAS regresser un etat READY", () => {
+  // Observe en production : apres READY, WhatsApp Web emet encore des
+  // `loading_screen` lors de ses re-synchronisations. Les suivre a ramene
+  // l'etat detaille a CONNECTING, ou il est reste 5 h 42 en contredisant
+  // `whatsapp = ready`.
+  assert.equal(doitSuivreChargement(ETATS.WHATSAPP_READY), false);
+});
+
+test("un ecran de chargement est suivi dans tous les autres etats", () => {
+  // Pendant la montee, c'est precisement l'information utile : la page avance.
+  for (const e of [
+    ETATS.APPLICATION_READY,
+    ETATS.WHATSAPP_INITIALIZING,
+    ETATS.WHATSAPP_CONNECTING,
+    ETATS.WHATSAPP_AUTHENTICATED,
+    ETATS.WHATSAPP_DISCONNECTED,
+    ETATS.WHATSAPP_AUTH_FAILURE,
+    ETATS.WHATSAPP_ERROR,
+  ]) {
+    assert.equal(doitSuivreChargement(e), true, `etat ${e}`);
+  }
+});
+
+test("une vraie deconnexion fait bien quitter READY", () => {
+  // Le garde ne doit pas geler l'etat : `disconnected` n'est pas un chargement.
+  const h = horlogeFactice();
+  const { m } = monter(h);
+  m.transiter(ETATS.WHATSAPP_READY);
+  m.transiter(ETATS.WHATSAPP_DISCONNECTED, { raison: "perdue", compterReconnexion: true });
+  assert.equal(m.etat, ETATS.WHATSAPP_DISCONNECTED);
+  assert.equal(m.resume().reconnexions, 1);
 });

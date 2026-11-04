@@ -36,6 +36,7 @@ import {
 import { DiagnosticNotification } from "./src/diagnostic-notification.js";
 import { SurveillantConnexion } from "./src/surveillance-connexion.js";
 import { releverRessources, resumerRessources } from "./src/ressources.js";
+import { releverEnvironnement } from "./src/diagnostic-environnement.js";
 import { FileNotifications } from "./src/notifications.js";
 import { MoteurPolitiques, POLITIQUES_DEFAUT } from "./src/politiques.js";
 import { WwebjsProvider } from "./src/providers/wwebjs.js";
@@ -455,6 +456,48 @@ createServer(async (req, res) => {
     }
 
     res.writeHead(404, entetesSurs()).end();
+    return;
+  }
+
+  // --- Diagnostic : outillage reellement present dans le conteneur -------
+  //
+  // Altare ne donne qu'un SFTP enferme dans /home/container : /usr/bin, /bin
+  // et /etc sont hors de portee, et il n'y a pas de shell. On peut donc
+  // constater qu'un outil est absent du dossier de l'application, mais pas
+  // savoir s'il existe au niveau du systeme. La seule facon de poser la
+  // question est de la poser DE L'INTERIEUR.
+  //
+  // Elle decide d'une mission entiere : Piper v1.8.0 ne se distribue qu'en
+  // wheel Python (verifie en ouvrant le wheel : 39 fichiers .py, une extension
+  // CPython, aucun executable autonome). Si python3 existe, un wheel se deplie
+  // ici et se lance via PYTHONPATH, sans pip ni droits root. Sinon, non.
+  //
+  // LECTURE SEULE : aucune commande ne vient de l'appelant, elles sont ecrites
+  // dans `diagnostic-environnement.js`. Rien n'est installe ni telecharge.
+  if (url === "/diagnostic/environnement") {
+    if (req.method !== "GET") {
+      res.writeHead(405, entetesSurs({ allow: "GET" })).end();
+      return;
+    }
+    const entete = req.headers["authorization"];
+    const jeton = typeof entete === "string" && entete.startsWith("Bearer ") ? entete.slice(7) : null;
+    if (!CONF.jetonService) {
+      res.writeHead(503, entetesSurs({ "content-type": "application/json" }))
+        .end(JSON.stringify({ ok: false, message: "Diagnostic indisponible : service non configure." }));
+      return;
+    }
+    if (jeton !== CONF.jetonService) {
+      res.writeHead(401, entetesSurs({ "content-type": "application/json" }))
+        .end(JSON.stringify({ ok: false, message: "Service non authentifie." }));
+      return;
+    }
+    try {
+      const env = await releverEnvironnement();
+      res.writeHead(200, entetesSurs({ "content-type": "application/json" })).end(JSON.stringify({ ok: true, ...env }));
+    } catch (e) {
+      res.writeHead(500, entetesSurs({ "content-type": "application/json" }))
+        .end(JSON.stringify({ ok: false, message: String(e?.message ?? e).slice(0, 200) }));
+    }
     return;
   }
 
