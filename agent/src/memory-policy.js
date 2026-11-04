@@ -48,12 +48,45 @@ export function completerParametresContexte({
     resultat.classeId = source.classeId;
     herites.push("classeId");
   }
-  if (memePeriode && source.periodeId) {
+  const periodeNouvelle =
+    /\b(?:cette semaine|ce mois|la semaine prochaine|la semaine derniere|ce trimestre|cette annee|annee scolaire|aujourd'hui|aujourd hui|hier|demain|du\s+\d{1,2}|\d{1,2}\/\d{1,2})\b/u.test(n);
+  if ((memePeriode || (suiteNaturelle && !periodeNouvelle)) && source.periodeId) {
     resultat.periodeId = source.periodeId;
     herites.push("periodeId");
   }
 
   return { parametres: resultat, champsHerites: herites };
+}
+
+/**
+ * Détecte quelques relances scolaires non ambiguës afin de ne pas dépendre
+ * uniquement du rappel de contexte par le LLM.
+ */
+export function resoudreDemandeSuivi({ texte = "", dernierTravail = null } = {}) {
+  const n = normaliser(texte);
+  if (!/^(?:et|puis|ensuite|maintenant)\b/u.test(n)) return null;
+
+  const source = dernierTravail?.params ?? dernierTravail?.parametres ?? {};
+  const classeNouvelle =
+    /\b(?:classe\s+(?:de\s+)?(?:6e|6eme|5e|5eme|4e|4eme|3e|3eme|2nde|seconde|terminale|tle|1ere|premiere)(?:\s+[a-z])?|(?:6e|6eme|5e|5eme|4e|4eme|3e|3eme|2nde|terminale|tle)\s+[a-z])\b/u.test(n);
+  if (classeNouvelle) return null;
+
+  const correspondances = [
+    [/\bretards?\b/u, "assiduite.consulter_retards"],
+    [/\babsences?\b/u, "assiduite.consulter_absences"],
+    [/\bincidents?\b/u, "discipline.consulter_incidents"],
+    [/\bsanctions?\b/u, "discipline.consulter_sanctions"],
+    [/\balertes?\b/u, "assiduite.alertes"],
+    [/\bconduite\b/u, "assiduite.conduite_classe"],
+    [/\beleves?\b/u, "eleves.rechercher"],
+  ];
+  const choix = correspondances.find(([pattern]) => pattern.test(n));
+  if (!choix) return null;
+
+  const params = {};
+  if (source.classeId) params.classeId = source.classeId;
+  if (source.periodeId) params.periodeId = source.periodeId;
+  return { intention: "outil", outil: choix[1], params };
 }
 
 export function analyserCommandeMemoire(texte) {
