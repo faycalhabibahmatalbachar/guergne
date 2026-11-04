@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { analyserCommandeMemoire, completerParametresContexte, estTexteGeneralMemorisable } from "../src/memory-policy.js";
+import { analyserCommandeMemoire, completerParametresContexte, estTexteGeneralMemorisable, resoudreDemandeSuivi } from "../src/memory-policy.js";
 
 test("les préférences explicitement autorisées sont reconnues", () => {
   assert.deepEqual(analyserCommandeMemoire("Retiens que je préfère les réponses courtes."), {
@@ -39,7 +39,7 @@ test("le filtre de contenu refuse les informations scolaires et identifiantes", 
 test("une demande de suivi hérite de la classe précédente après une nouvelle consultation", () => {
   const lastTask = {
     tool: "eleves.rechercher",
-    parametres: {
+    params: {
       classeId: "00000000-0000-4000-8000-000000000006",
       periodeId: "00000000-0000-4000-8000-000000000099",
     },
@@ -68,7 +68,7 @@ test("la référence à la même classe reprend le périmètre et une autre clas
     texte: "Consulte les retards pour la même classe",
     dernierTravail: lastTask,
     outilLecture: true,
-    params: {},
+    parametres: {},
   });
   assert.equal(meme.parametres.classeId, lastTask.params.classeId);
 
@@ -90,7 +90,7 @@ test("le contexte précédent n'est jamais hérité pour une écriture ou une de
     texte: "Supprime cette absence",
     dernierTravail: lastTask,
     outilLecture: false,
-    params: {},
+    parametres: {},
   }).parametres, {});
   assert.deepEqual(completerParametresContexte({
     texte: "Bonjour, comment allez-vous ?",
@@ -98,4 +98,34 @@ test("le contexte précédent n'est jamais hérité pour une écriture ou une de
     outilLecture: true,
     params: {},
   }).parametres, {});
+});
+
+
+test("les relances courtes sélectionnent un vrai outil et reprennent le périmètre", () => {
+  const lastTask = {
+    tool: "eleves.rechercher",
+    params: {
+      classeId: "00000000-0000-4000-8000-000000000006",
+      periodeId: "00000000-0000-4000-8000-000000000099",
+    },
+  };
+  assert.deepEqual(resoudreDemandeSuivi({
+    texte: "Et les retards ?",
+    dernierTravail: lastTask,
+  }), {
+    intention: "outil",
+    outil: "assiduite.consulter_retards",
+    params: {
+      classeId: lastTask.params.classeId,
+      periodeId: lastTask.params.periodeId,
+    },
+  });
+  assert.equal(resoudreDemandeSuivi({
+    texte: "Et les retards de la 5e A ?",
+    dernierTravail: lastTask,
+  }), null);
+  assert.equal(resoudreDemandeSuivi({
+    texte: "Bonjour",
+    dernierTravail: lastTask,
+  }), null);
 });
