@@ -27,6 +27,7 @@ lue. Un démon qui meurt sur une entrée malformée emporterait la voix de tout
 le service.
 """
 
+import io
 import json
 import os
 import sys
@@ -38,6 +39,21 @@ try:
 except Exception as e:  # pragma: no cover - dépend de l'environnement
     print(json.dumps({"pret": False, "erreur": f"piper indisponible : {e}"}), flush=True)
     sys.exit(1)
+
+
+# L'ARABE EXIGE QUE L'ENCODAGE SOIT DIT.
+#
+# Sans ces deux lignes, le texte arabe arrive mutilé depuis stdin dès que
+# l'interpréteur retient un encodage régional : espeak ne reconnaît alors aucun
+# phonème, la synthèse ne produit aucune trame, et l'erreur remontée est un
+# obscur « # channels not specified » venant du module wave. Le défaut a été
+# observé exactement ainsi. Le dire explicitement vaut mieux que d'espérer un
+# bon défaut de plate-forme.
+for flux in (sys.stdin, sys.stdout, sys.stderr):
+    try:
+        flux.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 
 def charger_voix():
@@ -109,14 +125,27 @@ def main():
                 extra["length_scale"] = 1.0 / float(vitesse)
 
             t0 = time.perf_counter()
-            os.makedirs(os.path.dirname(chemin) or ".", exist_ok=True)
-            with wave.open(chemin, "wb") as w:
+            # En memoire d'abord. Ecrire directement dans le fichier faisait
+            # lever `wave.close()` pendant la remontee d'une autre erreur, et
+            # ce second echec masquait le premier — on cherchait un probleme de
+            # canaux audio alors que le texte etait mutile. Au passage, aucun
+            # WAV tronque ne reste sur le disque quand la synthese echoue.
+            tampon = io.BytesIO()
+            with wave.open(tampon, "wb") as w:
                 if extra:
                     from piper import SynthesisConfig
 
                     v.synthesize_wav(texte, w, syn_config=SynthesisConfig(**extra))
                 else:
                     v.synthesize_wav(texte, w)
+            octets = tampon.getvalue()
+            # 44 octets, c'est un en-tete WAV sans aucune trame : la synthese a
+            # produit du silence, ce qui est un echec et non un succes vide.
+            if len(octets) <= 64:
+                raise ValueError("synthese vide : aucun phoneme reconnu (encodage ou langue ?)")
+            os.makedirs(os.path.dirname(chemin) or ".", exist_ok=True)
+            with open(chemin, "wb") as f:
+                f.write(octets)
             ms = int((time.perf_counter() - t0) * 1000)
             print(
                 json.dumps({"id": ident, "ok": True, "chemin": chemin, "duree_s": duree_wav(chemin), "ms": ms}),

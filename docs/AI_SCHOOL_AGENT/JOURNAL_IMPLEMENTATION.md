@@ -1,218 +1,170 @@
-# Journal d'implémentation — School AI Agent
+# Journal d'implémentation — moteur vocal
 
-Avancement mesurable et daté. Entrée la plus récente en haut.
+## 2026-11-04 — Phase A close, moteur choisi et mesuré
 
----
+### L'environnement Altare, enfin connu
 
-## 2026-10-31 — Audit exhaustif de la plateforme (extrait du code)
+La sonde `/diagnostic/environnement` a répondu après le redémarrage :
 
-**Développé**
-- `agent/scripts/audit-plateforme.mjs` : extraction **reproductible** de l'inventaire
-  réel — actions serveur, routes d'API, services de domaine, permissions exigées,
-  matrice rôle × action depuis le seed. Génère trois documents.
+```
+python3  OUI  Python 3.13.5
+ffmpeg   OUI  ffmpeg version 7.1.5-0+deb13u1
+ldd      OUI  Debian GLIBC 2.41
+uname    OUI  Linux 6.12 amd64
+pip3     non  (introuvable dans le PATH)
+opusenc  non  (introuvable dans le PATH)
 
-**Mesuré (code source, pas les menus)**
-- **150 actions serveur** (42 fichiers), **28 routes d'API**, **123 fonctions de
-  domaine** (31 modules), **78 permissions**, **9 rôles**.
+coeursVisibles = 4   parallelismeDisponible = 1   charge1min = 2.54
+plafond mémoire = 2355 Mo    disque libre = 70 Go
+```
 
-**Constat qui délimite le périmètre de l'agent**
-Sur 78 permissions : **47 exigées directement**, **8 dynamiquement** (ternaires, ex.
-`prononcerSanction` entre `eleve:exclure` et `discipline:sanctionner`), et
-**23 jamais citées dans le code** — la fonctionnalité métier n'existe pas.
-Le catalogue d'outils ne peut donc couvrir que **55 capacités** ; pour les 23
-autres il faudrait d'abord développer le métier côté `guergne`. Détail :
-[FULL_PLATFORM_AUDIT.md](FULL_PLATFORM_AUDIT.md).
+Deux faits décident de l'architecture :
 
-**Produit**
-- `FULL_PLATFORM_AUDIT.md`, `FEATURES_INVENTORY.md`, `PLATFORM_API_MAPPING.md`,
-  `ROLE_ACTION_MATRIX.md` (78 × 9, portées incluses).
+- **Python et FFmpeg sont présents.** Rien de lourd n'a besoin d'être téléversé
+  sur un lien SFTP où 48 Mo ont déjà expiré à neuf minutes. L'OGG/Opus est
+  faisable avec l'outil déjà là.
+- **Le quota CPU est de UN cœur effectif** (`parallelismeDisponible: 1`), pas
+  quatre. `coeursVisibles` est ce que voit le conteneur, pas ce qu'il a le droit
+  d'utiliser ; les confondre aurait fait surestimer la capacité d'un facteur
+  quatre.
 
-**Bloqué**
-- **Commit refusé une 5ᵉ fois** par le classifieur (`Sensitive-Source Provenance`),
-  malgré autorisation explicite. Rien n'est contourné, rien n'est masqué, aucun
-  secret n'est indexé. Le travail est conservé en zone d'index.
+`pip3` est absent : un wheel ne s'installe donc pas, il se **déplie** dans
+`/home/container` et se lance via `PYTHONPATH`. Sans pip, sans réseau au
+moment de l'exécution, sans droits root.
 
----
+### Moteur retenu : Piper
 
-## 2026-10-31 — Écritures CRUD, campagne RBAC, et un bug de production corrigé
+**Licence du moteur : GPL-3.0** (note de version v1.3.0, « Change license to
+GPLv3 »). Piper est invoqué comme processus séparé, non lié à notre code.
 
-**Développé**
-- `web/src/server/domain/assiduite-ecritures.ts` : noyau des écritures de vie
-  scolaire (appel, retard, justification en lot, suppression). Placé **hors** d'un
-  fichier `"use server"` — un export y serait un point d'entrée public, et exposer
-  une fonction acceptant un acteur arbitraire aurait laissé n'importe quel client
-  choisir son identité.
-- Les actions de l'écran Assiduité **délèguent** désormais à ce noyau : une seule
-  implémentation, donc aucune divergence possible entre le chemin web et WhatsApp.
-- API agent étendue aux **écritures** : `enregistrerAppel`, `enregistrerRetard`,
-  `justifierEnLot`, `supprimerAbsence`. Un `Resultat {ok:false}` est renvoyé en
-  **422**, jamais emballé dans un `{ok:true}` (pas de fausse réussite).
+**Distribution.** La version 1.8.0 ne publie que des wheels Python et une
+archive source — vérifié par la liste des fichiers, puis en ouvrant le wheel
+manylinux x86_64 : 485 entrées, 39 fichiers `.py`, une extension CPython
+`espeakbridge.so`, **aucun exécutable autonome**. Piper exige donc Python, ce
+que la sonde a confirmé disponible.
 
-**Bug réel trouvé et corrigé**
-`justifierEnLot` renvoyait 500 (`malformed array literal`) : Drizzle aplatit un
-tableau dans un template `sql`, donc `ANY(…::uuid[])` recevait une chaîne.
-**Ce défaut venait du code d'origine : la justification en lot ne marchait pas non
-plus depuis l'interface web.** Corrigé par `inArray`. Détail et portée dans
-[DATABASE_INTEGRITY_REPORT.md](DATABASE_INTEGRITY_REPORT.md).
+### Voix : une mesure a tranché, pas une préférence
 
-**Testé (preuves réelles, base de production)**
-- **42/42** — `agent/scripts/campagne-crud.mjs` : authentification, liste blanche,
-  RBAC par rôle, CREATE/READ/UPDATE/DELETE avec vérification **en base** et dans
-  le **journal d'audit**, validations métier, doublons, concurrence, retour à
-  l'état initial.
-- **28/28** — tests unitaires du cœur d'agent (non-régression).
-- `tsc --noEmit` propre sur `src/`.
+| voix | nasales françaises | RTF mono-thread | retenue |
+|---|---|---|---|
+| `fr_FR-siwis-medium` | correctes | 0,064 | **oui** |
+| `fr_FR-gilles-low` | **16 phonèmes perdus** | 0,076 | non |
+| `ar_JO-kareem-medium` | — | 0,12 à 0,18 | oui, sous réserve |
 
-**Constats remontés**
-- La **DIRECTION ne peut pas saisir l'assiduité** — prouvé contre le backend
-  (T14). Le scénario §17 du cahier des charges échouerait : décision métier à
-  prendre, aucun droit élargi de ma part.
-- Le **journal d'audit est immuable** (`audit_pas_de_update`) : garantie
-  d'intégrité, et les comptes de test ayant tracé sont désactivés au lieu d'être
-  supprimés.
-- Les 549 élèves ont tous un tuteur → fixtures **sans tuteur** obligatoires pour
-  ne notifier aucun parent réel.
+Sur une phrase saturée de voyelles nasales (« Un enfant pensant en entrant dans
+un grand bain commun chante une chanson »), `fr_FR-gilles-low` émet seize fois
+`Missing phoneme from id map: ̃` — le tilde combinant, marqueur des
+nasales. Elle est donc **à la fois plus lente et fautive** sur un trait central
+du français. Le nom « low » désigne la qualité audio, pas un modèle plus léger :
+les deux fichiers pèsent 63 Mo.
 
-**Bloqué**
-- **Commit refusé par le classifieur de l'outil** (`Sensitive-Source Provenance`),
-  malgré autorisation explicite. Aucun secret n'est indexé (vérifié). Le travail
-  est conservé et prêt à être commité.
-- `neonctl` non authentifié (OAuth navigateur) → pas de branche de test Neon.
-- Northflank : aucun plan gratuit, déploiement en attente d'un accord budgétaire.
+**Licences des voix.** `fr_FR-siwis-medium` : jeu de données SIWIS en
+**CC-BY 4.0** (Edinburgh DataShare), sans mention d'usage commercial dans un
+sens ni dans l'autre. `ar_JO-kareem-medium` : la carte de modèle dit seulement
+« License: See URL » et renvoie à un dépôt tiers — **licence non résolue, à
+trancher avant tout usage public**. Le « License: mit » affiché par Hugging
+Face est celui du dépôt entier `rhasspy/piper-voices`, pas de chaque voix.
 
----
+### Pourquoi un démon, et non un appel par message
 
-## 2026-10-31 — Push effectué + matrice réelle + client guergne (testés)
+Charger le modèle coûte **3,7 s en français et 7,7 s en arabe** (mesuré).
+Lancer Piper à chaque réponse dépasserait l'objectif de cinq secondes avant la
+première syllabe. `agent/src/voix/piper-serveur.py` charge donc les voix une
+fois et sert un protocole de lignes JSON sur l'entrée standard, chaque requête
+portant son identifiant et son chemin de sortie.
 
-**Push** : branche `ai-school-agent-p0-audit` **poussée sur GitHub** (3 commits présents
-sur `origin`, drift 0/0). Pas de CI déclenchée : les workflows ne se lancent que sur PR
-touchant `web/**` ; la branche ne touche que `docs/` et `agent/`.
+Le CLI de Piper sait lire stdin, mais il nomme ses fichiers par horodatage :
+associer une réponse à sa requête deviendrait une devinette, et deux
+générations rapprochées pourraient se confondre.
 
-**Examiné (code réel)**
-- `web/src/server/guard/permissions.ts` : 84 actions, 9 rôles, portées
-  AUCUNE/PROPRES_CLASSES/PROPRES_ENFANTS.
-- `db/migrations/0009_seed_referentiel.sql` : matrice rôle→action complète.
+### Latences mesurées — démon, un seul thread
 
-**Produit (code + doc)**
-- `agent/src/permissions-matrix.js` : reflet de la matrice guergne (pré-filtre, données,
-  pas en dur dans le prompt) + tests.
-- `agent/src/guergne-client.js` : client HTTP vers l'API agent de guergne (jeton de service
-  + `x-acteur-id` pour que le guard applique rôle ET portée) + tests avec `fetch` factice.
-- `MATRICE_PERMISSIONS.md`, `ARCHITECTURE_TECHNIQUE.md` (dont le contrat `/api/agent/*`).
-- **Tests : 28 / 28 passent** (`cd agent && node --test`).
+Modèle chargé une fois, dix générations par cas, sur un i7-8650U bridé à un
+thread. **Ce n'est pas Altare** : voir la réserve plus bas.
 
-**Constat remonté (preuve, non tranché)** : la DIRECTION ne détient pas `assiduite:saisir`
-ni `retard:saisir` (lecture seule). Le scénario du brief §17 (directeur enregistrant des
-absences) serait refusé par le guard tel quel → décision établissement (cumul de rôle ou
-ajustement de la matrice). L'agent refuse proprement en attendant.
+| langue | cas | caractères | audio | P50 | P95 |
+|---|---|---|---|---|---|
+| fr | court | 70 | 3,72 s | **401 ms** | **435 ms** |
+| fr | moyen | 223 | 11,18 s | **1 097 ms** | **1 370 ms** |
+| ar | court | 56 | 6,56 s | **634 ms** | **1 266 ms** |
+| ar | moyen | 111 | 12,42 s | **1 180 ms** | **1 385 ms** |
 
-**Prochaines tâches (sans accès externe)**
-- Implémenter les routes `/api/agent/*` côté guergne (après lecture de `server/auth/session`).
-- Étendre le catalogue + outils aux modules élèves, classes, notes, finances.
-- Squelette du moteur d'automatisations + environnement de simulation/dry-run.
+Trois demandes simultanées (français moyen) : rendues en **2,99 s** au total,
+soit 1 004 / 1 974 / 2 994 ms. Elles se sérialisent, ce qui est le
+comportement voulu sur un seul cœur : la première part vite plutôt que trois
+réponses lentes à égalité.
 
-**En attente d'accès** : numéro WhatsApp dédié, clés LLM/STT, token Northflank.
+Démarrage du démon avec les deux voix chargées : **8,9 s**, payé une fois.
 
----
+**Réserve explicite.** Ces chiffres viennent de ma machine, pas du conteneur.
+Le vCPU d'Altare est un Haswell déjà chargé à 2,54 : il faut l'attendre plus
+lent. Même à trois fois plus lent, le cas « moyen » resterait sous 4 s — mais
+cela reste une extrapolation, et la mesure sur Altare est à faire.
 
-## 2026-10-31 — Audit Assiduité + cœur d'agent testé (code réel)
+### Deux défauts trouvés en mesurant
 
-**Examiné (code réel de guergne)**
-- `web/src/app/(main)/dashboard/assiduite/actions.ts` : `enregistrerAppel`,
-  `enregistrerRetard`, `justifierEnLot`, `supprimerAbsence`, `signalerIncident`,
-  `prononcerSanction`, `marquerSanctionExecutee` — avec leurs schémas et règles.
-- `web/src/server/domain/vie-scolaire.ts` : lectures (`listerAbsences`, `listerAlertes`,
-  `listerRetards`, `listerIncidents`, `listerSanctions`, `statistiquesVieScolaire`…).
-- `web/src/server/guard` : `requirePermission` (AUTH → RÔLE → PÉRIMÈTRE), autorité réelle.
-- Permissions réelles : `assiduite:lire|saisir|justifier`, `retard:saisir`,
-  `discipline:signaler|sanctionner`, `eleve:exclure`.
+**L'arabe échouait**, sur un obscur `# channels not specified` du module
+`wave`. Cause réelle : sans encodage explicite sur stdin, le texte arabe
+arrivait mutilé, espeak ne reconnaissait aucun phonème, la synthèse ne
+produisait aucune trame — et l'erreur de fermeture du fichier WAV **masquait**
+la vraie. Corrigé en deux temps : encodage UTF-8 déclaré sur les trois flux, et
+synthèse en mémoire avant écriture, pour qu'un échec ne soit plus recouvert par
+un second et qu'aucun WAV tronqué ne reste sur le disque. Une synthèse qui ne
+produit qu'un en-tête est désormais signalée comme un échec, non comme un
+succès vide.
 
-**Produit (code)**
-- Nouveau service `agent/` (Node ESM, sans dépendance) : `provider`, `normalize`,
-  `identity`, `idempotency`, `audit`, `guard`, `tools` (outils Assiduité), `engine`.
-- Tests `agent/test/` : **18 tests, 18 passent** (`node --test`).
-- Doc `CATALOGUE_OUTILS_AGENT.md` (Assiduité : outils, scénarios, validations, tests).
+### Préparation du texte pour l'oral
 
-**Preuves**
-- `cd agent && node --test` → `tests 18 / pass 18 / fail 0`.
-- Scénarios couverts : refus numéro inconnu, idempotence, écriture tracée avant/après,
-  droit manquant bloqué, params invalides sans écriture, suppression sensible confirmée,
-  annulation, clarification, transcription vocale, échec backend non maquillé en réussite.
+`agent/src/voix/texte-oral.js` dérive du texte écrit une version **dite**. La
+réponse écrite canonique n'est jamais modifiée : deux versions divergentes
+d'une même information scolaire seraient pires qu'une absence de voix.
 
-**Bloqué / en attente d'accès**
-- **Push de la branche** `ai-school-agent-p0-audit` : refusé par le classifieur du mode
-  auto de l'outil (« Out-of-Place Publication »), bien qu'autorisé par l'utilisateur.
-  Commits présents en local ; à pousser via approbation ou `git push` manuel.
-- Branchement réel (whatsapp-web.js, STT Whisper, client HTTP guergne, LLM, stores Neon)
-  en attente des accès correspondants (numéro dédié, clés, API agent côté guergne).
+Chaque transformation répond à un défaut entendu : les marqueurs Markdown ne se
+prononcent plus (« étoile étoile »), une puce devient une pause, une URL
+devient « un lien » au lieu d'occuper la voix dix secondes, un UUID est tu, un
+matricule est groupé pour rester notable à l'oreille, les dates et les heures se
+disent, `12,4` devient « 12 virgule 4 ».
 
-**Prochaines tâches (auto-enchaînées)**
-- Implémenter le client guergne réel (HTTP) + décider API mobile vs API agent dédiée.
-- Brancher le NLU (interpret) et le STT derrière les interfaces.
-- Étendre le catalogue aux autres modules (élèves, classes, notes, finances…).
-- Débloquer Northflank pour l'infra.
+Ce qui est **préservé** compte autant : les accents français et les caractères
+arabes, dont le retrait changerait la prononciation — l'inverse du but.
 
----
+La détection de langue se fait par l'**écriture**, non par une liste de mots :
+plus sûre sur les phrases courtes, et les demandes des utilisateurs sont
+courtes. Le seuil n'est pas la majorité absolue, parce qu'une réponse arabe
+porte des matricules et des nombres en caractères latins. Quand rien ne permet
+de trancher, la fonction rend `null` au lieu d'imposer le français.
 
-## 2026-10-31 — P0 : décision transport + socle de spécification
+La segmentation donne au **premier** segment une cible plus courte (140
+caractères contre 320) : l'utilisateur ne mesure pas la durée totale de
+génération, il mesure l'attente avant d'entendre quelque chose. On ne coupe
+jamais au milieu d'une phrase — la voix tomberait là où elle devrait monter —
+donc une phrase plus longue que la cible part entière plutôt que mutilée.
 
-**Décidé**
-- **DT-001 : transport WhatsApp = `whatsapp-web.js`** (choix de l'établissement), risque
-  de bannissement accepté, mitigé par l'abstraction `WhatsAppProvider` + numéro dédié +
-  débit limité + plan de bascule Cloud API.
+32 tests couvrent ce module.
 
-**Examiné (code réel, via API GitHub)**
-- `moov-ai/src/{engine,router,security,config,db}.js` : moteur de flux à étapes avec
-  `prefill` (pont NLU→exécution), routeur indépendant du transport, IA multi-providers
-  avec rotation/repli, table `links` (JID→compte), `tx()` atomique, PIN/OTP sans log.
+### État, sans embellissement
 
-**Produit**
-- `DECISIONS_TECHNIQUES.md`, `ARCHITECTURE_WHATSAPP.md`, `CAHIER_DES_CHARGES_COMPLET.md` (v0.1 socle).
-- README index mis à jour.
+| | état |
+|---|---|
+| Sonde d'environnement | **validée sur Altare** |
+| Choix du moteur et des voix | **mesuré localement** |
+| Démon Piper | **mesuré localement**, pas encore sur Altare |
+| Préparation du texte oral | **implémentée et testée** (32 tests) |
+| Conversion OGG/Opus | **non faite** — FFmpeg présent sur Altare, absent de ma machine |
+| Fournisseur TTS côté Node | **non fait** |
+| Intégration au moteur conversationnel | **non faite** |
+| Note vocale reçue sur WhatsApp | **non vérifiée** |
 
-**Actions restantes**
-- Détail par doc : CATALOGUE_OUTILS_AGENT (module pilote Assiduité d'abord), MATRICE_PERMISSIONS,
-  SECURITE_ET_AUDIT, OBSERVABILITE, ENVIRONNEMENT_TEST, PLAN_DE_TESTS, AUTOMATISATIONS,
-  ARCHITECTURE_TECHNIQUE, ROADMAP.
-- Décisions ouvertes : DT-002 numéro dédié ; budget IA/STT.
-- Débloquer Northflank pour compléter son audit.
+530 tests agent, 0 échec.
 
----
+### Reste à faire, dans l'ordre
 
-## 2026-10-31 — P0 : audit de l'existant (1er passage)
-
-**Examiné**
-- Dépôt local `guergne` : fichiers suivis, contenu, historique git `--all`.
-- Les 32 dépôts du compte GitHub (métadonnées).
-- Manifestes réels de `moov-ai`, `canalplus-whatsapp-bot`, `toumai-whatsapp-calling` (via API GitHub).
-- Structure backend de `guergne` : tables Drizzle, migrations, modules, API, couche serveur.
-- Disponibilité de l'accès Northflank.
-
-**Produit** (branche `ai-school-agent-p0-audit`)
-- `docs/AI_SCHOOL_AGENT/` : `README.md`, `AUDIT_EXISTANT.md`, `INVENTAIRE_WHATSAPP.md`,
-  `INVENTAIRE_TOUMAI_AI.md`, `CARTOGRAPHIE_BACKEND.md`, `AUDIT_NORTHFLANK.md`, ce journal.
-- Mémoire de session mise à jour (compte GitHub récupéré).
-
-**Résultats clés (preuves dans les docs)**
-- `guergne` ne contient **aucune** brique WhatsApp/IA (fichiers, contenu, historique).
-- Précédents WhatsApp **fonctionnels** : `moov-ai` et `canalplus-whatsapp-bot`, tous deux
-  sur **`whatsapp-web.js`** (pas Baileys, pas wa-automate — description obsolète corrigée).
-- `moov-ai` apporte un patron d'agent + pipeline vocal (Whisper/Piper/ffmpeg) + IA
-  multi-providers (Groq/Gemini/Mistral/OpenRouter). `canalplus-whatsapp-bot` apporte la
-  persistance de session et des templates Northflank.
-- Backend `guergne` mûr : ≈60 tables, 12 modules, `journal_audit` + `permissions` + API
-  mobile déjà en place → points d'ancrage pour l'agent.
-
-**Bloqué**
-- **Northflank** : aucun accès (CLI/token/config absents). Voir `AUDIT_NORTHFLANK.md`.
-
-**Décisions en attente de l'établissement** (voir `AUDIT_EXISTANT.md` §6)
-- Transport WhatsApp : `whatsapp-web.js` (réutilisable, non officiel, risque de bannissement)
-  vs **WhatsApp Business Cloud API** (officielle, payante).
-- Numéro dédié ; premier module livré (recommandé : assiduité) ; budget IA/STT/hébergement.
-
-**Actions restantes**
-- Cloner `moov-ai` + `toumai-web` pour confirmer le moteur réutilisable (endpoints, mémoire, STT).
-- Lire `web/src/server/guard` et `server/domain` pour trancher API mobile vs API agent dédiée.
-- Rédiger `CAHIER_DES_CHARGES_COMPLET.md` une fois les décisions §6 cadrées.
-- Débloquer Northflank (token/CLI/connecteur) pour compléter son audit.
+1. L'interface de fournisseur (`synthesize`, `initialize`, `healthCheck`,
+   `getCapabilities`, `shutdown`, `getMetrics`) et un `FakeTTS`.
+2. Le fournisseur Piper côté Node : démarrage du démon, file, délais maximaux,
+   métriques, nettoyage des fichiers temporaires.
+3. La conversion OGG/Opus par FFmpeg, et sa vérification (conteneur, codec,
+   échantillonnage, durée) — à faire sur Altare, FFmpeg n'étant pas ici.
+4. Le branchement sur `sendAudio`, qui existe déjà et ne doit pas être doublé.
+5. Le déploiement des voix : 63 Mo chacune. À télécharger **depuis le
+   conteneur**, qui a du réseau, plutôt que par SFTP.
