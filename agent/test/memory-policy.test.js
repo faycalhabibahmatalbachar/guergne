@@ -76,7 +76,7 @@ test("la référence à la même classe reprend le périmètre et une autre clas
     texte: "Et les retards de la 5e A ?",
     dernierTravail: lastTask,
     outilLecture: true,
-    params: {},
+    parametres: {},
   });
   assert.equal(nouvelle.parametres.classeId, undefined);
 });
@@ -96,7 +96,7 @@ test("le contexte précédent n'est jamais hérité pour une écriture ou une de
     texte: "Bonjour, comment allez-vous ?",
     dernierTravail: lastTask,
     outilLecture: true,
-    params: {},
+    parametres: {},
   }).parametres, {});
 });
 
