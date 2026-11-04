@@ -86,5 +86,21 @@ forme d'empreintes HMAC-SHA256. Les clés doivent être indépendantes (32 octet
 stockées dans les variables privées d'Altare et jamais commitées.
 
 La migration `0037_memorisation_conversationnelle_whatsapp.sql` est installée
-sur la branche Neon de test `ai-school-agent-test`. Elle n'est pas appliquée à
-`main` et la mémoire n'est pas activée en production.
+sur la branche Neon de test `ai-school-agent-test`. La migration
+`0038_contexte_suivi_conversationnel_whatsapp.sql` y ajoute le contexte de la
+dernière consultation, conservé 7 jours sous forme chiffrée. Seuls l'outil et
+des filtres autorisés (classe, période, dates, statut, limite) sont persistés ;
+aucun nom, identifiant d'inscription, résultat ou contenu de dossier n'est
+réutilisé comme mémoire.
+
+Après une consultation en lecture réussie, l'agent enregistre ce périmètre.
+Une relance non ambiguë comme « Et les retards ? » sélectionne l'outil de
+consultation correspondant et réutilise les filtres de classe/période. Une
+nouvelle classe ou une nouvelle période explicitement indiquée remplace
+l'ancien contexte. Les permissions et la lecture métier sont réévaluées à
+chaque demande : le contexte ne contient pas les résultats eux-mêmes.
+
+La migration `0038` est appliquée uniquement à `ai-school-agent-test`.
+Aucune des deux migrations mémoire n'est appliquée à `main` et la mémoire
+n'est pas activée sur Altare tant que le déploiement et les variables privées
+n'ont pas été vérifiés.
