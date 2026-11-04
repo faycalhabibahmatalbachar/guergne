@@ -34,11 +34,258 @@ import sys
 import time
 import wave
 
-try:
-    from piper import PiperVoice
-except Exception as e:  # pragma: no cover - dépend de l'environnement
-    print(json.dumps({"pret": False, "erreur": f"piper indisponible : {e}"}), flush=True)
-    sys.exit(1)
+# --- Dépendances : le démon se débrouille seul -------------------------------
+#
+# POURQUOI CE BLOC EXISTE
+# -----------------------
+# Déplier le wheel de Piper donne le module `piper`, mais AUCUNE de ses
+# dépendances : les métadonnées du wheel exigent `onnxruntime` et
+# `pathvalidate`, et `numpy` arrive par transitivité. Le démon est donc tombé
+# en production sur « No module named 'numpy' ».
+#
+# Résoudre cet arbre à la main, wheel par wheel, serait fragile et faux à la
+# première mise à jour. `pip` sait le faire, et il est présent en tant que
+# MODULE (`python3 -m pip`) même quand `pip3` n'est pas dans le PATH — ce qui
+# est précisément le cas ici.
+#
+# POURQUOI ICI ET NON DANS NODE
+# ------------------------------
+# Ce fichier est relu à chaque lancement du démon. Le corriger permet donc une
+# réparation à chaud, par la route de relance, sans redémarrer l'agent ni
+# couper la session WhatsApp — qui a déjà été coupée trois fois pour des fautes
+# d'une ligne.
+#
+# L'installation visera `--target`, donc un dossier à nous : le Python système
+# n'est jamais modifié, et aucun droit root n'est requis.
+import subprocess
+
+DEPENDANCES = ["piper-tts==1.8.0"]
+DELAI_INSTALLATION_S = 480
+
+
+def dossier_dependances():
+    """
+    Où vivent les paquets. Sur le volume persistant, à côté des modèles : un
+    dossier éphémère obligerait à réinstaller à chaque démarrage.
+    """
+    return os.environ.get("VOICE_DEPS") or os.path.join(
+        os.path.dirname(os.environ.get("VOICE_FR_MODEL", "")) or ".", "..", "paquets"
+    )
+
+
+def importer_piper(traces):
+    """Tente l'import, en annonçant précisément ce qui manque."""
+    try:
+        from piper import PiperVoice  # noqa: PLC0415
+
+        return PiperVoice
+    except Exception as e:
+        traces.append(f"import impossible : {type(e).__name__} {e}")
+        return None
+
+
+def assurer_pip(cible, traces):
+    """
+    Rend True si `python3 -m pip` est utilisable, en l'amorçant au besoin.
+
+    POURQUOI IL FAUT L'AMORCER
+    ---------------------------
+    Le Python du conteneur est dépouillé : ni `pip`, ni `ensurepip`. Vérifié,
+    pas supposé — le démon l'a rapporté lui-même :
+    « /usr/bin/python3: No module named pip » et la même chose pour ensurepip.
+    Debian livre couramment un Python sans son installateur.
+
+    POURQUOI C'EST POSSIBLE QUAND MÊME
+    -----------------------------------
+    pip est une roue de Python PUR : aucune compilation, aucune extension
+    binaire. La déplier dans un dossier et la mettre sur `sys.path` suffit à
+    l'exécuter. `urllib` et `zipfile` sont dans la bibliothèque standard, donc
+    tout ce qu'il faut est déjà là.
+
+    On ne touche jamais au Python système : tout vit dans `cible`, un dossier
+    du volume, et aucun droit root n'est requis.
+    """
+    import urllib.request
+    import zipfile
+
+    env = {**os.environ, "PYTHONPATH": cible + os.pathsep + os.environ.get("PYTHONPATH", "")}
+
+    def pip_marche():
+        try:
+            r = subprocess.run(
+                [sys.executable, "-m", "pip", "--version"],
+                capture_output=True, text=True, timeout=90, env=env,
+            )
+            return r.returncode == 0, (r.stdout or r.stderr).strip()[:100]
+        except Exception as e:
+            return False, f"{type(e).__name__} {e}"
+
+    ok, detail = pip_marche()
+    if ok:
+        traces.append(f"pip deja utilisable : {detail}")
+        return True
+    traces.append(f"pip absent : {detail}")
+
+    # L'index de PyPI dit quelle roue prendre : la coder en dur la ferait
+    # disparaitre un jour sans que personne ne sache pourquoi.
+    try:
+        with urllib.request.urlopen("https://pypi.org/pypi/pip/json", timeout=60) as r:
+            index = json.loads(r.read().decode("utf-8"))
+        version = index["info"]["version"]
+        roue = next(
+            f for f in index["releases"][version]
+            if f["filename"].endswith("-py3-none-any.whl")
+        )
+    except Exception as e:
+        traces.append(f"index PyPI illisible : {type(e).__name__} {e}")
+        return False
+
+    archive = os.path.join(cible, roue["filename"])
+    try:
+        os.makedirs(cible, exist_ok=True)
+        with urllib.request.urlopen(roue["url"], timeout=300) as r, open(archive, "wb") as f:
+            f.write(r.read())
+        with zipfile.ZipFile(archive) as z:
+            z.extractall(cible)
+        os.remove(archive)
+        traces.append(f"pip {version} deplie ({roue['filename']})")
+    except Exception as e:
+        traces.append(f"depliage de pip impossible : {type(e).__name__} {e}")
+        return False
+
+    ok, detail = pip_marche()
+    traces.append(f"pip apres amorcage : {detail}")
+    return ok
+
+
+def installation_en_cours(cible):
+    """
+    Une installation est-elle déjà lancée, et toujours vivante ?
+
+    Sans ce garde, chaque relance lancerait un pip de plus : sur un conteneur
+    à un seul cœur, trois pip concurrents écrivant dans le même dossier
+    produiraient une installation corrompue.
+    """
+    temoin = os.path.join(cible, ".installation.pid")
+    try:
+        with open(temoin, "r", encoding="utf-8") as f:
+            pid = int(f.read().strip())
+        os.kill(pid, 0)  # ne tue rien : vérifie seulement l'existence
+        return pid
+    except Exception:
+        return None
+
+
+def lancer_installation_detachee(cible, traces):
+    """
+    Lance pip SANS attendre, et rend la main tout de suite.
+
+    POURQUOI DÉTACHÉE
+    -----------------
+    Installer `piper-tts` et son arbre — onnxruntime, numpy, pathvalidate et
+    leurs dépendances — prend plusieurs minutes sur un cœur unique. Le
+    fournisseur Node, lui, abandonne le démarrage au bout de soixante secondes
+    et arrête alors le démon : l'installation serait tuée en plein milieu, et
+    le dossier laissé à moitié rempli.
+    
+    Le processus pip est donc détaché de ce démon. Il survit à son arrêt,
+    termine son travail, et la relance suivante trouve tout en place. Le journal
+    de pip est conservé sur le disque : c'est la seule trace exploitable si
+    l'installation échoue.
+    """
+    os.makedirs(cible, exist_ok=True)
+    vivant = installation_en_cours(cible)
+    if vivant:
+        traces.append(f"installation deja en cours (pid {vivant})")
+        return "en_cours"
+
+    if not assurer_pip(cible, traces):
+        return "pip_absent"
+
+    journal = os.path.join(cible, "installation.log")
+    try:
+        with open(journal, "ab") as sortie:
+            proc = subprocess.Popen(
+                [sys.executable, "-m", "pip", "install", "--no-cache-dir", "--no-input",
+                 "--target", cible, *DEPENDANCES],
+                stdout=sortie, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                start_new_session=True,
+                # pip vient d'etre deplie dans `cible` : sans ce PYTHONPATH, le
+                # sous-processus ne le trouverait pas lui-meme.
+                env={**os.environ, "PYTHONPATH": cible + os.pathsep + os.environ.get("PYTHONPATH", "")},
+            )
+        with open(os.path.join(cible, ".installation.pid"), "w", encoding="utf-8") as f:
+            f.write(str(proc.pid))
+        traces.append(f"installation lancee en arriere-plan (pid {proc.pid}), journal dans {journal}")
+        return "lancee"
+    except Exception as e:
+        traces.append(f"lancement de pip impossible : {type(e).__name__} {e}")
+        return "echec"
+
+
+def _inutilise_installer_dependances(cible, traces):
+    """Conservée pour mémoire : l'installation synchrone se faisait tuer."""
+    os.makedirs(cible, exist_ok=True)
+    for module in (["pip"], ["ensurepip", "--default-pip"]):
+        try:
+            sonde = subprocess.run(
+                [sys.executable, "-m", *module, "--version"],
+                capture_output=True, text=True, timeout=60,
+            )
+            if sonde.returncode == 0:
+                traces.append(f"{' '.join(module)} disponible : {sonde.stdout.strip()[:80]}")
+                break
+            traces.append(f"{' '.join(module)} indisponible : {(sonde.stderr or sonde.stdout).strip()[:120]}")
+        except Exception as e:
+            traces.append(f"{' '.join(module)} inutilisable : {type(e).__name__} {e}")
+    else:
+        return False
+
+    try:
+        r = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--no-cache-dir", "--no-input",
+             "--target", cible, *DEPENDANCES],
+            capture_output=True, text=True, timeout=DELAI_INSTALLATION_S,
+        )
+        if r.returncode != 0:
+            traces.append(f"pip a echoue ({r.returncode}) : {(r.stderr or r.stdout).strip()[-300:]}")
+            return False
+        traces.append(f"pip a installe : {' '.join(DEPENDANCES)}")
+        return True
+    except subprocess.TimeoutExpired:
+        traces.append(f"pip n'a pas fini en {DELAI_INSTALLATION_S} s")
+        return False
+    except Exception as e:
+        traces.append(f"pip inutilisable : {type(e).__name__} {e}")
+        return False
+
+
+traces = []
+cible = os.path.abspath(dossier_dependances())
+# Le dossier de paquets passe DEVANT : il doit primer sur un reste d'ancien
+# dépliage incomplet.
+if cible not in sys.path:
+    sys.path.insert(0, cible)
+traces.append(f"paquets : {cible}")
+
+PiperVoice = importer_piper(traces)
+if PiperVoice is None:
+    etat = lancer_installation_detachee(cible, traces)
+    # Une derniere tentative : si une installation precedente avait abouti, les
+    # caches d'import de ce processus ne le savaient pas encore.
+    import importlib
+
+    importlib.invalidate_caches()
+    PiperVoice = importer_piper(traces)
+    if PiperVoice is None:
+        conseil = {
+            "lancee": "Installation lancee en arriere-plan. Relancez le moteur dans quelques minutes.",
+            "en_cours": "Installation deja en cours. Relancez le moteur dans quelques minutes.",
+            "pip_absent": "pip est introuvable : l'installation doit etre faite autrement.",
+            "echec": "Le lancement de l'installation a echoue.",
+        }.get(etat, "Etat d'installation inconnu.")
+        print(json.dumps({"pret": False, "erreur": f"{conseil} | " + " | ".join(traces)[:800]}), flush=True)
+        sys.exit(1)
 
 
 # L'ARABE EXIGE QUE L'ENCODAGE SOIT DIT.
