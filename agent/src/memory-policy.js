@@ -42,7 +42,7 @@ export function completerParametresContexte({
     /\b(?:meme periode|cette periode|la periode precedente|periode precedente|comme pour la periode precedente)\b/u.test(n);
 
   const herites = [];
-  const source = dernierTravail.parametres;
+  const source = dernierTravail.params ?? dernierTravail.parametres ?? {};
 
   if ((mentionMemeClasse || (suiteNaturelle && !classeNouvelle)) && source.classeId) {
     resultat.classeId = source.classeId;
