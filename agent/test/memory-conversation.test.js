@@ -120,7 +120,8 @@ test("une clarification conserve l'outil et reprend après redémarrage", async 
   assert.equal(secondResult.status, "COMPLETED", JSON.stringify(secondResult));
   assert.equal(sim.countOf("rechercherEleves"), 1);
   assert.equal(memory.pending, null);
-  assert.ok(memory.messages.some((m) => m.direction === "outbound" && m.text.includes("OK rechercherEleves")));
+  assert.match(second.provider.lastTextTo("23566000001@c.us"), /OK rechercherEleves/u);
+  assert.ok(memory.messages.some((m) => m.direction === "outbound" && m.text === null));
 });
 
 
