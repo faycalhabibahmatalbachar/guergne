@@ -88,3 +88,15 @@ test("la proximité est bornée et symétrique dans son usage", () => {
   assert.ok(proximite("mahama", "mahamat") > 0.8);
   assert.ok(proximite("adam", "djondang") < 0.4);
 });
+
+
+test("un niveau court renvoie les classes candidates au lieu de les ignorer", () => {
+  const classes = [
+    { id: "a", libelle: "6e A" },
+    { id: "b", libelle: "6e B" },
+    { id: "c", libelle: "5e A" },
+  ];
+  const resolution = resoudreClasse(classes, "6e");
+  assert.equal(resolution.statut, "ambigu");
+  assert.deepEqual(resolution.candidats.map((c) => c.id), ["a", "b"]);
+});

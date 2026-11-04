@@ -94,12 +94,21 @@ export function resoudreClasse(classes, demande) {
   if (!cible) return { statut: "aucun", candidats: [] };
 
   const notes = classes
-    .map((c) => ({ classe: c, score: proximite(cible, canoniserClasse(c.libelle ?? c.nom ?? "")) }))
+    .map((c) => ({ classe: c, score: proximite(cible, canoniserClasse(c.libelle ?? c.code ?? c.nom ?? "")) }))
     .sort((a, b) => b.score - a.score);
 
   const exacts = notes.filter((n) => n.score === 1);
   if (exacts.length === 1) return { statut: "unique", classe: exacts[0].classe };
   if (exacts.length > 1) return { statut: "ambigu", candidats: exacts.map((n) => n.classe) };
+
+  // "6e" peut désigner le niveau qui contient "6e A" et "6e B".
+  // Dans ce cas, retourner les divisions à choisir plutôt que "aucun".
+  const niveaux = notes.filter((n) => {
+    const libelle = canoniserClasse(n.classe.libelle ?? n.classe.code ?? n.classe.nom ?? "");
+    return libelle.startsWith(cible + " ");
+  });
+  if (niveaux.length === 1) return { statut: "unique", classe: niveaux[0].classe };
+  if (niveaux.length > 1) return { statut: "ambigu", candidats: niveaux.slice(0, 5).map((n) => n.classe) };
 
   const proches = notes.filter((n) => n.score >= 0.75);
   if (proches.length === 1) return { statut: "unique", classe: proches[0].classe };
