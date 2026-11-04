@@ -171,7 +171,7 @@ test("une consultation réussie conserve son périmètre pour le message suivant
   }));
   assert.equal(firstResult.status, "COMPLETED");
   assert.equal(memory.lastTask.tool, "eleves.rechercher");
-  assert.equal(memory.lastTask.parametres.classeId, classeId);
+  assert.equal(memory.lastTask.params.classeId, classeId);
 
   // Après redémarrage, la dernière consultation est chargée depuis la mémoire.
   let contexteRestaure = null;
@@ -189,5 +189,5 @@ test("une consultation réussie conserve son périmètre pour le message suivant
   }));
   assert.equal(secondResult.status, "COMPLETED");
   assert.equal(contexteRestaure.tool, "eleves.rechercher");
-  assert.equal(contexteRestaure.parametres.classeId, classeId);
+  assert.equal(contexteRestaure.params.classeId, classeId);
 });
