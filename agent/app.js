@@ -27,6 +27,7 @@ import { MatricePermissions } from "./src/permissions-matrix.js";
 import { Referentiel } from "./src/referentiel.js";
 import { resoudreNomsEleves } from "./src/resolution-eleves.js";
 import { resoudreClasse } from "./src/resolveur.js";
+import { completerParametresContexte } from "./src/memory-policy.js";
 import { NeonConversationMemory } from "./src/memory.js";
 import {
   CompteurJournalierPersistant,
@@ -367,6 +368,18 @@ const agent = new Agent({
         content: "Contexte non sensible mémorisé (" + fait.category + ") : " + fait.key + " = " + fait.value,
       });
     }
+
+    if (mem.lastTask?.tool) {
+      messages.push({
+        role: "system",
+        content: "CONTEXTE DE SUIVI DE LA DERNIERE CONSULTATION : outil=" + mem.lastTask.tool +
+          ", filtres autorisés=" + JSON.stringify(mem.lastTask.params ?? {}) + ". " +
+          "Si la nouvelle demande est une suite explicite (par exemple « et les retards ? » ou « pour la même classe »), " +
+          "réutilise les filtres pertinents. Si l'utilisateur nomme une autre classe ou une autre période, " +
+          "prends sa nouvelle précision. Ne réutilise jamais un identifiant d'élève, un résultat scolaire ou un nom ; " +
+          "les données officielles doivent être relues avec un outil métier.",
+      });
+    }
     if (pending?.intention === "clarification" && pending.tool) {
       messages.push({
         role: "system",
@@ -399,9 +412,15 @@ const agent = new Agent({
     if (!nomOutil) return plan;
 
     const outil = outils.get(nomOutil);
+    const contexte = completerParametresContexte({
+      texte,
+      dernierTravail: mem.lastTask,
+      outilLecture: outil?.sensitivity === "read",
+      parametres: plan.params ?? {},
+    });
     const conv = await resoudreNomsEleves({
       outil,
-      params: plan.params ?? {},
+      params: contexte.parametres,
       guergne,
       acteurId: ctx.staff?.id,
     });
