@@ -56,7 +56,7 @@ class MemoryFake {
   async saveLastTask(_session, task) {
     this.lastTask = {
       tool: task.tool,
-      parametres: {
+      params: {
         classeId: task.params.classeId,
         periodeId: task.params.periodeId,
       },
