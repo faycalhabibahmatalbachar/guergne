@@ -476,7 +476,6 @@ export class NeonConversationMemory {
       this.pool.query("DELETE FROM public.wa_conversation_state WHERE expire_le <= now()"),
       this.pool.query("DELETE FROM public.wa_memory_summaries WHERE expire_le <= now()"),
       this.pool.query("DELETE FROM public.wa_memory_facts WHERE expire_le IS NOT NULL AND expire_le <= now()"),
-      this.pool.query("DELETE FROM public.wa_conversation_context WHERE expire_le <= now()"),
     ]);
     const contexts = await this.pool.query("DELETE FROM public.wa_conversation_context WHERE expire_le <= now()");
     const conversations = await this.pool.query(
