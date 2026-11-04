@@ -27,7 +27,7 @@ import { MatricePermissions } from "./src/permissions-matrix.js";
 import { Referentiel } from "./src/referentiel.js";
 import { resoudreNomsEleves } from "./src/resolution-eleves.js";
 import { resoudreClasse } from "./src/resolveur.js";
-import { completerParametresContexte } from "./src/memory-policy.js";
+import { completerParametresContexte, resoudreDemandeSuivi } from "./src/memory-policy.js";
 import { NeonConversationMemory } from "./src/memory.js";
 import {
   CompteurJournalierPersistant,
@@ -312,6 +312,11 @@ const agent = new Agent({
         missingFields: ["classeId"],
       };
     }
+
+    // Relances courtes (« et les retards ? ») : choisir l'outil de lecture
+    // sans demander au LLM de deviner le lien avec la consultation précédente.
+    const suivi = resoudreDemandeSuivi({ texte, dernierTravail: mem.lastTask });
+    if (suivi) return suivi;
 
     // Cas fréquent : le responsable demande la liste sans préciser la classe.
     const demandeListeEleves =
