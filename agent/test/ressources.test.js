@@ -111,9 +111,17 @@ test("un plafond inconnu ne declenche PAS d'alerte", () => {
 
 // --- Disque ---------------------------------------------------------------
 
-test("l'espace disque est releve en mebioctets", () => {
+test("l'espace disque est nomme comme celui de l'HOTE, et non du conteneur", () => {
+  // Defaut corrige : ce chiffre avait servi a conclure, a tort, que le disque
+  // n'etait pas sature — alors que le quota Altare refusait toute ecriture. Le
+  // quota est applique par le daemon, hors systeme de fichiers : `statfs` ne
+  // peut pas le voir.
   const r = releverRessources({ lire: fauxLire({}), statFs: statFsFactice(1500, 4096) });
-  assert.deepEqual(r.disque, { libreMo: 1500, totalMo: 4096 });
+  assert.equal(r.disque.hoteLibreMo, 1500);
+  assert.equal(r.disque.hoteTotalMo, 4096);
+  assert.equal(r.disque.quotaConteneurMo, null, "le quota du conteneur n'est pas observable");
+  assert.match(r.disque.avertissement, /quota du conteneur/);
+  assert.match(resumerRessources(r), /HOTE/);
 });
 
 test("un disque illisible rend null, il ne leve pas", () => {

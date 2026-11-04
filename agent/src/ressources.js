@@ -80,10 +80,32 @@ export function releverRessources({ lire = readFileSync, statFs = statfsSync, ch
   const memTotale = lireMeminfo("MemTotal", lire);
   const plafondReel = plafond !== null && memTotale !== null && plafond > memTotale * 2 ? null : plafond;
 
+  // POURQUOI CE CHIFFRE NE DIT PAS CE QU'ON CROIT
+  //
+  // `statfs` interroge le SYSTEME DE FICHIERS. Dans un conteneur Altare, c'est
+  // celui de l'hote : il a annonce 70 Go libres sur 188 pendant que la moindre
+  // ecriture etait refusee par ENOSPC. Le quota d'un serveur Altare n'est pas
+  // une limite de systeme de fichiers — le daemon surveille la taille du
+  // dossier et refuse l'ecriture au-dela — donc `statfs` ne peut PAS le voir,
+  // quel que soit le chemin interroge.
+  //
+  // Ce chiffre a induit en erreur : il avait servi a conclure, a tort, que le
+  // disque n'etait pas sature. Il est donc nomme pour ce qu'il est, et le
+  // champ dit explicitement ce qu'il ne mesure pas.
   let disque = null;
   try {
     const st = statFs(cheminVolume);
-    disque = { libreMo: Mo(st.bavail * st.bsize), totalMo: Mo(st.blocks * st.bsize) };
+    disque = {
+      hoteLibreMo: Mo(st.bavail * st.bsize),
+      hoteTotalMo: Mo(st.blocks * st.bsize),
+      // Les inodes : un volume peut etre « plein » sans l'etre en octets.
+      hoteInodesLibres: Number.isFinite(st.ffree) ? st.ffree : null,
+      quotaConteneurMo: null,
+      avertissement:
+        "Chiffres de l'HOTE. Le quota du conteneur est applique par le daemon " +
+        "Altare, hors systeme de fichiers : il n'est pas observable ici, et un " +
+        "ENOSPC peut survenir alors que ces valeurs paraissent confortables.",
+    };
   } catch {
     disque = null;
   }
@@ -113,7 +135,10 @@ export function releverRessources({ lire = readFileSync, statFs = statfsSync, ch
 export function resumerRessources(r) {
   const p = r.memoirePlafondMo === null ? "inconnu" : `${r.memoirePlafondMo} Mo`;
   const u = r.memoireUtiliseeMo === null ? "?" : `${r.memoireUtiliseeMo} Mo`;
-  const d = r.disque === null ? "inconnu" : `${r.disque.libreMo} Mo libres sur ${r.disque.totalMo} Mo`;
+  const d =
+    r.disque === null
+      ? "inconnu"
+      : `${r.disque.hoteLibreMo} Mo libres sur ${r.disque.hoteTotalMo} (HOTE, pas le quota du conteneur)`;
   const alerte = r.memoireSuspecte ? "  ATTENTION : plafond memoire tres bas pour Chromium" : "";
   return `memoire plafond=${p} utilisee=${u} rss=${r.processusRssMo ?? "?"} Mo | disque ${d}${alerte}`;
 }

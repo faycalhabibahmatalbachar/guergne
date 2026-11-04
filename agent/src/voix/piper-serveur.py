@@ -59,7 +59,16 @@ import wave
 # n'est jamais modifié, et aucun droit root n'est requis.
 import subprocess
 
-DEPENDANCES = ["piper-tts==1.8.0"]
+# SEULES LES DEPENDANCES MANQUANTES, PAS PIPER LUI-MEME.
+#
+# Le module `piper` est deja deplie sur le volume, avec ses donnees
+# `espeak-ng-data`. Demander `piper-tts` a pip en installerait une SECONDE
+# copie — environ 110 Mo de doublon — sur un conteneur dont le quota a deja
+# refuse l'installation deux fois par ENOSPC.
+#
+# Les metadonnees du wheel, lues et non devinees, nomment exactement ces deux
+# dependances obligatoires ; `numpy` arrive par transitivite d'onnxruntime.
+DEPENDANCES = ["onnxruntime<2,>=1", "pathvalidate<4,>=3"]
 DELAI_INSTALLATION_S = 480
 
 
@@ -206,8 +215,11 @@ def lancer_installation_detachee(cible, traces):
     try:
         with open(journal, "ab") as sortie:
             proc = subprocess.Popen(
+                # `--no-compile` : les fichiers .pyc representent une part
+                # notable du poids installe, et Python les regenere au besoin.
+                # Sur un quota qui a deja refuse deux fois, cela compte.
                 [sys.executable, "-m", "pip", "install", "--no-cache-dir", "--no-input",
-                 "--target", cible, *DEPENDANCES],
+                 "--no-compile", "--target", cible, *DEPENDANCES],
                 stdout=sortie, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                 start_new_session=True,
                 # pip vient d'etre deplie dans `cible` : sans ce PYTHONPATH, le
@@ -262,6 +274,13 @@ def _inutilise_installer_dependances(cible, traces):
 
 traces = []
 cible = os.path.abspath(dossier_dependances())
+
+# Le module `piper` deplie vit a cote des paquets, et PYTHONPATH le porte deja
+# depuis Node. On l'ajoute ici aussi : ce fichier doit pouvoir etre lance a la
+# main pour un diagnostic, sans dependre de l'environnement de l'appelant.
+_deplie = os.path.join(os.path.dirname(cible), "piper")
+if os.path.isdir(_deplie) and _deplie not in sys.path:
+    sys.path.append(_deplie)
 # Le dossier de paquets passe DEVANT : il doit primer sur un reste d'ancien
 # dépliage incomplet.
 if cible not in sys.path:

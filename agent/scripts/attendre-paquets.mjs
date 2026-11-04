@@ -42,11 +42,18 @@ function config() {
   };
 }
 
-/** Les modules dont l'absence a fait tomber le démon. */
-const ATTENDUS = ["numpy", "onnxruntime", "pathvalidate", "piper"];
+/**
+ * Les modules que pip doit déposer dans `paquets/`.
+ *
+ * `piper` n'en fait PAS partie : il est déjà déplié dans le dossier voisin, et
+ * demander à pip de l'installer en produirait un doublon d'environ 110 Mo sur
+ * un quota qui a déjà refusé l'installation deux fois.
+ */
+const ATTENDUS = ["numpy", "onnxruntime", "pathvalidate"];
 
 const debut = Date.now();
 let dernierJournal = 0;
+let piperVerifie = false;
 
 while (Date.now() - debut < PLAFOND_MS) {
   const sftp = new SftpClient();
@@ -76,6 +83,11 @@ while (Date.now() - debut < PLAFOND_MS) {
     const ecoule = Math.round((Date.now() - debut) / 1000);
     console.log(`[${String(ecoule).padStart(4)} s] presents : ${presents.join(" ") || "aucun"}${fin ? ` | ${fin}` : ""}`);
 
+    if (!piperVerifie) {
+      piperVerifie = true;
+      const deplie = await sftp.exists(`${dirname(PAQUETS)}/piper/piper/__init__.py`);
+      console.log(`         piper deplie a cote : ${deplie ? "OUI" : "NON — a verifier"}`);
+    }
     if (ATTENDUS.every((m) => presents.includes(m))) {
       console.log("\nTous les modules attendus sont presents. La relance du moteur peut aboutir.");
       await sftp.end();
