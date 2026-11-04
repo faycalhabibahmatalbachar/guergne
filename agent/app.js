@@ -37,6 +37,10 @@ import { DiagnosticNotification } from "./src/diagnostic-notification.js";
 import { SurveillantConnexion } from "./src/surveillance-connexion.js";
 import { releverRessources, resumerRessources } from "./src/ressources.js";
 import { releverEnvironnement } from "./src/diagnostic-environnement.js";
+import { preparerNoteVocale } from "./src/voix/audio.js";
+import { DiagnosticVoix } from "./src/voix/diagnostic-voix.js";
+import { installerPiper } from "./src/voix/installation.js";
+import { FournisseurPiper } from "./src/voix/piper.js";
 import { FileNotifications } from "./src/notifications.js";
 import { MoteurPolitiques, POLITIQUES_DEFAUT } from "./src/politiques.js";
 import { WwebjsProvider } from "./src/providers/wwebjs.js";
@@ -459,6 +463,31 @@ createServer(async (req, res) => {
     return;
   }
 
+  // --- Diagnostic : UNE note vocale de test, de bout en bout -------------
+  if (url === "/diagnostic/voix") {
+    if (req.method !== "POST") {
+      res.writeHead(405, entetesSurs({ allow: "POST" })).end();
+      return;
+    }
+    if (!diagnosticVoix) {
+      res.writeHead(503, entetesSurs({ "content-type": "application/json" })).end(
+        JSON.stringify({ ok: false, message: "Moteur vocal indisponible sur cette instance." }),
+      );
+      return;
+    }
+    const entete = req.headers["authorization"];
+    const jeton = typeof entete === "string" && entete.startsWith("Bearer ") ? entete.slice(7) : null;
+    const p = new URL(req.url, "http://local").searchParams;
+    const r = await diagnosticVoix.declencher({
+      jeton,
+      cible: p.get("cible") ?? "SUPER_ADMIN",
+      langue: p.get("langue") ?? "fr",
+      texte: p.get("texte") ?? null,
+    });
+    res.writeHead(r.status, entetesSurs({ "content-type": "application/json" })).end(JSON.stringify(r.corps));
+    return;
+  }
+
   // --- Diagnostic : outillage reellement present dans le conteneur -------
   //
   // Altare ne donne qu'un SFTP enferme dans /home/container : /usr/bin, /bin
@@ -542,6 +571,9 @@ createServer(async (req, res) => {
     // Releve au demarrage, pas a chaque appel : c'est l'etat dans lequel
     // Chromium a demarre qui explique son sort, pas celui d'apres.
     ressources,
+    voix: voix
+      ? { active: true, ...(await voix.healthCheck()), capacites: voix.getCapabilities(), metriques: voix.getMetrics() }
+      : { active: false, raison: voixActive ? "moteur indisponible" : "desactivee" },
     verrou: { detenu: verrou.detientToujours(), instance: verrou.instanceId.slice(0, 8), pid: process.pid },
     // Sans mesure, « l'agent travaille seul » reste une impression.
     autonomie: agent.metriques,
@@ -562,6 +594,8 @@ async function arreter(signal) {
   clearInterval(battement);
   clearInterval(relance);
   clearInterval(garde);
+  // Un demon orphelin garderait un modele de 63 Mo en memoire pour rien.
+  await voix?.shutdown().catch(() => {});
   // Une derniere tentative avant de partir : un avis en attente a plus de
   // chances d'aboutir maintenant qu'apres un redemarrage.
   await notifications.traiter().catch(() => {});
@@ -597,6 +631,53 @@ if (ressources.memoireSuspecte) {
       "lancement devient probable. C'est la piste a verifier en premier si la connexion echoue.",
   );
 }
+
+// --- Moteur vocal -----------------------------------------------------------
+//
+// L'installation tourne a chaque demarrage mais ne fait que ce qui manque :
+// 160 Mo retelecharges a chaque redemarrage couteraient des minutes pour rien.
+// Un echec n'empeche JAMAIS l'agent de demarrer — la voix est un supplement, et
+// une reponse ecrite vaut mieux qu'un silence.
+const CHEMIN_VOIX = process.env.VOICE_RACINE || `${chemins.donnees}/voix`;
+const voixActive = String(process.env.VOICE_ENABLED ?? "true").toLowerCase() !== "false";
+let voix = null;
+if (voixActive) {
+  const inst = await installerPiper({
+    racine: CHEMIN_VOIX,
+    journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+  });
+  if (inst.pret) {
+    if (inst.faits.length) console.log(`[voix] installation : ${inst.faits.join(" ; ")}`);
+    voix = new FournisseurPiper({
+      python: process.env.VOICE_PYTHON || "python3",
+      modeles: inst.modeles,
+      dossierTemporaire: `${chemins.donnees}/voix-tmp`,
+      journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+    });
+    // On branche PYTHONPATH sur le wheel deplie : pip est absent du conteneur,
+    // le module n'est donc pas installe mais seulement pose a cote.
+    process.env.PYTHONPATH = [inst.pythonpath, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
+    const amorce = await voix.initialize();
+    console.log(`[voix] moteur ${amorce.pret ? `pret (${(amorce.langues ?? []).join(", ")})` : `indisponible : ${amorce.raison}`}`);
+    if (!amorce.pret) voix = null;
+  } else {
+    console.warn(`[voix] indisponible : ${inst.raison} — l'agent repondra par ecrit seulement.`);
+  }
+} else {
+  console.log("[voix] desactivee par VOICE_ENABLED=false");
+}
+
+const diagnosticVoix = voix
+  ? new DiagnosticVoix({
+      jetonAttendu: CONF.jetonService,
+      destinataires: async (role) => identites.destinatairesParRole([role]),
+      voix,
+      audio: { preparerNoteVocale },
+      provider,
+      dossierTemporaire: `${chemins.donnees}/voix-tmp`,
+      journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+    })
+  : null;
 
 console.log("[demarrage] connexion WhatsApp...");
 // UN ECHEC DE CONNEXION NE DOIT PLUS EMPORTER LE DEMARRAGE.
