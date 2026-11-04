@@ -5,6 +5,7 @@ import { makeAgent, incoming, GuergneSim } from "./harness.js";
 class MemoryFake {
   enabled = true;
   pending = null;
+  lastTask = null;
   messages = [];
   facts = [];
   annotations = [];
@@ -23,6 +24,7 @@ class MemoryFake {
       pending: this.pending,
       summaries: [],
       facts: [],
+      lastTask: this.lastTask,
     };
   }
   async annotateInbound({ providerMessageId, text, intention, tool, retainContent }) {
@@ -48,7 +50,17 @@ class MemoryFake {
     this.facts = this.facts.filter((f) => f.actorId !== actorId);
     this.messages = [];
     this.pending = null;
+    this.lastTask = null;
     return { summaries: 0, facts: count, conversations: 1 };
+  }
+  async saveLastTask(_session, task) {
+    this.lastTask = {
+      tool: task.tool,
+      parametres: {
+        classeId: task.params.classeId,
+        periodeId: task.params.periodeId,
+      },
+    };
   }
   async saveState(_session, state) {
     this.pending = { ...state };
@@ -135,4 +147,47 @@ test("les préférences sont explicites, consultables et effaçables", async () 
   assert.equal(memory.facts.length, 0);
   assert.equal(memory.messages.length, 0);
   assert.match(provider.lastTextTo("23566000001@c.us"), /effacée/u);
+});
+
+
+test("une consultation réussie conserve son périmètre pour le message suivant", async () => {
+  const memory = new MemoryFake();
+  const classeId = "00000000-0000-4000-8000-000000000006";
+  const periodeId = "00000000-0000-4000-8000-000000000099";
+  const grantsSuivi = { surveillant: new Set(["eleve:lire", "assiduite:lire"]) };
+
+  const first = makeAgent({
+    memory,
+    grants: grantsSuivi,
+    interpret: async () => ({
+      intention: "outil",
+      outil: "eleves.rechercher",
+      params: { classeId, parPage: 25 },
+    }),
+  });
+  const firstResult = await first.agent.handle(incoming({
+    id: "memory-last-task-1",
+    text: "Liste les élèves de la 6e.",
+  }));
+  assert.equal(firstResult.status, "COMPLETED");
+  assert.equal(memory.lastTask.tool, "eleves.rechercher");
+  assert.equal(memory.lastTask.parametres.classeId, classeId);
+
+  // Après redémarrage, la dernière consultation est chargée depuis la mémoire.
+  let contexteRestaure = null;
+  const second = makeAgent({
+    memory,
+    grants: grantsSuivi,
+    interpret: async (_text, ctx) => {
+      contexteRestaure = ctx.memory.lastTask;
+      return { intention: "conversation", reponse: "Je poursuis votre demande." };
+    },
+  });
+  const secondResult = await second.agent.handle(incoming({
+    id: "memory-last-task-2",
+    text: "Et les retards ?",
+  }));
+  assert.equal(secondResult.status, "COMPLETED");
+  assert.equal(contexteRestaure.tool, "eleves.rechercher");
+  assert.equal(contexteRestaure.parametres.classeId, classeId);
 });
