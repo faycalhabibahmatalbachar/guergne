@@ -397,6 +397,7 @@ export class Agent {
         pending: memoryContext?.pending ?? null,
         summaries: memoryContext?.summaries ?? [],
         facts: memoryContext?.facts ?? [],
+        lastTask: memoryContext?.lastTask ?? null,
       },
     });
     const plan = normaliserPlan(brut, this.tools);
@@ -854,6 +855,17 @@ export class Agent {
     });
 
     if (ok) {
+      // Une lecture réussie devient le périmètre de référence des demandes
+      // de suivi. Seuls l'outil et les filtres autorisés sont persistés ;
+      // aucun résultat ni contenu d'élève n'est mémorisé.
+      if (tool.sensitivity === "read" && this.memory?.enabled && msg?.memoryContext?.conversationId) {
+        try {
+          await this.memory.saveLastTask(msg.memoryContext, { tool: tool.name, params });
+          this.journalEtape?.({ event: "memory_last_task_saved", run: runId, tool: tool.name });
+        } catch (memoryError) {
+          this.journalEtape?.({ event: "memory_last_task_save_failed", code: memoryError?.code ?? "unknown" });
+        }
+      }
       // Les écritures portent leur propre message ; les lectures renvoient
       // `data` et rien d'autre. Sans mise en forme, l'utilisateur recevait un
       // accusé vide — « ✅ Opération effectuée. » — et la donnée qu'il avait
