@@ -39,7 +39,7 @@ test("le filtre de contenu refuse les informations scolaires et identifiantes", 
 test("une demande de suivi hérite de la classe précédente après une nouvelle consultation", () => {
   const lastTask = {
     tool: "eleves.rechercher",
-    parametres: {
+    params: {
       classeId: "00000000-0000-4000-8000-000000000006",
       periodeId: "00000000-0000-4000-8000-000000000099",
     },
@@ -48,10 +48,10 @@ test("une demande de suivi hérite de la classe précédente après une nouvelle
     texte: "Et les retards ?",
     dernierTravail: lastTask,
     outilLecture: true,
-    parametres: {},
+    params: {},
   });
   assert.deepEqual(suite.parametres, {
-    classeId: lastTask.parametres.classeId,
+    classeId: lastTask.params.classeId,
   });
   assert.deepEqual(suite.champsHerites, ["classeId"]);
 });
@@ -59,7 +59,7 @@ test("une demande de suivi hérite de la classe précédente après une nouvelle
 test("la référence à la même classe reprend le périmètre et une autre classe le remplace", () => {
   const lastTask = {
     tool: "assiduite.consulter_absences",
-    parametres: {
+    params: {
       classeId: "00000000-0000-4000-8000-000000000006",
       periodeId: "00000000-0000-4000-8000-000000000099",
     },
@@ -68,34 +68,34 @@ test("la référence à la même classe reprend le périmètre et une autre clas
     texte: "Consulte les retards pour la même classe",
     dernierTravail: lastTask,
     outilLecture: true,
-    parametres: {},
+    params: {},
   });
-  assert.equal(meme.parametres.classeId, lastTask.parametres.classeId);
+  assert.equal(meme.params.classeId, lastTask.params.classeId);
 
   const nouvelle = completerParametresContexte({
     texte: "Et les retards de la 5e A ?",
     dernierTravail: lastTask,
     outilLecture: true,
-    parametres: {},
+    params: {},
   });
-  assert.equal(nouvelle.parametres.classeId, undefined);
+  assert.equal(nouvelle.params.classeId, undefined);
 });
 
 test("le contexte précédent n'est jamais hérité pour une écriture ou une demande indépendante", () => {
   const lastTask = {
     tool: "eleves.rechercher",
-    parametres: { classeId: "00000000-0000-4000-8000-000000000006" },
+    params: { classeId: "00000000-0000-4000-8000-000000000006" },
   };
   assert.deepEqual(completerParametresContexte({
     texte: "Supprime cette absence",
     dernierTravail: lastTask,
     outilLecture: false,
-    parametres: {},
+    params: {},
   }).parametres, {});
   assert.deepEqual(completerParametresContexte({
     texte: "Bonjour, comment allez-vous ?",
     dernierTravail: lastTask,
     outilLecture: true,
-    parametres: {},
+    params: {},
   }).parametres, {});
 });
