@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { chiffrer, dechiffrer, empreintePair, empreinteMessageId, lireCleMemoire } from "../src/memory.js";
+import { chiffrer, dechiffrer, empreintePair, empreinteMessageId, filtrerParametresContexte, lireCleMemoire } from "../src/memory.js";
 
 test("AES-256-GCM chiffre et déchiffre les messages", () => {
   const key = randomBytes(32);
@@ -42,4 +42,25 @@ test("les identifiants de message fournisseur sont pseudonymisés par HMAC", () 
   assert.notEqual(digest, id);
   assert.notEqual(digest, empreinteMessageId(id, randomBytes(32)));
   assert.equal(empreinteMessageId(null, key), null);
+});
+
+
+test("le contexte durable ne conserve que les filtres scolaires non identifiants", () => {
+  const classeId = "00000000-0000-4000-8000-000000000006";
+  const periodeId = "00000000-0000-4000-8000-000000000099";
+  const safe = filtrerParametresContexte({
+    classeId,
+    periodeId,
+    depuis: "2026-10-01",
+    inscriptionId: "id-eleve-privé",
+    absenceIds: ["absence-1"],
+    recherche: "Nom de l'élève",
+    nom: "Nom de l'élève",
+    motif: "information confidentielle",
+  });
+  assert.deepEqual(safe, {
+    classeId,
+    periodeId,
+    depuis: "2026-10-01",
+  });
 });
