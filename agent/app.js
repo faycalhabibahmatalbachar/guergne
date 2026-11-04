@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import QRCode from "qrcode";
 import { chmodSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 
 import { AuditLog } from "./src/audit.js";
 import { Agent } from "./src/engine.js";
@@ -463,6 +463,49 @@ createServer(async (req, res) => {
     return;
   }
 
+  // --- Diagnostic : RELANCER le moteur vocal, sans redemarrer l'agent ----
+  //
+  // Le 4 novembre 2026, une faute d'import (`path is not defined`) a fait
+  // echouer la mise en route vocale. Le correctif etait d'une ligne, mais il a
+  // fallu un redemarrage complet de l'agent pour l'appliquer — donc une
+  // coupure de la session WhatsApp, pour une variable manquante.
+  //
+  // Cette route existe pour que cela n'arrive plus : une mise en route qui
+  // echoue se rejoue a chaud. Elle ne touche ni la session WhatsApp, ni le
+  // verrou d'instance, ni les donnees scolaires.
+  if (url === "/diagnostic/voix/relancer") {
+    if (req.method !== "POST") {
+      res.writeHead(405, entetesSurs({ allow: "POST" })).end();
+      return;
+    }
+    const e1 = req.headers["authorization"];
+    const j1 = typeof e1 === "string" && e1.startsWith("Bearer ") ? e1.slice(7) : null;
+    if (!CONF.jetonService || j1 !== CONF.jetonService) {
+      res.writeHead(CONF.jetonService ? 401 : 503, entetesSurs({ "content-type": "application/json" })).end(
+        JSON.stringify({ ok: false, message: CONF.jetonService ? "Service non authentifie." : "Service non configure." }),
+      );
+      return;
+    }
+    if (!voixActive) {
+      res.writeHead(409, entetesSurs({ "content-type": "application/json" })).end(
+        JSON.stringify({ ok: false, message: "Voix desactivee par VOICE_ENABLED=false." }),
+      );
+      return;
+    }
+    await lancerLaVoix();
+    const pret = Boolean(moteurVoix.fournisseur);
+    res.writeHead(pret ? 200 : 503, entetesSurs({ "content-type": "application/json" })).end(
+      JSON.stringify({
+        ok: pret,
+        etat: moteurVoix.etat,
+        raison: moteurVoix.raison,
+        tentatives: moteurVoix.tentatives,
+        capacites: pret ? moteurVoix.fournisseur.getCapabilities() : null,
+      }),
+    );
+    return;
+  }
+
   // --- Diagnostic : UNE note vocale de test, de bout en bout -------------
   if (url === "/diagnostic/voix") {
     if (req.method !== "POST") {
@@ -582,7 +625,7 @@ createServer(async (req, res) => {
           capacites: moteurVoix.fournisseur.getCapabilities(),
           metriques: moteurVoix.fournisseur.getMetrics(),
         }
-      : { etat: moteurVoix.etat, raison: moteurVoix.raison },
+      : { etat: moteurVoix.etat, raison: moteurVoix.raison, tentatives: moteurVoix.tentatives },
     verrou: { detenu: verrou.detientToujours(), instance: verrou.instanceId.slice(0, 8), pid: process.pid },
     // Sans mesure, « l'agent travaille seul » reste une impression.
     autonomie: agent.metriques,
@@ -655,7 +698,10 @@ if (ressources.memoireSuspecte) {
 // L'installation ne fait que ce qui manque — 160 Mo retelecharges a chaque
 // redemarrage couteraient des minutes pour rien. Un echec n'empeche JAMAIS
 // l'agent de demarrer : une reponse ecrite vaut mieux qu'un silence.
-const CHEMIN_VOIX = process.env.VOICE_RACINE || `${chemins.donnees}/voix`;
+// `chemins.racine`, et non `chemins.donnees` : `cheminsPersistants` ne rend
+// pas cette seconde clef. Le defaut a coute un telechargement de 160 Mo dans
+// un dossier nomme « undefined », puisque le chemin valait « undefined/voix ».
+const CHEMIN_VOIX = process.env.VOICE_RACINE || `${chemins.racine}/voix`;
 const voixActive = String(process.env.VOICE_ENABLED ?? "true").toLowerCase() !== "false";
 
 /**
@@ -665,9 +711,28 @@ const voixActive = String(process.env.VOICE_ENABLED ?? "true").toLowerCase() !==
  * tant que la mise en route n'a pas abouti. Sans ce support, il faudrait
  * attendre l'installation pour pouvoir seulement definir la route.
  */
-const moteurVoix = { fournisseur: null, diagnostic: null, etat: voixActive ? "en_cours" : "desactivee", raison: null };
+const moteurVoix = {
+  fournisseur: null,
+  diagnostic: null,
+  etat: voixActive ? "en_cours" : "desactivee",
+  raison: null,
+  /** Mise en route en cours, s'il y en a une. Deux a la fois chargeraient deux fois les modeles. */
+  enCours: null,
+  tentatives: 0,
+};
 
 async function mettreEnRouteLaVoix() {
+  moteurVoix.tentatives += 1;
+  moteurVoix.etat = "en_cours";
+  moteurVoix.raison = null;
+  // Un fournisseur deja debout est remplace proprement : sans cela, une
+  // relance laisserait un demon orphelin avec 63 Mo de modeles en memoire.
+  if (moteurVoix.fournisseur) {
+    const ancien = moteurVoix.fournisseur;
+    moteurVoix.fournisseur = null;
+    moteurVoix.diagnostic = null;
+    await ancien.shutdown().catch(() => {});
+  }
   const inst = await installerPiper({
     racine: CHEMIN_VOIX,
     journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
@@ -682,12 +747,12 @@ async function mettreEnRouteLaVoix() {
 
   // PYTHONPATH est pose sur le wheel deplie : pip etant absent du conteneur,
   // le module n'est pas installe mais seulement pose a cote.
-  process.env.PYTHONPATH = [inst.pythonpath, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
+  process.env.PYTHONPATH = [inst.pythonpath, process.env.PYTHONPATH].filter(Boolean).join(delimiter);
 
   const f = new FournisseurPiper({
     python: process.env.VOICE_PYTHON || "python3",
     modeles: inst.modeles,
-    dossierTemporaire: `${chemins.donnees}/voix-tmp`,
+    dossierTemporaire: `${chemins.racine}/voix-tmp`,
     journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
   });
   const amorce = await f.initialize();
@@ -705,22 +770,39 @@ async function mettreEnRouteLaVoix() {
     voix: f,
     audio: { preparerNoteVocale },
     provider,
-    dossierTemporaire: `${chemins.donnees}/voix-tmp`,
+    dossierTemporaire: `${chemins.racine}/voix-tmp`,
     journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
   });
   moteurVoix.etat = "pret";
   console.log(`[voix] moteur pret (${(amorce.langues ?? []).join(", ")})`);
 }
 
+/**
+ * Lance la mise en route, ou rend celle qui est deja en cours.
+ *
+ * Deux relances simultanees chargeraient deux fois les modeles sur un
+ * conteneur qui n'a qu'un coeur : la seconde rendrait la premiere plus lente
+ * sans rien apporter.
+ */
+function lancerLaVoix() {
+  if (moteurVoix.enCours) return moteurVoix.enCours;
+  moteurVoix.enCours = mettreEnRouteLaVoix()
+    .catch((e) => {
+      moteurVoix.etat = "indisponible";
+      moteurVoix.raison = String(e?.message ?? e).slice(0, 200);
+      console.warn(`[voix] mise en route en echec : ${moteurVoix.raison}`);
+    })
+    .finally(() => {
+      moteurVoix.enCours = null;
+    });
+  return moteurVoix.enCours;
+}
+
 if (voixActive) {
   // Sans `await` : voir l'en-tete de cette section. Une mise en route qui
   // echoue est consignee, jamais propagee — elle ne doit pas emporter le
   // demarrage de l'agent.
-  mettreEnRouteLaVoix().catch((e) => {
-    moteurVoix.etat = "indisponible";
-    moteurVoix.raison = String(e?.message ?? e).slice(0, 200);
-    console.warn(`[voix] mise en route en echec : ${moteurVoix.raison}`);
-  });
+  lancerLaVoix();
 } else {
   console.log("[voix] desactivee par VOICE_ENABLED=false");
 }
