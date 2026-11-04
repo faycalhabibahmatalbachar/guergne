@@ -41,8 +41,8 @@ const FENETRE_MS = 5 * 60 * 1000;
 export const TEXTE_TEST = [
   "Bonjour. Ceci est un message vocal de test envoyé par l'assistant intelligent",
   "du Lycée Guergné La Renaissance. Notre moteur de synthèse vocale est maintenant",
-  "intégré à WhatsApp. Je suis capable de préparer une réponse et de vous la",
-  "transmettre sous forme de note vocale. Merci pour ce test.",
+  "opérationnel. Je vous transmets ce message pour confirmer le fonctionnement de",
+  "notre assistant vocal. Merci.",
 ].join(" ");
 
 /** Comparaison à temps constant : une comparaison naïve fuite la longueur du préfixe. */

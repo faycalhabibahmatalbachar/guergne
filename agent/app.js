@@ -469,16 +469,20 @@ createServer(async (req, res) => {
       res.writeHead(405, entetesSurs({ allow: "POST" })).end();
       return;
     }
-    if (!diagnosticVoix) {
+    if (!moteurVoix.diagnostic) {
       res.writeHead(503, entetesSurs({ "content-type": "application/json" })).end(
-        JSON.stringify({ ok: false, message: "Moteur vocal indisponible sur cette instance." }),
+        JSON.stringify({
+          ok: false,
+          message: `Moteur vocal ${moteurVoix.etat}${moteurVoix.raison ? ` : ${moteurVoix.raison}` : ""}.`,
+          etat: moteurVoix.etat,
+        }),
       );
       return;
     }
     const entete = req.headers["authorization"];
     const jeton = typeof entete === "string" && entete.startsWith("Bearer ") ? entete.slice(7) : null;
     const p = new URL(req.url, "http://local").searchParams;
-    const r = await diagnosticVoix.declencher({
+    const r = await moteurVoix.diagnostic.declencher({
       jeton,
       cible: p.get("cible") ?? "SUPER_ADMIN",
       langue: p.get("langue") ?? "fr",
@@ -571,9 +575,14 @@ createServer(async (req, res) => {
     // Releve au demarrage, pas a chaque appel : c'est l'etat dans lequel
     // Chromium a demarre qui explique son sort, pas celui d'apres.
     ressources,
-    voix: voix
-      ? { active: true, ...(await voix.healthCheck()), capacites: voix.getCapabilities(), metriques: voix.getMetrics() }
-      : { active: false, raison: voixActive ? "moteur indisponible" : "desactivee" },
+    voix: moteurVoix.fournisseur
+      ? {
+          etat: moteurVoix.etat,
+          ...(await moteurVoix.fournisseur.healthCheck()),
+          capacites: moteurVoix.fournisseur.getCapabilities(),
+          metriques: moteurVoix.fournisseur.getMetrics(),
+        }
+      : { etat: moteurVoix.etat, raison: moteurVoix.raison },
     verrou: { detenu: verrou.detientToujours(), instance: verrou.instanceId.slice(0, 8), pid: process.pid },
     // Sans mesure, « l'agent travaille seul » reste une impression.
     autonomie: agent.metriques,
@@ -595,7 +604,7 @@ async function arreter(signal) {
   clearInterval(relance);
   clearInterval(garde);
   // Un demon orphelin garderait un modele de 63 Mo en memoire pour rien.
-  await voix?.shutdown().catch(() => {});
+  await moteurVoix.fournisseur?.shutdown().catch(() => {});
   // Une derniere tentative avant de partir : un avis en attente a plus de
   // chances d'aboutir maintenant qu'apres un redemarrage.
   await notifications.traiter().catch(() => {});
@@ -634,50 +643,87 @@ if (ressources.memoireSuspecte) {
 
 // --- Moteur vocal -----------------------------------------------------------
 //
-// L'installation tourne a chaque demarrage mais ne fait que ce qui manque :
-// 160 Mo retelecharges a chaque redemarrage couteraient des minutes pour rien.
-// Un echec n'empeche JAMAIS l'agent de demarrer — la voix est un supplement, et
-// une reponse ecrite vaut mieux qu'un silence.
+// LA VOIX NE DOIT JAMAIS RETARDER WHATSAPP.
+//
+// Au premier demarrage, l'installation telecharge environ 160 Mo : le wheel de
+// Piper et deux voix de 63 Mo. Attendre cela avant d'appeler `connect()`
+// retarderait la connexion WhatsApp de plusieurs MINUTES, pendant lesquelles
+// l'agent ne recevrait aucun message. La reception passe avant la voix : la
+// mise en route vocale est donc lancee SANS etre attendue, et le moteur
+// devient disponible quand il l'est.
+//
+// L'installation ne fait que ce qui manque — 160 Mo retelecharges a chaque
+// redemarrage couteraient des minutes pour rien. Un echec n'empeche JAMAIS
+// l'agent de demarrer : une reponse ecrite vaut mieux qu'un silence.
 const CHEMIN_VOIX = process.env.VOICE_RACINE || `${chemins.donnees}/voix`;
 const voixActive = String(process.env.VOICE_ENABLED ?? "true").toLowerCase() !== "false";
-let voix = null;
-if (voixActive) {
+
+/**
+ * Support mutable du moteur vocal.
+ *
+ * La route et `/sante` consultent `moteurVoix.fournisseur`, qui vaut `null`
+ * tant que la mise en route n'a pas abouti. Sans ce support, il faudrait
+ * attendre l'installation pour pouvoir seulement definir la route.
+ */
+const moteurVoix = { fournisseur: null, diagnostic: null, etat: voixActive ? "en_cours" : "desactivee", raison: null };
+
+async function mettreEnRouteLaVoix() {
   const inst = await installerPiper({
     racine: CHEMIN_VOIX,
     journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
   });
-  if (inst.pret) {
-    if (inst.faits.length) console.log(`[voix] installation : ${inst.faits.join(" ; ")}`);
-    voix = new FournisseurPiper({
-      python: process.env.VOICE_PYTHON || "python3",
-      modeles: inst.modeles,
-      dossierTemporaire: `${chemins.donnees}/voix-tmp`,
-      journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
-    });
-    // On branche PYTHONPATH sur le wheel deplie : pip est absent du conteneur,
-    // le module n'est donc pas installe mais seulement pose a cote.
-    process.env.PYTHONPATH = [inst.pythonpath, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
-    const amorce = await voix.initialize();
-    console.log(`[voix] moteur ${amorce.pret ? `pret (${(amorce.langues ?? []).join(", ")})` : `indisponible : ${amorce.raison}`}`);
-    if (!amorce.pret) voix = null;
-  } else {
-    console.warn(`[voix] indisponible : ${inst.raison} — l'agent repondra par ecrit seulement.`);
+  if (!inst.pret) {
+    moteurVoix.etat = "indisponible";
+    moteurVoix.raison = inst.raison ?? "installation incomplete";
+    console.warn(`[voix] indisponible : ${moteurVoix.raison} — l'agent repondra par ecrit seulement.`);
+    return;
   }
+  if (inst.faits.length) console.log(`[voix] installation : ${inst.faits.join(" ; ")}`);
+
+  // PYTHONPATH est pose sur le wheel deplie : pip etant absent du conteneur,
+  // le module n'est pas installe mais seulement pose a cote.
+  process.env.PYTHONPATH = [inst.pythonpath, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
+
+  const f = new FournisseurPiper({
+    python: process.env.VOICE_PYTHON || "python3",
+    modeles: inst.modeles,
+    dossierTemporaire: `${chemins.donnees}/voix-tmp`,
+    journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+  });
+  const amorce = await f.initialize();
+  if (!amorce.pret) {
+    moteurVoix.etat = "indisponible";
+    moteurVoix.raison = amorce.raison ?? "demon non pret";
+    console.warn(`[voix] moteur indisponible : ${moteurVoix.raison}`);
+    await f.shutdown().catch(() => {});
+    return;
+  }
+  moteurVoix.fournisseur = f;
+  moteurVoix.diagnostic = new DiagnosticVoix({
+    jetonAttendu: CONF.jetonService,
+    destinataires: async (role) => identites.destinatairesParRole([role]),
+    voix: f,
+    audio: { preparerNoteVocale },
+    provider,
+    dossierTemporaire: `${chemins.donnees}/voix-tmp`,
+    journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+  });
+  moteurVoix.etat = "pret";
+  console.log(`[voix] moteur pret (${(amorce.langues ?? []).join(", ")})`);
+}
+
+if (voixActive) {
+  // Sans `await` : voir l'en-tete de cette section. Une mise en route qui
+  // echoue est consignee, jamais propagee — elle ne doit pas emporter le
+  // demarrage de l'agent.
+  mettreEnRouteLaVoix().catch((e) => {
+    moteurVoix.etat = "indisponible";
+    moteurVoix.raison = String(e?.message ?? e).slice(0, 200);
+    console.warn(`[voix] mise en route en echec : ${moteurVoix.raison}`);
+  });
 } else {
   console.log("[voix] desactivee par VOICE_ENABLED=false");
 }
-
-const diagnosticVoix = voix
-  ? new DiagnosticVoix({
-      jetonAttendu: CONF.jetonService,
-      destinataires: async (role) => identites.destinatairesParRole([role]),
-      voix,
-      audio: { preparerNoteVocale },
-      provider,
-      dossierTemporaire: `${chemins.donnees}/voix-tmp`,
-      journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
-    })
-  : null;
 
 console.log("[demarrage] connexion WhatsApp...");
 // UN ECHEC DE CONNEXION NE DOIT PLUS EMPORTER LE DEMARRAGE.
