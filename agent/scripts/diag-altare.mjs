@@ -17,6 +17,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import SftpClient from "ssh2-sftp-client";
+import pg from "pg";
 
 const racine = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -96,6 +97,7 @@ try {
     console.log(".env : ABSENT");
   } else {
     const vus = new Map();
+    const valeursPrivees = new Map(); // ne jamais afficher, même en cas d'erreur
     const anomalies = [];
     let ligneNo = 0;
     for (const ligne of env.split(/\r?\n/)) {
@@ -114,7 +116,9 @@ try {
       if (vus.has(nom)) anomalies.push(`${nom} : DOUBLON (la derniere occurrence gagne)`);
       const guillemets = /^\s*["']/.test(valeur) ? "oui" : "non";
       const espaces = valeur !== valeur.trim() ? "OUI" : "non";
-      vus.set(nom, { longueur: valeur.trim().replace(/^["']|["']$/g, "").length, guillemets, espaces });
+      const valeurNettoyee = valeur.trim().replace(/^["']|["']$/g, "");
+      vus.set(nom, { longueur: valeurNettoyee.length, guillemets, espaces });
+      valeursPrivees.set(nom, valeurNettoyee);
     }
     for (const [nom, d] of vus) {
       console.log(
@@ -142,6 +146,81 @@ try {
     ];
     const absentes = ATTENDUES.filter((k) => !vus.has(k));
     console.log(`  manquantes parmi les attendues : ${absentes.length ? absentes.join(", ") : "aucune"}`);
+
+    // --- Vérification réelle de la mémoire Neon, sans révéler DATABASE_URL ---
+    titre("MEMOIRE CONVERSATIONNELLE NEON");
+    const memoireActive = String(valeursPrivees.get("AGENT_MEMORY_ENABLED") ?? "").toLowerCase() === "true";
+    const databaseUrl = valeursPrivees.get("AGENT_MEMORY_DATABASE_URL");
+    const cleChiffrement = valeursPrivees.get("AGENT_MEMORY_ENCRYPTION_KEY");
+    const cleHmac = valeursPrivees.get("AGENT_MEMORY_HMAC_KEY");
+    console.log(`  activation demandee : ${memoireActive ? "true" : "false"}`);
+    console.log(`  URL Neon presente   : ${databaseUrl ? "oui (valeur masquee)" : "NON"}`);
+    console.log(`  cle AES presente    : ${cleChiffrement ? "oui" : "NON"}`);
+    console.log(`  cle HMAC presente   : ${cleHmac ? "oui" : "NON"}`);
+
+    if (!databaseUrl) {
+      console.log("  test Neon : impossible — AGENT_MEMORY_DATABASE_URL absente.");
+    } else {
+      const client = new pg.Client({
+        connectionString: databaseUrl,
+        ssl: { rejectUnauthorized: false },
+        connectionTimeoutMillis: 8_000,
+        application_name: "guergne-memory-diagnostic",
+      });
+      try {
+        await client.connect();
+        const db = await client.query("SELECT current_database() AS database, current_schema() AS schema");
+        console.log(`  connexion Neon : OK — base ${db.rows[0].database}, schéma ${db.rows[0].schema}`);
+        const attenduesMemoire = [
+          "wa_conversations",
+          "wa_messages",
+          "wa_conversation_state",
+          "wa_memory_summaries",
+          "wa_memory_facts",
+          "wa_conversation_context",
+        ];
+        const tables = await client.query(
+          "SELECT table_name FROM information_schema.tables " +
+          "WHERE table_schema = 'public' AND table_name = ANY($1::text[])",
+          [attenduesMemoire],
+        );
+        const presentes = new Set(tables.rows.map((r) => r.table_name));
+        const manquantes = attenduesMemoire.filter((t) => !presentes.has(t));
+        console.log(`  tables mémoire : ${presentes.size}/${attenduesMemoire.length}`);
+        if (manquantes.length) console.log(`  tables manquantes : ${manquantes.join(", ")}`);
+
+        if (presentes.size === attenduesMemoire.length) {
+          const stats = await client.query(
+            "SELECT " +
+            "(SELECT count(*) FROM public.wa_conversations) AS conversations, " +
+            "(SELECT count(*) FROM public.wa_messages) AS messages, " +
+            "(SELECT count(*) FROM public.wa_conversation_state) AS pending_states, " +
+            "(SELECT count(*) FROM public.wa_memory_summaries) AS summaries, " +
+            "(SELECT count(*) FROM public.wa_memory_facts) AS facts, " +
+            "(SELECT count(*) FROM public.wa_conversation_context) AS followup_contexts, " +
+            "(SELECT pg_total_relation_size('public.wa_conversations') + " +
+            "pg_total_relation_size('public.wa_messages') + " +
+            "pg_total_relation_size('public.wa_conversation_state') + " +
+            "pg_total_relation_size('public.wa_memory_summaries') + " +
+            "pg_total_relation_size('public.wa_memory_facts') + " +
+            "pg_total_relation_size('public.wa_conversation_context')) AS memory_bytes",
+          );
+          console.log("  comptages : " + JSON.stringify(stats.rows[0]));
+          const migr = await client.query(
+            "SELECT nom FROM public._migrations WHERE nom = ANY($1::text[]) ORDER BY nom",
+            [[
+              "0037_memorisation_conversationnelle_whatsapp.sql",
+              "0038_contexte_suivi_conversationnel_whatsapp.sql",
+            ]],
+          );
+          console.log(`  migrations mémoire : ${migr.rows.map((r) => r.nom).join(", ") || "aucune ligne enregistrée"}`);
+        }
+      } catch (error) {
+        console.log(`  test Neon : ECHEC (${error?.code ?? "erreur de connexion"}). Aucune valeur de connexion affichée.`);
+      } finally {
+        await client.end().catch(() => {});
+      }
+    }
   }
 
   // --- 3. Données persistantes ---------------------------------------------
