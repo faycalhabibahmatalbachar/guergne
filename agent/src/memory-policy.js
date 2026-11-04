@@ -28,7 +28,7 @@ export function completerParametresContexte({
   parametres = {},
 } = {}) {
   const resultat = { ...(parametres ?? {}) };
-  if (!outilLecture || !dernierTravail?.parametres) {
+  if (!outilLecture || !(dernierTravail?.params ?? dernierTravail?.parametres)) {
     return { parametres: resultat, champsHerites: [] };
   }
 
