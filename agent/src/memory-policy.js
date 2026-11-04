@@ -67,6 +67,12 @@ export function resoudreDemandeSuivi({ texte = "", dernierTravail = null } = {})
   if (!/^(?:et|puis|ensuite|maintenant)\b/u.test(n)) return null;
 
   const source = dernierTravail?.params ?? dernierTravail?.parametres ?? {};
+  if (!source.classeId && !source.periodeId) return null;
+
+  const periodeNouvelle =
+    /\b(?:cette semaine|ce mois|la semaine prochaine|la semaine derniere|ce trimestre|cette annee|annee scolaire|aujourd'hui|aujourd hui|hier|demain|du\s+\d{1,2}|\d{1,2}\/\d{1,2})\b/u.test(n);
+  if (periodeNouvelle) return null;
+
   const classeNouvelle =
     /\b(?:classe\s+(?:de\s+)?(?:6e|6eme|5e|5eme|4e|4eme|3e|3eme|2nde|seconde|terminale|tle|1ere|premiere)(?:\s+[a-z])?|(?:6e|6eme|5e|5eme|4e|4eme|3e|3eme|2nde|terminale|tle)\s+[a-z])\b/u.test(n);
   if (classeNouvelle) return null;
