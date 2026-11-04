@@ -39,7 +39,7 @@ test("le filtre de contenu refuse les informations scolaires et identifiantes", 
 test("une demande de suivi hérite de la classe précédente après une nouvelle consultation", () => {
   const lastTask = {
     tool: "eleves.rechercher",
-    params: {
+    parametres: {
       classeId: "00000000-0000-4000-8000-000000000006",
       periodeId: "00000000-0000-4000-8000-000000000099",
     },
@@ -48,7 +48,7 @@ test("une demande de suivi hérite de la classe précédente après une nouvelle
     texte: "Et les retards ?",
     dernierTravail: lastTask,
     outilLecture: true,
-    params: {},
+    parametres: {},
   });
   assert.deepEqual(suite.parametres, {
     classeId: lastTask.params.classeId,
@@ -70,7 +70,7 @@ test("la référence à la même classe reprend le périmètre et une autre clas
     outilLecture: true,
     params: {},
   });
-  assert.equal(meme.params.classeId, lastTask.params.classeId);
+  assert.equal(meme.parametres.classeId, lastTask.params.classeId);
 
   const nouvelle = completerParametresContexte({
     texte: "Et les retards de la 5e A ?",
@@ -78,7 +78,7 @@ test("la référence à la même classe reprend le périmètre et une autre clas
     outilLecture: true,
     params: {},
   });
-  assert.equal(nouvelle.params.classeId, undefined);
+  assert.equal(nouvelle.parametres.classeId, undefined);
 });
 
 test("le contexte précédent n'est jamais hérité pour une écriture ou une demande indépendante", () => {
