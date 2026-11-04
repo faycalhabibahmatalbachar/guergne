@@ -16,6 +16,46 @@ function normaliser(texte) {
     .replace(/\s+/gu, " ");
 }
 
+/**
+ * Hérite uniquement du périmètre d'une lecture précédente lorsque le message
+ * est clairement une suite ("et les retards ?", "pour la même classe").
+ * Aucun identifiant d'élève, nom ou contenu de résultat n'est concerné.
+ */
+export function completerParametresContexte({
+  texte = "",
+  dernierTravail = null,
+  outilLecture = false,
+  parametres = {},
+} = {}) {
+  const resultat = { ...(parametres ?? {}) };
+  if (!outilLecture || !dernierTravail?.parametres) {
+    return { parametres: resultat, champsHerites: [] };
+  }
+
+  const n = normaliser(texte);
+  const mentionMemeClasse =
+    /\b(?:meme classe|cette classe|la classe precedente|classe precedente|comme avant|comme precedemment|comme tout a l'heure)\b/u.test(n);
+  const suiteNaturelle = /^(?:et|puis|ensuite|maintenant|aussi)\b/u.test(n);
+  const classeNouvelle =
+    /\b(?:classe\s+(?:de\s+)?(?:6e|6eme|5e|5eme|4e|4eme|3e|3eme|2nde|seconde|terminale|tle|1ere|premiere)(?:\s+[a-z])?|(?:6e|6eme|5e|5eme|4e|4eme|3e|3eme|2nde|terminale|tle)\s+[a-z])\b/u.test(n);
+  const memePeriode =
+    /\b(?:meme periode|cette periode|la periode precedente|periode precedente|comme pour la periode precedente)\b/u.test(n);
+
+  const herites = [];
+  const source = dernierTravail.parametres;
+
+  if ((mentionMemeClasse || (suiteNaturelle && !classeNouvelle)) && source.classeId) {
+    resultat.classeId = source.classeId;
+    herites.push("classeId");
+  }
+  if (memePeriode && source.periodeId) {
+    resultat.periodeId = source.periodeId;
+    herites.push("periodeId");
+  }
+
+  return { parametres: resultat, champsHerites: herites };
+}
+
 export function analyserCommandeMemoire(texte) {
   const brut = String(texte ?? "").trim();
   const n = normaliser(brut);
