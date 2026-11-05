@@ -35,7 +35,7 @@
  * Variables attendues (le profil de `infra/local/environnement.sh` les pose) :
  *   PYTHON_BIN, VOIX_DOSSIER, FFMPEG_BIN, FFPROBE_BIN
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { readFile, unlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -81,6 +81,8 @@ const gris = (s) => console.log(`\x1b[0;90m${s}\x1b[0m`);
 
 const etapes = {};
 const chrono = () => Date.now();
+/** Chemin de la copie conservee, renseigne apres la conversion. */
+let copie = null;
 
 async function principal() {
   mkdirSync(SESSION, { recursive: true, mode: 0o700 });
@@ -139,11 +141,29 @@ async function principal() {
     process.exit(1);
   }
   // Une copie conservée : c'est la pièce à écouter si l'envoi échoue.
-  const copie = join(racine, "donnees-locales", "derniere-note.ogg");
+  copie = join(racine, "donnees-locales", "derniere-note.ogg");
   writeFileSync(copie, octets);
   gris(`  copie conservee : ${copie}`);
 
   // --- 4. Session WhatsApp locale ------------------------------------------
+  //
+  // UN ESSAI A BLANC NE DOIT PAS ATTENDRE UN SCAN.
+  //
+  // Sans session deja appairee, lancer Chromium ici afficherait un QR code et
+  // attendrait trois minutes que quelqu'un vienne. Or l'essai a blanc sert
+  // precisement a tout valider AVANT de deranger qui que ce soit. On s'arrete
+  // donc la, en le disant, et la resolution du destinataire attend la session.
+  const sessionExistante = existsSync(join(SESSION, "session-guergne-local"));
+  if (blanc && !sessionExistante) {
+    bleu("== Essai a blanc : la chaine audio est validee ==");
+    console.log(JSON.stringify({ etapes, audio: rapport, fichier: copie }, null, 2));
+    gris("\nAucune session locale appairee : WhatsApp n'a pas ete lance.");
+    gris("La resolution du destinataire et l'envoi attendent l'appairage.");
+    await voix.shutdown().catch(() => {});
+    for (const f of [...morceaux, assemble, ogg]) await unlink(f).catch(() => {});
+    return;
+  }
+
   bleu("== 4. Session WhatsApp locale ==");
   gris("  Cette session est DISTINCTE de celle d'Altare, qui n'est pas touchee.");
   const { default: wweb } = await import("whatsapp-web.js");
