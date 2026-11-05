@@ -71,8 +71,20 @@ export class FakeProvider extends WhatsAppProvider {
     this.sent.push({ jid, kind: "audio", media });
     return { ok: true };
   }
+  /**
+   * Rend un média dans la MÊME forme que le transport réel.
+   *
+   * Un faux qui rendait la forme libre fournie par le test a laissé passer un
+   * défaut de production pendant des semaines : le moteur n'avait jamais été
+   * éprouvé contre le contrat réel `{ mimetype, data: Buffer }`. Le faux le
+   * respecte donc maintenant, quelle que soit la forme écrite dans le test.
+   */
   async getMedia(message) {
-    return message.media ?? null;
+    const m = message?.media;
+    if (!m) return null;
+    const brut = m.data ?? m.bytes ?? m;
+    const data = Buffer.isBuffer(brut) ? brut : Buffer.from(String(brut));
+    return { mimetype: m.mimetype ?? "audio/ogg; codecs=opus", data, filename: m.filename ?? null, dureeS: m.dureeS ?? null };
   }
   async reconnect() {
     this._status = "ready";

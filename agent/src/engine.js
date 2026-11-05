@@ -28,6 +28,7 @@ import { ETAPE, agreger, estTransitoire, rendreBilan, validerMission } from "./m
 // `masquer` est la mise en forme canonique du projet : la redefinir ici ferait
 // diverger deux facons de masquer un numero.
 import { masquer } from "./identity-store.js";
+import { decrireErreur, resumerErreur } from "./erreurs.js";
 
 let counter = 0;
 const uid = (p) => `${p}_${Date.now().toString(36)}_${(counter++).toString(36)}`;
@@ -118,8 +119,18 @@ export class Agent {
     try {
       return await this._traiter(raw, msg, runId, started);
     } catch (e) {
-      const erreur = String(e?.message ?? e);
-      this.journalEtape?.({ event: "handler_failed", run: runId, erreur: erreur.slice(0, 200) });
+      // `String(e?.message ?? e)` seul avait produit `erreur: "r"` en
+      // production : une erreur minifiée de WhatsApp Web, indiagnosticable.
+      // On garde le résumé pour l'audit, et la description complète — nom,
+      // classe, pile, causes — pour le journal.
+      const erreur = resumerErreur(e, { max: 300 });
+      this.journalEtape?.({
+        event: "handler_failed",
+        run: runId,
+        erreur,
+        detail: decrireErreur(e),
+        canal: msg?.kind ?? null,
+      });
 
       // Aucune action métier engagée : la revendication est relâchée pour que
       // le message puisse être retraité. Si une écriture a eu lieu, on la
@@ -145,6 +156,41 @@ export class Agent {
     } finally {
       this._metriques.dureeCumuleeMs += Date.now() - started;
     }
+  }
+
+  /**
+   * Échec de la chaîne vocale entrante : le dire à l'expéditeur, le consigner,
+   * et s'arrêter là.
+   *
+   * POURQUOI UN CHEMIN D'ÉCHEC DISTINCT
+   * ------------------------------------
+   * Laisser l'exception remonter produisait le message passe-partout « une
+   * erreur technique m'a empêché de traiter votre message », qui ne dit ni
+   * quoi faire, ni que le problème venait de l'audio. Et laisser un texte vide
+   * poursuivre vers le modèle est pire : il aurait inventé une intention.
+   */
+  async _echecVocal({ msg, runId, staff, started, evenement, raison, detail = null, texte }) {
+    this.journalEtape?.({ event: evenement, run: runId, raison, ...(detail ? { detail } : {}) });
+    try {
+      await this.provider.sendText(msg.fromJid, texte);
+    } catch {
+      /* le journal porte déjà l'échec */
+    }
+    this.audit.record({
+      runId,
+      sender: msg.senderMsisdn,
+      identity: staff?.id ?? null,
+      role: staff?.role ?? null,
+      channel: msg.kind,
+      intent: null,
+      result: "FAILED",
+      error: `${evenement}: ${raison}`,
+      durationMs: Date.now() - started,
+    });
+    // Aucune action métier n'a eu lieu : la revendication est relâchée pour
+    // qu'une seconde tentative de l'utilisateur soit réellement traitée.
+    if (!this._actionsEngagees.has(runId)) this.idempotency.oublier?.(msg.id);
+    return { status: Status.FAILED, runId, error: raison, etape: evenement };
   }
 
   async _traiter(raw, msg, runId, started) {
@@ -220,6 +266,14 @@ export class Agent {
       return { status: Status.REJECTED_UNKNOWN, runId, raison };
     }
 
+    // Le transport apprend ICI le rôle du destinataire.
+    //
+    // Il ne peut pas le trouver seul : depuis la migration LID, le JID qui
+    // écrit n'est pas un numéro, et le magasin d'identités est indexé par
+    // numéro. Sans cette ligne, le périmètre de la réponse vocale conclurait
+    // « rôle inconnu » pour TOUT LE MONDE, donc silence pour tout le monde.
+    this.provider.contexteReponse?.(msg.fromJid, { role: staff.role });
+
     // 2 bis. Commande de diagnostic — deterministe, avant toute dependance.
     //
     // Elle existe pour une raison precise : quand l'agent se tait, il faut
@@ -241,11 +295,102 @@ export class Agent {
     }
 
     // 3. Transcription vocale si nécessaire (brief §3.3)
+    //
+    // CHAQUE ÉTAPE EST TRACÉE ET CHAQUE ÉCHEC EST NOMMÉ.
+    //
+    // Pendant des semaines, une note vocale produisait `handler_failed: "r"` et
+    // rien d'autre : ni l'étape, ni la cause. Le défaut était dans le
+    // téléchargement (voir `providers/identifiant-message.js`), mais la trace
+    // ne permettait pas de le savoir. Un échec vocal doit désormais dire
+    // lequel des quatre moments a échoué — média, intégrité, transcription,
+    // contenu — et le dire aussi à l'expéditeur, dans sa langue.
     let text = msg.text;
     let transcription = null;
-    if (msg.kind === "audio" && typeof this.transcribe === "function") {
-      transcription = await this.transcribe(await this.provider.getMedia(raw));
+    let langueEntendue = null;
+    if (msg.kind === "audio") {
+      if (typeof this.transcribe !== "function") {
+        return this._echecVocal({
+          msg, runId, staff, started,
+          evenement: "voice_stt_indisponible",
+          raison: "aucun moteur de transcription configure",
+          texte: "Je ne sais pas encore écouter les messages vocaux. Écrivez-moi votre demande, je la traiterai.",
+        });
+      }
+
+      this.journalEtape?.({ event: "voice_incoming_received", run: runId });
+      let media = null;
+      try {
+        media = await this.provider.getMedia(raw);
+      } catch (e) {
+        return this._echecVocal({
+          msg, runId, staff, started,
+          evenement: "voice_media_failed",
+          raison: resumerErreur(e),
+          detail: decrireErreur(e),
+          texte: "Je n'ai pas pu récupérer votre note vocale. Renvoyez-la, ou écrivez-moi votre demande.",
+        });
+      }
+      if (!media?.data?.length) {
+        // `null` a un sens précis chez le transport : média expiré, en cours de
+        // réenvoi, ou introuvable. Ce n'est pas une panne, et le dire ainsi
+        // évite une relance inutile.
+        return this._echecVocal({
+          msg, runId, staff, started,
+          evenement: "voice_media_indisponible",
+          raison: "media absent, expire ou vide",
+          texte: "Votre note vocale n'est plus disponible sur les serveurs de WhatsApp. Renvoyez-la, je l'écouterai.",
+        });
+      }
+      this.journalEtape?.({
+        event: "voice_media_downloaded",
+        run: runId,
+        octets: media.data.length,
+        mimetype: media.mimetype ?? null,
+        dureeS: media.dureeS ?? null,
+      });
+
+      this.journalEtape?.({ event: "voice_stt_started", run: runId });
+      const debutStt = Date.now();
+      let resultat;
+      try {
+        resultat = await this.transcribe(media);
+      } catch (e) {
+        return this._echecVocal({
+          msg, runId, staff, started,
+          evenement: "voice_stt_failed",
+          raison: resumerErreur(e),
+          detail: decrireErreur(e),
+          texte: "Je n'ai pas réussi à transcrire votre note vocale. Réessayez dans un instant, ou écrivez-moi.",
+        });
+      }
+
+      // Le moteur peut rendre un texte nu (anciens appels, tests) ou un objet
+      // décrivant aussi la langue entendue : les deux sont acceptés.
+      transcription = typeof resultat === "string" ? resultat : (resultat?.texte ?? "");
+      langueEntendue = typeof resultat === "object" ? (resultat?.langue ?? null) : null;
       text = transcription ?? "";
+
+      if (!String(text).trim()) {
+        // Une transcription vide ne doit JAMAIS poursuivre vers le modèle : il
+        // inventerait une intention à partir de rien.
+        return this._echecVocal({
+          msg, runId, staff, started,
+          evenement: "voice_stt_vide",
+          raison: "transcription vide",
+          texte: "Je n'ai rien entendu d'exploitable dans votre note vocale. Reprenez-la un peu plus près du micro.",
+        });
+      }
+
+      this.journalEtape?.({
+        event: "voice_stt_completed",
+        run: runId,
+        caracteres: String(text).length,
+        langue: langueEntendue,
+        dureeMs: Date.now() - debutStt,
+      });
+      // La langue entendue oriente la réponse vocale : répondre en français à
+      // une question posée en arabe serait pire que de ne pas répondre.
+      if (langueEntendue) this.provider.langueSouhaitee?.(msg.fromJid, langueEntendue);
     }
 
     // 4. Réponse à une confirmation en attente ?

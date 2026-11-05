@@ -21,6 +21,8 @@ import { WhatsAppProvider } from "../provider.js";
 import { DelaiDepasse, avecDelai } from "../delai.js";
 import { ETATS, EtatWhatsApp, doitSuivreChargement } from "../etat-whatsapp.js";
 import { analyserJid } from "../jid.js";
+import { decrireErreur, resumerErreur } from "../erreurs.js";
+import { partieIdMessage, reparerIdMessage, serialiserIdMessage } from "./identifiant-message.js";
 
 /**
  * Bornes des appels sortants.
@@ -32,6 +34,38 @@ import { analyserJid } from "../jid.js";
 const DELAI_LID_MS = Number(process.env.DELAI_LID_MS ?? 10_000);
 /** L'envoi d'un message : genereux, mais fini. */
 const DELAI_ENVOI_MS = Number(process.env.DELAI_ENVOI_MS ?? 30_000);
+/**
+ * Le telechargement d'un media.
+ *
+ * Il traverse Puppeteer, puis le reseau de WhatsApp, puis un dechiffrement
+ * dans la page. Sans borne, une note vocale dont le media a expire laissait le
+ * traitement suspendu, et l'expediteur devant un silence.
+ */
+const DELAI_MEDIA_MS = Number(process.env.DELAI_MEDIA_MS ?? 60_000);
+/**
+ * Taille maximale acceptee pour un media entrant.
+ *
+ * Une note vocale de deux minutes pese moins de 500 Ko. Au-dela de cette
+ * borne, il ne s'agit plus d'une note vocale, et la memoire du conteneur
+ * (2355 Mo partages avec Chromium) n'a pas a l'absorber.
+ */
+export const MEDIA_MAX_OCTETS = Number(process.env.MEDIA_MAX_OCTETS ?? 16 * 1024 * 1024);
+/**
+ * Fenetre pendant laquelle une note vocale deja presente dans l'historique
+ * fait renoncer a un nouvel envoi. Elle protege contre la relance d'un appel
+ * dont la premiere issue etait ambigue.
+ */
+const FENETRE_DOUBLON_MS = Number(process.env.FENETRE_DOUBLON_MS ?? 5 * 60 * 1000);
+
+/** Lecture des codes d'acquittement de WhatsApp, pour ne pas les confondre. */
+export const ETATS_ACK = Object.freeze({
+  "-1": "erreur",
+  0: "en_attente",
+  1: "parti_du_serveur",
+  2: "livre",
+  3: "lu",
+  4: "ecoute",
+});
 
 const typeJid = (jid) => analyserJid(jid).serveur ?? "invalide";
 
@@ -319,7 +353,11 @@ export class WwebjsProvider extends WhatsAppProvider {
       this._tracer({
         event: "message_received",
         run,
-        idMessage: empreinteCourte(msg?.id?._serialized),
+        // `_serialized` est absent des objets rendus par la passerelle : on le
+        // reconstitue (voir `identifiant-message.js`). `idPartie` est la
+        // fraction opaque, journalisable parce qu'elle ne porte aucun numero.
+        idMessage: empreinteCourte(serialiserIdMessage(msg?.id)),
+        idPartie: partieIdMessage(msg?.id),
         jidType: typeJid(msg?.from),
         typeMessage: msg?.type ?? "inconnu",
         fromMe: Boolean(msg?.fromMe),
@@ -356,9 +394,10 @@ export class WwebjsProvider extends WhatsAppProvider {
           event: "handler_error",
           run,
           dureeMs: Date.now() - debut,
-          erreur: String(e?.message ?? e).slice(0, 200),
+          erreur: resumerErreur(e),
+          detail: decrireErreur(e),
         });
-        this._log.error?.("[whatsapp] traitement du message:", e?.message ?? e);
+        this._log.error?.("[whatsapp] traitement du message:", resumerErreur(e));
       }
     });
 
@@ -433,12 +472,101 @@ export class WwebjsProvider extends WhatsAppProvider {
     };
   }
 
+  /**
+   * Télécharge le média d'un message entrant.
+   *
+   * LE DÉFAUT QUI BLOQUAIT TOUTE NOTE VOCALE ENTRANTE
+   * --------------------------------------------------
+   * `Message.downloadMedia()` passe `this.id._serialized` au code de la page.
+   * Or cette propriété est absente des objets rendus par la passerelle — un
+   * accesseur de prototype perdu dans la traversée de Puppeteer, expliqué en
+   * détail dans `identifiant-message.js`. WhatsApp Web recevait donc
+   * `undefined`, et levait une erreur minifiée d'une seule lettre : le
+   * `handler_failed: "r"` qui faisait échouer chaque note vocale avant même
+   * l'appel au modèle. On répare l'identifiant avant d'appeler la
+   * bibliothèque, plutôt que de recopier son code chez nous.
+   *
+   * Chaque étape est tracée séparément : « la voix ne marche pas » ne dit pas
+   * s'il faut regarder le téléchargement, le déchiffrement ou la taille.
+   */
   async getMedia(message) {
     const brut = message?._brut ?? message;
-    if (!brut?.hasMedia) return null;
-    const media = await brut.downloadMedia();
-    if (!media) return null;
-    return { mimetype: media.mimetype, data: Buffer.from(media.data, "base64"), filename: media.filename ?? null };
+    if (!brut) return null;
+    if (!brut.hasMedia) {
+      this._tracer({ event: "media_absent", raison: "le message ne porte aucun media" });
+      return null;
+    }
+
+    const reparation = reparerIdMessage(brut);
+    if (!reparation.ok) {
+      // Inutile d'appeler la bibliothèque : elle lèverait la même erreur
+      // illisible qu'avant. On nomme la cause.
+      throw new Error(
+        "telechargement impossible : l'identifiant du message est inexploitable " +
+          "(ni `_serialized`, ni `remote`+`id` utilisables)",
+      );
+    }
+    if (reparation.repare) {
+      this._tracer({ event: "media_id_repare", idPartie: partieIdMessage(brut.id) });
+    }
+
+    const debut = Date.now();
+    this._tracer({
+      event: "media_download_started",
+      idPartie: partieIdMessage(brut.id),
+      typeMessage: brut.type ?? "inconnu",
+      mimetype: brut.mimetype ?? null,
+      dureeAnnonceeS: typeof brut.duration === "number" ? brut.duration : null,
+    });
+
+    let media;
+    try {
+      media = await avecDelai(() => brut.downloadMedia(), {
+        ms: DELAI_MEDIA_MS,
+        operation: "telechargement du media",
+      });
+    } catch (e) {
+      this._tracer({
+        event: "media_download_failed",
+        dureeMs: Date.now() - debut,
+        erreur: resumerErreur(e),
+        detail: decrireErreur(e),
+      });
+      throw e;
+    }
+
+    // `undefined` signifie quelque chose de précis chez whatsapp-web.js : le
+    // média a expiré, est en cours de réenvoi, ou le serveur a répondu 404.
+    // Ce n'est pas une panne de l'agent, et le message d'erreur doit le dire.
+    if (!media || !media.data) {
+      this._tracer({ event: "media_indisponible", dureeMs: Date.now() - debut });
+      return null;
+    }
+
+    const data = Buffer.from(media.data, "base64");
+    if (data.length === 0) {
+      this._tracer({ event: "media_vide", dureeMs: Date.now() - debut });
+      return null;
+    }
+    if (data.length > MEDIA_MAX_OCTETS) {
+      this._tracer({ event: "media_trop_volumineux", octets: data.length, limite: MEDIA_MAX_OCTETS });
+      throw new Error(`media trop volumineux : ${Math.round(data.length / 1024)} Ko (limite ${Math.round(MEDIA_MAX_OCTETS / 1024)} Ko)`);
+    }
+
+    this._tracer({
+      event: "media_downloaded",
+      dureeMs: Date.now() - debut,
+      octets: data.length,
+      mimetype: media.mimetype ?? null,
+    });
+    return {
+      mimetype: media.mimetype ?? null,
+      data,
+      filename: media.filename ?? null,
+      // La durée annoncée par WhatsApp, quand elle existe : utile pour refuser
+      // un enregistrement d'une heure avant de le télécharger entièrement.
+      dureeS: typeof brut.duration === "number" ? brut.duration : null,
+    };
   }
 
   async sendText(jid, texte) {
@@ -451,13 +579,19 @@ export class WwebjsProvider extends WhatsAppProvider {
         ms: DELAI_ENVOI_MS,
         operation: "envoi WhatsApp",
       });
+      const id = serialiserIdMessage(envoye?.id);
       this._tracer({
         event: "reply_accepted",
         jidType: typeJid(jid),
         dureeMs: Date.now() - debut,
-        idMessage: empreinteCourte(envoye?.id?._serialized),
+        idMessage: empreinteCourte(id),
+        idPartie: partieIdMessage(envoye?.id),
+        // L'acquittement au moment de l'acceptation : 1 signifie « parti du
+        // serveur ». Les etats superieurs (livre, lu) arrivent plus tard et ne
+        // peuvent pas etre constates ici.
+        ack: typeof envoye?.ack === "number" ? envoye.ack : null,
       });
-      return { ok: true };
+      return { ok: true, id, idPartie: partieIdMessage(envoye?.id), ack: envoye?.ack ?? null };
     } catch (e) {
       // Une reponse qui ne part pas doit etre bruyante : l'utilisateur, lui,
       // ne verra qu'un silence.
@@ -465,7 +599,8 @@ export class WwebjsProvider extends WhatsAppProvider {
         event: "reply_failed",
         jidType: typeJid(jid),
         dureeMs: Date.now() - debut,
-        erreur: String(e?.message ?? e).slice(0, 160),
+        erreur: resumerErreur(e, { max: 160 }),
+        detail: decrireErreur(e),
       });
       throw e;
     }
@@ -540,35 +675,115 @@ export class WwebjsProvider extends WhatsAppProvider {
       },
     ];
 
+    // AVANT la premiere tentative : si une note vocale de nous figure deja
+    // dans l'historique recent, c'est que l'appel precedent a abouti malgre
+    // son apparence d'echec. On ne double pas.
+    const anterieur = await this._noteVocaleRecente(jid, debut - FENETRE_DOUBLON_MS);
+    if (anterieur) {
+      this._tracer({ event: "audio_deja_envoye", jidType: typeJid(jid), idPartie: anterieur.idPartie });
+      return { ok: true, voie: "deja_envoye", ...anterieur, doublonEvite: true };
+    }
+
     let derniere = null;
     for (const { nom, faire } of tentatives) {
       try {
         const envoye = await avecDelai(faire, { ms: DELAI_ENVOI_MS, operation: `envoi audio (${nom})` });
-        const id = envoye?.id?._serialized ?? null;
+        const id = serialiserIdMessage(envoye?.id);
         this._tracer({
           event: "audio_accepted",
           voie: nom,
           jidType: typeJid(jid),
           dureeMs: Date.now() - debut,
           idMessage: empreinteCourte(id),
+          idPartie: partieIdMessage(envoye?.id),
+          ack: typeof envoye?.ack === "number" ? envoye.ack : null,
         });
         this.machine.envoiTente({ ok: true });
-        return { ok: true, voie: nom, id, ack: envoye?.ack ?? null };
+        return { ok: true, voie: nom, id, idPartie: partieIdMessage(envoye?.id), ack: envoye?.ack ?? null };
       } catch (e) {
         derniere = e;
         this._tracer({
           event: "audio_retry",
           voie: nom,
-          erreur: String(e?.message ?? e).slice(0, 180),
+          erreur: resumerErreur(e, { max: 180 }),
+          detail: decrireErreur(e),
         });
+
+        // UN ECHEC N'EST PAS UNE PREUVE DE NON-ENVOI.
+        //
+        // Un depassement de delai, en particulier, peut survenir alors que le
+        // media est deja parti. Enchainer la voie suivante enverrait alors un
+        // second vocal au destinataire. On consulte donc l'historique avant de
+        // continuer ; c'est la seule source qui tranche.
+        const arrive = await this._noteVocaleRecente(jid, debut);
+        if (arrive) {
+          this._tracer({ event: "audio_deja_envoye", voie: nom, jidType: typeJid(jid), idPartie: arrive.idPartie });
+          this.machine.envoiTente({ ok: true });
+          return { ok: true, voie: nom, ...arrive, erreurApparente: resumerErreur(e, { max: 120 }) };
+        }
       }
     }
 
     // Les trois voies ont echoue : on le dit, plutot que de rendre un succes.
     // La reponse ecrite, elle, a deja ete envoyee par l'appelant.
-    this._tracer({ event: "audio_failed", jidType: typeJid(jid), dureeMs: Date.now() - debut });
-    this.machine.envoiTente({ ok: false, raison: String(derniere?.message ?? derniere) });
-    throw new Error(`envoi audio impossible apres 3 voies : ${String(derniere?.message ?? derniere).slice(0, 200)}`);
+    this._tracer({ event: "audio_failed", jidType: typeJid(jid), dureeMs: Date.now() - debut, detail: decrireErreur(derniere) });
+    this.machine.envoiTente({ ok: false, raison: resumerErreur(derniere) });
+    throw new Error(`envoi audio impossible apres 3 voies : ${resumerErreur(derniere)}`);
+  }
+
+  /**
+   * Cherche dans l'historique une note vocale que NOUS avons envoyée depuis
+   * un instant donné.
+   *
+   * C'est l'arbitre des envois ambigus. Elle ne lève jamais : ne pas savoir
+   * répondre « oui » doit se traduire par « je n'ai rien trouvé », et non par
+   * une erreur qui masquerait l'échec d'origine.
+   */
+  async _noteVocaleRecente(jid, depuisMs) {
+    try {
+      const chat = await avecDelai(() => this._client.getChatById(jid), { ms: DELAI_LID_MS, operation: "lecture de la conversation" });
+      const messages = await avecDelai(() => chat.fetchMessages({ limit: 12 }), {
+        ms: DELAI_LID_MS,
+        operation: "lecture de l'historique",
+      });
+      for (const m of messages ?? []) {
+        if (!m?.fromMe) continue;
+        if (m.type !== "ptt" && m.type !== "audio") continue;
+        if ((m.timestamp ?? 0) * 1000 < depuisMs) continue;
+        return {
+          id: serialiserIdMessage(m.id),
+          idPartie: partieIdMessage(m.id),
+          ack: typeof m.ack === "number" ? m.ack : null,
+          typeMedia: m.type,
+        };
+      }
+      return null;
+    } catch (e) {
+      this._tracer({ event: "historique_illisible", erreur: resumerErreur(e, { max: 140 }) });
+      return null;
+    }
+  }
+
+  /**
+   * Relit l'acquittement d'un message déjà envoyé.
+   *
+   * « Accepté » et « livré » sont deux faits distincts, séparés par le réseau
+   * du destinataire. Seule une relecture après coup peut constater le second.
+   * Codes WhatsApp : -1 erreur, 0 en attente, 1 parti du serveur, 2 livré,
+   * 3 lu, 4 écouté.
+   */
+  async acquittement(identifiant) {
+    try {
+      const msg = await avecDelai(() => this._client.getMessageById(identifiant), {
+        ms: DELAI_LID_MS,
+        operation: "relecture du message",
+      });
+      if (!msg) return { trouve: false, ack: null, etat: "introuvable" };
+      const ack = typeof msg.ack === "number" ? msg.ack : null;
+      return { trouve: true, ack, etat: ETATS_ACK[ack] ?? "inconnu", typeMedia: msg.type ?? null };
+    } catch (e) {
+      return { trouve: false, ack: null, etat: "illisible", erreur: resumerErreur(e, { max: 140 }) };
+    }
   }
 
   /** Reconnexion avec recul exponentiel plafonné : un réseau coupé ne doit pas marteler WhatsApp. */

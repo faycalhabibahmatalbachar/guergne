@@ -24,13 +24,33 @@
 import { timingSafeEqual } from "node:crypto";
 import { join } from "node:path";
 
+import { decrireErreur, resumerErreur } from "../erreurs.js";
+
 /** Les rôles joignables. Les mêmes que pour les notifications de test. */
 export const ROLES_VOIX = Object.freeze(["SUPER_ADMIN", "DIRECTION"]);
 
 const CIBLES_VALIDES = Object.freeze(["SUPER_ADMIN", "DIRECTION"]);
 
+/**
+ * Langues acceptées par la route.
+ *
+ * « bilingue » existe pour une raison précise : éprouver les DEUX voix de
+ * l'établissement sans envoyer deux notes vocales. Une seule note, deux
+ * modèles, un seul envoi à justifier.
+ */
+const LANGUES_VALIDES = Object.freeze(["fr", "ar", "bilingue"]);
+
 /** Un envoi par destinataire et par fenêtre. Au-delà, c'est une campagne. */
 const FENETRE_MS = 5 * 60 * 1000;
+
+/**
+ * Pause avant de relire l'acquittement.
+ *
+ * WhatsApp rend `ack: 0` a l'instant de l'acceptation : relire tout de suite
+ * ne prouverait rien. Quelques secondes suffisent pour voir passer « parti du
+ * serveur », parfois « livre ».
+ */
+const DELAI_AVANT_RELECTURE_MS = Number(process.env.DELAI_ACK_MS ?? 4000);
 
 /**
  * Le texte, composé ici.
@@ -44,6 +64,29 @@ export const TEXTE_TEST = [
   "opérationnel. Je vous transmets ce message pour confirmer le fonctionnement de",
   "notre assistant vocal. Merci.",
 ].join(" ");
+
+/**
+ * Les deux parties de l'essai bilingue.
+ *
+ * Chacune est synthétisée par son propre modèle — `fr_FR-siwis-medium` et
+ * `ar_JO-kareem-medium` — puis les deux audios sont assemblés en un seul
+ * fichier. La voix arabe est un modèle jordanien : elle est correcte en arabe
+ * standard, et ce n'est pas une voix tchadienne.
+ */
+export const PARTIES_BILINGUES = Object.freeze([
+  Object.freeze({
+    langue: "fr",
+    texte:
+      "Bonjour. Ceci est un test du système vocal du Lycée Guergné La Renaissance. " +
+      "La synthèse française fonctionne et la transmission WhatsApp est en cours de validation.",
+  }),
+  Object.freeze({
+    langue: "ar",
+    texte:
+      "مرحباً، هذا اختبار للنظام الصوتي لثانوية قرقني النهضة. " +
+      "يتم التحقق من عمل الصوت والإرسال عبر واتساب.",
+  }),
+]);
 
 /** Comparaison à temps constant : une comparaison naïve fuite la longueur du préfixe. */
 function jetonValide(fourni, attendu) {
@@ -63,7 +106,7 @@ export class DiagnosticVoix {
    * @param {object} o.provider      transport WhatsApp, pour `sendAudio`
    * @param {string} o.dossierTemporaire
    */
-  constructor({ jetonAttendu, destinataires, voix, audio, provider, dossierTemporaire, horloge = () => Date.now(), journal = null } = {}) {
+  constructor({ jetonAttendu, destinataires, voix, audio, provider, dossierTemporaire, horloge = () => Date.now(), journal = null, delaiAcquittementMs = DELAI_AVANT_RELECTURE_MS } = {}) {
     if (typeof destinataires !== "function") throw new Error("DiagnosticVoix : `destinataires` requis");
     this._jeton = jetonAttendu;
     this._destinataires = destinataires;
@@ -73,6 +116,7 @@ export class DiagnosticVoix {
     this._dossier = dossierTemporaire;
     this._horloge = horloge;
     this._journal = journal;
+    this._delaiAck = delaiAcquittementMs;
     this._derniers = new Map();
   }
 
@@ -95,7 +139,7 @@ export class DiagnosticVoix {
     if (!CIBLES_VALIDES.includes(cible)) {
       return { status: 400, corps: { ok: false, message: `Cible inconnue : ${String(cible).slice(0, 20)}.` } };
     }
-    if (!["fr", "ar"].includes(langue)) {
+    if (!LANGUES_VALIDES.includes(langue)) {
       return { status: 400, corps: { ok: false, message: `Langue inconnue : ${String(langue).slice(0, 10)}.` } };
     }
 
@@ -115,16 +159,49 @@ export class DiagnosticVoix {
 
     // Le texte peut etre impose pour un essai en arabe, mais il reste borne :
     // une route qui accepte un texte illimite devient une porte d'envoi.
-    const aDire = String(texte ?? TEXTE_TEST).trim().slice(0, 600);
+    // Les parties à synthétiser. En bilingue, le texte est figé ici : il n'y a
+    // aucun sens à laisser l'appelant composer deux langues.
+    const parties =
+      langue === "bilingue"
+        ? PARTIES_BILINGUES.map((p) => ({ ...p }))
+        : [{ langue, texte: String(texte ?? TEXTE_TEST).trim().slice(0, 600) }];
+
     const etapes = {};
+    /** Les WAV de chaque partie, à effacer quoi qu'il arrive. */
+    const morceaux = [];
     let wav = null;
     let ogg = null;
 
     try {
       const t0 = this._horloge();
-      const synth = await this._voix.synthesize({ text: aDire, language: langue, outputFormat: "wav" });
+      // Une partie après l'autre : le moteur Piper ne prend qu'un travail à la
+      // fois, et deux appels concurrents se seraient mis en file de toute façon.
+      etapes.parties = [];
+      for (const p of parties) {
+        const debutPartie = this._horloge();
+        const s = await this._voix.synthesize({ text: p.texte, language: p.langue, outputFormat: "wav" });
+        morceaux.push(s.chemin);
+        etapes.parties.push({
+          langue: p.langue,
+          caracteres: p.texte.length,
+          synthese_ms: this._horloge() - debutPartie,
+          modele: s.modele ?? null,
+        });
+      }
       etapes.synthese_ms = this._horloge() - t0;
-      wav = synth.chemin;
+
+      if (morceaux.length > 1) {
+        const tAssemblage = this._horloge();
+        const assemble = join(this._dossier, `voix-test-${maintenant}-assemble.wav`);
+        // Consigne tout de suite : si l'envoi echoue ensuite, ce fichier doit
+        // disparaitre comme les autres.
+        morceaux.push(assemble);
+        const r = await this._audio.assemblerWavs(morceaux.slice(0, -1), assemble);
+        etapes.assemblage_ms = this._horloge() - tAssemblage;
+        wav = r.chemin;
+      } else {
+        wav = morceaux[0];
+      }
 
       const t1 = this._horloge();
       ogg = join(this._dossier, `voix-test-${maintenant}.ogg`);
@@ -143,6 +220,15 @@ export class DiagnosticVoix {
       const envoi = await this._provider.sendAudio(jid, { data: octets, mimetype: "audio/ogg" });
       etapes.envoi_ms = this._horloge() - t2;
       etapes.total_ms = this._horloge() - t0;
+
+      // « Accepte » et « livre » sont deux faits distincts. On relit donc
+      // l'acquittement apres une courte pause : c'est la seule facon de
+      // distinguer un media parti d'un media recu.
+      let acquittement = null;
+      if (envoi?.id && typeof this._provider.acquittement === "function") {
+        await new Promise((r) => setTimeout(r, this._delaiAck));
+        acquittement = await this._provider.acquittement(envoi.id);
+      }
 
       this._derniers.set(empreinte, maintenant);
       this._journal?.({
@@ -170,9 +256,13 @@ export class DiagnosticVoix {
           },
           etapes,
           // L'identifiant rendu par la passerelle, quand elle en rend un.
-          messageId: envoi?.id ?? null,
+          // La fraction opaque de l'identifiant WhatsApp : elle suffit a
+          // retrouver le message, et ne porte aucun numero de telephone.
+          messageId: envoi?.idPartie ?? null,
           voieEnvoi: envoi?.voie ?? null,
           ack: envoi?.ack ?? null,
+          acquittement,
+          doublonEvite: Boolean(envoi?.doublonEvite),
           envoiAccepte: true,
           // « Accepte » n'est pas « ecoute ». La passerelle accuse la prise en
           // charge ; la lecture ne se constate que sur le telephone.
@@ -182,13 +272,23 @@ export class DiagnosticVoix {
         },
       };
     } catch (e) {
-      const raison = String(e?.message ?? e).slice(0, 300);
-      this._journal?.({ type: "voix_diagnostic", evenement: "echec", cible: empreinte, langue, raison, ...etapes });
-      return { status: 502, corps: { ok: false, message: raison, etapes } };
+      const raison = resumerErreur(e, { max: 300 });
+      this._journal?.({
+        type: "voix_diagnostic",
+        evenement: "echec",
+        cible: empreinte,
+        langue,
+        raison,
+        detail: decrireErreur(e),
+        ...etapes,
+      });
+      return { status: 502, corps: { ok: false, message: raison, detail: decrireErreur(e), etapes } };
     } finally {
       // Aucun temporaire ne survit a l'essai, succes ou echec.
       const { unlink } = await import("node:fs/promises");
-      for (const f of [wav, ogg]) if (f) await unlink(f).catch(() => {});
+      // Les parties assemblees comptent aussi : un essai bilingue qui echoue
+      // laisserait deux WAV de plusieurs megaoctets sur le volume.
+      for (const f of [wav, ogg, ...morceaux]) if (f) await unlink(f).catch(() => {});
     }
   }
 }

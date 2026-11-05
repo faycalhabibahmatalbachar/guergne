@@ -87,6 +87,69 @@ export async function versOggOpus(entree, sortie, { ffmpeg = "ffmpeg", debit = D
   return { chemin: sortie, msConversion: Date.now() - t0 };
 }
 
+/**
+ * Fréquence d'échantillonnage imposée à l'assemblage.
+ *
+ * Les voix Piper « medium » rendent du 22 050 Hz, mais le filtre `concat` de
+ * FFmpeg refuse des flux de formats différents. On aligne donc explicitement,
+ * au lieu de supposer que deux modèles se ressemblent.
+ */
+export const ECHANTILLONNAGE_ASSEMBLAGE = 22050;
+
+/** Silence inséré entre deux parties, pour que l'oreille les sépare. */
+export const SILENCE_ENTRE_PARTIES_S = 0.5;
+
+/**
+ * Assemble plusieurs WAV en un seul, dans l'ordre donné.
+ *
+ * POURQUOI UN ASSEMBLAGE PLUTÔT QUE PLUSIEURS NOTES
+ * --------------------------------------------------
+ * Éprouver les deux voix de l'établissement demandait deux audios ; envoyer
+ * deux notes vocales au même destinataire pour un test en aurait fait une
+ * campagne. Un seul fichier, deux langues : un seul envoi à justifier.
+ *
+ * @param {string[]} entrees  chemins des WAV, dans l'ordre de lecture
+ * @param {string} sortie     chemin du WAV à produire
+ */
+export async function assemblerWavs(entrees, sortie, { ffmpeg = "ffmpeg", lanceur, silenceS = SILENCE_ENTRE_PARTIES_S } = {}) {
+  const parties = (entrees ?? []).filter(Boolean);
+  if (parties.length === 0) throw new EchecAudio("assemblage sans aucune partie", { etape: "assemblage" });
+  if (parties.length === 1) return { chemin: parties[0], parties: 1, assemble: false };
+
+  const t0 = Date.now();
+  const args = ["-hide_banner", "-loglevel", "error", "-y"];
+  for (const p of parties) args.push("-i", p);
+
+  // Un silence par intervalle : réutiliser une même entrée deux fois dans
+  // `concat` exigerait un `asplit`, plus fragile que N entrées bon marché.
+  const silences = parties.length - 1;
+  for (let i = 0; i < silences; i++) {
+    args.push("-f", "lavfi", "-t", String(silenceS), "-i", `anullsrc=r=${ECHANTILLONNAGE_ASSEMBLAGE}:cl=mono`);
+  }
+
+  const format = `aformat=sample_fmts=s16:sample_rates=${ECHANTILLONNAGE_ASSEMBLAGE}:channel_layouts=mono`;
+  const chaines = [];
+  const ordre = [];
+  parties.forEach((_, i) => {
+    chaines.push(`[${i}:a]${format}[p${i}]`);
+  });
+  for (let i = 0; i < silences; i++) {
+    chaines.push(`[${parties.length + i}:a]${format}[s${i}]`);
+  }
+  parties.forEach((_, i) => {
+    ordre.push(`[p${i}]`);
+    if (i < silences) ordre.push(`[s${i}]`);
+  });
+  const total = parties.length + silences;
+  const filtre = `${chaines.join(";")};${ordre.join("")}concat=n=${total}:v=0:a=1[sortie]`;
+
+  args.push("-filter_complex", filtre, "-map", "[sortie]", "-c:a", "pcm_s16le", "-f", "wav", sortie);
+  // L'assemblage lit plusieurs fichiers : il mérite plus de temps qu'une
+  // conversion simple, sans pour autant être illimité.
+  await lancer(ffmpeg, args, { lanceur, ms: DELAI_CONVERSION_MS * 2 });
+  return { chemin: sortie, parties: parties.length, assemble: true, msAssemblage: Date.now() - t0 };
+}
+
 /** Un nombre, ou `null` si la sonde n'a rien dit d'exploitable. */
 const nombre = (v) => {
   const n = Number(v);

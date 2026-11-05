@@ -220,6 +220,22 @@ export function configurerDepuisEnv(env = {}) {
   };
 }
 
+/**
+ * Code de langue normalise a partir de ce que rend Whisper.
+ *
+ * Il repond tantot un code ISO (« fr »), tantot un nom anglais complet
+ * (« french »), tantot avec une region (« fr-FR »). Seules les deux langues de
+ * l'etablissement sont reconnues : rendre `null` pour les autres est plus
+ * honnete que de deviner, et laisse l'appelant choisir sa langue de repli.
+ */
+export function codeLangue(valeur) {
+  const v = String(valeur ?? "").trim().toLowerCase();
+  if (!v) return null;
+  if (v.startsWith("fr") || v === "french" || v === "francais") return "fr";
+  if (v.startsWith("ar") || v === "arabic" || v === "arabe") return "ar";
+  return null;
+}
+
 export class MoteurIA {
   /**
    * @param cles       { groq?, xai?, openrouter?, mistral? }
@@ -513,9 +529,19 @@ export class MoteurIA {
    * qu'un fournisseur sait transcrire parce qu'il sait discuter ferait échouer
    * tous les messages vocaux.
    *
+   * POURQUOI LA LANGUE N'EST PLUS IMPOSÉE
+   * --------------------------------------
+   * L'appel forçait `language=fr`. Sur une note vocale en arabe, Whisper ne
+   * refuse pas : il rend une translittération française inexploitable, que le
+   * modèle conversationnel interprète ensuite comme une demande incompréhensible.
+   * L'établissement étant bilingue, c'est un défaut de fond et non un détail.
+   * On laisse donc détecter la langue, et on la REND : elle sert à choisir la
+   * voix de la réponse. `langue` reste acceptée pour les cas où l'appelant la
+   * connaît réellement.
+   *
    * @param audio {Buffer|Blob} contenu du média
    */
-  async transcrire(audio, { nomFichier = "vocal.ogg", langue = "fr" } = {}) {
+  async transcrire(audio, { nomFichier = "vocal.ogg", langue = null } = {}) {
     const candidats = this.transcripteurs;
     if (candidats.length === 0) throw new Error("Aucun fournisseur de transcription configuré");
 
@@ -527,8 +553,12 @@ export class MoteurIA {
         const form = new FormData();
         form.append("file", audio instanceof Blob ? audio : new Blob([audio]), nomFichier);
         form.append("model", f.transcription);
-        form.append("language", langue);
-        form.append("response_format", "json");
+        // Imposée uniquement quand l'appelant la connaît ; sinon détectée.
+        if (langue) form.append("language", langue);
+        // `verbose_json` porte la langue détectée et la durée. L'ancien `json`
+        // ne rendait que le texte, donc aucun moyen de choisir la voix de la
+        // réponse.
+        form.append("response_format", "verbose_json");
 
         const r = await this._avecDelai((signal) =>
           this._fetch(`${f.base}/audio/transcriptions`, {
@@ -543,7 +573,17 @@ export class MoteurIA {
         const texte = (d?.text ?? "").trim();
         if (!texte) throw new Error("transcription vide");
 
-        const resultat = { texte, fournisseur: nom, modele: f.transcription, dureeMs: this._horloge() - debut };
+        const resultat = {
+          texte,
+          // Whisper rend un nom complet (« french », « arabic ») ou un code :
+          // on normalise vers les deux codes que l'établissement utilise.
+          langue: codeLangue(d?.language) ?? langue ?? null,
+          langueBrute: typeof d?.language === "string" ? d.language.slice(0, 32) : null,
+          dureeAudioS: Number.isFinite(Number(d?.duration)) ? Number(d.duration) : null,
+          fournisseur: nom,
+          modele: f.transcription,
+          dureeMs: this._horloge() - debut,
+        };
         this._trace({ type: "stt", ...resultat });
         return resultat;
       } catch (e) {

@@ -1,0 +1,107 @@
+/**
+ * Recette de la reconstitution des identifiants de message.
+ *
+ * C'est le correctif du défaut qui faisait échouer CHAQUE note vocale
+ * entrante : `_serialized` absent, donc `downloadMedia()` appelé avec
+ * `undefined`, donc une erreur minifiée d'une lettre. Ces tests portent
+ * d'abord sur la forme exacte attendue par WhatsApp, puis sur les cas où il
+ * faut refuser de deviner.
+ */
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { partieIdMessage, reparerIdMessage, serialiserIdMessage } from "../src/providers/identifiant-message.js";
+
+test("un `_serialized` fourni est repris tel quel, sans rien deviner", () => {
+  const id = { _serialized: "false_123@c.us_ABC", remote: "999@c.us", id: "ZZZ", fromMe: true };
+  assert.equal(serialiserIdMessage(id), "false_123@c.us_ABC");
+});
+
+test("sans `_serialized`, l'identifiant est reconstitue en trois champs", () => {
+  // C'est la forme que `Client.getMessageById` exige : il refuse toute autre
+  // longueur que trois ou quatre champs.
+  assert.equal(
+    serialiserIdMessage({ fromMe: false, remote: "111@c.us", id: "A1B2" }),
+    "false_111@c.us_A1B2",
+  );
+  assert.equal(
+    serialiserIdMessage({ fromMe: true, remote: "111@c.us", id: "A1B2" }),
+    "true_111@c.us_A1B2",
+  );
+});
+
+test("un message de groupe porte un quatrieme champ : le participant", () => {
+  assert.equal(
+    serialiserIdMessage({ fromMe: false, remote: "g@g.us", id: "A1", participant: "222@c.us" }),
+    "false_g@g.us_A1_222@c.us",
+  );
+});
+
+test("un `remote` objet est accepte : la passerelle rend parfois un WID", () => {
+  assert.equal(
+    serialiserIdMessage({ fromMe: false, remote: { _serialized: "333@lid" }, id: "A1" }),
+    "false_333@lid_A1",
+  );
+});
+
+test("une chaine est deja un identifiant", () => {
+  assert.equal(serialiserIdMessage("true_1@c.us_X"), "true_1@c.us_X");
+});
+
+// --- Ce qu'il faut refuser de deviner -----------------------------------
+
+test("sans `remote` ni `id`, on rend null plutot qu'un identifiant invente", () => {
+  // Un identifiant fabrique au hasard ferait echouer WhatsApp Web avec la
+  // meme erreur illisible qu'avant : mieux vaut un refus nomme.
+  for (const cas of [null, undefined, 42, {}, { fromMe: true }, { remote: "1@c.us" }, { id: "A1" }, ""]) {
+    assert.equal(serialiserIdMessage(cas), null, `cas : ${JSON.stringify(cas)}`);
+  }
+});
+
+test("un `_serialized` vide n'est pas pris pour une valeur", () => {
+  assert.equal(serialiserIdMessage({ _serialized: "", remote: "1@c.us", id: "A1" }), "false_1@c.us_A1");
+});
+
+// --- La partie journalisable ---------------------------------------------
+
+test("la partie opaque ne porte aucun numero", () => {
+  const partie = partieIdMessage({ fromMe: false, remote: "23500000000@c.us", id: "3A7F2C" });
+  assert.equal(partie, "3A7F2C");
+  assert.ok(!partie.includes("235"), "aucun fragment de numero ne doit figurer");
+});
+
+test("la partie opaque se lit aussi depuis un identifiant complet", () => {
+  assert.equal(partieIdMessage("false_1@c.us_3A7F2C"), "3A7F2C");
+  assert.equal(partieIdMessage("incomplet"), null);
+});
+
+// --- La reparation sur place ---------------------------------------------
+
+test("la reparation pose `_serialized` pour que la bibliotheque le lise", () => {
+  // C'est exactement ce dont `Message.downloadMedia()` a besoin : il passe
+  // `this.id._serialized` au code de la page, sans savoir qu'il a ete complete.
+  const message = { id: { fromMe: false, remote: "1@c.us", id: "A1" }, hasMedia: true };
+  const r = reparerIdMessage(message);
+  assert.deepEqual(r, { ok: true, repare: true, id: "false_1@c.us_A1" });
+  assert.equal(message.id._serialized, "false_1@c.us_A1");
+});
+
+test("un identifiant deja complet n'est pas touche", () => {
+  const message = { id: { _serialized: "deja", remote: "1@c.us", id: "A1" } };
+  const r = reparerIdMessage(message);
+  assert.equal(r.repare, false);
+  assert.equal(r.ok, true);
+  assert.equal(message.id._serialized, "deja");
+});
+
+test("un identifiant inexploitable est signale, pas repare en silence", () => {
+  const r = reparerIdMessage({ id: { fromMe: true } });
+  assert.deepEqual(r, { ok: false, repare: false, id: null });
+});
+
+test("un objet gele ne fait pas lever : on le dit non reparable", () => {
+  const message = { id: Object.freeze({ fromMe: false, remote: "1@c.us", id: "A1" }) };
+  const r = reparerIdMessage(message);
+  assert.equal(r.ok, false);
+  assert.equal(r.id, "false_1@c.us_A1", "la valeur reste connue, meme si elle n'a pu etre posee");
+});

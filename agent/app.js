@@ -38,7 +38,8 @@ import { SurveillantConnexion } from "./src/surveillance-connexion.js";
 import { releverRessources, resumerRessources } from "./src/ressources.js";
 import { balayerCoreDumps } from "./src/menage-core.js";
 import { releverEnvironnement } from "./src/diagnostic-environnement.js";
-import { preparerNoteVocale } from "./src/voix/audio.js";
+import { assemblerWavs, preparerNoteVocale } from "./src/voix/audio.js";
+import { avecVoix } from "./src/voix/porte-voix.js";
 import { DiagnosticVoix } from "./src/voix/diagnostic-voix.js";
 import { installerPiper } from "./src/voix/installation.js";
 import { FournisseurPiper } from "./src/voix/piper.js";
@@ -290,13 +291,35 @@ const diagnostic = new DiagnosticNotification({
   journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
 });
 
+/**
+ * Transport parlant.
+ *
+ * Le moteur de l'agent appelle `provider.sendText` depuis une quinzaine
+ * d'endroits : l'envelopper est plus sur que de modifier chacun d'eux. Le
+ * `provider` nu reste utilise ailleurs — notamment par la file de
+ * notifications, qui ecrit aux parents : ceux-la ne doivent recevoir aucune
+ * note vocale du fait d'un correctif technique.
+ *
+ * Le moteur vocal est consulte PARESSEUSEMENT : il demarre apres l'agent, et
+ * une reference figee ici vaudrait `null` pour toujours.
+ */
+const transportParlant = avecVoix(provider, {
+  moteur: () => moteurVoix.fournisseur,
+  audio: { preparerNoteVocale },
+  dossierTemporaire: chemins.racine,
+  // Le role du destinataire, lu dans le magasin d'identites : la voix reste
+  // reservee aux roles declares, et un numero inconnu n'en recoit jamais.
+  roleDe: (jid) => identites.resolve(jid)?.role ?? null,
+  journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+});
+
 const agent = new Agent({
   politiques,
   notifications,
   // Les responsables sont INFORMES des operations automatiques, jamais
   // sollicites pour les autoriser.
   destinatairesNotification: async (roles) => identites.destinatairesParRole(roles),
-  provider,
+  provider: transportParlant,
   identity: identites,
   idempotency: new DedupPersistant({ chemin: chemins.dedup }),
   audit,
@@ -371,9 +394,16 @@ const agent = new Agent({
     if (conv.statut === "clarifier") return { clarify: conv.question };
     return { ...plan, params: conv.params };
   },
+  // La transcription REND la langue entendue, et non seulement le texte :
+  // repondre en francais a une question posee en arabe serait pire que de ne
+  // pas repondre. La langue n'est pas imposee a Whisper, elle est detectee.
   transcribe: async (media) => {
     if (!ia) throw new Error("Aucun fournisseur IA configuré : transcription indisponible.");
-    return media ? (await ia.transcrire(media.data ?? media)).texte : '';
+    if (!media) return { texte: "", langue: null };
+    const r = await ia.transcrire(media.data ?? media, {
+      nomFichier: media.filename ?? "vocal.ogg",
+    });
+    return { texte: r.texte, langue: r.langue, dureeAudioS: r.dureeAudioS ?? null };
   },
 });
 
@@ -536,6 +566,58 @@ createServer(async (req, res) => {
     return;
   }
 
+  // --- Redemarrage commande, pour ne plus dependre du panneau ------------
+  //
+  // POURQUOI CETTE ROUTE EXISTE
+  // ----------------------------
+  // Altare ne donne ni shell ni cle d'API de panneau : un correctif portant
+  // sur un module Node deja charge exigeait donc de demander au proprietaire
+  // d'appuyer lui-meme sur « redemarrer ». Node ne recharge pas un module a
+  // chaud ; la seule issue propre est que l'application sache se terminer, et
+  // que le demon la relance. C'est exactement ce que fait cette route.
+  //
+  // CE QU'ELLE NE FAIT PAS
+  // -----------------------
+  // Elle ne touche a rien : ni session WhatsApp, ni donnees, ni fichiers. Elle
+  // libere le verrou et sort, pour que l'instance suivante ne trouve pas un
+  // verrou vivant. La session persistante est sur le volume et survit.
+  if (url === "/diagnostic/redemarrer") {
+    if (req.method !== "POST") {
+      res.writeHead(405, entetesSurs({ allow: "POST" })).end();
+      return;
+    }
+    const entete = req.headers["authorization"];
+    const jeton = typeof entete === "string" && entete.startsWith("Bearer ") ? entete.slice(7) : null;
+    if (!CONF.jetonService) {
+      res.writeHead(503, entetesSurs({ "content-type": "application/json" })).end(
+        JSON.stringify({ ok: false, message: "Service non configure." }),
+      );
+      return;
+    }
+    if (jeton !== CONF.jetonService) {
+      res.writeHead(401, entetesSurs({ "content-type": "application/json" })).end(
+        JSON.stringify({ ok: false, message: "Service non authentifie." }),
+      );
+      return;
+    }
+    const raison = String(new URL(req.url, "http://local").searchParams.get("raison") ?? "non precisee").slice(0, 120);
+    console.log(JSON.stringify({ ts: new Date().toISOString(), type: "redemarrage", evenement: "demande", raison }));
+    res.writeHead(202, entetesSurs({ "content-type": "application/json" })).end(
+      JSON.stringify({
+        ok: true,
+        message: "Arret demande. Le demon Altare relance le processus ; la session WhatsApp est sur le volume et survit.",
+        raison,
+      }),
+    );
+    // Apres la reponse, jamais avant : sinon l'appelant ne sait pas si sa
+    // demande a ete prise en compte.
+    setTimeout(() => {
+      // Le meme chemin que SIGINT : fermeture ordonnee, verrou relache.
+      process.kill(process.pid, "SIGINT");
+    }, 300).unref?.();
+    return;
+  }
+
   // --- Diagnostic : outillage reellement present dans le conteneur -------
   //
   // Altare ne donne qu'un SFTP enferme dans /home/container : /usr/bin, /bin
@@ -627,6 +709,9 @@ createServer(async (req, res) => {
           metriques: moteurVoix.fournisseur.getMetrics(),
         }
       : { etat: moteurVoix.etat, raison: moteurVoix.raison, tentatives: moteurVoix.tentatives },
+    // Reponses vocales reellement tentees, envoyees, ignorees : sans ce
+    // compteur, « l'agent repond en vocal » reste une impression.
+    reponseVocale: transportParlant.metriquesVoix?.() ?? null,
     verrou: { detenu: verrou.detientToujours(), instance: verrou.instanceId.slice(0, 8), pid: process.pid },
     // Sans mesure, « l'agent travaille seul » reste une impression.
     autonomie: agent.metriques,
@@ -786,7 +871,7 @@ async function mettreEnRouteLaVoix() {
     jetonAttendu: CONF.jetonService,
     destinataires: async (role) => identites.destinatairesParRole([role]),
     voix: f,
-    audio: { preparerNoteVocale },
+    audio: { preparerNoteVocale, assemblerWavs },
     provider,
     dossierTemporaire: `${chemins.racine}/voix-tmp`,
     journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
