@@ -43,7 +43,7 @@ import { fileURLToPath } from "node:url";
 import { FournisseurPiper } from "../src/voix/piper.js";
 import { assemblerWavs, preparerNoteVocale } from "../src/voix/audio.js";
 import { PARTIES_BILINGUES } from "../src/voix/diagnostic-voix.js";
-import { partieIdMessage, serialiserIdMessage } from "../src/providers/identifiant-message.js";
+import { chaineIdentifiant, partieIdMessage, serialiserIdMessage } from "../src/providers/identifiant-message.js";
 import { resumerErreur } from "../src/erreurs.js";
 
 const racine = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -147,10 +147,31 @@ async function principal() {
   bleu("== 4. Session WhatsApp locale ==");
   gris("  Cette session est DISTINCTE de celle d'Altare, qui n'est pas touchee.");
   const { default: wweb } = await import("whatsapp-web.js");
+  // Le chemin du navigateur est IMPOSE, et non cherche.
+  //
+  // Puppeteer le cherche dans son cache par defaut ; le laboratoire l'installe
+  // ailleurs, pour que tout puisse disparaitre d'un seul rm -rf. Laisser
+  // Puppeteer deviner donnerait « Could not find Chrome » alors qu'il est la.
+  const chemins = [
+    process.env.CHROMIUM_BIN,
+    (() => {
+      try {
+        return readFileSync(join(process.env.GUERGNE_LOCAL ?? "", "chemin-chromium.txt"), "utf8").trim();
+      } catch {
+        return null;
+      }
+    })(),
+  ].filter(Boolean);
+  const navigateur = chemins[0] ?? null;
+  gris(navigateur ? `  navigateur : ${navigateur}` : "  navigateur : celui que Puppeteer trouvera");
+
   const client = new wweb.Client({
     authStrategy: new wweb.LocalAuth({ clientId: "guergne-local", dataPath: SESSION }),
     puppeteer: {
       headless: true,
+      ...(navigateur ? { executablePath: navigateur } : {}),
+      // `--no-sandbox` : WSL2 n'a pas les espaces de noms utilisateur qu'exige
+      // le bac a sable de Chromium. C'est aussi ce que fait la production.
       args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--mute-audio"],
     },
   });
@@ -193,11 +214,16 @@ async function principal() {
     // LID : l'identifiant que nous composons n'est pas toujours celui qu'il
     // reconnait.
     const resolu = await client.getNumberId(numero);
-    if (!resolu?._serialized) {
-      rouge(`  ${masque(numero)} : WhatsApp ne reconnait pas ce numero.`);
+    // `_serialized` est le nom que WhatsApp Web a renomme `$1` en juillet
+    // 2026 — la cause exacte de l'erreur « r ». Le lire ici en dur ferait
+    // echouer la resolution du destinataire a l'instant decisif, et le
+    // message serait « WhatsApp ne reconnait pas ce numero », qui est faux.
+    const jid = chaineIdentifiant(resolu);
+    if (!jid) {
+      rouge(`  ${masque(numero)} : WhatsApp n'a rendu aucun identifiant exploitable.`);
+      gris(`  champs recus : ${resolu ? Object.keys(resolu).join(", ") : "aucune reponse"}`);
       process.exit(1);
     }
-    const jid = resolu._serialized;
     vert(`  ${masque(numero)} resolu`);
     gris(`  serveur du JID : ${jid.split("@")[1]}`);
 
