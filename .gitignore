@@ -83,3 +83,6 @@ qr-*.png
 # et des numeros de telephone. Jamais dans Git.
 sauvegardes/
 altare.env
+
+# Session WhatsApp locale, QR et audios de test : jamais dans Git.
+agent/donnees-locales/
