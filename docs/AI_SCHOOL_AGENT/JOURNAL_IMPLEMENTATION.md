@@ -168,3 +168,49 @@ donc une phrase plus longue que la cible part entière plutôt que mutilée.
 4. Le branchement sur `sendAudio`, qui existe déjà et ne doit pas être doublé.
 5. Le déploiement des voix : 63 Mo chacune. À télécharger **depuis le
    conteneur**, qui a du réseau, plutôt que par SFTP.
+
+---
+
+## 2026-11-05 — La cause de `handler_failed: "r"`
+
+### Un seul défaut, pas deux
+
+Deux symptômes paraissaient indépendants : chaque note vocale entrante
+échouait en 200 ms sur `handler_failed: "r"`, avant tout appel au modèle ; et
+`idMessage: null` figurait sur **tous** les messages, reçus comme envoyés. Ils
+n'ont qu'une cause, et elle est mécanique.
+
+`_serialized` est un accesseur porté par le **prototype** de `MsgKey`. Ni
+`Object.assign({}, msg.id, …)` — que fait `WWebJS.getMessageModel` — ni la
+sérialisation JSON de Puppeteer ne recopient un accesseur de prototype. La
+propriété disparaît donc des deux côtés à la fois.
+
+`Message.downloadMedia()` passe `this.id._serialized` au code de la page.
+Il recevait `undefined`, et WhatsApp Web levait une erreur minifiée d'une
+seule lettre. Les messages textuels ne téléchargent aucun média : c'est pour
+cela qu'eux fonctionnaient, ce qui a longtemps fait soupçonner la voix.
+
+### Ce qui a été corrigé
+
+| Module | Rôle |
+|---|---|
+| `src/providers/identifiant-message.js` | reconstitue `fromMe_remote_id` (+ participant), et le pose avant d'appeler la bibliothèque |
+| `src/erreurs.js` | nom, classe réelle, pile, causes ; masque les propriétés qui ressemblent à un secret ; **signale** un message d'une lettre |
+| `src/providers/wwebjs.js` | `getMedia` borné et tracé étape par étape ; `sendAudio` consulte l'historique avant **et entre** ses tentatives ; `acquittement()` relit l'état de livraison |
+| `src/engine.js` | les quatre échecs vocaux sont nommés et expliqués à l'expéditeur ; une transcription vide n'atteint **jamais** le modèle |
+| `src/ia.js` | Whisper ne reçoit plus `language=fr` imposé ; la langue est détectée et rendue |
+| `src/voix/porte-voix.js` | relie la synthèse aux réponses ; le texte part toujours d'abord ; seuls les rôles déclarés reçoivent de la voix |
+| `src/voix/audio.js` | `assemblerWavs` : éprouver les deux voix en **un** seul envoi |
+| `app.js` | `/diagnostic/redemarrer`, pour ne plus dépendre du panneau Altare |
+
+### Deux leçons
+
+**Un faux qui ne respecte pas le contrat réel ne protège de rien.**
+`FakeProvider.getMedia` rendait la forme libre écrite dans le test ; le vrai
+transport rend `{ mimetype, data: Buffer }`. Aucun test ne pouvait donc
+découvrir ce défaut. Le faux respecte désormais le contrat.
+
+**`String(e?.message ?? e)` est un piège.** Correct pour une `Error` du
+projet, muet pour tout le reste. Une soirée de diagnostic pour une lettre.
+
+632 tests agent, 0 échec.
