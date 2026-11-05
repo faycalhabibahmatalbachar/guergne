@@ -187,6 +187,40 @@ export class EtatWhatsApp {
   }
 
   /**
+   * Effondrement du navigateur : la seule erreur qui change l'état.
+   *
+   * LE DÉFAUT QU'ELLE CORRIGE, OBSERVÉ EN PRODUCTION
+   * -------------------------------------------------
+   * Le 5 novembre 2026 à 17 h 24, Chromium a levé « Page crashed! ».
+   * `erreur()` l'a consigné — et n'a rien changé d'autre. Dix-sept heures plus
+   * tard, `/sante` répondait encore `200` avec `etat: "WHATSAPP_READY"`,
+   * `depuisS: 61390` et `reconnexions: 0`, alors que la page du navigateur
+   * était morte depuis plus d'une heure.
+   *
+   * C'est précisément le « faux vert » que ce module existe pour empêcher :
+   * un relevé rassurant sur un transport hors service. Pire qu'une panne, car
+   * personne ne vient.
+   *
+   * POURQUOI UNE MÉTHODE DISTINCTE D'`erreur()`
+   * --------------------------------------------
+   * Toutes les erreurs de page ne sont pas fatales : une exception JavaScript
+   * dans WhatsApp Web se consigne et se tolère. Un effondrement, lui, tue le
+   * contexte : plus un seul message n'arrivera jamais. Les confondre
+   * conduirait soit à ignorer les effondrements, soit à reconnecter sur le
+   * moindre avertissement — et une reconnexion inutile coûte quarante
+   * secondes de Chromium.
+   *
+   * L'état devient `WHATSAPP_ERROR`, donc « disconnected » pour le
+   * surveillant, qui force alors une reconnexion au bout de deux minutes.
+   * Consigner sans transiter, c'était écrire le diagnostic sans appeler
+   * personne.
+   */
+  effondrement(message) {
+    this.erreur(message);
+    this.transiter(ETATS.WHATSAPP_ERROR, { raison: extrait(message) });
+  }
+
+  /**
    * Ce que `/sante` publie.
    *
    * Les instants sont rendus en ISO ET en ancienneté : un horodatage seul
@@ -221,6 +255,17 @@ export class EtatWhatsApp {
       // Un service qui n'a JAMAIS atteint « ready » depuis le demarrage est un
       // service qui n'a jamais servi : c'est different d'une coupure.
       jamaisConnecte: !this._transitions.some((x) => x.etat === ETATS.WHATSAPP_READY),
+      // UN ETAT « PRET » PLUS VIEUX QUE SA DERNIERE ERREUR EST SUSPECT.
+      //
+      // C'est le relevé qui a trompé pendant dix-sept heures : « READY depuis
+      // 61 390 s » et, dans le même objet, « Page crashed! il y a 4 188 s ».
+      // Les deux ne peuvent pas être vrais en même temps. Le drapeau le dit,
+      // pour que la contradiction n'ait plus besoin d'un lecteur attentif.
+      // Il couvre aussi les erreurs futures qui ne transiteraient pas.
+      etatSuspect:
+        this._etat === ETATS.WHATSAPP_READY &&
+        this._derniereErreur !== null &&
+        this._derniereErreur.le > this._depuis,
       marcheS: age(this._demarreLe),
     };
   }

@@ -70,6 +70,14 @@ export const ETATS_ACK = Object.freeze({
 const typeJid = (jid) => analyserJid(jid).serveur ?? "invalide";
 
 /**
+ * Les erreurs de page qui tuent le transport.
+ *
+ * Toutes composees par Puppeteer lui-meme, et non par WhatsApp Web : c'est ce
+ * qui permet de les distinguer d'une exception applicative de la page.
+ */
+const EFFONDREMENT = /page crashed|target closed|session closed|detached|execution context was destroyed|browser has disconnected/i;
+
+/**
  * Empreinte courte d'un identifiant de message.
  *
  * Un identifiant WhatsApp porte le numero du correspondant : le journaliser
@@ -440,10 +448,20 @@ export class WwebjsProvider extends WhatsAppProvider {
         this._log.error?.("[whatsapp] le navigateur s'est detache");
       });
       this._client.pupPage?.on?.("error", (e) => {
-        // Une page qui meurt n'interrompt pas le processus Node : sans cette
-        // trace, l'incident est invisible.
-        this.machine.erreur(`page Chromium : ${String(e?.message ?? e)}`);
-        this._tracer({ event: "page_error", erreur: String(e?.message ?? e).slice(0, 200) });
+        // UNE PAGE EFFONDREE N'EST PAS UNE ERREUR DE PAGE ORDINAIRE.
+        //
+        // Le 5 novembre a 17 h 24, « Page crashed! » a ete consigne ici — et
+        // rien de plus. Dix-sept heures plus tard, `/sante` repondait encore
+        // « WHATSAPP_READY, reconnexions: 0 » sur un navigateur mort. On
+        // distingue donc les deux : une exception JavaScript de WhatsApp Web
+        // se tolere, un effondrement tue le contexte et plus aucun message
+        // n'arrivera jamais.
+        const message = String(e?.message ?? e);
+        const fatale = EFFONDREMENT.test(message);
+        if (fatale) this.machine.effondrement(`page Chromium : ${message}`);
+        else this.machine.erreur(`page Chromium : ${message}`);
+        this._tracer({ event: "page_error", fatale, erreur: message.slice(0, 200) });
+        if (fatale) this._log.error?.(`[whatsapp] page effondree : ${message.slice(0, 120)}`);
       });
     } catch (e) {
       // L'absence de ces poignees n'est pas une raison de refuser une session

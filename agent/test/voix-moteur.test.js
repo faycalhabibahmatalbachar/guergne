@@ -181,11 +181,30 @@ test("un fichier absent est signale avant toute sonde", async () => {
 });
 
 test("une sonde illisible ne passe pas pour un succes", async () => {
+  // Le contrat a change, et la recette avec le VRAI ffprobe en est la cause :
+  // sur un fichier nomme `.ogg` qui n'en est pas un, ffprobe sort en erreur
+  // avec « End of file ». L'exception remontait alors jusqu'a l'appelant, qui
+  // recevait un message de bas niveau au lieu du seul renseignement utile.
+  // Cette fonction REND un verdict ; l'intention du test est inchangee —
+  // illisible ne doit jamais valoir succes — mais la forme est desormais un
+  // refus motive, et non une erreur.
   const p = await fichierDe(9000);
-  await assert.rejects(
-    () => verifierOggOpus(p, { lanceur: (_c, _a, _o, cb) => cb(null, "pas du json", "") }),
-    /JSON exploitable/,
-  );
+  const r = await verifierOggOpus(p, { lanceur: (_c, _a, _o, cb) => cb(null, "pas du json", "") });
+  assert.equal(r.valide, false);
+  assert.match(r.griefs.join(" "), /JSON exploitable/);
+});
+
+test("un fichier que ffprobe refuse de lire est un refus motive", async () => {
+  const p = await fichierDe(9000);
+  const r = await verifierOggOpus(p, {
+    lanceur: (_c, _a, _o, cb) => cb(new Error("sortie 1"), "", "faux.ogg: End of file"),
+  });
+  assert.equal(r.valide, false);
+  assert.match(r.griefs.join(" "), /illisible par ffprobe/);
+  assert.match(r.griefs.join(" "), /End of file/);
+  // La taille reste connue : c'est ce qui distingue « fichier vide » de
+  // « fichier plein mais illisible ».
+  assert.equal(r.taille, 9000);
 });
 
 // --- Audio : le nettoyage -------------------------------------------------

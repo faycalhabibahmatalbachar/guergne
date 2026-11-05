@@ -168,24 +168,50 @@ export async function verifierOggOpus(chemin, { ffprobe = "ffprobe", lanceur } =
   const taille = await stat(chemin).then((s) => s.size).catch(() => null);
   if (taille === null) throw new EchecAudio(`fichier absent : ${chemin}`, { etape: "stat" });
 
-  const { stdout } = await lancer(
-    ffprobe,
-    [
-      "-hide_banner",
-      "-v", "error",
-      "-select_streams", "a:0",
-      "-show_entries", "stream=codec_name,sample_rate,channels,duration:format=format_name,duration,size",
-      "-of", "json",
-      chemin,
-    ],
-    { lanceur },
-  );
+  // UNE SONDE QUI ECHOUE EST UN VERDICT, PAS UN INCIDENT.
+  //
+  // Eprouve avec le vrai ffprobe : sur un fichier nomme `.ogg` qui n'en est
+  // pas un, il sort en erreur avec « End of file ». L'ancienne ecriture
+  // laissait alors l'exception remonter, et l'appelant recevait un message de
+  // bas niveau au lieu du seul renseignement utile : ce fichier n'est pas une
+  // note vocale. Cette fonction REND un verdict ; elle ne doit lever que si
+  // elle ne peut pas en formuler un.
+  let stdout = "";
+  try {
+    ({ stdout } = await lancer(
+      ffprobe,
+      [
+        "-hide_banner",
+        "-v", "error",
+        "-select_streams", "a:0",
+        "-show_entries", "stream=codec_name,sample_rate,channels,duration:format=format_name,duration,size",
+        "-of", "json",
+        chemin,
+      ],
+      { lanceur },
+    ));
+  } catch (e) {
+    return {
+      taille,
+      codec: null,
+      echantillonnage: null,
+      canaux: null,
+      dureeS: null,
+      conteneur: null,
+      valide: false,
+      griefs: [`illisible par ffprobe : ${String(e?.message ?? e).slice(-160)}`],
+    };
+  }
 
   let sonde;
   try {
     sonde = JSON.parse(stdout);
   } catch {
-    throw new EchecAudio("ffprobe n'a pas rendu de JSON exploitable", { etape: "ffprobe" });
+    return {
+      taille, codec: null, echantillonnage: null, canaux: null, dureeS: null, conteneur: null,
+      valide: false,
+      griefs: ["ffprobe n'a pas rendu de JSON exploitable"],
+    };
   }
   const flux = sonde.streams?.[0] ?? {};
   const format = sonde.format ?? {};

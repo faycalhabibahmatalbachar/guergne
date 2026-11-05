@@ -207,3 +207,66 @@ test("une vraie deconnexion fait bien quitter READY", () => {
   assert.equal(m.etat, ETATS.WHATSAPP_DISCONNECTED);
   assert.equal(m.resume().reconnexions, 1);
 });
+
+// --- L'effondrement du navigateur, et le faux vert qu'il produisait -------
+
+test("une page effondree QUITTE l'etat « pret »", () => {
+  // Observe en production le 5 novembre 2026 : « Page crashed! » a 17 h 24,
+  // et dix-sept heures plus tard /sante repondait encore WHATSAPP_READY,
+  // reconnexions: 0, sur un navigateur mort. Consigner sans transiter, c'est
+  // ecrire le diagnostic sans appeler personne.
+  const m = new EtatWhatsApp();
+  m.transiter(ETATS.WHATSAPP_READY);
+  assert.equal(m.etatHistorique, "ready");
+
+  m.effondrement("page Chromium : Page crashed!");
+  assert.equal(m.etat, ETATS.WHATSAPP_ERROR);
+  // « disconnected » est l'etat sur lequel le surveillant force une
+  // reconnexion au bout de deux minutes. C'est tout l'objet de la bascule.
+  assert.equal(m.etatHistorique, "disconnected");
+  assert.match(m.resume().derniereErreur.message, /Page crashed/);
+});
+
+test("une erreur de page ORDINAIRE ne fait pas reconnecter", () => {
+  // Une exception JavaScript de WhatsApp Web se consigne et se tolere : une
+  // reconnexion inutile coute quarante secondes de Chromium.
+  const m = new EtatWhatsApp();
+  m.transiter(ETATS.WHATSAPP_READY);
+  m.erreur("page Chromium : TypeError dans un script de la page");
+  assert.equal(m.etat, ETATS.WHATSAPP_READY);
+  assert.equal(m.etatHistorique, "ready");
+});
+
+test("un « pret » plus vieux que sa derniere erreur est signale comme suspect", () => {
+  // Le relevé qui a trompé pendant dix-sept heures portait les deux faits
+  // contradictoires dans le même objet. Le drapeau les confronte.
+  let t = 1000;
+  const m = new EtatWhatsApp({ horloge: () => t });
+  m.transiter(ETATS.WHATSAPP_READY);
+  assert.equal(m.resume().etatSuspect, false);
+
+  t = 5000;
+  m.erreur("page Chromium : quelque chose");
+  assert.equal(m.resume().etatSuspect, true, "pret depuis 1000, erreur a 5000 : incoherent");
+});
+
+test("une erreur ANTERIEURE au passage en « pret » n'est pas suspecte", () => {
+  // Une panne reparee ne doit pas rester marquee comme en cours : sinon le
+  // drapeau devient du bruit, et un drapeau qui crie toujours ne sert plus.
+  let t = 1000;
+  const m = new EtatWhatsApp({ horloge: () => t });
+  m.erreur("echec ancien");
+  t = 9000;
+  m.transiter(ETATS.WHATSAPP_READY);
+  assert.equal(m.resume().etatSuspect, false);
+});
+
+test("l'effondrement compte comme une transition, donc comme un incident datable", () => {
+  const m = new EtatWhatsApp();
+  m.transiter(ETATS.WHATSAPP_READY);
+  m.effondrement("Target closed");
+  const r = m.resume();
+  assert.equal(r.transitions.at(-1).etat, ETATS.WHATSAPP_ERROR);
+  assert.match(r.transitions.at(-1).raison, /Target closed/);
+  assert.equal(r.jamaisConnecte, false, "le service avait bien servi avant de tomber");
+});
