@@ -212,7 +212,14 @@ async function principal() {
     await provider.connect();
     const FENETRE_MS = Number(process.env.FENETRE_APPAIRAGE_MS ?? 10 * 60 * 1000);
     const debutAttente = chrono();
-    while (provider.getConnectionStatus() !== "ready") {
+    // `.state`, ET NON L'OBJET LUI-MEME.
+    //
+    // `getConnectionStatus()` rend `{ state, reconnexions, machine }`. Compare
+    // a la chaine « ready », cet objet ne l'egale jamais : la boucle tournait
+    // indefiniment alors que la session etait prete depuis la premiere
+    // seconde. Faute de ma part, et elle a coute dix minutes d'attente sur une
+    // session qui fonctionnait.
+    while (provider.getConnectionStatus().state !== "ready") {
       if (chrono() - debutAttente > FENETRE_MS) {
         throw new Error(`session non prete apres ${Math.round(FENETRE_MS / 1000)} s`);
       }
