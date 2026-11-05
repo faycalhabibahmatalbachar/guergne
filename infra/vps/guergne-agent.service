@@ -1,0 +1,84 @@
+# Service de l'agent WhatsApp — Lycée Guergné La Renaissance.
+#
+# POURQUOI UN SERVICE SYSTEMD, ET CE QU'IL CHANGE
+# ------------------------------------------------
+# Sur Altare, le redémarrage dépendait d'un panneau que nous ne pouvions pas
+# piloter : un correctif sur un module Node chargé exigeait d'attendre une
+# intervention humaine, et le jour où le nœud a cessé de répondre, il n'y avait
+# plus de recours du tout. Avec systemd, le redémarrage est une commande.
+#
+# DEUX PIÈGES QUE CE FICHIER ÉVITE
+# ---------------------------------
+# 1. `Restart=always` sans borne transforme une erreur de démarrage en boucle
+#    de plusieurs redémarrages par seconde. La session WhatsApp n'y survit pas
+#    proprement : chaque instance prend puis abandonne le verrou, et WhatsApp
+#    finit par voir un appareil instable. D'où `RestartSec` et `StartLimit*`.
+# 2. Un `/tmp` exigu a coûté une nuit en production. `PrivateTmp` en créerait
+#    un nouveau, de taille non maîtrisée. On le laisse donc désactivé et on
+#    pose `TMPDIR` sur le volume de données, explicitement.
+
+[Unit]
+Description=Agent WhatsApp du Lycee Guergne La Renaissance
+Documentation=https://github.com/faycalhabibahmatalbachar/guergne
+# Le réseau doit être RÉELLEMENT en place : `network.target` est atteint avant
+# qu'une adresse soit configurée, et Chromium échoue alors sur la résolution.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=guergne
+Group=guergne
+WorkingDirectory=/opt/guergne/agent
+
+# Le secret n'est jamais dans ce fichier, qui est versionné. Il vit dans un
+# fichier du serveur, lisible du seul compte de service.
+EnvironmentFile=/etc/guergne/agent.env
+Environment=NODE_ENV=production
+# Le temporaire sur le volume, jamais sur un tmpfs dont on ignore la taille.
+Environment=TMPDIR=/var/lib/guergne/tmp
+Environment=TEMP=/var/lib/guergne/tmp
+Environment=TMP=/var/lib/guergne/tmp
+
+ExecStart=/usr/bin/node /opt/guergne/agent/index.js
+
+# Arrêt ordonné : l'agent relâche son verrou sur SIGINT, exactement comme il
+# le fait déjà en production. SIGKILL après 30 s, car Chromium peut traîner.
+KillSignal=SIGINT
+TimeoutStopSec=30
+FinalKillSignal=SIGKILL
+
+Restart=on-failure
+RestartSec=15
+# Cinq échecs en dix minutes : le service s'arrête et attend un humain. Un
+# défaut de configuration ne doit pas marteler WhatsApp indéfiniment.
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+# Chromium s'effondre : un vidage mémoire de 1,19 Go a déjà saturé le disque
+# en production. Le noyau n'en écrit plus.
+LimitCORE=0
+# Chromium ouvre beaucoup de descripteurs.
+LimitNOFILE=65536
+
+# Durcissement. `ReadWritePaths` est la liste EXHAUSTIVE de ce que l'agent peut
+# écrire : la session WhatsApp, les données, les modèles de voix, le
+# temporaire. Tout le reste du système lui est en lecture seule.
+NoNewPrivileges=true
+PrivateTmp=false
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/guergne /opt/guergne/agent/donnees
+
+# Journalisation vers journald : `journalctl -u guergne-agent -f` remplace la
+# console du panneau, et `--since` permet enfin de relire un incident passé.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=guergne-agent
+
+[Install]
+WantedBy=multi-user.target

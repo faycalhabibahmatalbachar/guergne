@@ -22,7 +22,7 @@ import { DelaiDepasse, avecDelai } from "../delai.js";
 import { ETATS, EtatWhatsApp, doitSuivreChargement } from "../etat-whatsapp.js";
 import { analyserJid } from "../jid.js";
 import { decrireErreur, resumerErreur } from "../erreurs.js";
-import { partieIdMessage, reparerIdMessage, serialiserIdMessage } from "./identifiant-message.js";
+import { chaineIdentifiant, partieIdMessage, reparerIdMessage, serialiserIdMessage } from "./identifiant-message.js";
 
 /**
  * Bornes des appels sortants.
@@ -462,9 +462,26 @@ export class WwebjsProvider extends WhatsAppProvider {
           : msg.type === "document"
             ? "document"
             : "text";
+    // L'EXPEDITEUR EST LA SEULE DONNEE DONT DEPEND TOUTE LA SUITE.
+    //
+    // Sans lui, aucune identite ne se resout et le message est refuse. La
+    // bibliotheque le derive de `data.from._serialized`, le nom que WhatsApp
+    // Web a renomme `$1` en juillet 2026 ; la version publiee que nous
+    // epinglons ne connait pas encore le nouveau. En production ce champ
+    // fonctionnait — les refus d'identite auraient ete massifs sinon — mais
+    // nous ne le laissons pas dependre d'un nom qui a deja change une fois.
+    let expediteur = typeof msg.from === "string" ? msg.from : null;
+    if (!expediteur) {
+      expediteur = chaineIdentifiant(msg.from) ?? chaineIdentifiant(msg.id?.remote) ?? "";
+      this._tracer({
+        event: "expediteur_reconstitue",
+        trouve: Boolean(expediteur),
+        typeRecu: msg.from === null ? "null" : typeof msg.from,
+      });
+    }
     return {
-      id: msg.id?._serialized ?? msg.id?.id ?? null,
-      from: msg.from,
+      id: serialiserIdMessage(msg.id) ?? msg.id?.id ?? null,
+      from: expediteur,
       body: msg.body ?? "",
       kind,
       timestamp: (msg.timestamp ?? 0) * 1000,

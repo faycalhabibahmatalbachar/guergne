@@ -105,3 +105,45 @@ test("un objet gele ne fait pas lever : on le dit non reparable", () => {
   assert.equal(r.ok, false);
   assert.equal(r.id, "false_1@c.us_A1", "la valeur reste connue, meme si elle n'a pu etre posee");
 });
+
+// --- Le vrai nom de la valeur depuis juillet 2026 : `$1` ----------------
+
+test("`$1` est lu : WhatsApp a RENOMME `_serialized`, il ne l'a pas supprime", () => {
+  // Commit amont 95dc87d1 : « add fallback for WhatsApp id._serialized
+  // renamed to id.$1 ». La valeur exacte vaut mieux qu'une reconstitution.
+  const id = { $1: "false_235@c.us_3A7F", remote: "autre@c.us", id: "AUTRE", fromMe: true };
+  assert.equal(serialiserIdMessage(id), "false_235@c.us_3A7F");
+});
+
+test("`_serialized` reste prioritaire la ou il existe encore", () => {
+  assert.equal(
+    serialiserIdMessage({ _serialized: "ancien", $1: "nouveau", remote: "1@c.us", id: "A" }),
+    "ancien",
+  );
+});
+
+test("un `remote` sous son nouveau nom est accepte lui aussi", () => {
+  assert.equal(
+    serialiserIdMessage({ fromMe: false, remote: { $1: "333@lid" }, id: "A1" }),
+    "false_333@lid_A1",
+  );
+});
+
+test("la reparation reconnait `$1` et ne reconstitue donc rien", () => {
+  const message = { id: { $1: "false_1@c.us_EXACT", remote: "1@c.us", id: "EXACT" } };
+  const r = reparerIdMessage(message);
+  assert.equal(r.repare, true);
+  assert.equal(message.id._serialized, "false_1@c.us_EXACT");
+});
+
+test("la partie opaque se lit aussi quand seul `$1` est present", () => {
+  assert.equal(partieIdMessage({ $1: "false_1@c.us_3A7F" }), "3A7F");
+});
+
+test("faute de tout nom connu, la reconstitution prend le relais", () => {
+  // Le jour ou WhatsApp renommera encore, ce chemin reste.
+  assert.equal(
+    serialiserIdMessage({ fromMe: false, remote: "1@c.us", id: "A1", $2: "nom inconnu" }),
+    "false_1@c.us_A1",
+  );
+});

@@ -3,17 +3,25 @@
 # POURQUOI CE FICHIER EXISTE
 # ---------------------------
 # `web-validation.yml` ne se déclenche que sur les chemins `web/**`. L'agent
-# WhatsApp, qui porte plus de quatre cents tests, n'était donc couvert par
-# AUCUNE intégration continue : ses tests ne s'exécutaient que lorsque
-# quelqu'un y pensait. Un test qui ne tourne pas ne protège rien.
+# WhatsApp, qui porte plus de six cents tests, n'était couvert par AUCUNE
+# intégration continue : ses tests ne s'exécutaient que lorsque quelqu'un y
+# pensait. Un test qui ne tourne pas ne protège rien.
 #
-# POURQUOI PAS DE `npm ci`
-# -------------------------
-# `agent/` n'a que des dépendances optionnelles pour les tests (`exceljs` est
-# en `optionalDependencies`, et le code retombe sur un CSV quand il est
-# absent). Installer est donc inutile ici, et surtout : installer masquerait
-# une régression du chemin de repli, celui qui sert précisément quand la
-# dépendance manque.
+# DEUX DÉFAUTS DE CE FICHIER, CORRIGÉS
+# -------------------------------------
+# 1. Le contrôle de syntaxe ne couvrait que `src/*.js`. Les modules de
+#    `src/providers/` et `src/voix/` — c'est-à-dire tout le moteur vocal et
+#    tout le transport WhatsApp — en étaient absents. Une faute de syntaxe y
+#    passait l'intégration continue et tombait en production.
+# 2. Node 22 était utilisé ici, Node 24 en production. Valider sur une version
+#    qu'on n'exécute pas, c'est valider autre chose.
+#
+# POURQUOI PAS DE `npm ci` DANS LE PREMIER TRAVAIL
+# -------------------------------------------------
+# `agent/` n'a que des dépendances optionnelles pour ses tests (`exceljs` est
+# en `optionalDependencies`, et le code retombe sur un CSV quand il manque).
+# Installer masquerait une régression du chemin de repli, celui qui sert
+# précisément quand la dépendance est absente.
 name: Validation de l'agent IA
 
 on:
@@ -21,6 +29,10 @@ on:
     paths:
       - "agent/**"
       - ".github/workflows/agent-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "agent/**"
   workflow_dispatch:
 
 permissions:
@@ -38,7 +50,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # La version de la production. Pas une autre.
+          node-version: "24"
 
       # Un défaut de syntaxe doit échouer ici, avant les tests, où le message
       # est clair. `app.js` n'est pas importable sans effets de bord (il prend
@@ -46,7 +59,107 @@ jobs:
       - name: Syntaxe
         run: |
           node --check app.js
-          for f in src/*.js; do node --check "$f"; done
+          node --check index.js
+          # RÉCURSIF : `src/*.js` laissait src/providers/ et src/voix/ hors
+          # contrôle, soit tout le moteur vocal et tout le transport.
+          find src scripts test -name '*.js' -o -name '*.mjs' | while read -r f; do
+            node --check "$f" || exit 1
+          done
+
+      # Les modules doivent s'IMPORTER, pas seulement s'analyser. Un import
+      # vers un fichier renommé passe `node --check` sans broncher, et tombe
+      # au démarrage — c'est arrivé, et cela a coûté un redémarrage.
+      - name: Resolution des imports
+        run: |
+          node --input-type=module -e '
+            import { readdirSync, statSync } from "node:fs";
+            const fichiers = [];
+            const parcourir = (d) => {
+              for (const e of readdirSync(d)) {
+                const p = `${d}/${e}`;
+                if (statSync(p).isDirectory()) parcourir(p);
+                else if (e.endsWith(".js")) fichiers.push(p);
+              }
+            };
+            parcourir("./src");
+            for (const f of fichiers) await import(`./${f}`);
+            console.log(`${fichiers.length} modules importes sans erreur`);
+          '
 
       - name: Tests
         run: node --test "test/*.test.js"
+
+  audio:
+    name: Chaine audio reelle (FFmpeg)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # LA RAISON D'ÊTRE DE CE TRAVAIL.
+      #
+      # Toute la chaîne audio a été écrite sur une machine où FFmpeg n'était
+      # pas installé : les tests unitaires remplaçaient le lanceur par un
+      # espion, et prouvaient donc qu'on composait la bonne ligne de commande,
+      # rien de plus. Qu'elle produise un OGG/Opus lisible par un téléphone
+      # n'était vérifié qu'en production — au pire endroit possible.
+      - name: Installer FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | head -1
+          ffprobe -version | head -1
+
+      - name: Recette audio reelle
+        run: node scripts/recette-audio-reelle.mjs
+
+  dependances:
+    name: Dependances epinglees
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # `npm ci` échoue si `package.json` et `package-lock.json` divergent.
+      # C'est exactement le contrôle qu'on veut : le verrou doit décrire ce
+      # qui sera réellement installé sur le serveur.
+      - name: Installation depuis le verrou
+        run: npm ci --ignore-scripts
+
+      # Une dépendance Git, une étoile ou un intervalle ouvert rendraient
+      # l'installation non reproductible : deux déploiements du même commit
+      # n'installeraient pas le même code. La production tient une session
+      # WhatsApp ; elle ne peut pas changer de transport sous elle.
+      - name: Aucune dependance flottante
+        run: |
+          node -e '
+            const p = require("./package.json");
+            const toutes = { ...p.dependencies, ...p.devDependencies, ...p.optionalDependencies };
+            const flottantes = Object.entries(toutes).filter(
+              ([, v]) => /^(\*|git|github:|https?:|file:)/.test(String(v)) || String(v).trim() === ""
+            );
+            if (flottantes.length) {
+              console.error("Dependances non epinglees :", flottantes);
+              process.exit(1);
+            }
+            console.log(Object.keys(toutes).length + " dependances, aucune flottante");
+          '
+
+      # Signalé, jamais bloquant, et JAMAIS corrigé automatiquement : un
+      # `npm audit fix --force` sur ce projet changerait la version majeure de
+      # whatsapp-web.js, donc le transport de la session de l'établissement.
+      - name: Vulnerabilites connues (informatif)
+        continue-on-error: true
+        run: npm audit --audit-level=high

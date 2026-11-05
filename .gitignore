@@ -78,3 +78,8 @@ agent/.rapports/
 
 # Apercus de QR WhatsApp : un QR de session EST un identifiant de connexion.
 qr-*.png
+
+# Sauvegardes SFTP de la production : elles portent .env, la session WhatsApp
+# et des numeros de telephone. Jamais dans Git.
+sauvegardes/
+altare.env

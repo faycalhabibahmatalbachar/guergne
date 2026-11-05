@@ -9,12 +9,29 @@
  * `id._serialized` est réellement absente des objets `Message` rendus par
  * whatsapp-web.js 1.34.7 sur la version actuelle de WhatsApp Web.
  *
- * La raison est mécanique. `WWebJS.getMessageModel` fait
- * `Object.assign({}, msg.id, …)`, et le modèle traverse ensuite la frontière
- * Puppeteer, qui sérialise en JSON. Or `_serialized` est un accesseur porté
- * par le PROTOTYPE de `MsgKey` : ni `Object.assign` ni `JSON.stringify` ne
- * recopient un accesseur de prototype. La propriété disparaît donc des deux
- * côtés à la fois.
+ * LA CAUSE EXACTE, ET MA PREMIÈRE EXPLICATION QUI ÉTAIT FAUSSE
+ * ------------------------------------------------------------
+ * J'avais conclu à un accesseur de prototype perdu dans la traversée
+ * Puppeteer. C'était plausible, et c'était faux. Le dépôt amont le dit
+ * clairement — commit `95dc87d1`, « fix(client): add fallback for WhatsApp id
+ * ._serialized renamed to id.$1 », 15 juillet 2026 :
+ *
+ *   WhatsApp Web a RENOMMÉ `_serialized` en `$1`.
+ *
+ * La conséquence observée est la même — `id._serialized` vaut `undefined` —
+ * mais le remède, lui, n'est pas le même. La valeur n'a pas disparu : elle a
+ * changé de nom. On la LIT donc, au lieu de la reconstituer de mémoire. La
+ * reconstitution reste en second recours, pour le jour où ce nom changera
+ * encore.
+ *
+ * POURQUOI NE PAS SIMPLEMENT METTRE À JOUR LA DÉPENDANCE
+ * ------------------------------------------------------
+ * Parce qu'aucune version publiée ne porte ce correctif : la dernière sur npm
+ * est `1.34.7`, du 24 avril 2026, antérieure de trois mois. Le prendre
+ * signifierait dépendre d'un commit de la branche principale, donc de sept
+ * mois d'autres changements non publiés, sur une session WhatsApp de
+ * production. Nous reproduisons donc sa sémantique ici, dans un module à nous,
+ * couvert par des tests, sans toucher à la dépendance épinglée.
  *
  * CE QUE CELA CASSAIT
  * -------------------
@@ -32,15 +49,32 @@
  * ce que `Client.getMessageById` attend (il refuse toute autre longueur).
  */
 
-/** Rend la partie texte d'un champ qui peut être une chaîne ou un WID objet. */
-function chaine(valeur) {
+/**
+ * Rend la partie texte d'un champ qui peut être une chaîne ou un WID objet.
+ *
+ * `$1` est le nom que WhatsApp Web donne depuis juillet 2026 à ce qui
+ * s'appelait `_serialized`. On accepte les deux : l'ancien d'abord, pour que
+ * rien ne change là où il existe encore.
+ */
+export function chaineIdentifiant(valeur) {
   if (typeof valeur === "string") return valeur || null;
   if (valeur && typeof valeur === "object") {
-    const s = valeur._serialized;
-    return typeof s === "string" && s ? s : null;
+    for (const nom of NOMS_SERIALISE) {
+      const s = valeur[nom];
+      if (typeof s === "string" && s) return s;
+    }
   }
   return null;
 }
+const chaine = chaineIdentifiant;
+
+/**
+ * Les noms successifs de la même propriété.
+ *
+ * L'ordre compte : `_serialized` reste la source quand il est présent, et
+ * `$1` ne sert que là où WhatsApp l'a remplacé.
+ */
+export const NOMS_SERIALISE = Object.freeze(["_serialized", "$1"]);
 
 /**
  * Reconstitue `_serialized` à partir des champs qui, eux, survivent.
@@ -52,9 +86,12 @@ export function serialiserIdMessage(id) {
   if (typeof id === "string") return id || null;
   if (!id || typeof id !== "object") return null;
 
-  // Quand la passerelle l'a fourni, on ne devine rien.
-  const fourni = chaine(id._serialized);
-  if (fourni) return fourni;
+  // Quand la valeur est là — sous l'un ou l'autre de ses noms — on ne devine
+  // rien. C'est le cas le plus fréquent, et le seul exact.
+  for (const nom of NOMS_SERIALISE) {
+    const v = id[nom];
+    if (typeof v === "string" && v) return v;
+  }
 
   const remote = chaine(id.remote);
   const partie = typeof id.id === "string" && id.id ? id.id : null;
@@ -80,7 +117,12 @@ export function partieIdMessage(id) {
     const m = id.split("_");
     return m.length >= 3 ? m[2] : null;
   }
-  if (id && typeof id === "object" && typeof id.id === "string" && id.id) return id.id;
+  if (id && typeof id === "object") {
+    if (typeof id.id === "string" && id.id) return id.id;
+    // Un identifiant complet rendu sous son nouveau nom : on le relit.
+    const complet = chaine(id);
+    if (complet) return partieIdMessage(complet);
+  }
   return null;
 }
 
@@ -98,7 +140,10 @@ export function reparerIdMessage(message) {
   const id = message?.id;
   const serialise = serialiserIdMessage(id);
   if (!serialise) return { ok: false, repare: false, id: null };
-  if (id && typeof id === "object" && !chaine(id._serialized)) {
+  // La condition porte sur `_serialized` PRÉCISÉMENT, et non sur « une valeur
+  // existe » : la bibliothèque lit ce nom-là, et seulement celui-là. Trouver
+  // la valeur sous `$1` ne dispense donc pas de la poser sous l'ancien nom.
+  if (id && typeof id === "object" && !(typeof id._serialized === "string" && id._serialized)) {
     try {
       id._serialized = serialise;
       return { ok: true, repare: true, id: serialise };
