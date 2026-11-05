@@ -38,13 +38,24 @@ voix() {
   bleu "== Synthese reelle (Piper fr + ar) =="
   node scripts/recette-voix-reelle.mjs || echec=1
 }
+stt() {
+  bleu "== Reconnaissance vocale reelle (Groq) =="
+  # Les cles sont chargees ICI et nulle part ailleurs : elles n'entrent pas
+  # dans le profil general, qui est ecrit sur le disque.
+  local ici
+  ici="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  # shellcheck source=/dev/null
+  . "$ici/profil-ia.sh" || { echec=1; return; }
+  node scripts/recette-stt-reelle.mjs || echec=1
+}
 
 case "${1:-tout}" in
   unitaires) unitaires ;;
   audio)     audio ;;
   voix)      voix ;;
-  tout)      unitaires; audio; voix ;;
-  *)         echo "usage : tests.sh [tout|unitaires|audio|voix]" >&2; exit 2 ;;
+  stt)       stt ;;
+  tout)      unitaires; audio; voix; stt ;;
+  *)         echo "usage : tests.sh [tout|unitaires|audio|voix|stt]" >&2; exit 2 ;;
 esac
 
 echo
