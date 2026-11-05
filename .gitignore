@@ -86,3 +86,7 @@ altare.env
 
 # Session WhatsApp locale, QR et audios de test : jamais dans Git.
 agent/donnees-locales/
+
+# Cache de WhatsApp Web, cree par la bibliotheque a chaque session.
+.wwebjs_cache/
+.wwebjs_auth/
