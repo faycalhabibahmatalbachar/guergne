@@ -40,11 +40,13 @@ import { readFile, unlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { WwebjsProvider } from "../src/providers/wwebjs.js";
+import { jidUtilisateur } from "../src/jid.js";
 import { FournisseurPiper } from "../src/voix/piper.js";
 import { assemblerWavs, preparerNoteVocale } from "../src/voix/audio.js";
 import { PARTIES_BILINGUES } from "../src/voix/diagnostic-voix.js";
-import { chaineIdentifiant, partieIdMessage, serialiserIdMessage } from "../src/providers/identifiant-message.js";
-import { resumerErreur } from "../src/erreurs.js";
+import { chaineIdentifiant } from "../src/providers/identifiant-message.js";
+import { decrireErreur, resumerErreur } from "../src/erreurs.js";
 
 const racine = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -145,20 +147,25 @@ async function principal() {
   writeFileSync(copie, octets);
   gris(`  copie conservee : ${copie}`);
 
-  // --- 4. Session WhatsApp locale ------------------------------------------
+  // --- 4. Session WhatsApp, par le transport de PRODUCTION ----------------
   //
-  // UN ESSAI A BLANC NE DOIT PAS ATTENDRE UN SCAN.
+  // POURQUOI LE VRAI TRANSPORT, ET NON UN CHEMIN PARALLELE
+  // -------------------------------------------------------
+  // La premiere version appelait `client.sendMessage` directement. C'etait un
+  // second chemin d'envoi, et il ne prouvait rien du premier : tout ce qui a
+  // ete corrige dans `src/providers/wwebjs.js` — la reparation des
+  // identifiants, les trois voies d'envoi, le controle de doublon par
+  // l'historique, la relecture de l'acquittement — restait non eprouve.
   //
-  // Sans session deja appairee, lancer Chromium ici afficherait un QR code et
-  // attendrait trois minutes que quelqu'un vienne. Or l'essai a blanc sert
-  // precisement a tout valider AVANT de deranger qui que ce soit. On s'arrete
-  // donc la, en le disant, et la resolution du destinataire attend la session.
+  // Ce script utilise donc `WwebjsProvider`, exactement comme l'agent. Il
+  // n'enregistre AUCUN gestionnaire de message : le transport trace alors
+  // « handler_absent » et n'appelle personne. C'est un appareil lie en
+  // ecriture seule, le temps d'un envoi.
   const sessionExistante = existsSync(join(SESSION, "session-guergne-local"));
   if (blanc && !sessionExistante) {
     bleu("== Essai a blanc : la chaine audio est validee ==");
     console.log(JSON.stringify({ etapes, audio: rapport, fichier: copie }, null, 2));
     gris("\nAucune session locale appairee : WhatsApp n'a pas ete lance.");
-    gris("La resolution du destinataire et l'envoi attendent l'appairage.");
     await voix.shutdown().catch(() => {});
     for (const f of [...morceaux, assemble, ogg]) await unlink(f).catch(() => {});
     return;
@@ -166,184 +173,182 @@ async function principal() {
 
   bleu("== 4. Session WhatsApp locale ==");
   gris("  Cette session est DISTINCTE de celle d'Altare, qui n'est pas touchee.");
-  const { default: wweb } = await import("whatsapp-web.js");
-  // Le chemin du navigateur est IMPOSE, et non cherche.
-  //
-  // Puppeteer le cherche dans son cache par defaut ; le laboratoire l'installe
-  // ailleurs, pour que tout puisse disparaitre d'un seul rm -rf. Laisser
-  // Puppeteer deviner donnerait « Could not find Chrome » alors qu'il est la.
-  const chemins = [
-    process.env.CHROMIUM_BIN,
-    (() => {
-      try {
-        return readFileSync(join(process.env.GUERGNE_LOCAL ?? "", "chemin-chromium.txt"), "utf8").trim();
-      } catch {
-        return null;
-      }
-    })(),
-  ].filter(Boolean);
-  const navigateur = chemins[0] ?? null;
-  gris(navigateur ? `  navigateur : ${navigateur}` : "  navigateur : celui que Puppeteer trouvera");
+  // Puppeteer cherche Chromium dans son cache par defaut ; le laboratoire
+  // l'installe ailleurs. Le transport lit `PUPPETEER_EXECUTABLE_PATH`.
+  if (!process.env.PUPPETEER_EXECUTABLE_PATH) {
+    try {
+      process.env.PUPPETEER_EXECUTABLE_PATH = readFileSync(
+        join(process.env.GUERGNE_LOCAL ?? "", "chemin-chromium.txt"),
+        "utf8",
+      ).trim();
+    } catch {
+      /* Puppeteer cherchera lui-meme */
+    }
+  }
+  gris(`  navigateur : ${process.env.PUPPETEER_EXECUTABLE_PATH ?? "celui que Puppeteer trouvera"}`);
 
-  const client = new wweb.Client({
-    authStrategy: new wweb.LocalAuth({ clientId: "guergne-local", dataPath: SESSION }),
-    puppeteer: {
-      headless: true,
-      ...(navigateur ? { executablePath: navigateur } : {}),
-      // `--no-sandbox` : WSL2 n'a pas les espaces de noms utilisateur qu'exige
-      // le bac a sable de Chromium. C'est aussi ce que fait la production.
-      args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--mute-audio"],
-    },
-  });
-
-  // AUCUN `client.on("message", …)`. Ce client n'ecoute pas : il envoie une
-  // fois, puis se ferme. Deux agents repondant aux memes messages enverraient
-  // deux reponses a de vraies familles.
-
-  const pret = new Promise((resoudre, rejeter) => {
-    client.on("qr", async (qr) => {
+  const provider = new WwebjsProvider({
+    dossierSession: SESSION,
+    clientId: "guergne-local",
+    surQr: async (qr) => {
       bleu("\n  APPAIRAGE REQUIS");
       const { default: qrcode } = await import("qrcode");
       const png = join(racine, "donnees-locales", "qr-local.png");
       await qrcode.toFile(png, qr, { width: 512, margin: 2 });
       console.log(await qrcode.toString(qr, { type: "terminal", small: true }));
       gris(`  Image : ${png}`);
-      console.log("  Sur le telephone de l'etablissement : WhatsApp > Appareils lies");
-      console.log("  > Lier un appareil, puis scannez ce code.");
-      gris("  Ceci ajoute un appareil lie. La session d'Altare reste valide.");
-    });
-    client.on("authenticated", () => vert("  authentifie"));
-    client.on("ready", () => resoudre(true));
-    client.on("auth_failure", (m) => rejeter(new Error(`appairage refuse : ${m}`)));
-    client.on("disconnected", (r) => rejeter(new Error(`deconnecte : ${r}`)));
+      console.log("  Telephone de l'etablissement : WhatsApp > Appareils lies > Lier un appareil");
+    },
+    journal: {
+      info: (...m) => gris(`  ${m.join(" ")}`),
+      warn: (...m) => gris(`  ${m.join(" ")}`),
+      error: (...m) => rouge(`  ${m.join(" ")}`),
+      log: () => {},
+    },
   });
-
-  await client.initialize();
-  // DIX MINUTES, ET NON TROIS.
-  //
-  // Mesure faite : trois minutes ne suffisent pas. Le temps d'ouvrir le bon
-  // onglet, d'aller chercher le telephone de l'etablissement, d'y trouver
-  // « Appareils lies » et de viser, la fenetre etait close — et tout le
-  // travail de synthese devait etre refait. WhatsApp renouvelle son code
-  // toutes les vingt secondes de son cote ; c'est lui qui borne la validite,
-  // pas nous.
-  const FENETRE_APPAIRAGE_MS = Number(process.env.FENETRE_APPAIRAGE_MS ?? 10 * 60 * 1000);
-  const minuteur = new Promise((_, rejeter) =>
-    setTimeout(
-      () => rejeter(new Error(`session non prete apres ${Math.round(FENETRE_APPAIRAGE_MS / 1000)} s`)),
-      FENETRE_APPAIRAGE_MS,
-    ).unref(),
-  );
-  // Un rappel du temps restant : sans lui, l'attente ne dit pas si elle vit.
-  const rappel = setInterval(() => gris("  ...toujours en attente du scan"), 60_000);
-  rappel.unref?.();
-  try {
-    await Promise.race([pret, minuteur]);
-  } finally {
-    clearInterval(rappel);
-  }
-  vert("  session prete");
+  // AUCUN `provider.onMessage(...)`. Ce client n'ecoute pas.
 
   try {
-    // --- 5. Résoudre le destinataire, sans fabriquer de JID ---------------
+    await provider.connect();
+    const FENETRE_MS = Number(process.env.FENETRE_APPAIRAGE_MS ?? 10 * 60 * 1000);
+    const debutAttente = chrono();
+    while (provider.getConnectionStatus() !== "ready") {
+      if (chrono() - debutAttente > FENETRE_MS) {
+        throw new Error(`session non prete apres ${Math.round(FENETRE_MS / 1000)} s`);
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    etapes.session_ms = chrono() - debutAttente;
+    vert(`  session prete en ${etapes.session_ms} ms`);
+
+    // --- 5. Destinataire : deux adresses, et la bonne en premier ----------
     bleu("== 5. Destinataire ==");
-    // On DEMANDE son identifiant a WhatsApp. Composer `numero@c.us` a la main
-    // marche souvent et echoue silencieusement depuis la migration vers les
-    // LID : l'identifiant que nous composons n'est pas toujours celui qu'il
-    // reconnait.
-    const resolu = await client.getNumberId(numero);
-    // `_serialized` est le nom que WhatsApp Web a renomme `$1` en juillet
-    // 2026 — la cause exacte de l'erreur « r ». Le lire ici en dur ferait
-    // echouer la resolution du destinataire a l'instant decisif, et le
-    // message serait « WhatsApp ne reconnait pas ce numero », qui est faux.
-    const jid = chaineIdentifiant(resolu);
-    if (!jid) {
+    // `getNumberId` CONFIRME que le numero est inscrit sur WhatsApp. Mais il
+    // rend aujourd'hui une adresse « @lid », et `createWid` la REFUSE :
+    // `getChatById` et l'envoi levent alors la meme erreur minifiee d'une
+    // lettre. C'est ce qui a interrompu la tentative precedente.
+    //
+    // On envoie donc au JID TELEPHONIQUE, construit par le constructeur
+    // canonique du projet a partir du numero que WhatsApp vient de confirmer
+    // — ce n'est pas une adresse inventee. Le LID reste en second recours.
+    const resolu = await provider._client.getNumberId(numero);
+    const lid = chaineIdentifiant(resolu);
+    if (!lid) {
       rouge(`  ${masque(numero)} : WhatsApp n'a rendu aucun identifiant exploitable.`);
       gris(`  champs recus : ${resolu ? Object.keys(resolu).join(", ") : "aucune reponse"}`);
       process.exit(1);
     }
-    vert(`  ${masque(numero)} resolu`);
-    gris(`  serveur du JID : ${jid.split("@")[1]}`);
+    vert(`  ${masque(numero)} inscrit sur WhatsApp`);
+    gris(`  serveur rendu par getNumberId : ${lid.split("@")[1]}`);
 
-    // --- 6. L'historique AVANT tout envoi ---------------------------------
+    const telephonique = jidUtilisateur(numero);
+    const adresses = [telephonique];
+    if (lid !== telephonique) adresses.push(lid);
+    gris(`  adresses a essayer : ${adresses.map((x) => x.split("@")[1]).join(" puis ")}`);
+
+    // --- 6. Doublon : notre propre registre, qui ne depend de rien --------
     bleu("== 6. Controle de doublon ==");
-    // Un echec ambigu n'est pas une preuve de non-envoi. On regarde donc
-    // l'historique AVANT, et non apres coup.
-    const conversation = await client.getChatById(jid);
-    const recents = await conversation.fetchMessages({ limit: 15 });
-    const depuis = Date.now() - 30 * 60 * 1000;
-    const dejaEnvoye = (recents ?? []).find(
-      (m) => m?.fromMe && (m.type === "ptt" || m.type === "audio") && (m.timestamp ?? 0) * 1000 >= depuis,
-    );
-    if (dejaEnvoye) {
-      rouge("  Une note vocale de nous figure DEJA dans la demi-heure ecoulee.");
-      gris(`  identifiant : ${partieIdMessage(dejaEnvoye.id)}, ack : ${dejaEnvoye.ack}`);
+    // L'HISTORIQUE DE WHATSAPP N'EST PAS UNE SOURCE FIABLE ICI.
+    //
+    // Le lire exige `getChatById`, qui echoue sur une adresse LID. Un
+    // garde-fou qui depend du defaut qu'il surveille n'en est pas un. Notre
+    // registre, lui, est autoritatif sur ce que NOUS avons envoye, et c'est
+    // la seule question qui compte pour ne pas doubler.
+    const registre = join(racine, "donnees-locales", "envois.json");
+    let passes = [];
+    try {
+      passes = JSON.parse(readFileSync(registre, "utf8"));
+    } catch {
+      /* premier envoi */
+    }
+    const recent = passes.find((e) => chrono() - (e.le ?? 0) < 30 * 60 * 1000);
+    if (recent) {
+      rouge("  Un envoi figure DEJA dans la demi-heure ecoulee.");
+      gris(`  identifiant : ${recent.idPartie ?? "?"}, voie : ${recent.voie ?? "?"}, ack : ${recent.ack ?? "?"}`);
       gris("  Aucun second envoi. Verifiez le telephone avant de relancer.");
       process.exit(3);
     }
-    vert("  aucun envoi recent : la voie est libre");
+    vert(`  aucun envoi recent enregistre (${passes.length} dans l'historique du registre)`);
 
     if (blanc) {
       bleu("\n== Essai a blanc : AUCUN envoi ==");
-      console.log(JSON.stringify({ etapes, audio: rapport, destinataire: masque(numero) }, null, 2));
+      console.log(
+        JSON.stringify(
+          { etapes, audio: rapport, destinataire: masque(numero), adresses: adresses.map((x) => x.split("@")[1]) },
+          null,
+          2,
+        ),
+      );
       return;
     }
 
-    // --- 7. L'envoi, une seule fois ---------------------------------------
+    // --- 7. L'envoi, par `sendAudio` du transport -------------------------
     bleu("== 7. Envoi ==");
-    // Type MIME DEPOUILLE : `audio/ogg; codecs=opus` faisait rendre un type
-    // indefini a WhatsApp Web, et son getter memoise echouait ensuite. Le
-    // conteneur et le codec sont deja garantis par ffprobe.
-    const media = new wweb.MessageMedia("audio/ogg", octets.toString("base64"), "note.ogg");
-    const tEnvoi = chrono();
-    const envoye = await client.sendMessage(jid, media, { sendAudioAsVoice: true });
-    etapes.envoi_ms = chrono() - tEnvoi;
-    const identifiant = serialiserIdMessage(envoye?.id);
-    vert(`  accepte en ${etapes.envoi_ms} ms`);
+    let envoi = null;
+    let derniere = null;
+    for (const adresse of adresses) {
+      try {
+        gris(`  tentative sur @${adresse.split("@")[1]}`);
+        envoi = await provider.sendAudio(adresse, { data: octets, mimetype: "audio/ogg" });
+        if (envoi?.ok) {
+          etapes.adresse_retenue = adresse.split("@")[1];
+          break;
+        }
+      } catch (e) {
+        derniere = e;
+        rouge(`  @${adresse.split("@")[1]} : ${resumerErreur(e, { max: 160 })}`);
+        // `sendAudio` consulte lui-meme l'historique entre ses voies : s'il
+        // leve, c'est qu'aucune note n'est partie par cette adresse.
+      }
+    }
+    if (!envoi?.ok) {
+      rouge("\n  Aucune adresse n'a abouti.");
+      console.error(JSON.stringify(decrireErreur(derniere), null, 2));
+      process.exit(5);
+    }
+    vert(`  accepte par la voie « ${envoi.voie} » sur @${etapes.adresse_retenue}`);
 
-    // --- 8. Acquittement : relu, jamais deduit ----------------------------
+    // Le registre AVANT toute autre chose : si le processus mourait ici, un
+    // second lancement ne doit pas renvoyer.
+    passes.push({
+      le: chrono(),
+      idPartie: envoi.idPartie,
+      voie: envoi.voie,
+      ack: envoi.ack,
+      adresse: etapes.adresse_retenue,
+    });
+    writeFileSync(registre, `${JSON.stringify(passes, null, 2)}\n`);
+    gris(`  envoi consigne dans ${registre}`);
+
+    // --- 8. Acquittement : relu, jamais deduit ---------------------------
     bleu("== 8. Acquittement ==");
     const NOMS_ACK = { "-1": "erreur", 0: "en attente", 1: "parti du serveur", 2: "livre", 3: "lu", 4: "ecoute" };
-    let dernier = null;
+    let dernierAck = typeof envoi.ack === "number" ? envoi.ack : null;
+    gris(`  a l'acceptation : ack=${dernierAck} (${NOMS_ACK[String(dernierAck)] ?? "inconnu"})`);
     // WhatsApp rend `ack: 0` a l'instant de l'acceptation : relire tout de
     // suite ne prouverait rien. On observe donc pendant quelques secondes.
-    for (let i = 0; i < 6; i++) {
-      await new Promise((r) => setTimeout(r, 2500));
-      const relu = identifiant ? await client.getMessageById(identifiant).catch(() => null) : null;
-      const ack = typeof relu?.ack === "number" ? relu.ack : (envoye?.ack ?? null);
-      if (ack !== dernier) {
-        dernier = ack;
-        vert(`  ack=${ack} (${NOMS_ACK[String(ack)] ?? "inconnu"})`);
+    if (envoi.id) {
+      for (let i = 0; i < 6; i++) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const relu = await provider.acquittement(envoi.id);
+        if (relu.ack !== null && relu.ack !== dernierAck) {
+          dernierAck = relu.ack;
+          vert(`  ack=${relu.ack} (${relu.etat})`);
+        }
+        if ((relu.ack ?? -99) >= 2) break;
       }
-      if (ack >= 2) break;
-    }
-
-    // --- 9. La note est-elle dans l'historique, et est-ce bien un PTT ? ---
-    bleu("== 9. Verification dans l'historique ==");
-    const apres = await conversation.fetchMessages({ limit: 5 });
-    const trouvee = (apres ?? []).find((m) => partieIdMessage(m.id) === partieIdMessage(envoye?.id));
-    if (trouvee) {
-      vert(`  presente, type « ${trouvee.type} »`);
-      if (trouvee.type !== "ptt") {
-        rouge("  ATTENTION : ce n'est pas un « ptt ». WhatsApp l'a traite comme un fichier audio,");
-        rouge("  pas comme une note vocale.");
-      }
-    } else {
-      rouge("  introuvable dans l'historique : envoi NON confirme.");
     }
 
     console.log(
       `\n${JSON.stringify(
         {
           destinataire: masque(numero),
-          serveurJid: jid.split("@")[1],
-          // La fraction opaque de l'identifiant : elle suffit a retrouver le
-          // message, et ne porte aucun numero de telephone.
-          messageId: partieIdMessage(envoye?.id),
-          typeMedia: trouvee?.type ?? null,
-          notesVocale: trouvee?.type === "ptt",
-          ack: dernier,
-          ackLecture: NOMS_ACK[String(dernier)] ?? "inconnu",
+          adresse: `@${etapes.adresse_retenue}`,
+          voieEnvoi: envoi.voie,
+          messageId: envoi.idPartie,
+          ack: dernierAck,
+          ackLecture: NOMS_ACK[String(dernierAck)] ?? "inconnu",
+          doublonEvite: Boolean(envoi.doublonEvite),
           audio: {
             format: `${rapport.conteneur} / ${rapport.codec}`,
             echantillonnage: rapport.echantillonnage,
@@ -362,16 +367,21 @@ async function principal() {
     );
   } finally {
     bleu("\n== Fermeture ==");
-    // Le client se ferme TOUJOURS : un Chromium laisse ouvert garde la session
-    // locale active, donc un appareil lie qui reste connecte pour rien.
-    await client.destroy().catch((e) => gris(`  fermeture : ${resumerErreur(e)}`));
+    // Le transport se ferme TOUJOURS : un Chromium laisse ouvert garde la
+    // session locale active, donc un appareil lie connecte pour rien.
+    await provider.disconnect().catch((e) => gris(`  fermeture : ${resumerErreur(e)}`));
     await voix.shutdown().catch(() => {});
     for (const f of [...morceaux, assemble, ogg]) await unlink(f).catch(() => {});
     vert("  ferme");
   }
 }
 
+
 principal().catch((e) => {
+  // La description COMPLETE, et non le resume. « Interrompu : r » ne dit pas
+  // d'ou : c'est exactement ce qui a coute une soiree de diagnostic, et cela
+  // s'est reproduit deux fois sur ce script avant que la trace le dise.
   rouge(`\nInterrompu : ${resumerErreur(e, { max: 400 })}`);
+  console.error(JSON.stringify(decrireErreur(e), null, 2));
   process.exit(1);
 });
