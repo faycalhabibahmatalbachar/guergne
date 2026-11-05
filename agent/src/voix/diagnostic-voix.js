@@ -213,11 +213,10 @@ export class DiagnosticVoix {
       const { readFile } = await import("node:fs/promises");
       const octets = await readFile(ogg);
       // Le transport existant, jamais un second : `sendAudio` porte deja
-      // `sendAudioAsVoice: true` et le type `audio/ogg; codecs=opus`.
-      // Type MIME sans parametre : `audio/ogg; codecs=opus` faisait rendre un
-      // type indefini a WhatsApp Web, et son getter memoise echouait ensuite.
-      // Le conteneur et le codec sont deja garantis par ffprobe.
-      const envoi = await this._provider.sendAudio(jid, { data: octets, mimetype: "audio/ogg" });
+      // `sendAudioAsVoice: true`. Le type est annonce COMPLET, parametre
+      // compris : c'est ainsi que WhatsApp etiquette ses propres notes
+      // vocales, et le depouiller n'avait rien corrige (voir `sendAudio`).
+      const envoi = await this._provider.sendAudio(jid, { data: octets, mimetype: "audio/ogg; codecs=opus" });
       etapes.envoi_ms = this._horloge() - t2;
       etapes.total_ms = this._horloge() - t0;
 

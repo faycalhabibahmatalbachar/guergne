@@ -133,9 +133,10 @@ test("un essai bilingue synthetise deux langues et n'envoie QU'UNE note", async 
   assert.deepEqual(faits.syntheses.map((s) => s.language), ["fr", "ar"]);
   assert.deepEqual(faits.assemblages, [2]);
   assert.equal(faits.envois.length, 1, "un seul envoi, quoi qu'il arrive");
-  // Le type MIME est depouille : un `codecs=opus` faisait echouer le getter
-  // memoise de WhatsApp Web.
-  assert.equal(faits.envois[0].mimetype, "audio/ogg");
+  // Le type est annonce COMPLET, parametre compris. Le depouiller etait mon
+  // hypothese, et elle etait fausse : l'envoi echouait toujours sur la meme
+  // erreur, et WhatsApp etiquette ses propres notes vocales ainsi.
+  assert.equal(faits.envois[0].mimetype, "audio/ogg; codecs=opus");
   assert.equal(r.corps.etapes.parties.length, 2);
   assert.ok(r.corps.etapes.assemblage_ms >= 0);
 });

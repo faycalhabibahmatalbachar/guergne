@@ -651,16 +651,27 @@ export class WwebjsProvider extends WhatsAppProvider {
   /**
    * Envoie une note vocale.
    *
-   * POURQUOI LE TYPE MIME EST DÉPOUILLÉ DE SES PARAMÈTRES
-   * ------------------------------------------------------
-   * Le premier envoi réel a échoué sur « Data passed to getter must include an
-   * id property (it's how we memoize) but got undefined », levé par le code de
-   * WhatsApp Web. Dans `util/Injected/Utils.js`, le type de média est résolu
-   * par `msgToMediaType({ type: mediaData.type, … })`, et `mediaData.type`
-   * découle du type MIME. Un `audio/ogg; codecs=opus` non reconnu rend donc
-   * `type` indéfini, et le getter mémoïsé en aval échoue sur exactement ce
-   * message. Le paramètre `codecs` est pourtant inutile ici : le conteneur et
-   * le codec sont déjà garantis par `ffprobe` avant l'envoi.
+   * LE TYPE MIME EST TRANSMIS TEL QUEL, ET J'AVAIS EU TORT DE LE DÉPOUILLER
+   * ------------------------------------------------------------------------
+   * L'erreur « Data passed to getter must include an id property (it's how we
+   * memoize) but got undefined » vient de `processMediaData`, dans
+   * `util/Injected/Utils.js` :
+   *
+   *     const mediaObject = getOrCreateMediaObject(mediaData.filehash);
+   *     …
+   *     if (!mediaData.filehash) throw new Error('media-fault: …');
+   *
+   * La garde arrive APRÈS l'appel. Quand WhatsApp Web ne reconnaît pas le
+   * média comme de l'audio, `filehash` vaut `undefined`, et c'est le getter
+   * mémoïsé qui échoue le premier — avec ce message, qui ne nomme ni le média
+   * ni le type.
+   *
+   * J'avais conclu que le paramètre `codecs` empêchait cette reconnaissance,
+   * et je l'avais retiré. L'envoi a continué d'échouer, sur exactement la même
+   * erreur : l'hypothèse était fausse, et inversée. WhatsApp étiquette ses
+   * propres notes vocales `audio/ogg; codecs=opus` — avec le paramètre, qui
+   * participe à la reconnaissance. Le type est donc transmis tel que
+   * l'appelant l'annonce, et `ffprobe` a déjà garanti qu'il dit vrai.
    *
    * POURQUOI TROIS TENTATIVES
    * --------------------------
@@ -674,11 +685,11 @@ export class WwebjsProvider extends WhatsAppProvider {
    * L'identifiant du message est RENDU. L'ancienne version le jetait, ce qui
    * rendait impossible de distinguer un envoi accepté d'un envoi perdu.
    */
-  async sendAudio(jid, { data, mimetype = "audio/ogg" } = {}) {
+  async sendAudio(jid, { data, mimetype = "audio/ogg; codecs=opus" } = {}) {
     const debut = Date.now();
     const { default: wweb } = await import("whatsapp-web.js");
-    // `audio/ogg; codecs=opus` -> `audio/ogg` : voir l'en-tête.
-    const type = String(mimetype).split(";")[0].trim() || "audio/ogg";
+    // Tel quel, paramètres compris : voir l'en-tête.
+    const type = String(mimetype).trim() || "audio/ogg; codecs=opus";
     const media = new wweb.MessageMedia(type, Buffer.from(data).toString("base64"), "reponse.ogg");
     this._tracer({ event: "audio_started", jidType: typeJid(jid), type, octets: data?.length ?? 0 });
 

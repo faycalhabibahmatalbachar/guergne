@@ -58,6 +58,23 @@ const valeur = (nom) => {
 };
 const numero = (valeur("--numero") ?? "").replace(/[^\d]/g, "");
 const blanc = argv.includes("--blanc");
+/**
+ * Type MIME du media, reglable.
+ *
+ * POURQUOI C'EST UNE OPTION ET NON UNE CONSTANTE
+ * -----------------------------------------------
+ * `processMediaData` appelle `getOrCreateMediaObject(mediaData.filehash)`
+ * AVANT de verifier que `filehash` existe. Quand WhatsApp Web ne reconnait pas
+ * le media comme de l'audio, `filehash` vaut `undefined`, et le getter
+ * memoise leve « Data passed to getter must include an id property ».
+ *
+ * La reconnaissance depend du type MIME. WhatsApp etiquette ses propres notes
+ * vocales `audio/ogg; codecs=opus` — avec le parametre. J'avais justement
+ * DEPOUILLE ce parametre en production, sur une hypothese inverse, et l'envoi
+ * echouait toujours. C'est donc la premiere variable a eprouver, et une
+ * option permet de le faire sans toucher au transport.
+ */
+const mimetype = valeur("--mimetype") ?? "audio/ogg; codecs=opus";
 
 if (!numero) {
   console.error("usage : node note-vocale-locale.mjs --numero <chiffres> [--blanc]");
@@ -252,6 +269,7 @@ async function principal() {
     const adresses = [telephonique];
     if (lid !== telephonique) adresses.push(lid);
     gris(`  adresses a essayer : ${adresses.map((x) => x.split("@")[1]).join(" puis ")}`);
+    gris(`  type MIME annonce : ${mimetype}`);
 
     // --- 6. Doublon : notre propre registre, qui ne depend de rien --------
     bleu("== 6. Controle de doublon ==");
@@ -296,7 +314,7 @@ async function principal() {
     for (const adresse of adresses) {
       try {
         gris(`  tentative sur @${adresse.split("@")[1]}`);
-        envoi = await provider.sendAudio(adresse, { data: octets, mimetype: "audio/ogg" });
+        envoi = await provider.sendAudio(adresse, { data: octets, mimetype });
         if (envoi?.ok) {
           etapes.adresse_retenue = adresse.split("@")[1];
           break;
