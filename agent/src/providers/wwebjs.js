@@ -478,11 +478,97 @@ export class WwebjsProvider extends WhatsAppProvider {
     return { ok: true };
   }
 
-  async sendAudio(jid, { data, mimetype = "audio/ogg; codecs=opus" } = {}) {
+  /**
+   * Envoie une note vocale.
+   *
+   * POURQUOI LE TYPE MIME EST DÉPOUILLÉ DE SES PARAMÈTRES
+   * ------------------------------------------------------
+   * Le premier envoi réel a échoué sur « Data passed to getter must include an
+   * id property (it's how we memoize) but got undefined », levé par le code de
+   * WhatsApp Web. Dans `util/Injected/Utils.js`, le type de média est résolu
+   * par `msgToMediaType({ type: mediaData.type, … })`, et `mediaData.type`
+   * découle du type MIME. Un `audio/ogg; codecs=opus` non reconnu rend donc
+   * `type` indéfini, et le getter mémoïsé en aval échoue sur exactement ce
+   * message. Le paramètre `codecs` est pourtant inutile ici : le conteneur et
+   * le codec sont déjà garantis par `ffprobe` avant l'envoi.
+   *
+   * POURQUOI TROIS TENTATIVES
+   * --------------------------
+   * L'envoi de texte vers ce même numéro fonctionnait déjà, donc le JID est
+   * joignable. Mais le chemin média exige en plus que la conversation soit
+   * résolue dans le magasin de la page, et que l'identifiant soit celui que
+   * WhatsApp reconnaît — l'adressage ayant migré vers les LID. Chaque
+   * tentative lève une hypothèse différente, et la trace dit laquelle a
+   * abouti : sans cela, un succès n'apprendrait rien pour la fois suivante.
+   *
+   * L'identifiant du message est RENDU. L'ancienne version le jetait, ce qui
+   * rendait impossible de distinguer un envoi accepté d'un envoi perdu.
+   */
+  async sendAudio(jid, { data, mimetype = "audio/ogg" } = {}) {
+    const debut = Date.now();
     const { default: wweb } = await import("whatsapp-web.js");
-    const media = new wweb.MessageMedia(mimetype, Buffer.from(data).toString("base64"), "reponse.ogg");
-    await this._client.sendMessage(jid, media, { sendAudioAsVoice: true });
-    return { ok: true };
+    // `audio/ogg; codecs=opus` -> `audio/ogg` : voir l'en-tête.
+    const type = String(mimetype).split(";")[0].trim() || "audio/ogg";
+    const media = new wweb.MessageMedia(type, Buffer.from(data).toString("base64"), "reponse.ogg");
+    this._tracer({ event: "audio_started", jidType: typeJid(jid), type, octets: data?.length ?? 0 });
+
+    const tentatives = [
+      {
+        nom: "direct",
+        faire: () => this._client.sendMessage(jid, media, { sendAudioAsVoice: true }),
+      },
+      {
+        // La conversation doit exister dans le magasin de la page : un envoi
+        // media vers une conversation jamais ouverte echoue la ou un texte
+        // l'aurait creee.
+        nom: "conversation_resolue",
+        faire: async () => {
+          const chat = await this._client.getChatById(jid);
+          return chat.sendMessage(media, { sendAudioAsVoice: true });
+        },
+      },
+      {
+        // Dernier recours : demander a WhatsApp l'identifiant canonique du
+        // numero. Depuis la migration vers les LID, celui que nous composons
+        // n'est pas toujours celui qu'il reconnait.
+        nom: "identifiant_canonique",
+        faire: async () => {
+          const resolu = await this._client.getNumberId(String(jid).split("@")[0]);
+          if (!resolu?._serialized) throw new Error("numero non resolu par WhatsApp");
+          return this._client.sendMessage(resolu._serialized, media, { sendAudioAsVoice: true });
+        },
+      },
+    ];
+
+    let derniere = null;
+    for (const { nom, faire } of tentatives) {
+      try {
+        const envoye = await avecDelai(faire, { ms: DELAI_ENVOI_MS, operation: `envoi audio (${nom})` });
+        const id = envoye?.id?._serialized ?? null;
+        this._tracer({
+          event: "audio_accepted",
+          voie: nom,
+          jidType: typeJid(jid),
+          dureeMs: Date.now() - debut,
+          idMessage: empreinteCourte(id),
+        });
+        this.machine.envoiTente({ ok: true });
+        return { ok: true, voie: nom, id, ack: envoye?.ack ?? null };
+      } catch (e) {
+        derniere = e;
+        this._tracer({
+          event: "audio_retry",
+          voie: nom,
+          erreur: String(e?.message ?? e).slice(0, 180),
+        });
+      }
+    }
+
+    // Les trois voies ont echoue : on le dit, plutot que de rendre un succes.
+    // La reponse ecrite, elle, a deja ete envoyee par l'appelant.
+    this._tracer({ event: "audio_failed", jidType: typeJid(jid), dureeMs: Date.now() - debut });
+    this.machine.envoiTente({ ok: false, raison: String(derniere?.message ?? derniere) });
+    throw new Error(`envoi audio impossible apres 3 voies : ${String(derniere?.message ?? derniere).slice(0, 200)}`);
   }
 
   /** Reconnexion avec recul exponentiel plafonné : un réseau coupé ne doit pas marteler WhatsApp. */

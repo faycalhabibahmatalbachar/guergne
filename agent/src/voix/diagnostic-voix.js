@@ -137,7 +137,10 @@ export class DiagnosticVoix {
       const octets = await readFile(ogg);
       // Le transport existant, jamais un second : `sendAudio` porte deja
       // `sendAudioAsVoice: true` et le type `audio/ogg; codecs=opus`.
-      const envoi = await this._provider.sendAudio(jid, { data: octets, mimetype: "audio/ogg; codecs=opus" });
+      // Type MIME sans parametre : `audio/ogg; codecs=opus` faisait rendre un
+      // type indefini a WhatsApp Web, et son getter memoise echouait ensuite.
+      // Le conteneur et le codec sont deja garantis par ffprobe.
+      const envoi = await this._provider.sendAudio(jid, { data: octets, mimetype: "audio/ogg" });
       etapes.envoi_ms = this._horloge() - t2;
       etapes.total_ms = this._horloge() - t0;
 
@@ -167,7 +170,9 @@ export class DiagnosticVoix {
           },
           etapes,
           // L'identifiant rendu par la passerelle, quand elle en rend un.
-          messageId: envoi?.id?._serialized ?? envoi?.id ?? null,
+          messageId: envoi?.id ?? null,
+          voieEnvoi: envoi?.voie ?? null,
+          ack: envoi?.ack ?? null,
           envoiAccepte: true,
           // « Accepte » n'est pas « ecoute ». La passerelle accuse la prise en
           // charge ; la lecture ne se constate que sur le telephone.

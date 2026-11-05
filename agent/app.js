@@ -36,6 +36,7 @@ import {
 import { DiagnosticNotification } from "./src/diagnostic-notification.js";
 import { SurveillantConnexion } from "./src/surveillance-connexion.js";
 import { releverRessources, resumerRessources } from "./src/ressources.js";
+import { balayerCoreDumps } from "./src/menage-core.js";
 import { releverEnvironnement } from "./src/diagnostic-environnement.js";
 import { preparerNoteVocale } from "./src/voix/audio.js";
 import { DiagnosticVoix } from "./src/voix/diagnostic-voix.js";
@@ -646,6 +647,7 @@ async function arreter(signal) {
   clearInterval(battement);
   clearInterval(relance);
   clearInterval(garde);
+  clearInterval(menage);
   // Un demon orphelin garderait un modele de 63 Mo en memoire pour rien.
   await moteurVoix.fournisseur?.shutdown().catch(() => {});
   // Une derniere tentative avant de partir : un avis en attente a plus de
@@ -675,6 +677,22 @@ if (!verrou.detientToujours()) {
 // JUSTE AVANT le lancement de Chromium, puisque c'est l'etat dans lequel il
 // va demarrer — et consignes meme si tout se passe bien, parce qu'on ne les
 // aura plus le jour ou cela se passera mal.
+// Chaque effondrement de Chromium depose un `core.<pid>` : trois s'etaient
+// accumules, 1,60 Go, dont deux en un seul redemarrage. On balaie au demarrage
+// puis toutes les heures, faute de pouvoir poser `ulimit -c 0` — le champ de
+// commande du panneau Altare etant repute non modifiable de facon fiable.
+const balayer = () =>
+  balayerCoreDumps({
+    dossier: process.cwd(),
+    journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+  }).then((r) => {
+    if (r.supprimes.length) console.log(`[menage] ${r.supprimes.length} vidage(s) memoire balaye(s), ${Math.round(r.octets / 1048576)} Mo`);
+    for (const err of r.erreurs) console.warn(`[menage] ${err}`);
+  });
+await balayer();
+const menage = setInterval(balayer, 60 * 60 * 1000);
+menage.unref?.();
+
 const ressources = releverRessources();
 console.log(`[ressources] ${resumerRessources(ressources)}`);
 if (ressources.memoireSuspecte) {

@@ -93,6 +93,27 @@ def importer_piper(traces):
         return None
 
 
+def mesurer(chemin):
+    """
+    Espace et inodes d'un chemin, vus DE L'INTÉRIEUR du conteneur.
+
+    `statvfs` depuis Python est la seule mesure fiable dont nous disposons :
+    SFTP est enfermé dans `/home/container` et ne voit donc ni `/tmp`, ni le
+    système de fichiers qui le porte. Et un volume peut être « plein » sans
+    l'être en octets — d'où les inodes.
+    """
+    try:
+        st = os.statvfs(chemin)
+        return {
+            "chemin": chemin,
+            "libre_mo": round(st.f_bavail * st.f_frsize / 1048576),
+            "total_mo": round(st.f_blocks * st.f_frsize / 1048576),
+            "inodes_libres": st.f_favail,
+        }
+    except Exception as e:
+        return {"chemin": chemin, "erreur": f"{type(e).__name__} {e}"}
+
+
 def assurer_pip(cible, traces):
     """
     Rend True si `python3 -m pip` est utilisable, en l'amorçant au besoin.
@@ -211,6 +232,21 @@ def lancer_installation_detachee(cible, traces):
     if not assurer_pip(cible, traces):
         return "pip_absent"
 
+    # LE DOSSIER TEMPORAIRE EST LE SUSPECT PRINCIPAL.
+    #
+    # Les telechargements aboutissent (116 Mo/s mesures) mais le DEPLIAGE
+    # echoue sur ENOSPC, alors que 1,60 Go viennent d'etre liberes sur le
+    # volume. pip extrait les roues dans un dossier temporaire avant de les
+    # poser a destination : si ce dossier est sur un `/tmp` etroit — un tmpfs
+    # de quelques dizaines de mega-octets est courant en conteneur — deplier
+    # onnxruntime y est impossible, quelle que soit la place sur le volume.
+    #
+    # On impose donc un temporaire SUR LE VOLUME, a cote de la destination.
+    temporaire = os.path.join(cible, ".tmp")
+    os.makedirs(temporaire, exist_ok=True)
+    for ou in ("/tmp", temporaire, cible):
+        traces.append("espace " + json.dumps(mesurer(ou), ensure_ascii=False))
+
     journal = os.path.join(cible, "installation.log")
     try:
         with open(journal, "ab") as sortie:
@@ -224,7 +260,14 @@ def lancer_installation_detachee(cible, traces):
                 start_new_session=True,
                 # pip vient d'etre deplie dans `cible` : sans ce PYTHONPATH, le
                 # sous-processus ne le trouverait pas lui-meme.
-                env={**os.environ, "PYTHONPATH": cible + os.pathsep + os.environ.get("PYTHONPATH", "")},
+                env={
+                    **os.environ,
+                    "PYTHONPATH": cible + os.pathsep + os.environ.get("PYTHONPATH", ""),
+                    # pip honore TMPDIR pour ses extractions.
+                    "TMPDIR": temporaire,
+                    "TEMP": temporaire,
+                    "TMP": temporaire,
+                },
             )
         with open(os.path.join(cible, ".installation.pid"), "w", encoding="utf-8") as f:
             f.write(str(proc.pid))
