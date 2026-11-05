@@ -219,11 +219,29 @@ async function principal() {
   });
 
   await client.initialize();
-  // Trois minutes : le temps d'aller chercher le telephone et de scanner.
+  // DIX MINUTES, ET NON TROIS.
+  //
+  // Mesure faite : trois minutes ne suffisent pas. Le temps d'ouvrir le bon
+  // onglet, d'aller chercher le telephone de l'etablissement, d'y trouver
+  // « Appareils lies » et de viser, la fenetre etait close — et tout le
+  // travail de synthese devait etre refait. WhatsApp renouvelle son code
+  // toutes les vingt secondes de son cote ; c'est lui qui borne la validite,
+  // pas nous.
+  const FENETRE_APPAIRAGE_MS = Number(process.env.FENETRE_APPAIRAGE_MS ?? 10 * 60 * 1000);
   const minuteur = new Promise((_, rejeter) =>
-    setTimeout(() => rejeter(new Error("session non prete apres 180 s")), 180_000).unref(),
+    setTimeout(
+      () => rejeter(new Error(`session non prete apres ${Math.round(FENETRE_APPAIRAGE_MS / 1000)} s`)),
+      FENETRE_APPAIRAGE_MS,
+    ).unref(),
   );
-  await Promise.race([pret, minuteur]);
+  // Un rappel du temps restant : sans lui, l'attente ne dit pas si elle vit.
+  const rappel = setInterval(() => gris("  ...toujours en attente du scan"), 60_000);
+  rappel.unref?.();
+  try {
+    await Promise.race([pret, minuteur]);
+  } finally {
+    clearInterval(rappel);
+  }
   vert("  session prete");
 
   try {
