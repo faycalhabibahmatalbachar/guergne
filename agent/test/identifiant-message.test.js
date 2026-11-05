@@ -10,7 +10,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { partieIdMessage, reparerIdMessage, serialiserIdMessage } from "../src/providers/identifiant-message.js";
+import { partieIdMessage, reparerIdMessage, reparerIdentifiant, serialiserIdMessage } from "../src/providers/identifiant-message.js";
 
 test("un `_serialized` fourni est repris tel quel, sans rien deviner", () => {
   const id = { _serialized: "false_123@c.us_ABC", remote: "999@c.us", id: "ZZZ", fromMe: true };
@@ -146,4 +146,31 @@ test("faute de tout nom connu, la reconstitution prend le relais", () => {
     serialiserIdMessage({ fromMe: false, remote: "1@c.us", id: "A1", $2: "nom inconnu" }),
     "false_1@c.us_A1",
   );
+});
+
+// --- Le meme defaut sur une CONVERSATION, et non un message -------------
+
+test("l'identifiant d'une conversation se repare aussi", () => {
+  // Deuxieme site du meme defaut, prouve en production : `Chat.fetchMessages`
+  // passe `this.id._serialized` a la page (Chat.js:242), donc `undefined`, et
+  // la page leve la meme erreur minifiee d'une lettre que pour les medias.
+  const conversation = { id: { server: "lid", user: "123456", $1: "123456@lid" }, name: "x" };
+  const r = reparerIdentifiant(conversation);
+  assert.deepEqual(r, { ok: true, repare: true, id: "123456@lid" });
+  assert.equal(conversation.id._serialized, "123456@lid");
+});
+
+test("un identifiant de conversation n'est PAS reconstitue a partir de rien", () => {
+  // Un WID n'a ni `fromMe` ni `remote` : il n'y a rien a reconstituer, et
+  // inventer un identifiant ferait echouer WhatsApp Web avec la meme erreur
+  // illisible. Mieux vaut un refus nomme, qui empeche l'envoi.
+  const r = reparerIdentifiant({ id: { server: "lid", user: "123456" } });
+  assert.deepEqual(r, { ok: false, repare: false, id: null });
+});
+
+test("une conversation deja complete n'est pas touchee", () => {
+  const conversation = { id: { _serialized: "123@c.us", server: "c.us", user: "123" } };
+  const r = reparerIdentifiant(conversation);
+  assert.equal(r.repare, false);
+  assert.equal(r.id, "123@c.us");
 });

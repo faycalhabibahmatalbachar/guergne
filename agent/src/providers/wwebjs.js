@@ -22,7 +22,7 @@ import { DelaiDepasse, avecDelai } from "../delai.js";
 import { ETATS, EtatWhatsApp, doitSuivreChargement } from "../etat-whatsapp.js";
 import { analyserJid } from "../jid.js";
 import { decrireErreur, resumerErreur } from "../erreurs.js";
-import { chaineIdentifiant, partieIdMessage, reparerIdMessage, serialiserIdMessage } from "./identifiant-message.js";
+import { chaineIdentifiant, partieIdMessage, reparerIdMessage, reparerIdentifiant, serialiserIdMessage } from "./identifiant-message.js";
 
 /**
  * Bornes des appels sortants.
@@ -777,6 +777,18 @@ export class WwebjsProvider extends WhatsAppProvider {
   async _noteVocaleRecente(jid, depuisMs) {
     try {
       const chat = await avecDelai(() => this._client.getChatById(jid), { ms: DELAI_LID_MS, operation: "lecture de la conversation" });
+      // LE MEME DEFAUT, SUR LA CONVERSATION.
+      //
+      // `Chat.fetchMessages` passe `this.id._serialized` a la page
+      // (Chat.js:242). WhatsApp Web ayant renomme cette propriete `$1`, la
+      // passerelle envoie `undefined` et la page leve la meme erreur minifiee
+      // d'une lettre que pour les medias. On repare donc l'identifiant de la
+      // conversation exactement comme celui d'un message.
+      const repare = reparerIdentifiant(chat);
+      if (!repare.ok) {
+        this._tracer({ event: "historique_illisible", raison: "identifiant de conversation inexploitable" });
+        return null;
+      }
       const messages = await avecDelai(() => chat.fetchMessages({ limit: 12 }), {
         ms: DELAI_LID_MS,
         operation: "lecture de l'historique",

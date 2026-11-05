@@ -127,12 +127,36 @@ export function partieIdMessage(id) {
 }
 
 /**
- * Pose `_serialized` sur l'objet `id` d'un message quand il manque.
+ * Pose `_serialized` sur l'objet `id` de N'IMPORTE QUELLE structure de la
+ * passerelle, quand il manque.
+ *
+ * POURQUOI « N'IMPORTE QUELLE » ET PLUS SEULEMENT UN MESSAGE
+ * -----------------------------------------------------------
+ * Le défaut n'est pas propre aux messages. Il touche toute structure dont la
+ * passerelle lit `id._serialized` pour parler à la page, et il y en a
+ * plusieurs. Deux sites l'ont prouvé en production, à des heures d'intervalle :
+ *
+ *   Message.js:588   downloadMedia()   -> aucune note vocale entrante
+ *   Chat.js:242      fetchMessages()   -> aucun historique lisible
+ *
+ * Les deux lèvent la même erreur minifiée d'une seule lettre, parce que les
+ * deux passent `undefined` à `createWid`. Un identifiant de conversation est
+ * un WID et non une clé de message : il n'a ni `fromMe` ni `remote`, et rien
+ * ne se reconstitue. Mais la valeur est là, sous `$1` — il suffit de la lire.
  *
  * Réparation volontairement locale : l'objet appartient à notre processus, et
  * la bibliothèque le lira ensuite sans savoir qu'il a été complété. C'est
- * préférable à une copie de `downloadMedia` chez nous, qui divergerait à la
- * prochaine mise à jour de WhatsApp Web.
+ * préférable à une copie de `downloadMedia` ou de `fetchMessages` chez nous,
+ * qui divergerait à la prochaine mise à jour de WhatsApp Web.
+ *
+ * @returns {{ok:boolean, repare:boolean, id:string|null}}
+ */
+export function reparerIdentifiant(porteur) {
+  return reparerIdMessage(porteur);
+}
+
+/**
+ * Pose `_serialized` sur l'objet `id` d'un message quand il manque.
  *
  * @returns {{ok:boolean, repare:boolean, id:string|null}}
  */
