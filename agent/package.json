@@ -6,7 +6,7 @@
   "description": "Agent de pilotage de la plateforme guergne par WhatsApp (coeur indépendant du transport).",
   "scripts": {
     "start": "node index.js",
-    "test": "node --test",
+    "test": "node --test \"test/*.test.js\"",
     "sante": "curl -s localhost:8080/sante"
   },
   "devDependencies": {

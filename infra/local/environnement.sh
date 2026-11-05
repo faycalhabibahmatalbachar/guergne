@@ -29,7 +29,9 @@ OUTILS="$RACINE/outils"
 VOIX="$RACINE/voix"
 # Les versions sont ÉPINGLÉES. Une version flottante reproduit un environnement
 # différent à chaque exécution, ce qui est l'inverse du but.
-NODE_VERSION="${NODE_VERSION:-24.16.0}"
+# 24.22.2 : la version EXACTE que le journal d'Altare annonce au demarrage.
+# Valider sur une autre version, c'est valider autre chose.
+NODE_VERSION="${NODE_VERSION:-24.22.2}"
 PYTHON_VERSION="${PYTHON_VERSION:-3.13}"
 
 bleu()  { printf '\033[1;34m%s\033[0m\n' "$*"; }

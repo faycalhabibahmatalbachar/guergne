@@ -11,6 +11,18 @@
  *
  * Le compte créé ici lève cet obstacle sans rien toucher à la plateforme réelle.
  *
+ * ATTENTION — CE N'EST PAS UN FICHIER DE TEST
+ * --------------------------------------------
+ * Son nom se termine par `-test.mjs`, et `node --test` SANS motif le ramasse
+ * comme un fichier d'épreuves : il l'exécute, et ce script ÉCRIT dans la base
+ * de test. Le défaut a été découvert en alignant Node sur la version exacte de
+ * la production, 24.22.2, où il échoue — sous 24.16 il « passait », c'est-à-dire
+ * qu'il créait un compte sans que personne ne le voie.
+ *
+ * C'est pourquoi `npm test` et l'intégration continue nomment désormais leur
+ * motif : `node --test "test/*.test.js"`. Ne lancez jamais `node --test` nu
+ * depuis `agent/`.
+ *
  * GARANTIES
  * ---------
  *   - refus catégorique d'écrire ailleurs que sur la branche de test ;
