@@ -19,6 +19,13 @@ cd "$depot/agent"
 bleu() { printf '\033[1;34m%s\033[0m\n' "$*"; }
 echec=0
 
+rustines() {
+  bleu "== Rustines sur whatsapp-web.js =="
+  # `node_modules` n'est pas versionne : une rustine posee a la main
+  # disparait au premier `npm ci`. On la verifie donc avant toute epreuve,
+  # plutot que de decouvrir son absence au moment d'un envoi.
+  node scripts/rustine-wwebjs.mjs --verifier || echec=1
+}
 unitaires() {
   bleu "== Tests unitaires — node $(node -v) =="
   # LE MOTIF EST NOMME, ET CE N'EST PAS UN DETAIL.
@@ -54,8 +61,9 @@ case "${1:-tout}" in
   audio)     audio ;;
   voix)      voix ;;
   stt)       stt ;;
-  tout)      unitaires; audio; voix; stt ;;
-  *)         echo "usage : tests.sh [tout|unitaires|audio|voix|stt]" >&2; exit 2 ;;
+  rustines)  rustines ;;
+  tout)      rustines; unitaires; audio; voix; stt ;;
+  *)         echo "usage : tests.sh [tout|rustines|unitaires|audio|voix|stt]" >&2; exit 2 ;;
 esac
 
 echo
