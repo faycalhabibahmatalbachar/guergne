@@ -302,3 +302,37 @@ Altare a consigné « Page crashed! » à 17 h 24 et répondait encore
 consignait sans transiter : le diagnostic était écrit, mais personne n'était
 appelé. `effondrement()` bascule désormais vers `WHATSAPP_ERROR`, donc
 `disconnected`, donc reconnexion forcée par le surveillant.
+
+### Correction — `isBlobEqual` était un artefact de ma sonde
+
+J'ai consigné `TypeError: u.isBlobEqual is not a function` comme un défaut de
+la passerelle. C'était faux, et l'erreur venait de ma sonde.
+
+Dans le vrai flux, deux lignes précèdent `consolidate` :
+
+```js
+if (!(mediaData.mediaBlob instanceof OpaqueData)) { mediaData.mediaBlob = await OpaqueData.createFromData(…); }
+mediaData.renderableUrl = mediaData.mediaBlob.url();
+```
+
+Ma sonde les sautait. `consolidate` comparait donc des blobs dont l'un n'était
+pas une `OpaqueData`, et `isBlobEqual` n'existait pas sur lui. Le vrai flux
+passe cette étape sans erreur — l'envoi a d'ailleurs abouti.
+
+### Où en est l'envoi, exactement
+
+La rustine `064a3d5a` a bien lévé le blocage : l'envoi est **accepté**, et la
+note vocale figure dans la conversation.
+
+```
+NOUS ->  ptt  2026-11-06T11:16:29Z  id 3EB0696B8C0E9C7F6A0312  ack 0  23 s  audio/ogg; codecs=opus
+```
+
+C'est un vrai `ptt` — une note vocale, pas une pièce jointe. Mais **`ack 0`
+après deux minutes et demie de connexion maintenue** : le message est dans le
+magasin local de l'appareil lié et n'a pas quitté le serveur. La livraison
+n'est donc PAS constatée, et le destinataire n'a rien reçu.
+
+La piste suivante : vérifier si un message TEXTE part de cette même session
+(ack ≥ 1). Cela séparerait « le chemin média reste incomplet » de « cet
+appareil lié n'émet pas du tout ».
