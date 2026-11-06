@@ -214,3 +214,91 @@ découvrir ce défaut. Le faux respecte désormais le contrat.
 projet, muet pour tout le reste. Une soirée de diagnostic pour une lettre.
 
 632 tests agent, 0 échec.
+
+---
+
+## 2026-11-06 — Le laboratoire local, et la vraie cause de l'envoi audio
+
+### Trois défauts de la passerelle, tous de la même famille
+
+WhatsApp Web a changé sous whatsapp-web.js 1.34.7, et trois ruptures distinctes
+en découlent. Aucune n'est dans une version publiée : la dernière sur npm date
+du 24 avril, les correctifs amont de juillet et septembre.
+
+| Où | Ce qui casse | Amont |
+|---|---|---|
+| `Message.js:588` `downloadMedia()` | `id._serialized` renommé `$1` → aucune note vocale entrante | `58ddf156` |
+| `Chat.js:242` `fetchMessages()` | le même, sur une conversation → aucun historique lisible | `58ddf156` |
+| `Utils.js` `sendMessage()` | `__x_id` de `mediaData` écrase l'`id` du message → aucun média sortant | `064a3d5a` |
+
+Les deux premières sont traitées dans **notre** code
+(`src/providers/identifiant-message.js`) : la valeur existe sous un autre nom,
+il suffit de la lire. La troisième est à l'intérieur du code injecté dans la
+page, hors de notre portée : elle fait l'objet d'une rustine de six lignes,
+identique à l'amont, posée par `scripts/rustine-wwebjs.mjs`.
+
+### Ce qui a coûté le plus : mes propres hypothèses
+
+Trois, toutes fausses, chacune payée d'une tentative d'envoi.
+
+1. Le paramètre `codecs` du type MIME empêchait la reconnaissance du média.
+2. L'inverse : son absence l'empêchait.
+3. Notre compte n'avait pas d'identité téléphonique, donc un `from` indéfini.
+
+Un seul relevé **dans la page** a tranché, là où trois raisonnements avaient
+échoué :
+
+```
+mediaData.type        « ptt »      filehash PRESENT     duree 22 s
+msgToMediaType        « ptt »
+getOrCreateMediaObject  ok, mais aUnId: false
+consolidate           TypeError: u.isBlobEqual is not a function
+waveform              ok, 64 echantillons
+mePn present (c.us)   meLid present (lid)
+createWid  ok sur @c.us ET sur @lid
+```
+
+La préparation du média réussit entièrement, le décodage Opus aussi. **La
+leçon : quand une erreur est minifiée, instrumenter coûte une tentative, et
+deviner en coûte autant à chaque fois.**
+
+### Le laboratoire local
+
+| Composant | Version | Vérifié par |
+|---|---|---|
+| Node | 24.22.2 | la version du journal d'Altare |
+| Python | 3.13.18 | `import` réussi |
+| onnxruntime | 1.31.1 | celui d'Altare |
+| FFmpeg / FFprobe | N-128433 | conversion réelle |
+| Chromium | 146.0.7680.31 | lancé, page lue |
+| voix fr / ar | 61 Mo chacune | synthèse réelle |
+
+```
+645 tests unitaires       0 echec
+15 controles audio reels  0 echec
+Piper francais ET arabe   0 echec
+STT francais ET arabe     0 echec
+```
+
+Mesures : ratio calcul/audio **0,08 en local contre 1,31 sur Altare**. Le
+goulot n'était pas la mémoire — l'agent tient dans 70 Mo — mais le processeur.
+
+### Deux défauts trouvés par la parité, et non par les tests
+
+**`node --test` nu exécutait `scripts/compte-test.mjs`**, qui écrit dans la
+base de test. Son nom finit par `-test.mjs`. Découvert en alignant Node sur
+24.22.2, où il échoue ; sous 24.16 il « passait », c'est-à-dire qu'il créait un
+compte sans que personne ne le voie. Les figures de tests annoncées avant ce
+jour — 638, 643, 644 — le comptaient.
+
+**`verifierOggOpus` levait une exception au lieu de rendre un verdict** sur un
+fichier illisible. Six cents tests unitaires ne pouvaient pas le voir : ils
+remplaçaient ffprobe par un espion.
+
+### Et un faux vert en production
+
+Altare a consigné « Page crashed! » à 17 h 24 et répondait encore
+`WHATSAPP_READY, reconnexions: 0` dix-sept heures plus tard. `erreur()`
+consignait sans transiter : le diagnostic était écrit, mais personne n'était
+appelé. `effondrement()` bascule désormais vers `WHATSAPP_ERROR`, donc
+`disconnected`, donc reconnexion forcée par le surveillant.
