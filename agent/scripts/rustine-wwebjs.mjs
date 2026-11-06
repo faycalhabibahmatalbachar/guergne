@@ -75,6 +75,55 @@ const RUSTINES = [
         // Bot's won't reply if canonicalUrl is set (linking)
         if (botOptions) {`,
   },
+  {
+    // CELLE-CI N'EST PAS DE L'AMONT : ELLE EST A NOUS, ET MESUREE.
+    //
+    // Après la première rustine, l'envoi est accepté et la note vocale figure
+    // dans la conversation en type `ptt`. Mais son acquittement reste à 0, et
+    // le relevé dans la page dit pourquoi :
+    //
+    //   directPath OUI   mediaKey OUI   filehash OUI   encFilehash OUI
+    //   clientUrl  NON   mediaStage PREPARING
+    //
+    // Le téléversement a bien eu lieu — ces quatre champs ne peuvent venir que
+    // de la réponse du serveur de médias. Mais la dernière ligne de
+    // `processMediaData` pose `clientUrl: mediaEntry.mmsUrl`, et WhatsApp a
+    // cessé de rendre cette URL héritée. Le média reste donc, pour la page, en
+    // cours de préparation — et WhatsApp Web n'émet jamais un média dans cet
+    // état.
+    //
+    // La preuve que le reste fonctionne : un message TEXTE part de cette même
+    // session et atteint `ack 2`, livré. Seul le chemin des médias est rompu.
+    //
+    // On ne force donc `RESOLVED` que lorsque le téléversement a réellement
+    // rendu les champs qui comptent. Mentir à la page sur un média qui n'est
+    // pas monté produirait un message définitivement cassé chez le
+    // destinataire — bien pire qu'un message qui ne part pas.
+    nom: "media-mediaStage",
+    amont: "aucun — propre au projet, voir docs/AI_SCHOOL_AGENT",
+    fichier: "src/util/Injected/Utils.js",
+    temoin: "mediaStage: 'RESOLVED'",
+    avant: `            mediaHandle: sendToChannel ? mediaEntry.handle : null,
+        });
+
+        return mediaData;`,
+    apres: `            mediaHandle: sendToChannel ? mediaEntry.handle : null,
+        });
+
+        // WhatsApp ne rend plus \`mmsUrl\` : \`clientUrl\` reste vide et le media
+        // reste a l'etape PREPARING, donc la page ne l'emet jamais. On ne le
+        // declare resolu que si le televersement a rendu les champs qui
+        // prouvent qu'il a eu lieu.
+        if (
+            mediaData.mediaStage !== 'RESOLVED' &&
+            mediaEntry.directPath &&
+            mediaEntry.encFilehash
+        ) {
+            mediaData.set({ mediaStage: 'RESOLVED' });
+        }
+
+        return mediaData;`,
+  },
 ];
 
 function principal() {

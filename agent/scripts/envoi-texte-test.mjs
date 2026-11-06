@@ -150,6 +150,17 @@ async function principal() {
     }
 
     bleu("\n== Verdict ==");
+    // L'EVENEMENT, ET NON LA RELECTURE.
+    //
+    // Ma premiere version jugeait sur `provider.acquittement(id)`. Or cet `id`
+    // est null : la passerelle rend un `Message` sans identifiant exploitable.
+    // Le verdict annoncait donc « le texte ne part pas » alors que les
+    // evenements `message_ack` montraient ack 1 puis ack 2, LIVRE. Une mesure
+    // qui interroge une source vide ne rend pas « inconnu » : elle rend faux,
+    // et un faux negatif coute aussi cher qu'un faux positif.
+    const parEvenement = acquittements.reduce((m, a) => Math.max(m, a.ack ?? -99), -99);
+    if (parEvenement > (dernier ?? -99)) dernier = parEvenement;
+    if (dernier !== null && dernier < -1) dernier = null;
     if ((dernier ?? 0) >= 1) {
       vert(`  LE TEXTE PART : ack ${dernier} (${ACK[String(dernier)] ?? "inconnu"}).`);
       gris("  La session emet. Le defaut est donc circonscrit au chemin des medias.");

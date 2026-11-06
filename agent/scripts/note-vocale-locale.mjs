@@ -45,7 +45,7 @@ import { jidUtilisateur } from "../src/jid.js";
 import { FournisseurPiper } from "../src/voix/piper.js";
 import { assemblerWavs, preparerNoteVocale } from "../src/voix/audio.js";
 import { PARTIES_BILINGUES } from "../src/voix/diagnostic-voix.js";
-import { chaineIdentifiant } from "../src/providers/identifiant-message.js";
+import { chaineIdentifiant, partieIdMessage } from "../src/providers/identifiant-message.js";
 import { decrireErreur, resumerErreur } from "../src/erreurs.js";
 
 const racine = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -89,6 +89,9 @@ const outils = {
   ffmpeg: process.env.FFMPEG_BIN ?? "ffmpeg",
   ffprobe: process.env.FFPROBE_BIN ?? "ffprobe",
 };
+
+/** Les codes d'acquittement de WhatsApp, et ce qu'ils constatent vraiment. */
+const NOMS_ACK = { "-1": "erreur", 0: "en attente", 1: "parti du serveur", 2: "livre", 3: "lu", 4: "ecoute" };
 
 /** Masque un numéro : aucun journal de ce script n'en écrit un en clair. */
 const masque = (n) => `${n.slice(0, 3)}${"•".repeat(Math.max(0, n.length - 7))}${n.slice(-4)}`;
@@ -347,7 +350,19 @@ async function principal() {
 
     // --- 8. Acquittement : relu, jamais deduit ---------------------------
     bleu("== 8. Acquittement ==");
-    const NOMS_ACK = { "-1": "erreur", 0: "en attente", 1: "parti du serveur", 2: "livre", 3: "lu", 4: "ecoute" };
+    // LES EVENEMENTS, ET NON LA SEULE RELECTURE.
+    //
+    // La passerelle rend un `Message` sans identifiant exploitable : relire
+    // par `id` interroge donc une source vide, et une source vide ne rend pas
+    // « inconnu », elle rend faux. Les evenements `message_ack`, eux, portent
+    // la verite — c'est ainsi que la livraison du texte de controle a ete
+    // constatee alors que la relecture annoncait un echec.
+    const vus = [];
+    provider._client.on("message_ack", (m, ack) => {
+      const partie = partieIdMessage(m?.id);
+      vus.push({ idPartie: partie, ack });
+      vert(`  [ack] ${partie ?? "?"} -> ${ack} (${NOMS_ACK[String(ack)] ?? "inconnu"})`);
+    });
     let dernierAck = typeof envoi.ack === "number" ? envoi.ack : null;
     gris(`  a l'acceptation : ack=${dernierAck} (${NOMS_ACK[String(dernierAck)] ?? "inconnu"})`);
     // WhatsApp rend `ack: 0` a l'instant de l'acceptation : relire tout de
@@ -363,6 +378,19 @@ async function principal() {
         if ((relu.ack ?? -99) >= 2) break;
       }
     }
+    // Les evenements l'emportent sur la relecture, pour la raison dite plus haut.
+    const parEvenement = vus.reduce((m, a) => Math.max(m, a.ack ?? -99), -99);
+    if (parEvenement > (dernierAck ?? -99)) dernierAck = parEvenement;
+    if (dernierAck !== null && dernierAck < -1) dernierAck = null;
+
+    // On reste en ligne tant que la livraison n'est pas constatee : un
+    // appareil lie doit l'etre le temps que le message parte.
+    const finAttente = chrono() + 90_000;
+    while ((dernierAck ?? -99) < 2 && chrono() < finAttente) {
+      await new Promise((r) => setTimeout(r, 5000));
+      const p = vus.reduce((m, a) => Math.max(m, a.ack ?? -99), -99);
+      if (p > (dernierAck ?? -99)) dernierAck = p;
+    }
 
     console.log(
       `\n${JSON.stringify(
@@ -373,6 +401,7 @@ async function principal() {
           messageId: envoi.idPartie,
           ack: dernierAck,
           ackLecture: NOMS_ACK[String(dernierAck)] ?? "inconnu",
+          acquittementsObserves: vus,
           doublonEvite: Boolean(envoi.doublonEvite),
           audio: {
             format: `${rapport.conteneur} / ${rapport.codec}`,
