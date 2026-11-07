@@ -29,6 +29,7 @@ import { ETAPE, agreger, estTransitoire, rendreBilan, validerMission } from "./m
 // diverger deux facons de masquer un numero.
 import { masquer } from "./identity-store.js";
 import { decrireErreur, resumerErreur } from "./erreurs.js";
+import { evaluerTranscription } from "./voix/qualite-transcription.js";
 
 let counter = 0;
 const uid = (p) => `${p}_${Date.now().toString(36)}_${(counter++).toString(36)}`;
@@ -388,6 +389,30 @@ export class Agent {
         langue: langueEntendue,
         dureeMs: Date.now() - debutStt,
       });
+
+      // UNE TRANSCRIPTION HALLUCINEE N'EST PAS VIDE : ELLE EST PLAUSIBLE.
+      //
+      // Le 7 novembre, notre propre note bilingue est revenue avec « de la
+      // communication » repete cinq fois : la moitie arabe avait ete lue comme
+      // du francais. Un tel texte franchit sans peine le garde-fou de la
+      // transcription vide, atteint le modele, et peut devenir une intention —
+      // donc une action scolaire posee sur du bruit.
+      //
+      // On ne poursuit donc pas. Et on le dit a l'expediteur, qui sait, lui,
+      // ce qu'il a prononce.
+      const qualite = evaluerTranscription(text, { langueAttendue: langueEntendue, langueLue: langueEntendue });
+      if (!qualite.fiable) {
+        return this._echecVocal({
+          msg, runId, staff, started,
+          evenement: "voice_stt_peu_fiable",
+          raison: qualite.griefs.join(" ; "),
+          detail: { repetition: qualite.repetition, diversite: qualite.diversite },
+          texte:
+            "Je n'ai pas compris votre note vocale de façon sûre : la transcription part en " +
+            "répétitions. Si vous avez mêlé deux langues dans le même enregistrement, " +
+            "refaites-la dans une seule langue — ou écrivez-moi votre demande.",
+        });
+      }
       // La langue entendue oriente la réponse vocale : répondre en français à
       // une question posée en arabe serait pire que de ne pas répondre.
       if (langueEntendue) this.provider.langueSouhaitee?.(msg.fromJid, langueEntendue);

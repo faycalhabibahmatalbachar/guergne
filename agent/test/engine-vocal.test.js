@@ -171,3 +171,56 @@ test("un echec vocal ne declenche aucune action metier", async () => {
   await agent.handle(vocal());
   assert.equal(guergne.calls.length, 0);
 });
+
+// --- Une transcription hallucinee n'atteint pas le modele ----------------
+
+test("une transcription qui part en repetitions n'atteint JAMAIS le modele", async () => {
+  // La sortie reelle de whisper-large-v3-turbo sur notre note bilingue du
+  // 7 novembre : la moitie arabe lue comme du francais. Un tel texte n'est pas
+  // vide — il est plausible — et pourrait donc devenir une intention, donc une
+  // action scolaire posee sur du bruit.
+  let interprete = 0;
+  const { agent, provider, eut } = avecJournal({
+    transcribe: async () => ({
+      texte:
+        "Bonjour, c'est un test de la communication de la communication de la " +
+        "communication de la communication de la communication.",
+      langue: "fr",
+    }),
+    interpret: async () => {
+      interprete++;
+      return planAppel();
+    },
+  });
+  const r = await agent.handle(vocal());
+  assert.equal(r.etape, "voice_stt_peu_fiable");
+  assert.equal(interprete, 0, "le modele ne doit pas avoir ete appele");
+  assert.match(eut("voice_stt_peu_fiable").raison, /repete/);
+  // L'expediteur sait ce qu'il a prononce : on lui dit quoi faire.
+  assert.match(provider.lastTextTo(JID_SURVEILLANT), /une seule langue/);
+});
+
+test("une transcription hallucinee ne declenche aucune action metier", async () => {
+  const { agent, guergne } = avecJournal({
+    transcribe: async () => ({ texte: "alors alors alors alors alors", langue: "fr" }),
+    interpret: async () => planAppel(),
+  });
+  await agent.handle(vocal());
+  assert.equal(guergne.calls.length, 0);
+});
+
+test("une transcription ordinaire passe, elle, jusqu'au modele", async () => {
+  // Le risque inverse, et c'est le plus serieux : refuser une demande
+  // legitime. Celle-ci doit aboutir.
+  let interprete = 0;
+  const { agent } = avecJournal({
+    transcribe: async () => ({ texte: "absence de insc-1 ce matin, une heure", langue: "fr" }),
+    interpret: async () => {
+      interprete++;
+      return planAppel();
+    },
+  });
+  const r = await agent.handle(vocal());
+  assert.equal(interprete, 1);
+  assert.equal(r.status, Status.COMPLETED);
+});
