@@ -35,7 +35,7 @@
  *
  * Le numéro est passé en argument et jamais écrit dans le dépôt.
  */
-import { mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -127,8 +127,47 @@ class DosScolaireSimule {
   snapshot(outil, params) { return { tool: outil?.name ?? null, params, simule: true }; }
 }
 
+/**
+ * Verrou d'instance unique.
+ *
+ * POURQUOI IL EXISTE
+ * -------------------
+ * L'appairage precedent a ete perdu parce que deux clients ont touche le meme
+ * profil LocalAuth. Un controle prealable constate l'etat AVANT le lancement ;
+ * ce verrou empeche le lancement lui-meme de se dedoubler, y compris si
+ * quelqu'un relance la commande sans regarder.
+ *
+ * Il porte le PID et il est VERIFIE, non cru : un verrou dont le processus est
+ * mort est repris, sinon un plantage interdirait tout redemarrage.
+ */
+function prendreVerrou(chemin) {
+  try {
+    const ancien = readFileSync(chemin, "utf8").trim();
+    if (ancien && existsSync(`/proc/${ancien}`)) {
+      return { pris: false, parPid: ancien };
+    }
+    gris(`  verrou perime (pid ${ancien || "inconnu"}) : repris`);
+  } catch {
+    /* pas de verrou : premier demarrage */
+  }
+  mkdirSync(dirname(chemin), { recursive: true });
+  writeFileSync(chemin, `${process.pid}
+`);
+  return { pris: true, parPid: String(process.pid) };
+}
+
 async function principal() {
   mkdirSync(TRAVAIL, { recursive: true });
+
+  const cheminVerrou = join(racine, "donnees-locales", "ecoute.pid");
+  const verrou = prendreVerrou(cheminVerrou);
+  if (!verrou.pris) {
+    rouge(`Une ecoute tourne deja : pid ${verrou.parPid}.`);
+    gris("  Deux clients sur le meme profil font invalider l'appareil lie.");
+    gris("  Arretez-la d'abord : bash infra/local/preparer-appairage.sh --arreter");
+    process.exit(4);
+  }
+  gris(`  verrou d'instance pris (pid ${process.pid})`);
 
   // --- 1. Les fournisseurs IA, sans jamais afficher de cle ---------------
   bleu("== 1. Fournisseurs IA ==");
@@ -289,8 +328,69 @@ async function principal() {
     await new Promise((r) => setTimeout(r, 2000));
   }
 
+  // --- 5 bis. QUEL COMPTE TIENT CETTE SESSION, ET LES QUATRE SOUS-SYSTEMES
+  //
+  // La question du compte est decisive, et elle a probablement explique le
+  // silence de la veille. Si la session est liee au telephone du SUPER_ADMIN
+  // lui-meme, ses messages sont « fromMe » : whatsapp-web.js n'emet alors
+  // AUCUN evenement `message` pour eux, et l'ecoute ne verra jamais rien,
+  // quoi qu'il envoie. Il faut le dire avant d'attendre pour rien.
+  bleu("\n== 5. Le compte lie, et les sous-systemes ==");
+  const identiteSession = await provider._client.pupPage
+    .evaluate(() => {
+      try {
+        const { getMaybeMeLidUser, getMaybeMePnUser } = window.require("WAWebUserPrefsMeUser");
+        // Quatre chiffres : de quoi trancher sans exposer le numero.
+        const fin = (w) => {
+          const u = String(w?.user ?? "");
+          return u ? u.slice(-4) : null;
+        };
+        return { telephonique: fin(getMaybeMePnUser()), lid: fin(getMaybeMeLidUser()) };
+      } catch (e) {
+        return { erreur: String(e?.message ?? e).slice(0, 160) };
+      }
+    })
+    .catch((e) => ({ erreur: resumerErreur(e) }));
+
+  const finSession = identiteSession.telephonique ?? null;
+  const finAttendue = numero.slice(-4);
+  gris(`  compte lie : •••${finSession ?? "????"}   expediteur attendu : •••${finAttendue}`);
+  let receptionPossible = true;
+  if (!finSession) {
+    rouge("  Le compte lie n'a pas pu etre lu : la reception reste incertaine.");
+  } else if (finSession === finAttendue) {
+    receptionPossible = false;
+    rouge("  LA SESSION EST LIEE AU COMPTE DU SUPER_ADMIN LUI-MEME.");
+    rouge("  Ses messages seront « fromMe » : AUCUN evenement de reception ne");
+    rouge("  sera emis, et cette ecoute ne verra jamais rien de lui.");
+    gris("  Pour eprouver l'entree, il faut appairer le telephone de");
+    gris("  l'ETABLISSEMENT — celui qui RECOIT les messages du SUPER_ADMIN.");
+  } else {
+    vert("  comptes distincts : les messages du SUPER_ADMIN arriveront bien comme entrants");
+  }
+
+  // Les quatre sous-systemes, verifies et non supposes.
+  const sous = {
+    chromium: provider._client.pupBrowser?.isConnected?.() === true,
+    page: provider._client.pupPage?.isClosed?.() === false,
+    downloadMedia: typeof provider.getMedia === "function",
+    stt: ia.transcripteurs.length > 0,
+    piper: (amorce.langues ?? []).length === 2,
+  };
+  for (const [nom, ok] of Object.entries(sous)) {
+    (ok ? vert : rouge)(`  ${ok ? "OK   " : "ECHEC"} ${nom}`);
+  }
+  if (Object.values(sous).some((x) => !x)) {
+    rouge("\n  Un sous-systeme manque : l'environnement n'est PAS pret.");
+    process.exit(5);
+  }
+
   console.log();
-  vert("ENVIRONNEMENT PRET — EN ATTENTE D'UNE NOTE VOCALE DU SUPER_ADMIN");
+  if (receptionPossible) {
+    vert("ENVIRONNEMENT PRÊT — RÉCEPTION VOCALE ACTIVÉE — EN ATTENTE DU SUPER_ADMIN.");
+  } else {
+    rouge("ENVIRONNEMENT PRET MAIS RECEPTION IMPOSSIBLE : mauvais compte appaire.");
+  }
   console.log();
   gris(`  Envoyez une note vocale depuis ${masque(numero)} vers le numero de cette session.`);
   gris("  Une phrase ordinaire suffit : aucune demande scolaire n'est necessaire.");
@@ -319,6 +419,11 @@ async function principal() {
     clearInterval(battement);
     await provider.disconnect().catch((e) => gris(`  ${resumerErreur(e)}`));
     await voix.shutdown().catch(() => {});
+    try {
+      unlinkSync(cheminVerrou);
+    } catch {
+      /* deja parti */
+    }
     gris(`  ${traites} message(s) traite(s), ${dos.appels.length} appel(s) simule(s)`);
     vert("  ferme");
     process.exit(0);
