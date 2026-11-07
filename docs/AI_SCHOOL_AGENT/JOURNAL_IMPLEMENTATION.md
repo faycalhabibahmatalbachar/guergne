@@ -376,3 +376,84 @@ pas été parcourue de bout en bout. Tous ses maillons sont éprouvés séparém
 et le pipeline monté est celui de la production, mais **un assemblage dont
 chaque pièce fonctionne n'est pas un assemblage qui fonctionne**. Cela ne sera
 démontré que par une vraie note vocale.
+
+---
+
+## 2026-11-07 — Un fichier bilingue est un piège pour la reconnaissance
+
+### WhatsApp n'a pas touché à notre audio
+
+Le fichier renvoyé par le SUPER_ADMIN est, **octet pour octet**, celui que nous
+avions envoyé :
+
+```
+206048ea8c6591c729b712b484caf4c1293dc2887e8d12bea582224d90d4f83c   72 838 o
+```
+
+La même empreinte des deux côtés. `OpaqueData.createFromData` téléverse donc
+les octets tels quels, et WhatsApp les restitue sans transcodage. C'est une
+preuve que nous n'avions pas : notre OGG/Opus 48 kHz mono traverse intact.
+
+### Mais la transcription de ce même fichier révèle un défaut de conception
+
+Transcription réelle, par `whisper-large-v3-turbo` :
+
+> « Bonjour, ceci est un test du système vocal du lycée Guernier-la-Renaissance.
+> La synthèse française fonctionne et la transmission WhatsApp est en cours de
+> validation. **Bonjour, c'est un test de la communication de la communication
+> de la communication de la communication de la communication.** Il est
+> possible de faire un test de la communication de la communication et de
+> l'application de la communication. »
+
+La première phrase est quasi parfaite — seul « Guergné La Renaissance » devient
+« Guernier-la-Renaissance », ce qu'aucun modèle ne peut connaître.
+
+**La seconde moitié est une hallucination.** La partie arabe a été lue comme du
+français, et Whisper, ne trouvant rien à y mapper, a répété « de la
+communication » cinq fois.
+
+### Ce que cela implique
+
+Whisper choisit **une** langue pour **tout** le fichier. Un assemblage
+bilingue est donc :
+
+- **bon en sortie** : un humain l'écoute et comprend les deux parties ;
+- **mauvais en entrée** : s'il est retranscrit, la moitié devient du bruit.
+
+Conséquences pour la conception :
+
+1. Notre note de test bilingue reste légitime — elle est destinée à une oreille.
+2. Mais si un utilisateur envoie une note vocale mêlant les deux langues, la
+   transcription sera fausse sur l'une des deux. Il faut le détecter plutôt que
+   de le subir : une répétition anormale est un signal exploitable.
+3. Ne jamais faire reposer une action scolaire sur une transcription portant ce
+   genre de répétition.
+
+Mesure au passage : 1 589 ms pour 23,5 s d'audio, ratio **0,07**.
+
+### Altare est joignable, mais n'a rien reçu
+
+```
+/sante          HTTP 200 en 1,43 s      whatsapp  ready
+marche          58,7 h   -> le processus n'a PAS redemarre
+reponseVocale   absent   -> code ancien, les correctifs ne sont pas charges
+etatSuspect     absent   -> la correction du faux vert n'est pas chargee non plus
+dernier message 2026-11-05T01:32:57Z, il y a 3 521 min
+derniereErreur  « page Chromium : Page crashed! », 5 novembre 17:24
+```
+
+Sa page est effondrée depuis le 5 novembre et son état n'a jamais basculé :
+**Altare ne reçoit plus aucun message**. Le correctif qui ferait basculer cet
+état est sur son disque, mais pas dans son processus.
+
+### Une faute de ma part : l'appairage local est perdu
+
+J'ai lancé deux sondes de diagnostic coup sur coup, après un `pkill` suivi
+d'un simple `sleep 3`. Deux clients ont vraisemblablement touché le même profil
+LocalAuth en même temps, et WhatsApp a invalidé l'appareil lié : la session
+redemande un QR.
+
+Les fichiers sont intacts (258 fichiers, 77 Mo), mais les identifiants sont
+refusés. C'est exactement le risque que ce projet s'interdit — deux clients sur
+une même session — et je l'ai créé moi-même, sur le profil de laboratoire.
+Un seul scan le répare.

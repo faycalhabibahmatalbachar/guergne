@@ -169,6 +169,28 @@ async function principal() {
         r.connexionErreur = dire(e);
       }
       try {
+        // QUEL COMPTE TIENT CETTE SESSION ? C'est decisif.
+        //
+        // Si c'est celui du SUPER_ADMIN lui-meme, ses propres messages sont
+        // « fromMe » : whatsapp-web.js n'emet alors pas d'evenement `message`
+        // pour eux, et l'ecoute ne peut rien recevoir de lui, quoi qu'il
+        // envoie. Cela expliquerait une ecoute saine qui ne voit jamais rien.
+        //
+        // QUATRE CHIFFRES, ET RIEN DE PLUS : de quoi trancher sans exposer le
+        // numero.
+        const { getMaybeMeLidUser, getMaybeMePnUser } = window.require("WAWebUserPrefsMeUser");
+        const fin = (w) => {
+          const u = String(w?.user ?? "");
+          return u ? `•••${u.slice(-4)}` : null;
+        };
+        r.compteDeLaSession = {
+          telephonique: fin(getMaybeMePnUser()),
+          lid: fin(getMaybeMeLidUser()),
+        };
+      } catch (e) {
+        r.compteErreur = dire(e);
+      }
+      try {
         r.navigateur = {
           enLigne: navigator.onLine,
           visibilite: document.visibilityState,
