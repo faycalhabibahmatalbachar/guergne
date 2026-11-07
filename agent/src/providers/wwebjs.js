@@ -594,11 +594,36 @@ export class WwebjsProvider extends WhatsAppProvider {
     });
 
     let media;
+    let voie = null;
     try {
-      media = await avecDelai(() => brut.downloadMedia(), {
-        ms: DELAI_MEDIA_MS,
-        operation: "telechargement du media",
-      });
+      // LA VOIE DIRECTE D'ABORD, ET VOICI POURQUOI.
+      //
+      // `Message.downloadMedia()` commence par RETROUVER le message dans le
+      // magasin de la page, a partir de `this.id._serialized`. C'est ce
+      // detour qui echoue depuis que WhatsApp a renomme cette propriete, et
+      // il a echoue une fois de plus le 7 novembre sur une vraie note vocale :
+      // une erreur minifiee « t », levee dans la page, a `Message.js:518`.
+      //
+      // Or nous n'avons pas besoin de retrouver ce message : l'objet que nous
+      // tenons porte DEJA tout ce que le telechargement demande — `directPath`,
+      // `mediaKey`, `encFilehash`, `filehash`. On appelle donc le gestionnaire
+      // de telechargement avec ces champs, sans passer par le magasin.
+      //
+      // La voie de la bibliotheque reste en second recours : c'est elle qui
+      // est maintenue, et le jour ou l'amont corrigera son detour, elle
+      // redeviendra preferable.
+      const direct = await this._telechargerParDirectPath(brut);
+      if (direct.ok) {
+        media = direct.media;
+        voie = "direct_path";
+      } else {
+        this._tracer({ event: "media_direct_indisponible", raison: direct.raison });
+        media = await avecDelai(() => brut.downloadMedia(), {
+          ms: DELAI_MEDIA_MS,
+          operation: "telechargement du media",
+        });
+        voie = "bibliotheque";
+      }
     } catch (e) {
       this._tracer({
         event: "media_download_failed",
@@ -629,6 +654,7 @@ export class WwebjsProvider extends WhatsAppProvider {
 
     this._tracer({
       event: "media_downloaded",
+      voie,
       dureeMs: Date.now() - debut,
       octets: data.length,
       mimetype: media.mimetype ?? null,
@@ -641,6 +667,71 @@ export class WwebjsProvider extends WhatsAppProvider {
       // un enregistrement d'une heure avant de le télécharger entièrement.
       dureeS: typeof brut.duration === "number" ? brut.duration : null,
     };
+  }
+
+  /**
+   * Télécharge un média sans passer par le magasin de la page.
+   *
+   * `downloadAndMaybeDecrypt` est exactement ce que `Message.downloadMedia`
+   * finit par appeler ; la seule différence est que nous lui donnons les
+   * champs que nous tenons déjà, au lieu de les relire depuis un message
+   * qu'il faut d'abord retrouver.
+   *
+   * Ne lève jamais : elle rend `{ ok:false, raison }` pour que l'appelant
+   * puisse se rabattre sur la bibliothèque et tracer les deux tentatives.
+   */
+  async _telechargerParDirectPath(brut) {
+    const d = brut?._data ?? {};
+    const requis = ["directPath", "encFilehash", "filehash", "mediaKey", "mediaKeyTimestamp", "type"];
+    const manquants = requis.filter((c) => d[c] === undefined || d[c] === null);
+    if (manquants.length > 0) return { ok: false, raison: `champs absents : ${manquants.join(", ")}` };
+
+    try {
+      const base64 = await avecDelai(
+        () =>
+          this._client.pupPage.evaluate(async (m) => {
+            // `downloadQpl` est un collecteur de mesures interne. La
+            // bibliotheque en fournit un factice ; il en faut un aussi ici,
+            // sinon l'appel echoue sur une methode absente.
+            const mesures = {
+              addAnnotations() {
+                return this;
+              },
+              addPoint() {
+                return this;
+              },
+            };
+            const octets = await window
+              .require("WAWebDownloadManager")
+              .downloadManager.downloadAndMaybeDecrypt({
+                directPath: m.directPath,
+                encFilehash: m.encFilehash,
+                filehash: m.filehash,
+                mediaKey: m.mediaKey,
+                mediaKeyTimestamp: m.mediaKeyTimestamp,
+                type: m.type,
+                signal: new AbortController().signal,
+                downloadQpl: mesures,
+              });
+            return window.WWebJS.arrayBufferToBase64Async(octets);
+          }, {
+            directPath: d.directPath,
+            encFilehash: d.encFilehash,
+            filehash: d.filehash,
+            mediaKey: d.mediaKey,
+            mediaKeyTimestamp: d.mediaKeyTimestamp,
+            type: d.type,
+          }),
+        { ms: DELAI_MEDIA_MS, operation: "telechargement direct du media" },
+      );
+      if (!base64) return { ok: false, raison: "aucune donnee rendue" };
+      return {
+        ok: true,
+        media: { data: base64, mimetype: d.mimetype ?? brut.mimetype ?? null, filename: d.filename ?? null },
+      };
+    } catch (e) {
+      return { ok: false, raison: resumerErreur(e, { max: 180 }) };
+    }
   }
 
   async sendText(jid, texte) {
