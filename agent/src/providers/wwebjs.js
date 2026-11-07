@@ -612,12 +612,20 @@ export class WwebjsProvider extends WhatsAppProvider {
       // La voie de la bibliotheque reste en second recours : c'est elle qui
       // est maintenue, et le jour ou l'amont corrigera son detour, elle
       // redeviendra preferable.
+      const requis = ["directPath", "encFilehash", "filehash", "mediaKey", "mediaKeyTimestamp", "type"];
       const direct = await this._telechargerParDirectPath(brut);
       if (direct.ok) {
         media = direct.media;
         voie = "direct_path";
       } else {
-        this._tracer({ event: "media_direct_indisponible", raison: direct.raison });
+        // Les champs presents, et l'etape exacte qui a manque : sans cela,
+        // on repart dans la devinette que ce projet s'interdit.
+        this._tracer({
+          event: "media_direct_indisponible",
+          raison: direct.raison,
+          etapesPage: direct.etapes ?? null,
+          champs: Object.fromEntries(requis.map((c) => [c, (brut?._data ?? {})[c] !== undefined])),
+        });
         media = await avecDelai(() => brut.downloadMedia(), {
           ms: DELAI_MEDIA_MS,
           operation: "telechargement du media",
@@ -687,9 +695,33 @@ export class WwebjsProvider extends WhatsAppProvider {
     if (manquants.length > 0) return { ok: false, raison: `champs absents : ${manquants.join(", ")}` };
 
     try {
-      const base64 = await avecDelai(
+      const resultat = await avecDelai(
         () =>
           this._client.pupPage.evaluate(async (m) => {
+            // CHAQUE ETAPE EST RAPPORTEE, AUCUNE N'EST LEVEE.
+            //
+            // Une exception qui traverse `evaluate` revient minifiee — « t » —
+            // et ne dit ni quelle ligne a echoue, ni pourquoi. On attrape donc
+            // ici, ou les noms sont encore lisibles, et on REND la description
+            // comme une donnee. C'est la seule facon de savoir lequel des cinq
+            // appels manque.
+            const dire = (e) =>
+              e && e.message ? `${e.name ?? "Error"}: ${e.message}`.slice(0, 200) : String(e).slice(0, 200);
+            const etapes = {};
+            let gestionnaire = null;
+            try {
+              gestionnaire = window.require("WAWebDownloadManager")?.downloadManager ?? null;
+              etapes.module = Boolean(gestionnaire);
+            } catch (e) {
+              return { ok: false, etape: "require(WAWebDownloadManager)", erreur: dire(e), etapes };
+            }
+            if (!gestionnaire) {
+              return { ok: false, etape: "downloadManager absent", etapes };
+            }
+            etapes.dechiffre = typeof gestionnaire.downloadAndMaybeDecrypt === "function";
+            etapes.versBase64 = typeof window.WWebJS?.arrayBufferToBase64Async === "function";
+            if (!etapes.dechiffre) return { ok: false, etape: "downloadAndMaybeDecrypt absent", etapes };
+            if (!etapes.versBase64) return { ok: false, etape: "arrayBufferToBase64Async absent", etapes };
             // `downloadQpl` est un collecteur de mesures interne. La
             // bibliotheque en fournit un factice ; il en faut un aussi ici,
             // sinon l'appel echoue sur une methode absente.
@@ -701,9 +733,9 @@ export class WwebjsProvider extends WhatsAppProvider {
                 return this;
               },
             };
-            const octets = await window
-              .require("WAWebDownloadManager")
-              .downloadManager.downloadAndMaybeDecrypt({
+            let octets = null;
+            try {
+              octets = await gestionnaire.downloadAndMaybeDecrypt({
                 directPath: m.directPath,
                 encFilehash: m.encFilehash,
                 filehash: m.filehash,
@@ -713,7 +745,15 @@ export class WwebjsProvider extends WhatsAppProvider {
                 signal: new AbortController().signal,
                 downloadQpl: mesures,
               });
-            return window.WWebJS.arrayBufferToBase64Async(octets);
+              etapes.octets = octets?.byteLength ?? octets?.length ?? null;
+            } catch (e) {
+              return { ok: false, etape: "downloadAndMaybeDecrypt", erreur: dire(e), etapes };
+            }
+            try {
+              return { ok: true, base64: await window.WWebJS.arrayBufferToBase64Async(octets), etapes };
+            } catch (e) {
+              return { ok: false, etape: "arrayBufferToBase64Async", erreur: dire(e), etapes };
+            }
           }, {
             directPath: d.directPath,
             encFilehash: d.encFilehash,
@@ -724,10 +764,17 @@ export class WwebjsProvider extends WhatsAppProvider {
           }),
         { ms: DELAI_MEDIA_MS, operation: "telechargement direct du media" },
       );
-      if (!base64) return { ok: false, raison: "aucune donnee rendue" };
+      if (!resultat?.ok) {
+        return {
+          ok: false,
+          raison: `${resultat?.etape ?? "inconnue"}${resultat?.erreur ? ` — ${resultat.erreur}` : ""}`,
+          etapes: resultat?.etapes ?? null,
+        };
+      }
+      if (!resultat.base64) return { ok: false, raison: "aucune donnee rendue", etapes: resultat.etapes };
       return {
         ok: true,
-        media: { data: base64, mimetype: d.mimetype ?? brut.mimetype ?? null, filename: d.filename ?? null },
+        media: { data: resultat.base64, mimetype: d.mimetype ?? brut.mimetype ?? null, filename: d.filename ?? null },
       };
     } catch (e) {
       return { ok: false, raison: resumerErreur(e, { max: 180 }) };
