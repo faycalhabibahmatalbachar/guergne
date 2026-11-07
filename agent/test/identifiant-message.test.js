@@ -174,3 +174,33 @@ test("une conversation deja complete n'est pas touchee", () => {
   assert.equal(r.repare, false);
   assert.equal(r.id, "123@c.us");
 });
+
+// --- Les types de message que le transport accepte ----------------------
+
+test("les notifications de protocole ne sont PAS des messages", async () => {
+  // Observe en local le 7 novembre : un `e2e_notification` a traverse tout le
+  // pipeline et l'agent a repondu « Numero non autorise. » a un identifiant
+  // systeme. Deux fautes : un tour d'agent depense pour rien, et un envoi a
+  // quelque chose qui n'est pas un correspondant.
+  const { TYPES_TRAITES } = await import("../src/providers/wwebjs.js");
+  for (const interne of [
+    "e2e_notification",
+    "gp2",
+    "notification_template",
+    "call_log",
+    "protocol",
+    "ciphertext",
+    "revoked",
+  ]) {
+    assert.equal(TYPES_TRAITES.has(interne), false, `${interne} ne doit pas etre traite`);
+  }
+});
+
+test("les messages humains, eux, sont bien acceptes", async () => {
+  // Le risque inverse : une liste trop etroite ferait disparaitre de vrais
+  // messages en silence.
+  const { TYPES_TRAITES } = await import("../src/providers/wwebjs.js");
+  for (const humain of ["chat", "ptt", "audio", "image", "document", "video"]) {
+    assert.equal(TYPES_TRAITES.has(humain), true, `${humain} doit etre traite`);
+  }
+});

@@ -57,6 +57,25 @@ export const MEDIA_MAX_OCTETS = Number(process.env.MEDIA_MAX_OCTETS ?? 16 * 1024
  */
 const FENETRE_DOUBLON_MS = Number(process.env.FENETRE_DOUBLON_MS ?? 5 * 60 * 1000);
 
+/**
+ * Les types de message qui viennent d'un humain, et qu'on sait traiter.
+ *
+ * Tout le reste — `e2e_notification`, `gp2`, `notification_template`,
+ * `call_log`, `protocol`, `ciphertext` — est de la mecanique interne de
+ * WhatsApp. Ce ne sont pas des correspondants, et leur repondre n'a pas de
+ * sens.
+ */
+export const TYPES_TRAITES = new Set([
+  "chat",
+  "ptt",
+  "audio",
+  "image",
+  "document",
+  "video",
+  "sticker",
+  "location",
+]);
+
 /** Lecture des codes d'acquittement de WhatsApp, pour ne pas les confondre. */
 export const ETATS_ACK = Object.freeze({
   "-1": "erreur",
@@ -371,6 +390,26 @@ export class WwebjsProvider extends WhatsAppProvider {
         fromMe: Boolean(msg?.fromMe),
         aMedia: Boolean(msg?.hasMedia),
       });
+
+      // LES NOTIFICATIONS DE PROTOCOLE NE SONT PAS DES MESSAGES.
+      //
+      // Observe en local le 7 novembre : un `e2e_notification` — une
+      // notification interne de WhatsApp, emise par un identifiant systeme —
+      // a traverse tout le pipeline. Il a ete normalise en « text » vide,
+      // refuse comme numero inconnu, et l'agent a REPONDU « Numero non
+      // autorise. » a cet identifiant.
+      //
+      // C'est doublement faux : on depense un tour d'agent pour rien, et on
+      // ecrit a quelque chose qui n'est pas un correspondant. En production,
+      // chaque notification de ce genre produirait le meme envoi.
+      //
+      // On retient donc une liste de types que l'on sait traiter, et on
+      // ignore le reste en le TRACANT : un type nouveau doit se voir dans le
+      // journal, pas disparaitre en silence.
+      if (!TYPES_TRAITES.has(msg?.type)) {
+        this._tracer({ event: "message_ignore", run, typeMessage: msg?.type ?? "inconnu" });
+        return;
+      }
 
       if (!this._handler) {
         // Aucun gestionnaire : le message serait perdu sans que rien ne le dise.
