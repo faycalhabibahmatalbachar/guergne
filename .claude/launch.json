@@ -4,9 +4,20 @@
     {
       "name": "guergne-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "cwd": "web",
       "port": 3000
+    },
+    {
+      "name": "qr-appairage",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "infra/local/serveur-qr.mjs"
+      ],
+      "port": 8787
     }
   ]
 }
