@@ -336,3 +336,43 @@ n'est donc PAS constatée, et le destinataire n'a rien reçu.
 La piste suivante : vérifier si un message TEXTE part de cette même session
 (ack ≥ 1). Cela séparerait « le chemin média reste incomplet » de « cet
 appareil lié n'émet pas du tout ».
+
+---
+
+## 2026-11-07 — Stabilité sur 18,7 heures, et l'entrée toujours non éprouvée
+
+L'écoute vocale locale est restée en marche sans interruption, en attente d'une
+note vocale qui n'est pas venue. Ce n'est pas un résultat nul : c'est le test
+de longue durée que la recette réclamait, et il passe.
+
+| Grandeur | Mesure |
+|---|---|
+| Durée de marche | **18,7 h** (67 339 s) |
+| Mémoire au premier battement | 139 Mo |
+| Mémoire au dernier | **113 Mo** |
+| Dérive | **−26 Mo** — aucune fuite ; le ramasse-miettes a rendu |
+| État observé | `ready`, à chaque battement sans exception |
+| Cycles de reconnexion traversés | 3 (`OPENING → PAIRING → CONNECTED`) |
+| `Page crashed!` | **0** |
+| Échecs d'authentification | **0** |
+| Messages traités | 0 — aucune note vocale envoyée |
+
+Le point qui compte : la session a traversé une reconnexion complète ce matin —
+`OPENING`, `PAIRING`, `CONNECTED`, chargement à 95 % puis 99 % — et est
+revenue à `ready` d'elle-même, sans intervention. C'est exactement la
+récupération contrôlée que l'incident `Page crashed!` du 5 novembre avait
+montrée absente.
+
+Une mémoire qui **baisse** de 26 Mo sur dix-huit heures écarte la fuite que
+Chromium fait craindre sur les sessions longues. Mais il faut dire la limite :
+cette session était **au repos**. Elle n'a ni téléchargé de média, ni synthétisé,
+ni converti. La pression mémoire d'une conversation vocale soutenue reste à
+mesurer.
+
+### Ce qui reste non démontré
+
+La chaîne entrante — PTT → STT → LLM → politiques → Piper → PTT — n'a toujours
+pas été parcourue de bout en bout. Tous ses maillons sont éprouvés séparément,
+et le pipeline monté est celui de la production, mais **un assemblage dont
+chaque pièce fonctionne n'est pas un assemblage qui fonctionne**. Cela ne sera
+démontré que par une vraie note vocale.

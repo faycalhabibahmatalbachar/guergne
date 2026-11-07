@@ -77,8 +77,22 @@ const rouge = (s) => console.error(`\x1b[1;31m${s}\x1b[0m`);
 const gris = (s) => console.log(`\x1b[0;90m${s}\x1b[0m`);
 const masque = (n) => `${n.slice(0, 3)}${"•".repeat(Math.max(0, n.length - 7))}${n.slice(-4)}`;
 
-/** Trace structurée, corrélée par `run`. Jamais un numéro, jamais une clé. */
-const tracer = (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e }));
+/**
+ * Trace structurée, corrélée par `run`. Jamais un numéro, jamais une clé.
+ *
+ * Elle accepte une CHAÎNE autant qu'un objet, et ce n'est pas une
+ * complaisance : le transport journalise déjà du JSON tout prêt
+ * (`_tracer` fait lui-même `JSON.stringify`). L'étaler comme un objet
+ * produisait une ligne indexée caractère par caractère — illisible, et une
+ * trace illisible ne vaut pas mieux que pas de trace.
+ */
+const tracer = (e) => {
+  if (typeof e === "string") {
+    console.log(e);
+    return;
+  }
+  console.log(JSON.stringify({ ts: new Date().toISOString(), ...e }));
+};
 
 /**
  * Simulateur du dos scolaire.
