@@ -244,6 +244,26 @@ async function principal() {
   const provider = new WwebjsProvider({
     dossierSession: SESSION,
     clientId: "guergne-local",
+    // SANS CE GESTIONNAIRE, L'APPAIRAGE EST IMPOSSIBLE.
+    //
+    // Le transport ne journalise que « QR a scanner (non journalise) » — a
+    // juste titre, un QR dans un journal est un acces offert a qui le lit. Mais
+    // sans destinataire, le code n'est rendu a personne : l'ecoute proposait un
+    // QR toutes les vingt secondes que personne ne pouvait voir.
+    surQr: async (qr) => {
+      bleu("\n  APPAIRAGE REQUIS");
+      const { default: qrcode } = await import("qrcode");
+      const png = join(racine, "donnees-locales", "qr-local.png");
+      await qrcode.toFile(png, qr, { width: 512, margin: 2 });
+      console.log(await qrcode.toString(qr, { type: "terminal", small: true }));
+      gris(`  Image : ${png}`);
+      console.log("  WhatsApp > Appareils lies > Lier un appareil");
+      // Le rappel qui compte : c'est le compte appaire qui decide si la
+      // reception est possible du tout.
+      rouge("  SCANNEZ AVEC LE TELEPHONE QUI RECOIT LES MESSAGES DU SUPER_ADMIN,");
+      rouge("  et non avec celui du SUPER_ADMIN : ses propres messages seraient");
+      rouge("  « fromMe » et n'arriveraient jamais comme entrants.");
+    },
     journal: { info: (...m) => gris(`  ${m.join(" ")}`), warn: (...m) => gris(`  ${m.join(" ")}`), error: (...m) => rouge(`  ${m.join(" ")}`), log: tracer },
   });
 

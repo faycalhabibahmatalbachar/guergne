@@ -25,7 +25,7 @@ PROFIL_LABO="$depot/agent/donnees-locales/wwebjs_auth_local"
 PROFIL_PRODUCTION="$depot/agent/donnees/wwebjs_auth"
 VERROU="$depot/agent/donnees-locales/ecoute.pid"
 
-bleu()  { printf '\033[1;34m%s\033[0m\n' "$*"; }
+bleu()  { printf '\033[1;34m%b\033[0m\n' "$*"; }
 vert()  { printf '\033[1;32m%s\033[0m\n' "$*"; }
 rouge() { printf '\033[1;31m%s\033[0m\n' "$*"; }
 gris()  { printf '\033[0;90m%s\033[0m\n' "$*"; }
