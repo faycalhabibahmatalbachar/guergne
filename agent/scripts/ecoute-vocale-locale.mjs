@@ -52,7 +52,10 @@ import { jidUtilisateur } from "../src/jid.js";
 import { installerPiper } from "../src/voix/installation.js";
 import { FournisseurPiper } from "../src/voix/piper.js";
 import { preparerNoteVocale } from "../src/voix/audio.js";
-import { avecVoix } from "../src/voix/porte-voix.js";
+import { fabriquerVoix } from "../src/voix/porte-voix.js";
+import { ControleurPresence } from "../src/reponse/presence.js";
+import { MODE_DEFAUT } from "../src/reponse/politique-sortie.js";
+import { OrchestrateurReponse, avecOrchestrateur } from "../src/reponse/orchestrateur.js";
 import { decrireErreur, resumerErreur } from "../src/erreurs.js";
 
 const racine = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -295,16 +298,30 @@ async function principal() {
     journal: { info: (...m) => gris(`  ${m.join(" ")}`), warn: (...m) => gris(`  ${m.join(" ")}`), error: (...m) => rouge(`  ${m.join(" ")}`), log: tracer },
   });
 
-  // Le porte-voix, exactement comme en production : le texte part toujours
-  // d'abord, et la voix ne peut jamais transformer une reponse en silence.
-  const transportParlant = avecVoix(provider, {
+  // L'ORCHESTRATEUR, ET NON PLUS LE PORTE-VOIX SEUL.
+  //
+  // Le porte-voix doublait chaque reponse : le texte partait, puis une note
+  // vocale redisait la meme chose. Il ne decidait rien — il ajoutait. La
+  // decision appartient desormais a un seul endroit, qui choisit le format,
+  // refuse les doublons, serialise la conversation et pilote les indicateurs
+  // d'activite. Le mode par defaut est le TEXTE SEUL.
+  const presence = new ControleurPresence({ client: provider._client, journal: tracer });
+  const productionVocale = fabriquerVoix({
+    provider,
     moteur: () => voix,
     audio: { preparerNoteVocale },
     dossierTemporaire: TRAVAIL,
-    mode: process.env.AGENT_REPONSE_VOCALE ?? "texte_et_voix",
-    roles: [role],
     journal: tracer,
   });
+  const orchestrateur = new OrchestrateurReponse({
+    provider,
+    presence,
+    voix: productionVocale,
+    modeDefaut: process.env.AGENT_REPONSE_VOCALE ?? MODE_DEFAUT,
+    rolesVoix: [role],
+    journal: tracer,
+  });
+  const transportParlant = avecOrchestrateur(provider, { orchestrateur, voix: productionVocale });
 
   const dos = new DosScolaireSimule();
   const outils = new ToolRegistry(ASSIDUITE_TOOLS);
@@ -360,12 +377,34 @@ async function principal() {
     bleu(`\n--- message ${traites} recu ---`);
     gris(`  type ${msg.kind}  run ${msg.runId}`);
     const t0 = Date.now();
+
+    // L'ORCHESTRATEUR APPREND CE QUE SEUL L'ECOUTE SAIT.
+    //
+    // `dernierEntrant` est ce qui lui permet d'abandonner une reponse devenue
+    // obsolete : si un message plus recent arrive pendant qu'une reponse se
+    // prepare, repondre a l'ancienne semerait la confusion.
+    orchestrateur.contexte(msg.fromJid, { dernierEntrant: msg.id ?? null });
+    // Une preference que l'utilisateur POSE lui-meme (« reponds-moi toujours
+    // par une note vocale ») vaut pour la suite de la conversation.
+    if (msg.body) orchestrateur.apprendrePreference(msg.fromJid, msg.body);
+
+    // « en train d'ecrire… » : le traitement commence VRAIMENT ici. L'arret
+    // est garanti par l'orchestrateur, sur tous ses chemins de sortie, et par
+    // ce `finally` pour les cas ou aucune reponse n'est produite du tout.
+    const arreterIndicateur = await orchestrateur.commencerTraitement(msg.fromJid, { run: msg.runId });
     try {
       const r = await agent.handle(msg);
       vert(`  statut ${r.status}${r.etape ? ` (${r.etape})` : ""} en ${Date.now() - t0} ms`);
+      const rapport = orchestrateur.rapport();
+      gris(
+        `  reponses ${rapport.envoyees}  doublons ${rapport.doublons}  obsoletes ${rapport.obsoletes}  ` +
+          `mode ${rapport.modeDefaut}  file ${rapport.msAttenteFileMoyen} ms`,
+      );
     } catch (e) {
       rouge(`  le gestionnaire a leve : ${resumerErreur(e)}`);
       console.error(JSON.stringify(decrireErreur(e), null, 2));
+    } finally {
+      await Promise.resolve(arreterIndicateur()).catch(() => {});
     }
   });
 

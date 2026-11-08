@@ -11,7 +11,7 @@ Dernière mise à jour : 2026-11-08.
 | | |
 |---|---|
 | Branche | `voix-bidirectionnelle` |
-| Commit HEAD | `3d4fade` — *fix(voix): le telechargement PTT exigeait un mimetype que personne ne passait* |
+| Commit HEAD | `e7dbce8` — *fix(voix): le telechargement PTT exigeait un mimetype que personne ne passait* |
 | Dépôt | `C:\Users\hp\Desktop\Projects\lycee-renaissance` (le travail se fait côté Windows : le profil WhatsApp y a été créé) |
 | `whatsapp-web.js` | **1.34.7**, épinglée — ne pas changer sans nécessité démontrée |
 | Backend scolaire | **simulé** pendant toute la campagne (`simule: true`) |
@@ -168,6 +168,100 @@ L'espace est resté le fil rouge de la séance : après le cache npm (6,7 Go), i
 fallu purger le **cache pip** (705 Mo, wheels retéléchargeables). Il reste
 ~1,2 Go. `%LOCALAPPDATA%\Temp` (~10 Go) n'a pas été touché.
 
+## L'orchestrateur de réponse — 2026-11-08
+
+### Le défaut : personne ne décidait du format
+
+L'assistant répondait **deux fois** : une réponse écrite, puis une note vocale
+redisant la même chose. Ce n'était pas un module fautif, c'était l'absence de
+décision centrale. Le moteur appelle `provider.sendText` depuis une quinzaine
+d'endroits (`src/engine.js`), et `avecVoix` enveloppait ce transport pour
+ajouter une note vocale à **chacun** de ces appels — avec pour défaut
+`AGENT_REPONSE_VOCALE = texte_et_voix`. Le format n'était pas choisi : il était
+un effet de bord.
+
+### Référence consultée : moov-ai, pas Toumaï
+
+Le mécanisme décrit comme « celui de Toumaï AI » n'a pas été trouvé dans les
+dépôts Toumaï locaux (`toumai-saas`, `toumai-admin`, `toumai-github`,
+`toumai-web-backup-before-purge` : aucun appel de présence WhatsApp). Il est en
+revanche bien présent dans **`moov-ai/src/services/presence.js`** (142 lignes),
+et dans `canalplus-whatsapp-bot/index.js`. C'est donc cette implémentation qui a
+servi de référence — il ne faut pas croire avoir inspecté Toumaï.
+
+Repris de moov-ai :
+
+- l'indicateur est **best-effort** : un ornement ne doit jamais empêcher une
+  réponse de partir ;
+- il faut le **rafraîchir** pendant une opération longue (WhatsApp l'oublie) ;
+- `clearState` dans un `finally`, sur tous les chemins de sortie.
+
+**Volontairement NON repris** : `TYPING_MS_PER_CHAR = 45` — une attente
+proportionnelle à la longueur du texte, pour imiter une vitesse de frappe
+humaine. L'assistant est un automate ; le faire passer pour une personne n'est
+pas une amélioration, et un délai qui ne correspond à aucun calcul ne fait que
+retarder une réponse déjà prête. Ici l'indicateur dure exactement le temps du
+travail réel.
+
+### Le contrat de présence, lu dans la version installée
+
+`Chat.sendStateTyping()` / `sendStateRecording()` / `clearState()`
+(`node_modules/whatsapp-web.js/src/structures/Chat.js:252-276`) appellent toutes
+`window.WWebJS.sendChatstate('typing' | 'recording' | 'stop', chatId)`, qui
+(`Utils.js:1219`) fabrique un WID puis appelle
+`WAWebChatStateBridge.sendChatStateComposing / Recording / Paused`. La
+documentation de la bibliothèque indique que l'état « dure 25 secondes ».
+
+`ControleurPresence` appelle **la fonction de page directement**, avec le JID
+déjà connu, plutôt que `Chat.sendStateTyping()` : cette dernière commence par
+retrouver le `Chat`, et c'est exactement le détour qui casse ici — `getChats()`
+échoue sur l'erreur minifiée d'une lettre. Même contrat, sans le détour fragile.
+
+### Architecture
+
+```
+message reçu → identité → file par conversation → regroupement
+   → agent + outils → ORCHESTRATEUR (filtre, politique, idempotence)
+   → envoi → acquittement
+```
+
+| Fichier | Rôle |
+|---|---|
+| `src/reponse/politique-sortie.js` | la décision de format, pure et déterministe. `texte_seul` par défaut ; détection des demandes explicites en français et en arabe ; préférence retenue seulement si posée pour durer |
+| `src/reponse/presence.js` | les indicateurs, branchés sur le travail réel ; un seul état actif par destinataire ; arrêt idempotent |
+| `src/reponse/orchestrateur.js` | le point de passage obligatoire : filtre, file par conversation, idempotence, modes, replis, mesures |
+| `src/reponse/regroupement.js` | les fragments successifs (« les absences » + « de la 6e A ») en une seule demande ; fenêtre 1,2 s, plafond 5 s |
+| `src/voix/porte-voix.js` | `fabriquerVoix()` extrait pour que l'orchestrateur produise la voix **sans dupliquer** le code ; défaut passé de `texte_et_voix` à `texte` |
+| `app.js`, `scripts/ecoute-vocale-locale.mjs` | branchés sur l'orchestrateur, plus sur `avecVoix` seul |
+
+Le point de passage est un `Proxy` sur `sendText` : les quinze appels du moteur
+passent par la décision sans qu'aucun ne soit modifié — et sans risque d'en
+oublier un. **Un test vérifie qu'il n'existe aucun chemin d'envoi parallèle**
+dans `engine.js`.
+
+### Ce qui est garanti, et mesuré
+
+- une réponse logique → **un** envoi ; aucune synthèse n'est même *lancée* en
+  mode texte ;
+- doublon refusé (clef posée **avant** l'envoi : un envoi ambigu n'est jamais
+  rejoué à l'aveugle) ;
+- réponse obsolète abandonnée si un message plus récent est arrivé ;
+- conversations sérialisées, isolées entre elles, file jamais rompue par un
+  échec ;
+- indicateurs arrêtés sur **tous** les chemins — succès, refus, exception ;
+- « enregistre un audio » **seulement** pendant une vraie synthèse ;
+- `accepté` n'est jamais présenté comme `livré`.
+
+### Deux défauts trouvés en écrivant les tests
+
+`\b` est une frontière **ASCII**. Elle ne correspond jamais devant « à » ou
+« é », ni après une lettre arabe. Conséquences réelles, attrapées par les
+tests : « Dis-le moi à l'oral » n'était pas reconnu ; « réponds en vocal et par
+écrit » était lu comme une demande de **texte seul** — l'inverse de la demande ;
+et « من الصف السادس » n'était pas vu comme un fragment. Corrigé par des
+lookarounds Unicode. Un motif trop large posait l'autre défaut : « les absences
+en audio-visuel » déclenchait une note vocale.
+
 ## État réel des fonctions
 
 Statuts autorisés : NON TESTÉ · EN COURS · ÉCHEC · VALIDÉ EN LOCAL ·
@@ -194,14 +288,21 @@ VALIDÉ EN INTÉGRATION · VALIDÉ EN PRODUCTION.
 | Acquittement | EN COURS | `ack 2` observé une fois ; `reply_accepted` ≠ livraison |
 | Conversation française complète | NON TESTÉ | bloquée par le téléchargement entrant |
 | Conversation arabe complète | NON TESTÉ | idem |
-| Robustesse / doublons | NON TESTÉ | |
+| Robustesse / doublons | **VALIDÉ EN LOCAL** | doublon entrant, réponse obsolète, envoi ambigu non rejoué, file non rompue par un échec — tests réels, pas sur WhatsApp |
+| Réponse unique (anti-doublon texte/voix) | **VALIDÉ EN LOCAL** | intégration avec le vrai `Agent` : 1 envoi, 0 synthèse lancée en mode texte |
+| Politique de format (3 modes) | **VALIDÉ EN LOCAL** | `texte_seul` par défaut ; demandes explicites fr + ar ; replis mesurés |
+| Indicateurs d'activité | **VALIDÉ EN LOCAL** | arrêt sur tous les chemins ; « enregistre un audio » seulement pendant une synthèse. **Non vérifié sur un vrai téléphone** |
+| Regroupement des fragments | **VALIDÉ EN LOCAL** | « les absences » + « de la 6e A » → une demande, une consultation, une réponse |
 
 Le compte **assistant** se termine par `2161`, le **SUPER_ADMIN** par `3737` :
 ce sont deux comptes distincts, un message du SUPER_ADMIN est bien un entrant.
 
 ## Tests
 
-`cd agent && npm test` → **670 / 670**, dont 6 de `test/media-telechargement.test.js`
+`cd agent && npm test` → **718 / 718**, dont 6 de `test/media-telechargement.test.js`,
+31 de `test/reponse-orchestrateur.test.js`, 10 de `test/reponse-regroupement.test.js`
+et 7 d'**intégration** (`test/reponse-integration.test.js` : le vrai `Agent`,
+ses permissions et son registre d'outils, traversant l'orchestrateur)
 et 2 de `test/voix-moteur.test.js` sur le choix du wheel par plate-forme. Aucun test n'a été supprimé ni assoupli.
 Le dernier de ces six vérifie que la rustine est posée sur `node_modules` :
 c'est le garde-fou après un `npm install`.

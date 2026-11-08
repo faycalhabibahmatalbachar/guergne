@@ -39,7 +39,10 @@ import { releverRessources, resumerRessources } from "./src/ressources.js";
 import { balayerCoreDumps } from "./src/menage-core.js";
 import { releverEnvironnement } from "./src/diagnostic-environnement.js";
 import { assemblerWavs, preparerNoteVocale } from "./src/voix/audio.js";
-import { avecVoix } from "./src/voix/porte-voix.js";
+import { fabriquerVoix } from "./src/voix/porte-voix.js";
+import { ControleurPresence } from "./src/reponse/presence.js";
+import { MODE_DEFAUT } from "./src/reponse/politique-sortie.js";
+import { OrchestrateurReponse, avecOrchestrateur } from "./src/reponse/orchestrateur.js";
 import { DiagnosticVoix } from "./src/voix/diagnostic-voix.js";
 import { installerPiper } from "./src/voix/installation.js";
 import { FournisseurPiper } from "./src/voix/piper.js";
@@ -303,14 +306,39 @@ const diagnostic = new DiagnosticNotification({
  * Le moteur vocal est consulte PARESSEUSEMENT : il demarre apres l'agent, et
  * une reference figee ici vaudrait `null` pour toujours.
  */
-const transportParlant = avecVoix(provider, {
+const journalReponse = (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e }));
+
+/**
+ * L'ORCHESTRATEUR DE REPONSE, ET POURQUOI IL REMPLACE LE PORTE-VOIX SEUL.
+ *
+ * Le porte-voix ne decidait rien : il AJOUTAIT une note vocale a chaque
+ * reponse ecrite. L'assistant repondait donc deux fois, en disant la meme
+ * chose. Le format de sortie est desormais une decision centrale — texte seul
+ * par defaut, voix sur demande explicite — prise au meme endroit que le refus
+ * des doublons, la serialisation par conversation et les indicateurs
+ * d'activite.
+ */
+const presenceWhatsApp = new ControleurPresence({ client: provider._client, journal: journalReponse });
+const productionVocale = fabriquerVoix({
+  provider,
   moteur: () => moteurVoix.fournisseur,
   audio: { preparerNoteVocale },
   dossierTemporaire: chemins.racine,
+  journal: journalReponse,
+});
+const orchestrateurReponse = new OrchestrateurReponse({
+  provider,
+  presence: presenceWhatsApp,
+  voix: productionVocale,
+  modeDefaut: process.env.AGENT_REPONSE_VOCALE ?? MODE_DEFAUT,
   // Le role du destinataire, lu dans le magasin d'identites : la voix reste
   // reservee aux roles declares, et un numero inconnu n'en recoit jamais.
   roleDe: (jid) => identites.resolve(jid)?.role ?? null,
-  journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+  journal: journalReponse,
+});
+const transportParlant = avecOrchestrateur(provider, {
+  orchestrateur: orchestrateurReponse,
+  voix: productionVocale,
 });
 
 const agent = new Agent({

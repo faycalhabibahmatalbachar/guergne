@@ -58,30 +58,28 @@ export const CARACTERES_MIN_VOCAL = Number(process.env.VOIX_CARACTERES_MIN ?? 25
  * @param {string[]} [o.roles]  rôles autorisés à recevoir de la voix
  * @returns {object} un transport équivalent, qui parle
  */
-export function avecVoix(provider, {
+/**
+ * La fabrication d'une note vocale, extraite pour être RÉUTILISÉE.
+ *
+ * `avecVoix` n'est plus le seul à devoir parler : l'orchestrateur de réponse
+ * (`src/reponse/orchestrateur.js`) décide désormais du format, et il lui faut
+ * exactement la même production — même synthèse, même conversion, mêmes
+ * traces, même refus de lever. Dupliquer ces quarante lignes aurait garanti
+ * qu'elles divergent.
+ *
+ * @returns {{parler:Function, metriques:object, langues:Map}}
+ */
+export function fabriquerVoix({
+  provider,
   moteur,
   audio,
   dossierTemporaire,
-  mode = process.env.AGENT_REPONSE_VOCALE ?? "texte_et_voix",
-  roleDe = null,
-  roles = (process.env.AGENT_VOIX_ROLES ?? "SUPER_ADMIN").split(",").map((r) => r.trim()).filter(Boolean),
   langueParDefaut = process.env.AGENT_VOIX_LANGUE ?? "fr",
   journal = null,
   horloge = () => Date.now(),
 } = {}) {
-  const modeRetenu = MODES.includes(mode) ? mode : "texte";
   /** Langue entendue par destinataire, posée par la transcription. */
   const langues = new Map();
-  /**
-   * Rôle du destinataire, posé par le moteur après résolution d'identité.
-   *
-   * Indispensable : depuis la migration LID, le JID qui écrit n'est pas un
-   * numéro, et le magasin d'identités est indexé par numéro. Chercher le rôle
-   * depuis le seul JID conclurait « inconnu » pour tout le monde.
-   */
-  const rolesConnus = new Map();
-  /** Un vocal à la fois par destinataire. */
-  const enCours = new Map();
   const metriques = { tentes: 0, envoyes: 0, echecs: 0, ignores: 0, msCumules: 0 };
 
   const tracer = (ligne) => {
@@ -91,21 +89,6 @@ export function avecVoix(provider, {
       /* un journal qui échoue ne doit pas emporter la réponse */
     }
   };
-
-  function autorise(jid, texte) {
-    if (modeRetenu === "texte") return "mode_texte";
-    if (!moteur?.()) return "moteur_indisponible";
-    const t = String(texte ?? "").trim();
-    if (t.length < CARACTERES_MIN_VOCAL) return "texte_trop_court";
-    if (t.length > CARACTERES_MAX_VOCAL) return "texte_trop_long";
-    if (roleDe || rolesConnus.size > 0) {
-      const role = rolesConnus.get(jid) ?? roleDe?.(jid) ?? null;
-      // Un destinataire dont le rôle est inconnu ne reçoit pas de voix : dans
-      // le doute, c'est un parent ou un numéro non lié.
-      if (!role || !roles.includes(role)) return "hors_perimetre";
-    }
-    return null;
-  }
 
   /** Fabrique et envoie la note vocale. Ne lève jamais. */
   async function parler(jid, texte, { run = null } = {}) {
@@ -156,6 +139,57 @@ export function avecVoix(provider, {
     } finally {
       for (const f of [wav, ogg]) if (f) await unlink(f).catch(() => {});
     }
+  }
+
+  return { parler, metriques, langues, tracer };
+}
+
+export function avecVoix(provider, {
+  moteur,
+  audio,
+  dossierTemporaire,
+  // LE DÉFAUT A CHANGÉ, ET C'EST LA CORRECTION DU DOUBLE ENVOI.
+  //
+  // Il valait `texte_et_voix` : chaque réponse partait écrite PUIS parlée, en
+  // disant la même chose. Le défaut est désormais le texte seul ; la voix
+  // reste disponible, sur demande explicite ou par réglage du déploiement.
+  // La décision, elle, appartient à `src/reponse/politique-sortie.js`.
+  mode = process.env.AGENT_REPONSE_VOCALE ?? "texte",
+  roleDe = null,
+  roles = (process.env.AGENT_VOIX_ROLES ?? "SUPER_ADMIN").split(",").map((r) => r.trim()).filter(Boolean),
+  langueParDefaut = process.env.AGENT_VOIX_LANGUE ?? "fr",
+  journal = null,
+  horloge = () => Date.now(),
+} = {}) {
+  const modeRetenu = MODES.includes(mode) ? mode : "texte";
+  // La production vocale est la MÊME que celle de l'orchestrateur : une seule
+  // implémentation, partagée, plutôt que deux qui divergent.
+  const voix = fabriquerVoix({ provider, moteur, audio, dossierTemporaire, langueParDefaut, journal, horloge });
+  const { parler, metriques, langues, tracer } = voix;
+  /**
+   * Rôle du destinataire, posé par le moteur après résolution d'identité.
+   *
+   * Indispensable : depuis la migration LID, le JID qui écrit n'est pas un
+   * numéro, et le magasin d'identités est indexé par numéro. Chercher le rôle
+   * depuis le seul JID conclurait « inconnu » pour tout le monde.
+   */
+  const rolesConnus = new Map();
+  /** Un vocal à la fois par destinataire. */
+  const enCours = new Map();
+
+  function autorise(jid, texte) {
+    if (modeRetenu === "texte") return "mode_texte";
+    if (!moteur?.()) return "moteur_indisponible";
+    const t = String(texte ?? "").trim();
+    if (t.length < CARACTERES_MIN_VOCAL) return "texte_trop_court";
+    if (t.length > CARACTERES_MAX_VOCAL) return "texte_trop_long";
+    if (roleDe || rolesConnus.size > 0) {
+      const role = rolesConnus.get(jid) ?? roleDe?.(jid) ?? null;
+      // Un destinataire dont le rôle est inconnu ne reçoit pas de voix : dans
+      // le doute, c'est un parent ou un numéro non lié.
+      if (!role || !roles.includes(role)) return "hors_perimetre";
+    }
+    return null;
   }
 
   return new Proxy(provider, {
