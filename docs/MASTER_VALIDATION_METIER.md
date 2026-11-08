@@ -205,3 +205,108 @@ Tests automatisés : **723 / 723** (`cd agent && npm test`).
    interroge réellement Neon à travers l'API, avec ses permissions.
 3. Puis seulement : P11 → P19 (recherche, consultation, confirmation sécurisée),
    chaque lecture prouvée par une requête indépendante.
+
+---
+
+## Ouverture de l'année 2026-2027 — préparée, vérifiée, non appliquée
+
+### Les lignes exactes
+
+`annees_scolaires` — 1 ligne : libelle `2026-2027`, date_debut `2026-10-01`,
+date_fin `2027-05-29`, type_periode `TRIMESTRE`, est_courante `true`,
+est_cloturee `false`.
+
+`periodes` — 3 lignes, `annee_id` = l'année ci-dessus :
+
+| n° | libellé | début | fin | saisie_ouverte |
+|---|---|---|---|---|
+| 1 | 1er Trimestre | 2026-10-01 | 2026-12-22 | **true** (couvre aujourd'hui) |
+| 2 | 2ème Trimestre | 2027-01-05 | 2027-04-01 | false |
+| 3 | 3ème Trimestre | 2027-04-10 | 2027-05-29 | false |
+
+Les `id` sont des `gen_random_uuid()` générés par la base : aucun UUID écrit en
+dur. `saisie_ouverte` est **calculée** par la migration
+(`CURRENT_DATE BETWEEN date_debut AND date_fin`), elle reste donc juste si la
+migration est jouée un autre jour. Sans cela, le défaut de la colonne est
+`true` et les trois trimestres auraient été ouverts — on pourrait saisir une
+absence en avril 2027.
+
+### La bascule imposée par la base
+
+`uq_annee_courante` est un index unique partiel sur `est_courante WHERE
+est_courante` : une seule année peut être courante. L'insertion **échouerait**
+sans basculer d'abord `2025-2026` à `false`. C'est la seule modification
+apportée à cette ligne : un drapeau. Aucune absence, note, bulletin ou
+inscription de 2025-2026 n'est touché, et `est_cloturee` reste `false` — clore
+un exercice verrouille les bulletins, c'est une décision distincte.
+
+### Vérifications passées
+
+| Contrôle | Résultat |
+|---|---|
+| UNIQUE(libelle) — 2026-2027 existe déjà ? | non, 0 ligne |
+| chk_annee_dates, chk_periode_dates | respectés |
+| Périodes dans les bornes de l'année | oui |
+| Chevauchement entre trimestres | aucun |
+| Chevauchement avec 2025-2026 | aucun |
+| Un trimestre couvre aujourd'hui | oui |
+| Idempotence au second passage | aucun doublon |
+| Absences après migration | 2 720, inchangées |
+| Périodes de 2025-2026 après migration | 3, intactes |
+
+L'essai a été joué dans une transaction **annulée** sur la vraie base.
+
+### Dates nationales / dates scolaires internes
+
+Les interruptions 2026-12-23 au 2027-01-04 et 2027-04-02 au 2027-04-09 sont des
+dates **scolaires internes** : elles relèvent de `evenements_calendrier` (type
+VACANCES, table vide) et ne sont pas posées ici. Les jours **fériés nationaux**
+non plus : faute de source officielle tchadienne vérifiable, les inventer
+serait pire que les omettre.
+
+### Ce que cette migration ne débloque pas
+
+Une absence exige `inscription_id` ET `periode_id` ; une inscription exige
+`annee_id` + `classe_id` ; une classe exige `annee_id`. Chaîne :
+année → classes → inscriptions → absences.
+
+Après 0040, 2026-2027 aura ses périodes mais **0 classe et 0 inscription** :
+l'enregistrement d'absences restera impossible jusqu'au passage d'année, qui
+est une décision de la direction. Effectifs 2025-2026 pour mémoire :
+6A:49 6B:45 5A:41 5B:47 4A:46 4B:40 3A:35 3B:37 2A:41 2B:38 1L:33 1S:32 TA:34
+TD:31, plus un `6E` à 0 élève qui paraît douteux.
+
+### Réversibilité
+
+`db/rollback/0040_annee_scolaire_2026_2027.sql` refuse de supprimer l'année si
+quoi que ce soit y est rattaché : tous les `periode_id` sont en
+ON DELETE CASCADE. Ce fichier est volontairement **hors** de `db/migrations/`,
+car `migrate.mjs` joue tout `*.sql` de ce dossier et l'aurait exécuté comme une
+migration, puis marqué appliqué.
+
+### Cinq migrations étaient en attente, pas une
+
+`0033_audit_provenance_v2`, `0037_notes_tracabilite`,
+`0038_absences_unicite_et_calendrier`, `0039_recherche_eleves_sans_accents`,
+et `0040`. La 0038 crée un index UNIQUE sur `absences` alors que son propre
+en-tête relève **61 groupes de doublons** en production : `npm run db:migrate`
+s'y arrêterait et 0040 ne serait jamais atteinte.
+
+Le registre porte aussi deux entrées **sans fichier** :
+`0037_memorisation_conversationnelle_whatsapp.sql` et
+`0038_contexte_suivi_conversationnel_whatsapp.sql` — collision de numérotation
+antérieure à cette intervention.
+
+D'où `agent/scripts/appliquer-migration.mjs`, qui n'applique qu'une migration
+nommée, avec la même mécanique que `migrate.mjs`, et une option `--essai` qui
+annule tout.
+
+### Statut
+
+**PRÊTE, NON APPLIQUÉE** — l'écriture a été refusée par le garde-fou de
+l'environnement de développement, qui l'a classée « déploiement en
+production ».
+
+```bash
+cd agent && node scripts/appliquer-migration.mjs 0040_annee_scolaire_2026_2027.sql --essai
+```
