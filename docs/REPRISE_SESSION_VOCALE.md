@@ -11,7 +11,7 @@ Dernière mise à jour : 2026-11-08.
 | | |
 |---|---|
 | Branche | `voix-bidirectionnelle` |
-| Commit HEAD | `ce1b0f3` — *feat(diagnostic): instrumenter le telechargement DANS la page* |
+| Commit HEAD | `3d4fade` — *fix(voix): le telechargement PTT exigeait un mimetype que personne ne passait* |
 | Dépôt | `C:\Users\hp\Desktop\Projects\lycee-renaissance` (le travail se fait côté Windows : le profil WhatsApp y a été créé) |
 | `whatsapp-web.js` | **1.34.7**, épinglée — ne pas changer sans nécessité démontrée |
 | Backend scolaire | **simulé** pendant toute la campagne (`simule: true`) |
