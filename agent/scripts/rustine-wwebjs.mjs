@@ -124,6 +124,47 @@ const RUSTINES = [
 
         return mediaData;`,
   },
+  {
+    // LE TELECHARGEMENT ENTRANT : UN CHAMP QUE L'APPEL NE TRANSMET PAS.
+    //
+    // Chaque note vocale entrante echouait sur :
+    //
+    //   InvalidMediaFileType: Unexpected mimetype application/octet-stream
+    //                         for media type ptt
+    //
+    // WhatsApp Web VALIDE le type du media qu'il telecharge. Faute de
+    // `mimetype` dans l'appel, il retombe sur `application/octet-stream`, qui
+    // n'est pas un type audio acceptable pour un `ptt` — et il refuse. La
+    // bibliotheque 1.34.7 ne transmet pas ce champ.
+    //
+    // Mesure du 8 novembre, dans la page, sur une vraie note vocale `ptt` :
+    //
+    //   six champs, sans mimetype  -> InvalidMediaFileType
+    //   les memes + mimetype       -> 15 871 octets, entete `OggS`
+    //
+    // On n'invente aucun type : `msg.mimetype` est celui que le message
+    // DECLARE — « audio/ogg; codecs=opus ». Notre fournisseur corrige deja sa
+    // propre voie directe ; cette rustine corrige la voie de la bibliotheque,
+    // qui reste le second recours quand un champ manque au message.
+    nom: "media-mimetype-telechargement",
+    amont: "aucun — non corrige en amont au 8 novembre 2026",
+    fichier: "src/structures/Message.js",
+    // Le temoin doit etre UNIQUE a cette rustine. « mimetype: msg.mimetype, »
+    // figure deja dans le fichier, plus bas, la ou la bibliotheque construit
+    // le `MessageMedia` rendu : le prendre pour temoin faisait conclure a tort
+    // « deja posee ».
+    temoin: "InvalidMediaFileType pour un",
+    avant: `                        type: msg.type,
+                        signal: new AbortController().signal,
+                        downloadQpl: mockQpl,`,
+    apres: `                        type: msg.type,
+                        // Sans ce champ, WhatsApp Web valide le media contre
+                        // \`application/octet-stream\` et leve
+                        // InvalidMediaFileType pour un \`ptt\`.
+                        mimetype: msg.mimetype,
+                        signal: new AbortController().signal,
+                        downloadQpl: mockQpl,`,
+  },
 ];
 
 function principal() {

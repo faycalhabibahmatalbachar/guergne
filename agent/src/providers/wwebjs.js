@@ -742,6 +742,25 @@ export class WwebjsProvider extends WhatsAppProvider {
                 mediaKey: m.mediaKey,
                 mediaKeyTimestamp: m.mediaKeyTimestamp,
                 type: m.type,
+                // LE CHAMP QUI MANQUAIT, ET CE QU'IL PROUVE.
+                //
+                // Sans lui, WhatsApp Web levait :
+                //
+                //   InvalidMediaFileType: Unexpected mimetype
+                //   application/octet-stream for media type ptt
+                //
+                // Il VALIDE le type du media qu'il telecharge. Faute de
+                // `mimetype`, il retombe sur `application/octet-stream`, qui
+                // n'est pas un type audio acceptable pour un `ptt` : il refuse.
+                // La bibliotheque 1.34.7 ne transmet pas ce champ
+                // (`Message.js`, l'appel a `downloadAndMaybeDecrypt`).
+                //
+                // On n'invente aucun type : `mimetype` est celui que le message
+                // DECLARE lui-meme — « audio/ogg; codecs=opus ». Mesure du
+                // 8 novembre sur une vraie note vocale : sans le champ,
+                // `InvalidMediaFileType` ; avec, 15 871 octets commencant par
+                // `OggS`. C'est la meme difference, et la seule.
+                mimetype: m.mimetype ?? undefined,
                 signal: new AbortController().signal,
                 downloadQpl: mesures,
               });
@@ -761,6 +780,10 @@ export class WwebjsProvider extends WhatsAppProvider {
             mediaKey: d.mediaKey,
             mediaKeyTimestamp: d.mediaKeyTimestamp,
             type: d.type,
+            // `_data.mimetype` d'abord : c'est la charge brute du message, la
+            // meme que lit WhatsApp Web. `brut.mimetype` est l'accesseur de la
+            // bibliotheque, et il survit mal a la traversee de Puppeteer.
+            mimetype: d.mimetype ?? brut?.mimetype ?? null,
           }),
         { ms: DELAI_MEDIA_MS, operation: "telechargement direct du media" },
       );

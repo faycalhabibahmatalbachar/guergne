@@ -57,6 +57,32 @@ async function principal() {
   // Copie dans le dossier de travail : un media venu de l'exterieur n'est pas
   // lu depuis l'endroit ou il est tombe.
   const local = join(TRAVAIL, `entrant-${Date.now()}-${basename(chemin).replace(/[^\w.-]/g, "_")}`);
+  /**
+   * L'en-tête d'un Ogg/Opus, lu sans outil externe.
+   *
+   * Rend `null` dès qu'un octet ne dit pas ce qu'il doit dire : mieux vaut
+   * avouer qu'on ne sait pas que décrire un fichier qu'on n'a pas comprIS.
+   */
+  function lireEnTeteOpus(octets) {
+    if (octets.length < 48 || octets.subarray(0, 4).toString("ascii") !== "OggS") return null;
+    const tete = octets.indexOf("OpusHead");
+    if (tete < 0) return null;
+    const canaux = octets[tete + 9];
+    const frequence = octets.readUInt32LE(tete + 12);
+    // Le granule de la DERNIERE page, en echantillons a 48 kHz : c'est la
+    // definition d'Opus, quelle que soit la frequence d'origine.
+    let position = 0;
+    let granule = 0;
+    for (;;) {
+      const page = octets.indexOf("OggS", position);
+      if (page < 0 || page + 14 > octets.length) break;
+      granule = Number(octets.readBigInt64LE(page + 6));
+      position = page + 4;
+    }
+    if (!(canaux > 0) || !(frequence > 0) || !(granule > 0)) return null;
+    return { canaux, frequence, dureeS: Math.round((granule / 48000) * 1000) / 1000 };
+  }
+
   copyFileSync(chemin, local);
   ligne("nom", basename(chemin));
   ligne("octets", source.size);
@@ -77,7 +103,30 @@ async function principal() {
     gris(`  verdict de sortie : non conforme — ${(sonde.griefs ?? []).join(" ; ")}`);
     gris("  C'est attendu : ce verdict juge nos ENVOIS (48 kHz mono), pas ce qui entre.");
   }
-  const exploitable = sonde.codec === "opus" && (sonde.dureeS ?? 0) > 0.3;
+  let exploitable = sonde.codec === "opus" && (sonde.dureeS ?? 0) > 0.3;
+  if (!exploitable) {
+    // FFPROBE ABSENT N'EST PAS UN AUDIO INVALIDE.
+    //
+    // Le 8 novembre, ffprobe avait disparu du poste : la sonde rendait
+    // « illisible », et le script refusait un fichier parfaitement bon. Ce
+    // n'est pas un verdict sur l'audio, c'est l'absence d'un outil.
+    //
+    // L'en-tete d'un Ogg/Opus se lit sans outil : « OggS » au premier octet,
+    // puis « OpusHead » qui porte les canaux et la frequence d'entree, et le
+    // granule de la derniere page qui donne la duree a 48 kHz. On le lit donc
+    // nous-memes, et on le DIT, pour que personne ne prenne cette lecture de
+    // repli pour une inspection FFprobe.
+    const entete = lireEnTeteOpus(readFileSync(local));
+    if (entete) {
+      gris("  ffprobe indisponible : en-tete Ogg/Opus lu directement (ce n'est PAS une inspection FFprobe)");
+      ligne("conteneur lu", "ogg");
+      ligne("codec lu", "opus");
+      ligne("canaux lus", entete.canaux);
+      ligne("frequence d'entree", `${entete.frequence} Hz`);
+      ligne("duree lue", `${entete.dureeS} s`);
+      exploitable = entete.dureeS > 0.3;
+    }
+  }
   if (!exploitable) {
     rouge("  Ce fichier n'est pas de l'audio exploitable.");
     process.exit(1);

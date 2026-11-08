@@ -389,6 +389,49 @@ async function principal() {
     vert("  comptes distincts : les messages du SUPER_ADMIN arriveront bien comme entrants");
   }
 
+  // --- LA SURFACE DE TELECHARGEMENT, SONDEE AVANT TOUT MESSAGE ---------
+  //
+  // Deux notes vocales ont ete perdues parce que le telechargement echouait
+  // sur une erreur minifiee d'une lettre. Attendre une troisieme pour
+  // apprendre quel module manque serait faire payer au SUPER_ADMIN le prix de
+  // mon diagnostic. La page est la, vivante : on l'interroge maintenant.
+  bleu("\n== 5 bis. La surface de telechargement ==");
+  const surface = await provider._client.pupPage
+    .evaluate(() => {
+      const dire = (e) => (e && e.message ? `${e.name ?? "Error"}: ${e.message}`.slice(0, 180) : String(e).slice(0, 180));
+      const r = { modules: {}, fonctions: {} };
+      // Les noms candidats : celui qu'utilise la bibliotheque installee, et
+      // ceux que WhatsApp Web a portes au fil de ses refontes.
+      for (const nom of [
+        "WAWebDownloadManager",
+        "WAWebMediaDownloadManager",
+        "WAWebDownloadMedia",
+        "WAWebMmsMediaDownload",
+        "WAWebMediaDownload",
+        "WAWebCollections",
+        "WAWebMediaStorage",
+      ]) {
+        try {
+          const m = window.require(nom);
+          r.modules[nom] = m ? Object.keys(m).slice(0, 12) : "rend null";
+        } catch (e) {
+          r.modules[nom] = `ECHEC — ${dire(e)}`;
+        }
+      }
+      try {
+        const g = window.require("WAWebDownloadManager")?.downloadManager;
+        r.fonctions.downloadManager = g ? Object.keys(g).slice(0, 15) : "absent";
+        r.fonctions.downloadAndMaybeDecrypt = typeof g?.downloadAndMaybeDecrypt;
+      } catch (e) {
+        r.fonctions.erreur = dire(e);
+      }
+      r.fonctions.arrayBufferToBase64Async = typeof window.WWebJS?.arrayBufferToBase64Async;
+      r.fonctions.WWebJS = typeof window.WWebJS;
+      return r;
+    })
+    .catch((e) => ({ erreur: resumerErreur(e) }));
+  console.log(JSON.stringify(surface, null, 2));
+
   // Les quatre sous-systemes, verifies et non supposes.
   const sous = {
     chromium: provider._client.pupBrowser?.isConnected?.() === true,
