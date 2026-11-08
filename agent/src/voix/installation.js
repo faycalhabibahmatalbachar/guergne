@@ -30,9 +30,56 @@ import { pipeline } from "node:stream/promises";
 
 /** Le wheel officiel, épinglé : une version qui change sous nos pieds est un incident. */
 export const PIPER_VERSION = "1.8.0";
-export const PIPER_WHEEL =
-  `https://github.com/OHF-Voice/piper1-gpl/releases/download/v${PIPER_VERSION}/` +
-  `piper_tts-${PIPER_VERSION}-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl`;
+
+const BASE_WHEEL = `https://github.com/OHF-Voice/piper1-gpl/releases/download/v${PIPER_VERSION}`;
+
+/**
+ * Un wheel PAR PLATE-FORME, et pourquoi il en faut plusieurs.
+ *
+ * Piper embarque une bibliothèque native : son wheel n'est pas portable. Le
+ * projet n'en connaissait qu'un, celui de Linux x86_64 — celui du conteneur
+ * Altare. C'était suffisant tant que la voix ne tournait qu'en production.
+ *
+ * Mais la recette locale a révélé un environnement coupé en deux : la session
+ * WhatsApp vit dans un profil Chrome **Windows**, tandis que Piper et ses deux
+ * voix étaient installés **dans WSL**. Deux moitiés, et donc aucun aller-retour
+ * vocal possible : le transport ne pouvait pas appeler le moteur.
+ *
+ * On ne déplace donc pas la session — elle est précieuse et authentifiée. On
+ * rend l'installation capable de poser Piper là où tourne le transport.
+ *
+ * Les noms viennent des publications réelles de `v1.8.0`, relevées sur le
+ * dépôt amont ; ils ne sont pas devinés.
+ */
+export const WHEELS = Object.freeze({
+  "linux-x64": `${BASE_WHEEL}/piper_tts-${PIPER_VERSION}-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl`,
+  "linux-arm64": `${BASE_WHEEL}/piper_tts-${PIPER_VERSION}-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl`,
+  "win32-x64": `${BASE_WHEEL}/piper_tts-${PIPER_VERSION}-cp39-abi3-win_amd64.whl`,
+  "darwin-x64": `${BASE_WHEEL}/piper_tts-${PIPER_VERSION}-cp39-abi3-macosx_10_9_x86_64.whl`,
+  "darwin-arm64": `${BASE_WHEEL}/piper_tts-${PIPER_VERSION}-cp39-abi3-macosx_11_0_arm64.whl`,
+});
+
+/**
+ * Le wheel de la plate-forme courante, ou une erreur qui la NOMME.
+ *
+ * Retomber silencieusement sur le wheel Linux installerait une bibliothèque
+ * native inutilisable, et l'échec surviendrait beaucoup plus loin — à la
+ * première synthèse, sous la forme d'un démon Python qui ne démarre pas.
+ */
+export function wheelPour(plateforme = process.platform, architecture = process.arch) {
+  const clef = `${plateforme}-${architecture}`;
+  const url = WHEELS[clef];
+  if (!url) {
+    throw new Error(
+      `aucun wheel Piper ${PIPER_VERSION} publie pour ${clef} ` +
+        `(connus : ${Object.keys(WHEELS).join(", ")})`,
+    );
+  }
+  return url;
+}
+
+/** Conservé pour la compatibilité : le wheel de la plate-forme courante. */
+export const PIPER_WHEEL = WHEELS[`${process.platform}-${process.arch}`] ?? WHEELS["linux-x64"];
 
 /**
  * Les voix retenues, et pourquoi celles-là.
@@ -87,7 +134,7 @@ async function telecharger(url, destination, { fetchImpl = fetch } = {}) {
 }
 
 /** Déplie un ZIP sans dépendance : `unzip` n'est pas garanti dans le conteneur. */
-async function deplierZip(archive, destination, { lanceur = null } = {}) {
+async function deplierZip(archive, destination, { lanceur = null, python = "python3" } = {}) {
   // Python est présent — relevé par la sonde — et son module `zipfile` est
   // dans la bibliothèque standard. L'utiliser évite d'ajouter une dépendance
   // npm pour une opération faite une fois par déploiement.
@@ -96,7 +143,9 @@ async function deplierZip(archive, destination, { lanceur = null } = {}) {
   await mkdir(destination, { recursive: true });
   await new Promise((resoudre, rejeter) => {
     exec(
-      "python3",
+      // `python3` n'existe pas sous Windows : l'executable s'y nomme `python`.
+      // Un nom code en dur rendait cette etape impossible hors Linux.
+      python,
       ["-c", "import sys,zipfile;zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])", archive, destination],
       { timeout: 120_000 },
       (err, _out, stderr) => (err ? rejeter(new Error(`depliage impossible : ${String(stderr || err.message).slice(0, 200)}`)) : resoudre()),
@@ -112,7 +161,15 @@ async function deplierZip(archive, destination, { lanceur = null } = {}) {
  * @param {(e:object)=>void} [o.journal]
  * @returns {Promise<{pret:boolean, pythonpath:string, modeles:object, faits:string[], raison?:string}>}
  */
-export async function installerPiper({ racine, journal = null, fetchImpl = fetch, lanceur = null } = {}) {
+export async function installerPiper({
+  racine,
+  journal = null,
+  fetchImpl = fetch,
+  lanceur = null,
+  plateforme = process.platform,
+  architecture = process.arch,
+  python = process.platform === "win32" ? "python" : "python3",
+} = {}) {
   const tracer = (champs) => journal?.({ type: "voix_installation", ...champs });
   const faits = [];
   const dossierPiper = join(racine, "piper");
@@ -127,12 +184,13 @@ export async function installerPiper({ racine, journal = null, fetchImpl = fetch
     if (!(await presentEtComplet(marqueur))) {
       const wheel = join(racine, `piper-${PIPER_VERSION}.whl`);
       if (!(await presentEtComplet(wheel, 20 * 1024 * 1024))) {
-        tracer({ evenement: "telechargement", quoi: "moteur" });
-        const o = await telecharger(PIPER_WHEEL, wheel, { fetchImpl });
-        faits.push(`moteur telecharge (${Math.round(o / 1048576)} Mo)`);
+        const url = wheelPour(plateforme, architecture);
+        tracer({ evenement: "telechargement", quoi: "moteur", plateforme: `${plateforme}-${architecture}` });
+        const o = await telecharger(url, wheel, { fetchImpl });
+        faits.push(`moteur telecharge pour ${plateforme}-${architecture} (${Math.round(o / 1048576)} Mo)`);
       }
       tracer({ evenement: "depliage", quoi: "moteur" });
-      await deplierZip(wheel, dossierPiper, { lanceur });
+      await deplierZip(wheel, dossierPiper, { lanceur, python });
       faits.push("moteur deplie");
       // Le wheel ne sert plus : le garder occupe 34 Mo du volume pour rien.
       await rm(wheel, { force: true }).catch(() => {});

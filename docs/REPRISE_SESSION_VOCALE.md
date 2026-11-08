@@ -126,6 +126,48 @@ Deux pièges rencontrés en chemin, à ne pas réapprendre :
 - WSL2 Ubuntu existe mais ne contient ni chromium, ni ffmpeg : le travail reste
   côté Windows, où vit le profil WhatsApp.
 
+## L'environnement était coupé en deux — réuni le 2026-11-08
+
+C'est la découverte la plus importante de cette étape, et elle explique pourquoi
+aucun aller-retour vocal n'avait jamais pu être démontré :
+
+- la **session WhatsApp** vit dans un profil Chrome **Windows** ;
+- **Piper et ses deux voix** étaient installés **dans WSL**
+  (`/home/hp/.guergne/voix/`), avec un wheel `manylinux`.
+
+Deux moitiés : le transport ne pouvait pas appeler le moteur vocal. On n'a pas
+déplacé la session — elle est authentifiée et précieuse. On a rendu
+l'installation capable de poser Piper là où tourne le transport :
+
+- `src/voix/installation.js` — un wheel **par plate-forme** (`WHEELS`,
+  `wheelPour()`), les cinq noms relevés sur les publications réelles de
+  `v1.8.0`. Une plate-forme sans wheel est **nommée**, jamais devinée : poser
+  le wheel Linux sous Windows « réussirait » et n'échouerait qu'à la première
+  synthèse. `python3` n'existe pas sous Windows : le nom de l'exécutable est
+  désormais un paramètre.
+- `src/voix/piper-serveur.py` — `os.statvfs` n'existe pas sous Windows. Chaque
+  mesure d'espace y rendait une `AttributeError`, faisant passer un poste sain
+  pour un volume en erreur, au moment précis où l'espace **était** le vrai
+  problème. Repli sur `shutil.disk_usage` ; les inodes, sans équivalent
+  Windows, sont déclarés inconnus plutôt qu'inventés.
+- `scripts/ecoute-vocale-locale.mjs` — passe par `installerPiper` (idempotent),
+  comme `app.js`. Un seul chemin d'installation, pas deux.
+
+Les deux modèles ont été **copiés depuis WSL** plutôt que retéléchargés
+(126 Mo épargnés), et leurs empreintes SHA-256 diffèrent : ce sont bien deux
+voix distinctes, malgré une taille identique (63 201 294 octets chacune).
+
+### FFmpeg / FFprobe
+
+`winget` a échoué sur un 504 de GitHub ; l'archive a été prise directement.
+Installés en **9.0.2** dans `C:\Users\hp\.local\ffmpeg\…\bin`, ajouté au PATH
+utilisateur. `ffplay.exe` et la documentation ont été retirés : 230 Mo inutiles
+sur un disque déjà saturé.
+
+L'espace est resté le fil rouge de la séance : après le cache npm (6,7 Go), il a
+fallu purger le **cache pip** (705 Mo, wheels retéléchargeables). Il reste
+~1,2 Go. `%LOCALAPPDATA%\Temp` (~10 Go) n'a pas été touché.
+
 ## État réel des fonctions
 
 Statuts autorisés : NON TESTÉ · EN COURS · ÉCHEC · VALIDÉ EN LOCAL ·
@@ -138,16 +180,16 @@ VALIDÉ EN INTÉGRATION · VALIDÉ EN PRODUCTION.
 | Permission (décision) | VALIDÉ EN LOCAL | décision `ALLOW` tracée |
 | Téléchargement PTT entrant | **VALIDÉ EN LOCAL** | note vocale **reçue** : 13 871 octets, `voie: direct_path`, en-tête `OggS`, SHA-256 relevé |
 | Décryptage | VALIDÉ EN LOCAL | les octets déchiffrés forment un Ogg/Opus lisible (`OpusHead`, `OpusTags`, 5 pages) |
-| FFprobe sur média entrant | **NON TESTÉ** | ffprobe absent du poste ; le conteneur a été lu par en-tête (mono, 48 kHz, 6,98 s) — ce n'est **pas** une inspection FFprobe |
+| FFprobe sur média entrant | **VALIDÉ EN LOCAL** | inspection réelle : `ogg`/`opus`, 48 000 Hz, mono, 6,980 s, 13 871 octets, 15 897 b/s ; décodage intégral `-xerror` sans erreur |
 | STT français | EN COURS | transcription réelle d'une note **reçue** (groq/whisper-large-v3-turbo, 1 096 ms), mais la note ne disait que « bonjour » répété et Whisper a lu « Portuguese ». Reste à valider sur une phrase française utile |
 | STT arabe | NON TESTÉ | |
 | Compréhension IA depuis la voix | NON TESTÉ | le chemin existe (`src/engine.js`, ligne ~324 `getMedia` → transcription) |
 | Choix d'outil depuis la voix | NON TESTÉ | |
 | Exécution scolaire simulée | NON TESTÉ | |
 | Mémoire / contexte en vocal | NON TESTÉ | |
-| Piper français | VALIDÉ EN LOCAL | audio généré (`fr_FR-siwis-medium`) |
-| Piper arabe | NON TESTÉ | modèle `ar_JO-kareem-medium` — licence à vérifier avant usage public, et ce n'est **pas** une voix tchadienne |
-| Conversion OGG/Opus | VALIDÉ EN LOCAL | note vocale sortante acceptée par WhatsApp |
+| Piper français | VALIDÉ EN LOCAL | généré **sous Windows** : WAV 22 050 Hz mono, 5,201 s, 229 420 octets, 653 ms de génération |
+| Piper arabe | VALIDÉ EN LOCAL | généré **sous Windows** : WAV 22 050 Hz mono, 7,779 s, 343 084 octets, 1 152 ms. Modèle `ar_JO-kareem-medium` : voix **jordanienne**, pas tchadienne ; licence à vérifier avant usage public |
+| Conversion OGG/Opus | VALIDÉ EN LOCAL | `versOggOpus` puis `verifierOggOpus` : fr 16 254 o / 5,208 s, ar 24 749 o / 7,785 s, 48 kHz mono, `valide: true`, aucun grief |
 | Transport sortant PTT | VALIDÉ EN LOCAL | envoi réel vers le SUPER_ADMIN, `ack 2` |
 | Acquittement | EN COURS | `ack 2` observé une fois ; `reply_accepted` ≠ livraison |
 | Conversation française complète | NON TESTÉ | bloquée par le téléchargement entrant |
@@ -159,21 +201,31 @@ ce sont deux comptes distincts, un message du SUPER_ADMIN est bien un entrant.
 
 ## Tests
 
-`cd agent && npm test` → **668 / 668**, dont les 6 nouveaux de
-`test/media-telechargement.test.js`. Aucun test n'a été supprimé ni assoupli.
+`cd agent && npm test` → **670 / 670**, dont 6 de `test/media-telechargement.test.js`
+et 2 de `test/voix-moteur.test.js` sur le choix du wheel par plate-forme. Aucun test n'a été supprimé ni assoupli.
 Le dernier de ces six vérifie que la rustine est posée sur `node_modules` :
 c'est le garde-fou après un `npm install`.
 
+## Comment relancer l'écoute
+
+```bash
+export GUERGNE_CLES=/c/Users/hp/Desktop/Projects/lycee-renaissance/ai_apikey.env
+. infra/local/profil-ia.sh
+export PATH="$PATH:/c/Users/hp/.local/ffmpeg/ffmpeg-9.0.2-full_build/bin"
+cd agent && node scripts/ecoute-vocale-locale.mjs --numero 23568663737 --role SUPER_ADMIN
+```
+
+Un seul processus à la fois sur le profil LocalAuth. L'écoute annonce elle-même
+`ENVIRONNEMENT PRÊT` après avoir vérifié chromium, page, downloadMedia, stt et
+piper. Elle a affiché ces cinq `OK` le 8 novembre.
+
 ## Prochaine action précise
 
-1. **Installer ffmpeg / ffprobe** (absents du poste). Sans eux : pas
-   d'inspection FFprobe, et pas de conversion OGG/Opus pour les réponses
-   vocales sortantes. C'est le prochain blocage matériel.
-2. Demander au SUPER_ADMIN **deux vraies notes vocales** — une en français
-   portant une demande scolaire utile (« Combien d'élèves sont enregistrés en
-   6e A ? »), une en arabe. Le téléchargement étant désormais prouvé, cette
-   demande est légitime : elle valide le STT, la compréhension, le choix
-   d'outil et la réponse vocale, pas la plomberie.
-3. Puis, dans l'ordre : STT français utile → STT arabe → agent scolaire simulé
-   (`simule: true`) → Piper fr/ar → PTT sortant → acquittements → contexte,
-   permissions, erreurs, doublons.
+1. Demander au SUPER_ADMIN **une note vocale française** portant une demande
+   scolaire naturelle (« Combien d'élèves sont inscrits en sixième A ? »). Le
+   téléchargement, FFprobe, FFmpeg et Piper étant prouvés, cette demande est
+   légitime : elle valide le STT, la compréhension, le choix d'outil et la
+   réponse vocale — pas la plomberie.
+2. Puis **une note vocale arabe distincte**.
+3. Enfin : contexte conversationnel, permissions (positif et négatif), erreurs
+   audio, doublons, et le rapport final par fonction.

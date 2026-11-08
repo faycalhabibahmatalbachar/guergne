@@ -110,6 +110,28 @@ def mesurer(chemin):
             "total_mo": round(st.f_blocks * st.f_frsize / 1048576),
             "inodes_libres": st.f_favail,
         }
+    except AttributeError:
+        # WINDOWS N'A PAS `statvfs`, ET CE N'EST PAS UNE PANNE.
+        #
+        # La recette locale tourne sous Windows : chaque mesure d'espace y
+        # rendait « AttributeError module 'os' has no attribute 'statvfs' », ce
+        # qui faisait passer un poste parfaitement sain pour un volume en
+        # erreur — au moment precis ou l'espace disque ETAIT le vrai probleme.
+        # `shutil.disk_usage` est multiplate-forme ; les inodes, eux, n'ont pas
+        # d'equivalent sous Windows et sont donc declares inconnus plutot
+        # qu'inventes.
+        try:
+            import shutil
+
+            usage = shutil.disk_usage(chemin)
+            return {
+                "chemin": chemin,
+                "libre_mo": round(usage.free / 1048576),
+                "total_mo": round(usage.total / 1048576),
+                "inodes_libres": None,
+            }
+        except Exception as e:
+            return {"chemin": chemin, "erreur": f"{type(e).__name__} {e}"}
     except Exception as e:
         return {"chemin": chemin, "erreur": f"{type(e).__name__} {e}"}
 

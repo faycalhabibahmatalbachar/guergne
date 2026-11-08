@@ -21,7 +21,7 @@ import {
   versOggOpus,
 } from "../src/voix/audio.js";
 import { EchecSynthese, FORMATS, FauxFournisseurVoix, FournisseurVoix, Metriques } from "../src/voix/fournisseur.js";
-import { PIPER_VERSION, VOIX, installerPiper } from "../src/voix/installation.js";
+import { PIPER_VERSION, VOIX, WHEELS, installerPiper, wheelPour } from "../src/voix/installation.js";
 
 const dossier = () => mkdtemp(join(tmpdir(), "voix-"));
 
@@ -235,6 +235,26 @@ test("le wheel et les voix sont epingles, pas suivis au fil de l'eau", () => {
   assert.match(PIPER_VERSION, /^\d+\.\d+\.\d+$/);
   assert.equal(VOIX.fr.nom, "fr_FR-siwis-medium");
   assert.equal(VOIX.ar.nom, "ar_JO-kareem-medium");
+});
+
+test("le wheel suit la plate-forme, car Piper embarque du code natif", () => {
+  // LE DEFAUT QUE CE TEST EMPECHE DE REVENIR.
+  //
+  // Un seul wheel etait connu, celui de Linux x86_64 — celui du conteneur.
+  // Or la session WhatsApp vit dans un profil Chrome Windows, tandis que Piper
+  // etait installe dans WSL : deux moities, et donc aucun aller-retour vocal
+  // possible. Installer le wheel Linux sous Windows « reussirait » et
+  // n'echouerait qu'a la premiere synthese.
+  assert.match(wheelPour("linux", "x64"), /manylinux.*x86_64\.whl$/);
+  assert.match(wheelPour("win32", "x64"), /win_amd64\.whl$/);
+  assert.match(wheelPour("darwin", "arm64"), /macosx_11_0_arm64\.whl$/);
+  // Chaque wheel porte la version epinglee, et aucune autre.
+  for (const url of Object.values(WHEELS)) assert.ok(url.includes(PIPER_VERSION), url);
+});
+
+test("une plate-forme sans wheel publie est NOMMEE, jamais devinee", () => {
+  // Retomber sur le wheel Linux poserait une bibliotheque inutilisable.
+  assert.throws(() => wheelPour("sunos", "sparc"), /aucun wheel Piper .* sunos-sparc/);
 });
 
 test("une installation qui echoue ne leve pas : l'agent doit demarrer quand meme", async () => {

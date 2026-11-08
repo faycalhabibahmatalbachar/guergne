@@ -36,7 +36,7 @@
  * Le numéro est passé en argument et jamais écrit dans le dépôt.
  */
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Agent } from "../src/engine.js";
@@ -49,6 +49,7 @@ import { ASSIDUITE_TOOLS, ToolRegistry } from "../src/tools.js";
 import { MoteurIA, configurerDepuisEnv } from "../src/ia.js";
 import { WwebjsProvider } from "../src/providers/wwebjs.js";
 import { jidUtilisateur } from "../src/jid.js";
+import { installerPiper } from "../src/voix/installation.js";
 import { FournisseurPiper } from "../src/voix/piper.js";
 import { preparerNoteVocale } from "../src/voix/audio.js";
 import { avecVoix } from "../src/voix/porte-voix.js";
@@ -58,6 +59,21 @@ const racine = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SESSION = process.env.SESSION_LOCALE ?? join(racine, "donnees-locales", "wwebjs_auth_local");
 const TRAVAIL = process.env.TMPDIR ?? join(racine, "donnees-locales", "tmp");
 const VOIX = process.env.VOIX_DOSSIER ?? join(racine, "donnees", "voix", "voix");
+/**
+ * La racine d'installation de Piper, et pourquoi elle est nécessaire ici.
+ *
+ * Ce script posait les modèles à `donnees/voix/voix` et appelait `python3`.
+ * Sous Windows, où vit la session WhatsApp, aucun des deux n'existe : pas de
+ * `python3` (l'exécutable s'y nomme `python`), et pas de `PYTHONPATH` vers le
+ * wheel déplié. L'écoute échouait donc sur « moteur vocal indisponible »
+ * alors que Piper était parfaitement installé — ailleurs.
+ *
+ * On passe par `installerPiper`, qui est idempotent et ne télécharge que ce
+ * qui manque : exactement ce que fait `app.js` en production. Un seul chemin
+ * d'installation, pas deux.
+ */
+const VOIX_RACINE = process.env.VOICE_RACINE ?? join(racine, "donnees-locales", "voix");
+const PYTHON = process.env.PYTHON_BIN ?? (process.platform === "win32" ? "python" : "python3");
 
 const argv = process.argv.slice(2);
 const option = (n, d = null) => {
@@ -205,9 +221,21 @@ async function principal() {
 
   // --- 2. Le moteur vocal -------------------------------------------------
   bleu("\n== 2. Moteur vocal ==");
+  // Idempotent : ne télécharge que ce qui manque, et dit ce qu'il a fait.
+  const inst = await installerPiper({ racine: VOIX_RACINE, journal: tracer, python: PYTHON });
+  if (!inst.pret) {
+    rouge(`  Installation vocale incomplete : ${inst.raison ?? "raison inconnue"}`);
+    process.exit(1);
+  }
+  if (inst.faits.length) gris(`  installation : ${inst.faits.join(" ; ")}`);
+  // Le wheel est déplié à côté, jamais installé : `PYTHONPATH` le désigne.
+  process.env.PYTHONPATH = [inst.pythonpath, process.env.PYTHONPATH].filter(Boolean).join(delimiter);
+  const modeles = process.env.VOIX_DOSSIER
+    ? { fr: join(VOIX, "fr_FR-siwis-medium.onnx"), ar: join(VOIX, "ar_JO-kareem-medium.onnx") }
+    : inst.modeles;
   const voix = new FournisseurPiper({
-    python: process.env.PYTHON_BIN ?? "python3",
-    modeles: { fr: join(VOIX, "fr_FR-siwis-medium.onnx"), ar: join(VOIX, "ar_JO-kareem-medium.onnx") },
+    python: PYTHON,
+    modeles,
     dossierTemporaire: TRAVAIL,
     journal: tracer,
   });
