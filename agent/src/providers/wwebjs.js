@@ -58,6 +58,26 @@ export const MEDIA_MAX_OCTETS = Number(process.env.MEDIA_MAX_OCTETS ?? 16 * 1024
 const FENETRE_DOUBLON_MS = Number(process.env.FENETRE_DOUBLON_MS ?? 5 * 60 * 1000);
 
 /**
+ * LA BARRIÈRE DE DÉMARRAGE, ET L'INCIDENT QUI L'EXIGE.
+ *
+ * Après un redémarrage d'Altare, le service a produit une rafale de réponses :
+ * d'anciennes demandes, déjà traitées des jours plus tôt, ont été rejouées.
+ * WhatsApp Web, en se resynchronisant, réémet des messages de l'historique —
+ * et rien ne distinguait un message qui vient d'arriver d'un message vieux de
+ * trois jours.
+ *
+ * La déduplication persistante (`DedupPersistant`) couvre les messages déjà
+ * vus, mais elle ne peut rien si son fichier est neuf, perdu, ou si le message
+ * n'avait jamais été traité. Il faut donc une seconde protection, de nature
+ * différente : l'ÂGE du message.
+ *
+ * La tolérance existe parce qu'un redémarrage prend du temps : un message
+ * envoyé pendant l'arrêt est légitime et doit être traité. Deux minutes
+ * suffisent à couvrir une relance, sans laisser passer un historique.
+ */
+const TOLERANCE_HISTORIQUE_MS = Number(process.env.WHATSAPP_TOLERANCE_HISTORIQUE_MS ?? 2 * 60 * 1000);
+
+/**
  * Les types de message qui viennent d'un humain, et qu'on sait traiter.
  *
  * Tout le reste — `e2e_notification`, `gp2`, `notification_template`,
@@ -225,6 +245,8 @@ export class WwebjsProvider extends WhatsAppProvider {
     this._etat = "disconnected";
     this._handler = null;
     this._reconnexions = 0;
+    /** Instant avant lequel un message est de l'historique, pose au « ready ». */
+    this._barriereMs = null;
     /**
      * Observation riche, a cote de `_etat`.
      *
@@ -245,6 +267,106 @@ export class WwebjsProvider extends WhatsAppProvider {
 
   getConnectionStatus() {
     return { state: this._etat, reconnexions: this._reconnexions, machine: this.machine.resume() };
+  }
+
+  /**
+   * Un message entrant, du premier filtre jusqu'au gestionnaire de l'agent.
+   *
+   * Ne leve jamais : une exception ici remonterait dans un ecouteur
+   * d'evenement, ou personne ne l'attrape.
+   */
+  async _surMessage(msg) {
+    // Un `runId` naît ICI, au plus tôt, et accompagne le message jusqu'à la
+    // réponse. Sans lui, un message disparu ne laisse aucune piste à suivre.
+    const run = nouveauRun();
+    this.machine.messageRecu();
+    const debut = Date.now();
+    this._tracer({
+      event: "message_received",
+      run,
+      // `_serialized` est absent des objets rendus par la passerelle : on le
+      // reconstitue (voir `identifiant-message.js`). `idPartie` est la
+      // fraction opaque, journalisable parce qu'elle ne porte aucun numero.
+      idMessage: empreinteCourte(serialiserIdMessage(msg?.id)),
+      idPartie: partieIdMessage(msg?.id),
+      jidType: typeJid(msg?.from),
+      typeMessage: msg?.type ?? "inconnu",
+      fromMe: Boolean(msg?.fromMe),
+      aMedia: Boolean(msg?.hasMedia),
+    });
+
+    // LES NOTIFICATIONS DE PROTOCOLE NE SONT PAS DES MESSAGES.
+    //
+    // Observe en local le 7 novembre : un `e2e_notification` — une
+    // notification interne de WhatsApp, emise par un identifiant systeme —
+    // a traverse tout le pipeline. Il a ete normalise en « text » vide,
+    // refuse comme numero inconnu, et l'agent a REPONDU « Numero non
+    // autorise. » a cet identifiant.
+    //
+    // C'est doublement faux : on depense un tour d'agent pour rien, et on
+    // ecrit a quelque chose qui n'est pas un correspondant. En production,
+    // chaque notification de ce genre produirait le meme envoi.
+    //
+    // On retient donc une liste de types que l'on sait traiter, et on
+    // ignore le reste en le TRACANT : un type nouveau doit se voir dans le
+    // journal, pas disparaitre en silence.
+    if (!TYPES_TRAITES.has(msg?.type)) {
+      this._tracer({ event: "message_ignore", run, typeMessage: msg?.type ?? "inconnu" });
+      return;
+    }
+
+    // UN MESSAGE DE L'HISTORIQUE N'EST PAS UNE DEMANDE.
+    //
+    // C'est la protection contre la rafale observée après le redémarrage
+    // d'Altare. On la TRACE au lieu de la taire : si la barrière se mettait à
+    // écarter de vrais messages, le journal doit le dire, pas le cacher.
+    const instantMs = typeof msg?.timestamp === "number" ? msg.timestamp * 1000 : null;
+    if (this._barriereMs && instantMs && instantMs < this._barriereMs) {
+      this._tracer({
+        event: "message_historique_ignore",
+        run,
+        idPartie: partieIdMessage(msg?.id),
+        ageS: Math.round((this._barriereMs - instantMs) / 1000),
+        typeMessage: msg?.type ?? "inconnu",
+      });
+      return;
+    }
+
+    if (!this._handler) {
+      // Aucun gestionnaire : le message serait perdu sans que rien ne le dise.
+      this._tracer({ event: "handler_absent", run });
+      return;
+    }
+
+    try {
+      const normalise = await this._normaliser(msg);
+      this._tracer({
+        event: "message_normalized",
+        run,
+        jidType: typeJid(normalise.from),
+        kind: normalise.kind,
+        aTexte: Boolean(normalise.body),
+      });
+
+      this._tracer({ event: "handler_started", run });
+      const r = await this._handler({ ...normalise, runId: run });
+      this._tracer({
+        event: "handler_completed",
+        run,
+        statut: r?.status ?? "inconnu",
+        raison: r?.raison ?? null,
+        dureeMs: Date.now() - debut,
+      });
+    } catch (e) {
+      this._tracer({
+        event: "handler_error",
+        run,
+        dureeMs: Date.now() - debut,
+        erreur: resumerErreur(e),
+        detail: decrireErreur(e),
+      });
+      this._log.error?.("[whatsapp] traitement du message:", resumerErreur(e));
+    }
   }
 
   onMessage(handler) {
@@ -320,7 +442,13 @@ export class WwebjsProvider extends WhatsAppProvider {
     });
     this._client.on("ready", () => {
       this._etat = "ready";
+      // La barrière est posée ICI, et non à la construction : entre les deux il
+      // y a l'ouverture de Chromium et la synchronisation, qui peuvent prendre
+      // plusieurs minutes. Daterait-on la barrière du démarrage du processus,
+      // elle laisserait passer tout ce que la synchronisation réémet.
+      this._barriereMs = Date.now() - TOLERANCE_HISTORIQUE_MS;
       this.machine.transiter(ETATS.WHATSAPP_READY);
+      this._tracer({ event: "barriere_posee", toleranceMs: TOLERANCE_HISTORIQUE_MS });
       this._log.info?.("[whatsapp] session prete");
       this._surPret?.();
     });
@@ -371,82 +499,13 @@ export class WwebjsProvider extends WhatsAppProvider {
       }
     });
 
-    this._client.on("message", async (msg) => {
-      // Un `runId` naît ICI, au plus tôt, et accompagne le message jusqu'à la
-      // réponse. Sans lui, un message disparu ne laisse aucune piste à suivre.
-      const run = nouveauRun();
-      this.machine.messageRecu();
-      const debut = Date.now();
-      this._tracer({
-        event: "message_received",
-        run,
-        // `_serialized` est absent des objets rendus par la passerelle : on le
-        // reconstitue (voir `identifiant-message.js`). `idPartie` est la
-        // fraction opaque, journalisable parce qu'elle ne porte aucun numero.
-        idMessage: empreinteCourte(serialiserIdMessage(msg?.id)),
-        idPartie: partieIdMessage(msg?.id),
-        jidType: typeJid(msg?.from),
-        typeMessage: msg?.type ?? "inconnu",
-        fromMe: Boolean(msg?.fromMe),
-        aMedia: Boolean(msg?.hasMedia),
-      });
-
-      // LES NOTIFICATIONS DE PROTOCOLE NE SONT PAS DES MESSAGES.
-      //
-      // Observe en local le 7 novembre : un `e2e_notification` — une
-      // notification interne de WhatsApp, emise par un identifiant systeme —
-      // a traverse tout le pipeline. Il a ete normalise en « text » vide,
-      // refuse comme numero inconnu, et l'agent a REPONDU « Numero non
-      // autorise. » a cet identifiant.
-      //
-      // C'est doublement faux : on depense un tour d'agent pour rien, et on
-      // ecrit a quelque chose qui n'est pas un correspondant. En production,
-      // chaque notification de ce genre produirait le meme envoi.
-      //
-      // On retient donc une liste de types que l'on sait traiter, et on
-      // ignore le reste en le TRACANT : un type nouveau doit se voir dans le
-      // journal, pas disparaitre en silence.
-      if (!TYPES_TRAITES.has(msg?.type)) {
-        this._tracer({ event: "message_ignore", run, typeMessage: msg?.type ?? "inconnu" });
-        return;
-      }
-
-      if (!this._handler) {
-        // Aucun gestionnaire : le message serait perdu sans que rien ne le dise.
-        this._tracer({ event: "handler_absent", run });
-        return;
-      }
-
-      try {
-        const normalise = await this._normaliser(msg);
-        this._tracer({
-          event: "message_normalized",
-          run,
-          jidType: typeJid(normalise.from),
-          kind: normalise.kind,
-          aTexte: Boolean(normalise.body),
-        });
-
-        this._tracer({ event: "handler_started", run });
-        const r = await this._handler({ ...normalise, runId: run });
-        this._tracer({
-          event: "handler_completed",
-          run,
-          statut: r?.status ?? "inconnu",
-          raison: r?.raison ?? null,
-          dureeMs: Date.now() - debut,
-        });
-      } catch (e) {
-        this._tracer({
-          event: "handler_error",
-          run,
-          dureeMs: Date.now() - debut,
-          erreur: resumerErreur(e),
-          detail: decrireErreur(e),
-        });
-        this._log.error?.("[whatsapp] traitement du message:", resumerErreur(e));
-      }
-    });
+    // LE GESTIONNAIRE EST UNE METHODE NOMMEE, ET POURQUOI CELA COMPTE.
+    //
+    // Il etait une closure anonyme : aucun test ne pouvait lui presenter un
+    // message sans ouvrir Chromium. La barriere de demarrage — la protection
+    // contre le rejeu de l'historique apres un redemarrage — etait donc
+    // invérifiable autrement qu'en production, c'est-a-dire trop tard.
+    this._client.on("message", (msg) => this._surMessage(msg));
 
     // LE POINT QUI A COUTE 7 H 27 DE SILENCE.
     //
