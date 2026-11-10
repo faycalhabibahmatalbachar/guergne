@@ -276,3 +276,56 @@ cd mobile && flutter test --update-goldens test/apparence_test.dart
 C'est le moyen le plus rapide de comparer une maquette Figma à ce que
 l'application affiche réellement : ouvrir le PNG correspondant plutôt que de
 lancer un émulateur.
+
+---
+
+## Design 3 — « Institutionnel Premium » (accueil)
+
+Refonte de l'accueil et de la navigation. Code : `mobile/lib/design/accueil/`,
+`mobile/lib/design/barre_navigation.dart`, `mobile/lib/ecrans/accueil.dart`,
+`mobile/lib/ecrans/plus.dart`.
+
+### Jetons modifiés
+
+| Jeton | Avant | Design 3 |
+| --- | --- | --- |
+| `primaire` | `#0C6B2E` | `#006B3F` (6,6:1 sur blanc) |
+| `primaireSombre` | `#07491E` | `#004D2C` |
+| `or` *(nouveau)* | — | `#D4A72C` — **fonds sombres uniquement** (2,2:1 sur blanc) |
+| `orSombre` *(nouveau)* | — | `#8C6A0E` — icône dorée sur surface claire (5:1) |
+| `danger` | `#B91C1C` | `#C62828` |
+| `encre` | `#0F172A` | `#102A43` |
+| `fond` | `#F8FAFC` | `#F8FAF9` |
+
+### Ordre de l'accueil
+
+1. `EnteteInstitution` — logo, nom de l'établissement, « LGR Parents », cloche
+   (badge = annonces non lues, ouvre la liste des annonces).
+2. `BanniereEcole` — photo du bâtiment (`assets/images/lgr_school_building.jpg`,
+   même cliché que `web/public/auth-campus-net.webp`, recadré), voile vert,
+   signature « ÉDUCATION • EXCELLENCE • AVENIR » en or, salutation du parent,
+   nom de l'enfant, badge de classe liseré d'or, matricule. Hauteur minimale
+   60 % de la largeur (210–300 dp) ; le contenu peut l'agrandir.
+3. Bannière de suspension (inchangée), si l'enfant est suspendu.
+4. « Situation » + pastille année · période (données serveur) —
+   `GrilleIndicateurs` de `CarteIndicateur` : 2 colonnes, 4 au-delà de 600 dp.
+   Le reste à payer a un fond doré léger ; il ne passe au rouge que si une
+   échéance est dépassée. Puis la carte d'échéance (inchangée).
+5. « Mes enfants » — `SelecteurEnfant` + feuille `choisirEnfant`.
+6. « Accès rapides » — `GrilleServices` : Bulletins, Résultats, Emploi du temps,
+   Paiements, Annonces, Vie scolaire. Teintes d'identité (`TeintesServices`),
+   jamais de couleur d'état.
+7. « Dernière annonce » — `CarteDerniereAnnonce`.
+
+### Navigation
+
+Accueil · Résultats · Assiduité · Scolarité · **Plus**. « Plus » remplace
+l'onglet Annonces et regroupe Annonces, Bulletins, Emploi du temps et Mon
+compte. Une notification d'annonce ouvre directement la liste des annonces.
+
+### Année scolaire
+
+L'API mobile ne sert que l'année marquée `est_courante` dans
+`annees_scolaires` ; l'accueil l'affiche telle que le serveur la renvoie
+(`Enfant.annee`). Un sélecteur d'années passées demandera une route dédiée
+côté `web/src/app/api/mobile`.

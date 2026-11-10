@@ -33,9 +33,14 @@ abstract final class Couleurs {
   // magnifique sur un logo, illisible en aplat de fond derrière du texte
   // blanc. On garde sa teinte et on descend la luminosité jusqu'à un contraste
   // de 6:1 sur blanc, seuil à partir duquel le vert peut porter du texte.
-  static const primaire = Color(0xFF0C6B2E);
-  static const primaireClair = Color(0xFF16A34A);
-  static const primaireSombre = Color(0xFF07491E);
+  //
+  // Design 3 « Institutionnel Premium » : le vert passe à #006B3F, un ton
+  // très légèrement bleuté qui se marie mieux avec l'or et le marine du
+  // blason. Son contraste sur blanc reste à 6,6:1 — il porte toujours du
+  // texte sans réserve.
+  static const primaire = Color(0xFF006B3F);
+  static const primaireClair = Color(0xFF1F9D63);
+  static const primaireSombre = Color(0xFF004D2C);
 
   /// Marine du monogramme « GR ». Second pilier de l'identité, pas un accent :
   /// il ancre les fonds profonds et les fins de dégradé.
@@ -47,6 +52,16 @@ abstract final class Couleurs {
   static const accent = Color(0xFFC98A3C);
   static const accentClair = Color(0xFFE0A85C);
 
+  /// Or institutionnel du Design 3.
+  ///
+  /// RÉSERVÉ AUX FONDS SOMBRES : sur blanc, #D4A72C plafonne à 2,2:1 et ne
+  /// peut porter ni texte ni icône seule. Il sert de filet, de liseré, de
+  /// signature sur la bannière — là où le vert profond le fait briller.
+  static const or = Color(0xFFD4A72C);
+
+  /// Or assombri, pour une icône dorée posée sur une surface claire (5:1).
+  static const orSombre = Color(0xFF8C6A0E);
+
   // --- États ---
   // Chaque couleur porte UN sens et un seul. Depuis le passage au vert de
   // marque, `succes` ne sert PLUS à teinter un texte « payé » ou « présent » :
@@ -56,18 +71,18 @@ abstract final class Couleurs {
   static const succesFond = Color(0xFFDCFCE7);
   static const alerte = Color(0xFFB45309); // retard, échéance proche
   static const alerteFond = Color(0xFFFEF3C7);
-  static const danger = Color(0xFFB91C1C); // absence non justifiée, impayé
+  static const danger = Color(0xFFC62828); // absence non justifiée, impayé
   static const dangerFond = Color(0xFFFEE2E2);
   static const info = Color(0xFF1D4ED8);
   static const infoFond = Color(0xFFDBEAFE);
 
   // --- Neutres ---
-  static const encre = Color(0xFF0F172A);
+  static const encre = Color(0xFF102A43);
   static const encreDouce = Color(0xFF475569);
   static const encreLegere = Color(0xFF94A3B8);
   static const bordure = Color(0xFFE2E8F0);
   static const surface = Color(0xFFFFFFFF);
-  static const fond = Color(0xFFF8FAFC);
+  static const fond = Color(0xFFF8FAF9);
 
   /// Fond des écrans de marque — démarrage, activation.
   ///

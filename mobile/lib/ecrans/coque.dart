@@ -2,14 +2,15 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../design/barre_navigation.dart';
 import '../design/theme.dart';
 import '../etat/fournisseurs.dart';
 import '../services/banniere_notification.dart';
 import 'accueil.dart';
-import 'annonces.dart';
 import 'assiduite.dart';
 import 'finances.dart';
 import 'notes.dart';
+import 'plus.dart';
 import 'profil.dart';
 
 /// Coque de l'application : les cinq onglets.
@@ -26,9 +27,13 @@ import 'profil.dart';
 /// page rétablit l'état : les cinq restent vivantes une fois visitées, et
 /// aucune ne se reconstruit au retour. On a les deux.
 ///
-/// Le profil n'est PAS une sixième page. Il n'a pas d'onglet, et l'atteindre
-/// par balayage depuis « Annonces » n'aurait aucun sens : c'est un écran de
-/// réglages, pas une étape du parcours. Il s'ouvre en superposition et se
+/// Design 3 : le cinquième onglet est « Plus », et non plus « Annonces ».
+/// Les annonces, les bulletins, l'emploi du temps et le compte y sont
+/// rassemblés ; les annonces restent aussi à un geste depuis l'accueil — la
+/// cloche, la carte « Dernière annonce », la tuile d'accès rapide.
+///
+/// Le profil n'est PAS une sixième page. C'est un écran de réglages, pas une
+/// étape du parcours : il s'ouvre en superposition depuis « Plus » et se
 /// referme par le retour du système.
 class Coque extends ConsumerStatefulWidget {
   const Coque({super.key});
@@ -50,11 +55,7 @@ class _EtatCoque extends ConsumerState<Coque> {
   void _aller(int index) {
     if (index == _onglet) return;
     if ((index - _onglet).abs() == 1) {
-      _pages.animateToPage(
-        index,
-        duration: ThemeLgr.dureeMoyenne,
-        curve: ThemeLgr.ressortDoux,
-      );
+      _pages.animateToPage(index, duration: ThemeLgr.dureeMoyenne, curve: ThemeLgr.ressortDoux);
     } else {
       _pages.jumpToPage(index);
     }
@@ -63,8 +64,7 @@ class _EtatCoque extends ConsumerState<Coque> {
   void _ouvrirCompte() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            EcranProfil(surRetour: () => Navigator.of(context).pop()),
+        builder: (_) => EcranProfil(surRetour: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -99,31 +99,33 @@ class _EtatCoque extends ConsumerState<Coque> {
     final route = ref.read(notificationsProvider).routeDemandee.value;
     if (route == null) return;
 
+    ref.read(notificationsProvider).routeDemandee.value = null;
+    if (!mounted) return;
+
+    // Les annonces n'ont plus d'onglet : la notification ouvre directement
+    // leur liste, par-dessus l'accueil — le retour y ramène.
+    if (route.contains('annonce')) {
+      _aller(0);
+      ouvrirAnnonces(context);
+      return;
+    }
+
     final onglet = switch (route) {
       final r when r.contains('assiduite') => 2,
       final r when r.contains('bulletin') || r.contains('note') => 1,
       final r when r.contains('paiement') || r.contains('echeance') => 3,
-      final r when r.contains('annonce') => 4,
       _ => 0,
     };
-
-    if (mounted) _aller(onglet);
-    ref.read(notificationsProvider).routeDemandee.value = null;
+    _aller(onglet);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Le compteur d'annonces non lues sur l'onglet : c'est le seul badge de
+    // Le compteur d'annonces non lues, porté par l'onglet « Plus » qui les
+    // contient — en plus de la cloche de l'accueil. C'est le seul badge de
     // l'application, réservé à ce qui demande vraiment une action.
     final nonLues =
-        ref
-            .watch(accueilProvider)
-            .value
-            ?.valeur
-            .annonces
-            .where((a) => !a.lue)
-            .length ??
-        0;
+        ref.watch(accueilProvider).value?.valeur.annonces.where((a) => !a.lue).length ?? 0;
 
     return Scaffold(
       body: Stack(
@@ -133,15 +135,12 @@ class _EtatCoque extends ConsumerState<Coque> {
             onPageChanged: (i) => setState(() => _onglet = i),
             children: [
               _Vivante(
-                child: EcranAccueil(
-                  versOnglet: _aller,
-                  versCompte: _ouvrirCompte,
-                ),
+                child: EcranAccueil(versOnglet: _aller, versCompte: _ouvrirCompte),
               ),
               const _Vivante(child: EcranNotes()),
               const _Vivante(child: EcranAssiduite()),
               const _Vivante(child: EcranFinances()),
-              const _Vivante(child: EcranAnnonces()),
+              _Vivante(child: EcranPlus(versCompte: _ouvrirCompte)),
             ],
           ),
 
@@ -164,16 +163,13 @@ class _EtatCoque extends ConsumerState<Coque> {
                   bottom: false,
                   child: BanniereNotification(
                     message: message,
-                    surFermer: () =>
-                        ref.read(notificationsProvider).messageEnCours.value =
-                            null,
+                    surFermer: () => ref.read(notificationsProvider).messageEnCours.value = null,
                     // Le bandeau MÈNE à l'écran concerné : il annonçait une
                     // absence sans permettre d'aller la voir.
                     surOuvrir: () {
                       final route = message.data['route']?.toString();
                       if (route != null) {
-                        ref.read(notificationsProvider).routeDemandee.value =
-                            route;
+                        ref.read(notificationsProvider).routeDemandee.value = route;
                       }
                     },
                   ),
@@ -183,49 +179,37 @@ class _EtatCoque extends ConsumerState<Coque> {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _onglet,
-        onDestinationSelected: _aller,
-        // Le profil est le 6ᵉ écran mais n'a pas d'onglet : on y accède depuis
-        // l'accueil. Cinq destinations est le maximum lisible en bas d'écran.
-        destinations:
-            const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded),
-                label: 'Accueil',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.workspace_premium_outlined),
-                selectedIcon: Icon(Icons.workspace_premium_rounded),
-                label: 'Résultats',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.event_available_outlined),
-                selectedIcon: Icon(Icons.event_available_rounded),
-                label: 'Assiduité',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.account_balance_wallet_outlined),
-                selectedIcon: Icon(Icons.account_balance_wallet_rounded),
-                label: 'Scolarité',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.campaign_outlined),
-                selectedIcon: Icon(Icons.campaign_rounded),
-                label: 'Annonces',
-              ),
-            ].indexed.map((e) {
-              if (e.$1 != 4 || nonLues == 0) return e.$2;
-              return NavigationDestination(
-                icon: Badge.count(count: nonLues, child: e.$2.icon),
-                selectedIcon: Badge.count(
-                  count: nonLues,
-                  child: e.$2.selectedIcon!,
-                ),
-                label: e.$2.label,
-              );
-            }).toList(),
+      bottomNavigationBar: BarreNavigationParent(
+        indexActif: _onglet,
+        surChoix: _aller,
+        destinations: [
+          const DestinationParent(
+            libelle: 'Accueil',
+            icone: Icons.home_outlined,
+            iconeActive: Icons.home_rounded,
+          ),
+          const DestinationParent(
+            libelle: 'Résultats',
+            icone: Icons.bar_chart_rounded,
+            iconeActive: Icons.bar_chart_rounded,
+          ),
+          const DestinationParent(
+            libelle: 'Assiduité',
+            icone: Icons.event_available_outlined,
+            iconeActive: Icons.event_available_rounded,
+          ),
+          const DestinationParent(
+            libelle: 'Scolarité',
+            icone: Icons.account_balance_wallet_outlined,
+            iconeActive: Icons.account_balance_wallet_rounded,
+          ),
+          DestinationParent(
+            libelle: 'Plus',
+            icone: Icons.more_horiz_rounded,
+            iconeActive: Icons.more_horiz_rounded,
+            badge: nonLues,
+          ),
+        ],
       ),
     );
   }
@@ -246,9 +230,7 @@ class BoutonProfil extends StatelessWidget {
       style: IconButton.styleFrom(
         backgroundColor: Colors.white.withValues(alpha: 0.16),
         minimumSize: const Size(44, 44),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(ThemeLgr.rayonPetit),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ThemeLgr.rayonPetit)),
       ),
     );
   }

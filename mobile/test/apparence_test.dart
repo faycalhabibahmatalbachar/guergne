@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:lgr_parents/design/barre_navigation.dart';
 import 'package:lgr_parents/design/theme.dart';
 import 'package:lgr_parents/ecrans/accueil.dart';
 import 'package:lgr_parents/ecrans/activation.dart';
@@ -10,6 +11,7 @@ import 'package:lgr_parents/ecrans/assiduite.dart';
 import 'package:lgr_parents/ecrans/demarrage.dart';
 import 'package:lgr_parents/ecrans/finances.dart';
 import 'package:lgr_parents/ecrans/notes.dart';
+import 'package:lgr_parents/ecrans/plus.dart';
 import 'package:lgr_parents/ecrans/profil.dart';
 import 'package:lgr_parents/etat/fournisseurs.dart';
 import 'package:lgr_parents/outils/formats.dart' as formats;
@@ -284,6 +286,110 @@ void main() {
       const EcranAnnonces(),
       nom: 'annonces',
       surcharges: echafaudage(stockage: stockage, accueil: accueilExemple()),
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Design 3 « Institutionnel Premium »
+  //
+  // L'accueil est désormais plus long qu'un écran : les captures à 844 px n'en
+  // montrent que le haut. Celles-ci le rendent EN ENTIER, pour qu'une régression
+  // de la grille des services ou de la carte d'annonce se voie aussi.
+  // -------------------------------------------------------------------------
+
+  testWidgets('Accueil — page entière', (tester) async {
+    await rendre(
+      tester,
+      EcranAccueil(versOnglet: (_) {}, versCompte: () {}),
+      nom: 'accueil_entier',
+      taille: const Size(390, 1640),
+      surcharges: echafaudage(stockage: stockage, accueil: accueilExemple()),
+    );
+  });
+
+  testWidgets('Accueil — fratrie, page entière', (tester) async {
+    await rendre(
+      tester,
+      EcranAccueil(versOnglet: (_) {}, versCompte: () {}),
+      nom: 'accueil_fratrie_entier',
+      taille: const Size(390, 1900),
+      surcharges: echafaudage(stockage: stockage, accueil: accueilFratrie()),
+    );
+  });
+
+  // Le pire cas réaliste : un téléphone d'entrée de gamme de 320 dp, réglé en
+  // grandes polices. Un débordement y fait échouer le test.
+  testWidgets('Accueil — petit écran, grandes polices', (tester) async {
+    await rendre(
+      tester,
+      EcranAccueil(versOnglet: (_) {}, versCompte: () {}),
+      nom: 'accueil_petit_ecran',
+      taille: const Size(320, 2200),
+      echelleTexte: 1.3,
+      surcharges: echafaudage(stockage: stockage, accueil: accueilFratrie()),
+    );
+  });
+
+  testWidgets('Accueil — page entière, mode sombre', (tester) async {
+    await rendre(
+      tester,
+      EcranAccueil(versOnglet: (_) {}, versCompte: () {}),
+      nom: 'accueil_entier_sombre',
+      taille: const Size(390, 1640),
+      luminosite: Brightness.dark,
+      surcharges: echafaudage(stockage: stockage, accueil: accueilExemple()),
+    );
+  });
+
+  testWidgets('Plus', (tester) async {
+    await rendre(
+      tester,
+      EcranPlus(versCompte: () {}),
+      nom: 'plus',
+      surcharges: echafaudage(stockage: stockage, accueil: accueilExemple()),
+    );
+  });
+
+  testWidgets('Navigation inférieure', (tester) async {
+    await rendre(
+      tester,
+      Scaffold(
+        body: const SizedBox.expand(),
+        bottomNavigationBar: BarreNavigationParent(
+          indexActif: 0,
+          surChoix: (_) {},
+          destinations: const [
+            DestinationParent(
+              libelle: 'Accueil',
+              icone: Icons.home_outlined,
+              iconeActive: Icons.home_rounded,
+            ),
+            DestinationParent(
+              libelle: 'Résultats',
+              icone: Icons.bar_chart_rounded,
+              iconeActive: Icons.bar_chart_rounded,
+            ),
+            DestinationParent(
+              libelle: 'Assiduité',
+              icone: Icons.event_available_outlined,
+              iconeActive: Icons.event_available_rounded,
+            ),
+            DestinationParent(
+              libelle: 'Scolarité',
+              icone: Icons.account_balance_wallet_outlined,
+              iconeActive: Icons.account_balance_wallet_rounded,
+            ),
+            DestinationParent(
+              libelle: 'Plus',
+              icone: Icons.more_horiz_rounded,
+              iconeActive: Icons.more_horiz_rounded,
+              badge: 2,
+            ),
+          ],
+        ),
+      ),
+      nom: 'navigation',
+      taille: const Size(390, 160),
     );
   });
 

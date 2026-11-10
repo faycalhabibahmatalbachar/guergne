@@ -69,6 +69,11 @@ flutter:
 
   assets:
     - assets/marque/
+    # Photographie du bâtiment, bannière de l'accueil (Design 3).
+    # Même cliché que le fond de la connexion web (`web/public/auth-campus-net.webp`),
+    # recadré sur la façade et ré-encodé en JPEG : une photo en PNG pèserait
+    # dix fois plus dans l'APK, pour une différence invisible à l'écran.
+    - assets/images/
 
   fonts:
     # Inter embarquee, PAS telechargee au demarrage : sur une connexion
