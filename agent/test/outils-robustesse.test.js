@@ -46,7 +46,7 @@ const FORMES_DEGENEREES = [
 
 const avecRendu = ASSIDUITE_TOOLS.filter((o) => typeof o.rendre === "function");
 
-test("le catalogue compte bien 29 outils, dont 27 rendent du texte", () => {
+test("le catalogue compte bien 38 outils, dont 29 rendent du texte", () => {
   // Si ce compte change, c'est volontaire : il faut alors le constater ici
   // plutot que de laisser la couverture glisser en silence.
   //
@@ -54,8 +54,15 @@ test("le catalogue compte bien 29 outils, dont 27 rendent du texte", () => {
   // `emploi_du_temps.consulter` et `etablissement.annee_courante`, qui
   // correspondent a des operations que le backend exposait deja sans que
   // l'agent les connaisse. Les quatre rendent du texte : 23 -> 27.
-  assert.equal(ASSIDUITE_TOOLS.length, 29);
-  assert.equal(avecRendu.length, 27);
+  //
+  // 2026-11-10 (bis) : 29 -> 38. Ajout des dossiers et des classes :
+  // `eleves.dossier`, `referentiel.niveaux` (lectures, avec rendu : 27 -> 29),
+  // et sept ecritures — `eleves.inscrire`, `eleves.modifier`,
+  // `eleves.changer_classe`, `eleves.archiver`, `classes.creer`,
+  // `classes.modifier`, `classes.archiver`. Les ecritures n'ont pas de
+  // `rendre` : leur compte rendu vient de `verifier`, apres relecture.
+  assert.equal(ASSIDUITE_TOOLS.length, 38);
+  assert.equal(avecRendu.length, 29);
 });
 
 test("chaque outil declare un nom, une permission et une description", () => {

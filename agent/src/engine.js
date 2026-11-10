@@ -19,6 +19,7 @@
  */
 import { normalizeIncoming } from "./normalize.js";
 import { SENSITIVE } from "./guard.js";
+import { creerAttente, evaluerReponse } from "./confirmation.js";
 import { DECISIONS, MOTIFS, NOTIFIER } from "./politiques.js";
 import { RAISONS, analyserJid, empreinte, jidUtilisateur, resoudreNumeroDepuisJid } from "./jid.js";
 import { INTENTIONS, normaliserPlan } from "./plan.js";
@@ -55,8 +56,6 @@ export const Status = {
  */
 const COMMANDE_TEST = /^\s*TEST\s+AGENT\s*$/i;
 
-const YES = /^(oui|confirme|confirmer|ok|valide|valider)\b/i;
-const NO = /^(non|annule|annuler|cancel|stop)\b/i;
 
 export class Agent {
   constructor(deps) {
@@ -419,22 +418,41 @@ export class Agent {
     }
 
     // 4. Réponse à une confirmation en attente ?
+    //
+    // L'attente est à usage unique et RETIRÉE dès qu'on la lit : quelle que
+    // soit l'issue, un second message ne la retrouvera pas. Voir
+    // `confirmation.js` pour les trois failles que cela ferme.
     const waiting = this.pending.get(msg.fromJid);
     if (waiting) {
-      if (YES.test(text.trim())) {
-        this.pending.delete(msg.fromJid);
+      this.pending.delete(msg.fromJid);
+      const issue = evaluerReponse(waiting, { texte: text, staffId: staff.id });
+      this.journalEtape?.({ event: "confirmation_evaluee", run: waiting.runId, outil: waiting.tool.name, issue, empreinte: waiting.empreinte });
+      if (issue === "confirmer") {
         return this._execute(waiting.tool, waiting.params, { staff, msg, runId: waiting.runId, transcription, started, confirmed: true });
       }
-      if (NO.test(text.trim())) {
-        this.pending.delete(msg.fromJid);
-        await this.provider.sendText(msg.fromJid, "Opération annulée.");
+      if (issue === "annuler" || issue === "expiree" || issue === "autre_utilisateur") {
+        const texteIssue = {
+          annuler: "Opération annulée.",
+          expiree: "La demande de confirmation a expiré : rien n'a été modifié. Reformulez la demande si elle tient toujours.",
+          autre_utilisateur: "Cette confirmation ne correspond pas à la demande en cours : rien n'a été modifié.",
+        }[issue];
+        await this.provider.sendText(msg.fromJid, texteIssue);
         this.audit.record({
           runId: waiting.runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role,
-          channel: msg.kind, intent: waiting.tool.name, result: "CANCELLED", durationMs: Date.now() - started,
+          channel: msg.kind, intent: waiting.tool.name,
+          result: issue === "annuler" ? "CANCELLED" : issue === "expiree" ? "EXPIRED" : "REJECTED_CONFIRMATION",
+          durationMs: Date.now() - started,
         });
-        return { status: Status.CANCELLED, runId: waiting.runId };
+        return { status: Status.CANCELLED, runId: waiting.runId, raison: issue };
       }
-      // Ni oui ni non : on retombe dans la compréhension normale (nouvelle demande).
+      // « abandonnee » : ni oui ni non NETS. L'attente est tombée — un « oui »
+      // ultérieur ne la ressuscitera pas — et le message est compris comme une
+      // nouvelle demande. On le consigne : une écriture qui n'a pas eu lieu
+      // doit laisser une trace aussi.
+      this.audit.record({
+        runId: waiting.runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role,
+        channel: msg.kind, intent: waiting.tool.name, result: "SUPERSEDED", durationMs: Date.now() - started,
+      });
     }
 
     // 5. Compréhension (NLU ; réel : LLM)
@@ -511,6 +529,37 @@ export class Agent {
       return { status: Status.FAILED, reason: "permission", runId };
     }
 
+    // 7 ter. PRÉPARATION : LES NOMS DEVIENNENT DES IDENTIFIANTS RÉELS.
+    //
+    // Personne ne dicte un UUID sur WhatsApp. Un outil qui sait `preparer`
+    // résout « Mahamat », « 6e A » ou « sixième » contre les données RELUES au
+    // backend, dans le périmètre de l'acteur, et complète ses paramètres —
+    // l'inscription active, par exemple. Il s'arrête net sur une ambiguïté ou
+    // une entité introuvable : choisir à la place de l'utilisateur serait pire
+    // que de lui reposer la question.
+    //
+    // Le récapitulatif soumis à confirmation vient d'ici : il nomme ce que le
+    // backend connaît, et non ce que le modèle a écrit. Un libellé fourni par
+    // le modèle peut ne pas correspondre à l'identifiant qu'il a recopié — on
+    // confirmerait « 6ème A » en écrivant dans la 6ème B.
+    let preparation = null;
+    if (typeof tool.preparer === "function") {
+      try {
+        preparation = await tool.preparer(plan.params ?? {}, { guergne: this.guergne, ctx: { actorId: staff.id } });
+      } catch (e) {
+        preparation = { ok: false, message: `Impossible de préparer la demande : ${resumerErreur(e)}` };
+      }
+      if (!preparation || preparation.ok === false) {
+        await this.provider.sendText(msg.fromJid, preparation?.message ?? "La demande ne peut pas être préparée.");
+        this.audit.record({
+          runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
+          intent: tool.name, params: plan.params, result: "REJECTED_BEFORE_EXECUTION", durationMs: Date.now() - started,
+        });
+        return { status: Status.WAITING_INPUT, reason: "preparation", runId };
+      }
+      if (preparation.params) plan.params = preparation.params;
+    }
+
     // 8. Confirmation forte pour une opération sensible ou en lot (brief §10)
     // 7 bis. Politique d'execution — autorisation PERMANENTE plutot que
     // confirmation repetee.
@@ -539,19 +588,32 @@ export class Agent {
       detail: verdict.detail ?? null,
     });
 
-    const automatique = verdict.decision === DECISIONS.AUTOMATIQUE;
+    // Une politique ne rend jamais automatique une écriture à confirmation
+    // obligatoire : elle serait comptée comme exécutée seule sans l'avoir été.
+    const automatique = verdict.decision === DECISIONS.AUTOMATIQUE && tool.confirmationObligatoire !== true;
     if (automatique) {
       this._metriques.automatiques += 1;
       this.politiques?.enregistrerExecution?.({ politique: verdict.politique, staff });
     }
 
-    const exigeConfirmation = !automatique && (tool.sensitivity === SENSITIVE || tool.requiresConfirmation);
-    if (exigeConfirmation && !plan.confirmed) {
+    // Certaines écritures ne se dispensent JAMAIS de confirmation : créer un
+    // dossier d'élève, changer sa classe, archiver. Une politique peut ôter la
+    // friction d'un appel quotidien ; elle ne peut pas ôter celle-là.
+    const exigeConfirmation =
+      tool.confirmationObligatoire === true || (!automatique && (tool.sensitivity === SENSITIVE || tool.requiresConfirmation));
+    // `plan.confirmed` vient du modèle : il ne peut pas valoir confirmation
+    // pour une écriture à confirmation obligatoire. Seul un « oui » humain, net
+    // et dans le délai, l'autorise.
+    const dejaConfirme = plan.confirmed && tool.confirmationObligatoire !== true;
+    if (exigeConfirmation && !dejaConfirme) {
       this._metriques.confirmationsDemandees += 1;
-      this.pending.set(msg.fromJid, { tool, params: plan.params ?? {}, runId });
+      this.pending.set(msg.fromJid, creerAttente({ tool, params: plan.params ?? {}, runId, staffId: staff.id }));
+      // Le récapitulatif de `preparer` décrit ce que le BACKEND connaît ; à
+      // défaut, le résumé de l'outil, bâti sur les seuls paramètres.
+      const recapitulatif = preparation?.texte ?? tool.summarize(plan.params ?? {});
       await this.provider.sendText(
         msg.fromJid,
-        `${tool.summarize(plan.params ?? {})}\nRépondez *oui* pour confirmer, *non* pour annuler.`,
+        `${recapitulatif}\nRépondez *oui* pour confirmer, *non* pour annuler.`,
       );
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
@@ -857,7 +919,22 @@ export class Agent {
     }
 
     // Vérification : une réussite n'est affirmée que si le backend l'a confirmée (Règle 9)
-    const ok = !error && !!result && result.ok !== false;
+    let ok = !error && !!result && result.ok !== false;
+
+    // RELIRE AVANT D'AFFIRMER.
+    //
+    // Un « ok » du backend dit que l'appel s'est bien passé. Il ne dit pas que
+    // le dossier est dans l'état demandé. Une écriture qui sait se `verifier`
+    // relit donc ce qui a été enregistré ; l'agent ne dit « fait » qu'après.
+    let verification = null;
+    if (ok && typeof tool.verifier === "function") {
+      try {
+        verification = await tool.verifier({ result, params, guergne: this.guergne, ctx: { actorId: staff.id } });
+      } catch (e) {
+        verification = { ok: false, raison: `relecture impossible : ${resumerErreur(e)}` };
+      }
+      this.journalEtape?.({ event: "ecriture_verifiee", run: runId, outil: tool.name, verifiee: verification?.ok === true, raison: verification?.raison ?? null });
+    }
     this._metriques[ok ? "operationsReussies" : "operationsEchouees"] += 1;
     this._metriques[tool.sensitivity === "read" ? "consultations" : "ecritures"] += 1;
 
@@ -874,12 +951,32 @@ export class Agent {
       runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
       message: msg.text, transcription, intent: tool.name, params, permission: `OK:${tool.permission}`,
       confirmation: confirmed ? { by: staff.id, at: new Date().toISOString() } : null,
-      before, after, result: ok ? "SUCCESS" : "FAILURE",
+      // « UNVERIFIED » : le serveur a dit oui, la relecture ne l'a pas confirmé.
+      // Ce n'est ni une réussite à annoncer, ni un échec à rejouer.
+      before, after, result: ok ? (verification && verification.ok !== true ? "UNVERIFIED" : "SUCCESS") : "FAILURE",
+      verification: verification ? { ok: verification.ok === true, raison: verification.raison ?? null } : null,
       error: error ? String(error.message ?? error) : result && result.ok === false ? result.message : null,
       durationMs: Date.now() - started,
     });
 
+    if (ok && verification && verification.ok !== true) {
+      // Le serveur a répondu « fait », la relecture ne le confirme pas. On ne
+      // l'affirme donc pas — et on ne relance RIEN : l'écriture a pu aboutir,
+      // la rejouer créerait un doublon. On le dit, avec ce qui a été constaté.
+      await this.provider.sendText(
+        msg.fromJid,
+        `⚠️ Le serveur a accepté l'opération, mais je n'ai pas pu la vérifier en relisant le dossier : ${verification.raison ?? "état inattendu"}. Ne la considérez pas comme acquise avant un contrôle dans l'application.`,
+      );
+      return { status: Status.FAILED, runId, result, raison: "non_verifiee" };
+    }
+
     if (ok) {
+      // Une relecture réussie a le dernier mot : elle décrit ce qui EST
+      // enregistré, et non ce que l'appel a promis.
+      if (verification?.ok === true && verification.texte) {
+        await this.provider.sendText(msg.fromJid, verification.texte);
+        return { status: Status.COMPLETED, runId, result, verifiee: true };
+      }
       // Les écritures portent leur propre message ; les lectures renvoient
       // `data` et rien d'autre. Sans mise en forme, l'utilisateur recevait un
       // accusé vide — « ✅ Opération effectuée. » — et la donnée qu'il avait

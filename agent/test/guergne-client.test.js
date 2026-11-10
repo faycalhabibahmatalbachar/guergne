@@ -72,3 +72,65 @@ test("une panne réseau est un échec, pas une fausse réussite", async () => {
   assert.equal(r.ok, false);
   assert.match(r.message, /injoignable/);
 });
+
+// --- Deux refus 403 qui n'ont rien a voir -------------------------------------
+
+test("des ecritures eteintes ne sont PAS presentees comme un defaut de droits", async () => {
+  // Le directeur s'entendait dire qu'il n'avait pas les droits, alors que les
+  // ecritures etaient simplement desactivees sur le deploiement.
+  const client = new GuergneHttpClient({
+    baseUrl: "https://x.test",
+    serviceToken: "svc",
+    fetch: fakeFetch(jsonResponse(403, { ok: false, code: "ECRITURES_DESACTIVEES", message: "Les ecritures ne sont pas activees." })),
+  });
+  const r = await client.inscrireEleve({}, { actorId: "u1" });
+  assert.equal(r.ok, false);
+  assert.equal(r.code, "ECRITURES_DESACTIVEES");
+  assert.match(r.message, /pas activées sur ce déploiement/);
+  assert.doesNotMatch(r.message, /Droits insuffisants/);
+});
+
+test("un vrai refus de droits garde son code et son message", async () => {
+  const client = new GuergneHttpClient({
+    baseUrl: "https://x.test",
+    serviceToken: "svc",
+    fetch: fakeFetch(jsonResponse(403, { ok: false, code: "ROLE_INSUFFISANT", message: "Droits insuffisants." })),
+  });
+  const r = await client.archiverEleve({}, { actorId: "u1" });
+  assert.equal(r.code, "ROLE_INSUFFISANT");
+  assert.match(r.message, /Droits insuffisants/);
+});
+
+test("un refus de validation (422) transmet ses raisons champ par champ", async () => {
+  // Seul `erreurs` est rempli : l'ancien client rendait « Erreur backend (422) »
+  // et l'utilisateur ne savait pas quoi corriger.
+  const client = new GuergneHttpClient({
+    baseUrl: "https://x.test",
+    serviceToken: "svc",
+    fetch: fakeFetch(jsonResponse(422, { ok: false, erreurs: { classeId: "Cette classe n'appartient pas à l'année en cours." } })),
+  });
+  const r = await client.inscrireEleve({}, { actorId: "u1" });
+  assert.equal(r.status, 422);
+  assert.deepEqual(r.erreurs, { classeId: "Cette classe n'appartient pas à l'année en cours." });
+  assert.match(r.message, /n'appartient pas à l'année en cours/);
+});
+
+test("les nouvelles operations de dossier partent vers leur route exacte", async () => {
+  const appels = [];
+  const client = new GuergneHttpClient({
+    baseUrl: "https://x.test",
+    serviceToken: "svc",
+    fetch: async (url, init) => {
+      appels.push({ url, acteur: init.headers["x-acteur-id"] });
+      return jsonResponse(200, { ok: true, data: null });
+    },
+  });
+  for (const m of ["consulterEleve", "listerNiveaux", "listerSeries", "inscrireEleve", "modifierEleve", "changerClasseEleve", "archiverEleve", "creerClasse", "modifierClasse", "archiverClasse"]) {
+    await client[m]({}, { actorId: "u1" });
+  }
+  assert.deepEqual(
+    appels.map((a) => a.url.split("/api/agent/")[1]),
+    ["consulterEleve", "listerNiveaux", "listerSeries", "inscrireEleve", "modifierEleve", "changerClasseEleve", "archiverEleve", "creerClasse", "modifierClasse", "archiverClasse"],
+  );
+  assert.ok(appels.every((a) => a.acteur === "u1"), "l'acteur accompagne chaque appel");
+});

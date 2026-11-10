@@ -41,13 +41,33 @@ export class GuergneHttpClient {
       return { ok: false, message: `Backend injoignable : ${e.message ?? e}` };
     }
 
-    if (res.status === 403) {
-      return { ok: false, status: 403, message: "Droits insuffisants côté plateforme." };
-    }
     if (!res.ok) {
-      let detail = "";
-      try { detail = (await res.json())?.message ?? ""; } catch { /* corps non-JSON */ }
-      return { ok: false, status: res.status, message: detail || `Erreur backend (${res.status}).` };
+      let corps = null;
+      try { corps = await res.json(); } catch { /* corps non-JSON */ }
+      const code = typeof corps?.code === "string" ? corps.code : null;
+      const erreurs = corps?.erreurs && typeof corps.erreurs === "object" ? corps.erreurs : null;
+
+      // DEUX REFUS 403 QUI N'ONT RIEN À VOIR.
+      //
+      // Tout 403 devenait « Droits insuffisants ». Or le backend répond aussi
+      // 403 avec `code: ECRITURES_DESACTIVEES` quand les écritures sont éteintes
+      // sur le déploiement. Le directeur s'entendait donc dire qu'il n'avait pas
+      // les droits, alors qu'il les avait — et cherchait au mauvais endroit.
+      if (res.status === 403) {
+        const message =
+          code === "ECRITURES_DESACTIVEES"
+            ? "Les écritures de l'assistant ne sont pas activées sur ce déploiement : la consultation fonctionne, la modification non."
+            : "Droits insuffisants côté plateforme.";
+        return { ok: false, status: 403, code, message };
+      }
+
+      // Un refus de validation (422) porte ses raisons CHAMP PAR CHAMP. Ne
+      // garder que `message` les perdait — souvent absent quand seul `erreurs`
+      // est rempli —, et l'utilisateur recevait « Erreur backend (422) » sans
+      // savoir quoi corriger.
+      const detailChamps = erreurs ? Object.values(erreurs).filter((v) => typeof v === "string").join(" ") : "";
+      const message = [corps?.message, detailChamps].filter(Boolean).join(" ") || `Erreur backend (${res.status}).`;
+      return { ok: false, status: res.status, code, erreurs, message };
     }
     try {
       return await res.json();
@@ -101,4 +121,18 @@ export class GuergneHttpClient {
   enregistrerRetard(p, c) { return this._call("enregistrerRetard", p, c); }
   justifierEnLot(p, c) { return this._call("justifierEnLot", p, c); }
   supprimerAbsence(p, c) { return this._call("supprimerAbsence", p, c); }
+
+  // --- Élèves, classes : lectures nécessaires aux écritures ---
+  consulterEleve(p, c) { return this._call("consulterEleve", p, c); }
+  listerNiveaux(p, c) { return this._call("listerNiveaux", p, c); }
+  listerSeries(p, c) { return this._call("listerSeries", p, c); }
+
+  // --- Élèves, classes : écritures (éteintes tant que le backend ne les active pas) ---
+  inscrireEleve(p, c) { return this._call("inscrireEleve", p, c); }
+  modifierEleve(p, c) { return this._call("modifierEleve", p, c); }
+  changerClasseEleve(p, c) { return this._call("changerClasseEleve", p, c); }
+  archiverEleve(p, c) { return this._call("archiverEleve", p, c); }
+  creerClasse(p, c) { return this._call("creerClasse", p, c); }
+  modifierClasse(p, c) { return this._call("modifierClasse", p, c); }
+  archiverClasse(p, c) { return this._call("archiverClasse", p, c); }
 }
