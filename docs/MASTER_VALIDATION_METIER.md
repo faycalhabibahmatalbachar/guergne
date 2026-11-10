@@ -310,3 +310,105 @@ production ».
 ```bash
 cd agent && node scripts/appliquer-migration.mjs 0040_annee_scolaire_2026_2027.sql --essai
 ```
+
+---
+
+## Mise à jour du 2026-11-10
+
+### 0040 — appliquée, et sur UNE seule des deux branches
+
+Vérifié par requête (lecture seule, connexion directe) :
+
+| Contrôle | Résultat |
+|---|---|
+| Registre `_migrations` | `0040_annee_scolaire_2026_2027.sql`, appliquée le 2026-11-08 à 23:09:41 UTC |
+| Années | 2025-2026 (`est_courante = false`), 2026-2027 (`est_courante = true`) |
+| Périodes 2026-2027 | 3 ; T1 2026-10-01 → 2026-12-22 **seule ouverte** |
+| Périodes 2025-2026 | 3, intactes, aucune ouverte |
+| Absences / retards | 2 720 / 2 236 — inchangés |
+| SQL dans `agent/` | aucun : `agent/scripts/appliquer-migration.mjs` lit `db/migrations/`. Un seul système |
+
+**Il existe deux branches Neon**, découvertes en confrontant le backend à la base :
+
+| Fichier | Branche | Année courante | Migrations |
+|---|---|---|---|
+| `web/.env.local` | `br-red-waterfall-b1ajf6iu` | 2026-2027 | 38 (avec 0040) |
+| `web/.env.development.local` | `br-calm-art-b18uihy2` | 2025-2026 | 37 (sans 0040) |
+
+`next dev` charge `.env.development.local` **avant** `.env.local`. Le backend local
+lit donc la branche **sans** 0040. Laquelle de ces branches sert la production
+n'est pas déterminable depuis le dépôt : `APP_URL` vaut `localhost:3000` dans les
+deux cas. **À confirmer dans la console Neon ou dans l'hébergement du backend.**
+
+### Données authentiques — l'inventaire exact
+
+| Objet | Authentique | Semé |
+|---|---|---|
+| élèves | **1** (créé le 2026-08-18, inscrit en `TD` — classe **semée** —, 6 absences) | 548 |
+| classes | **1** : `6E`, **0 élève** | 14 |
+| enseignants | 1 | 14 |
+| utilisateurs | **240** : 232 PARENT, 3 SUPER_ADMIN, 3 SURVEILLANT, 2 DIRECTION | 1 |
+| absences | 6 (sur l'élève authentique) | 2 714 |
+
+### Passage d'année 2026-2027 — 0 classe, 0 inscription créées, et pourquoi
+
+Vos règles 2 et 3 l'interdisent, et les données le confirment : il n'existe
+**aucune structure de classes authentique** à reconduire. Créer 14 classes et
+548 inscriptions à partir du jeu semé serait exactement « faire croire que le
+système fonctionne ».
+
+Tableau d'exceptions — décisions qui appartiennent à la direction :
+
+| Cas | Constat | Décision attendue |
+|---|---|---|
+| L'élève authentique | inscrit en Terminale D (classe semée) en 2025-2026 | bachelier sorti, redoublant, ou autre ? |
+| La classe `6E` | seule classe authentique, 0 élève, libellé « 6E » | vraie « 6ème E », ou essai à désactiver ? |
+| Les classes de 2026-2027 | aucune source fiable | liste réelle des classes, niveaux, capacités |
+| Les élèves de 2026-2027 | aucun registre authentique en base | saisie du vrai registre — l'interface web l'offre |
+| Le jeu semé | 548 élèves, 14 classes, 2 714 absences | retrait (archivage) quand le réel sera saisi |
+
+### 0038 — le diagnostic était faux, il est corrigé
+
+61 groupes de doublons, **tous** sur des élèves semés, **zéro** sur l'élève
+authentique. Les deux lignes d'un groupe se contredisent (journée de 6 h
+justifiée + demi-journée de 3 h non justifiée le même jour) et portent le même
+horodatage à la microseconde : ce sont des artefacts du script de peuplement.
+Le garde-fou affirmait « vraies données d'assiduité » et renvoyait à la vie
+scolaire ; il compte désormais les deux populations à part. Il **refuse
+toujours**, et 0038 reste en attente. Commit `1b86cdb`.
+
+Non analysées dans cette passe : 0033, 0037_notes_tracabilite, 0039.
+
+### Le CRUD réellement exposé
+
+Le backend expose **36 opérations** (`web/src/server/agent/operations.ts`) :
+32 lectures et 4 écritures (`enregistrerAppel`, `enregistrerRetard`,
+`justifierEnLot`, `supprimerAbsence`), ces dernières **éteintes** tant que
+`AGENT_ECRITURES_ACTIVES` n'est pas posée.
+
+L'agent n'en connaissait que 25. Ajoutés : `classes.lister`, `classes.eleves`,
+`emploi_du_temps.consulter`, `etablissement.annee_courante`. Restent non branchées :
+`calendrierEvaluations`, `listerClassesEtMatieres`, `listerPeriodes` (utilisée
+par le référentiel, pas comme outil), `listerSituationsFinancieres`,
+`rechercherTuteurs`, `releveEleve`, `statistiquesParents`.
+
+Le backend **n'offre aucune création** d'élève, de classe ou d'inscription par
+l'API agent. « Crée le dossier de ce nouvel élève » n'est donc pas possible
+depuis WhatsApp sans écrire ces opérations côté backend.
+
+### Recette réelle — `agent/scripts/recette-backend-reel.mjs`
+
+Chemin exact de production : `GuergneHttpClient → POST /api/agent/{action} →
+guard → Neon`, jeton de service + acteur SUPER_ADMIN authentique. Chaque réponse
+confrontée à une requête indépendante sur **la même branche**.
+
+**13/13** : année courante, périodes, classes, classes par année explicite,
+emploi du temps de la 1ère L (19 créneaux) avec les heures, refus d'un PARENT
+(403), refus d'une écriture (403), refus d'un faux jeton. Latence à froid
+16,8 s (compilation de la route), à chaud 1,5 s.
+
+Limite honnête : sur la branche de développement, l'année courante **est**
+2025-2026, donc le contrôle « `listerClasses` honore `anneeId` » y passe sans
+discriminer. Il ne le prouvera que sur la branche à 2026-2027.
+
+Tests : **742/742** côté agent ; `tsc --noEmit` du backend propre.
