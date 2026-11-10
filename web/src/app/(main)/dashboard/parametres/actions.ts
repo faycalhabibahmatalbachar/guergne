@@ -8,6 +8,7 @@ import { z } from "zod";
 import { verifierDatesPeriode } from "@/lib/parametres-periodes";
 import { journaliser } from "@/server/audit";
 import { db } from "@/server/db";
+import { estViolationUnicite } from "@/server/db/erreurs-pg";
 import { anneesScolaires, classes, coefficients, inscriptions, matieres, periodes, series } from "@/server/db/schema";
 import { ErreurAutorisation, requirePermission } from "@/server/guard";
 
@@ -31,9 +32,9 @@ function echec(erreur: unknown, defaut: string): Resultat {
   if (erreur instanceof ErreurAutorisation) {
     return { ok: false, message: "Vous n'avez pas les droits pour cette opération." };
   }
-  const message = erreur instanceof Error ? erreur.message : "";
-  // 23505 = violation de contrainte d'unicité PostgreSQL
-  if (message.includes("duplicate key") || message.includes("23505")) {
+  // 23505 = violation de contrainte d'unicité PostgreSQL. Le code est dans
+  // `cause` (Drizzle enveloppe l'erreur) : voir `estViolationUnicite`.
+  if (estViolationUnicite(erreur)) {
     return { ok: false, message: "Cet élément existe déjà." };
   }
   console.error("[parametres]", erreur);

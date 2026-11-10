@@ -10,6 +10,7 @@ import { journaliser } from "@/server/audit";
 import { journaliserAtomiquement, preparerContexteAudit } from "@/server/audit-v2";
 import { sessionCourante } from "@/server/auth/session";
 import { db } from "@/server/db";
+import { estViolationUnicite } from "@/server/db/erreurs-pg";
 import {
   anneesScolaires,
   classes,
@@ -33,18 +34,41 @@ export interface Resultat {
   id?: string;
 }
 
+/**
+ * Un refus métier, rédigé pour être lu par l'utilisateur.
+ *
+ * `echec()` remplace volontairement le message d'une exception par un texte
+ * générique : une exception quelconque peut porter un fragment de requête ou de
+ * donnée. Mais cette prudence avalait aussi les refus écrits À DESSEIN —
+ * « L'élève est déjà dans cette classe. » ne parvenait jamais à l'écran, qui
+ * affichait « Le changement de classe a échoué. » sans dire pourquoi. Une
+ * exception de cette classe déclare au contraire que son message est sûr.
+ *
+ * Non exportée : un fichier `"use server"` n'exporte que des fonctions.
+ */
+class RefusMetier extends Error {}
+
 function echec(erreur: unknown, defaut: string): Resultat {
   if (erreur instanceof ErreurAutorisation) {
     return { ok: false, message: "Vous n'avez pas les droits pour cette opération." };
+  }
+  if (erreur instanceof RefusMetier) {
+    return { ok: false, message: erreur.message };
   }
   const message = erreur instanceof Error ? erreur.message : "";
 
   // Message métier remonté volontairement par un déclencheur PostgreSQL
   // (capacité de classe atteinte, par exemple).
-  if (message.includes("est complète")) {
-    return { ok: false, message: message.replace(/^.*?ERROR:\s*/i, "") };
+  //
+  // Drizzle enveloppe l'erreur du pilote : le texte du déclencheur est dans
+  // `cause.message`, pas dans le message de l'enveloppe (« Failed query: … »).
+  // Sans remonter la chaîne, ce refus volontaire n'atteignait jamais l'écran.
+  const messageCause = erreur instanceof Error && erreur.cause instanceof Error ? erreur.cause.message : "";
+  const messageDeclencheur = [message, messageCause].find((m) => m.includes("est complète"));
+  if (messageDeclencheur) {
+    return { ok: false, message: messageDeclencheur.replace(/^.*?ERROR:\s*/i, "") };
   }
-  if (message.includes("duplicate key") || message.includes("23505")) {
+  if (estViolationUnicite(erreur)) {
     return { ok: false, message: "Cet élève est déjà inscrit pour cette année." };
   }
   console.error("[eleves]", erreur);
@@ -363,7 +387,7 @@ export async function inscrireEleve(donnees: unknown): Promise<Resultat> {
         // Un identifiant sélectionné explicitement ne doit jamais tomber
         // silencieusement sur la création d'un doublon.
         if (t.existantId && !existant) {
-          throw new Error("Le parent sélectionné n'existe plus. Actualisez la recherche.");
+          throw new RefusMetier("Le parent sélectionné n'existe plus. Actualisez la recherche.");
         }
 
         const tuteurId =
@@ -529,13 +553,30 @@ export async function changerClasse(inscriptionId: string, nouvelleClasseId: str
     if (motif.trim().length < 3) return { ok: false, erreurs: { motif: "Le motif est obligatoire." } };
     const contexte = await preparerContexteAudit("/dashboard/eleves");
     const eleveId = await db.transaction(async (tx) => {
-      const res = await tx.execute<{ eleve_id: string; classe_id: string }>(sql`
-        SELECT eleve_id::text,classe_id::text FROM inscriptions
+      const res = await tx.execute<{ eleve_id: string; classe_id: string; annee_id: string }>(sql`
+        SELECT eleve_id::text,classe_id::text,annee_id::text FROM inscriptions
         WHERE id=${inscriptionId}::uuid FOR UPDATE
       `);
       const inscription = res.rows[0];
-      if (!inscription) throw new Error("Inscription introuvable.");
-      if (inscription.classe_id === nouvelleClasseId) throw new Error("L'élève est déjà dans cette classe.");
+      if (!inscription) throw new RefusMetier("Inscription introuvable.");
+      if (inscription.classe_id === nouvelleClasseId) throw new RefusMetier("L'élève est déjà dans cette classe.");
+
+      // LA CLASSE DE DESTINATION DOIT APPARTENIR À LA MÊME ANNÉE.
+      //
+      // Rien ne le vérifiait. Une inscription de 2025-2026 pouvait être
+      // rattachée à une classe de 2026-2027 : l'élève apparaissait alors dans
+      // une classe d'une autre année que son inscription, ses absences et ses
+      // notes pendaient à des périodes qui ne correspondaient plus. Une classe
+      // archivée (`active = false`) ne reçoit pas non plus de nouvel élève.
+      const resDest = await tx.execute<{ annee_id: string; active: boolean }>(sql`
+        SELECT annee_id::text, active FROM classes WHERE id=${nouvelleClasseId}::uuid
+      `);
+      const destination = resDest.rows[0];
+      if (!destination) throw new RefusMetier("Classe de destination introuvable.");
+      if (destination.annee_id !== inscription.annee_id) {
+        throw new RefusMetier("La classe de destination n'appartient pas à l'année scolaire de cette inscription.");
+      }
+      if (!destination.active) throw new RefusMetier("La classe de destination est archivée.");
       await tx.update(inscriptions).set({ classeId: nouvelleClasseId }).where(eq(inscriptions.id, inscriptionId));
       await tx.execute(sql`
         INSERT INTO changements_classe(inscription_id,classe_origine_id,classe_destination_id,motif,decide_par)
