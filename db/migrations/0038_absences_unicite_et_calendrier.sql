@@ -62,30 +62,63 @@
 -- Le message brut de PostgreSQL ne dirait qu'« could not create unique index :
 -- key is duplicated ». On lève donc l'erreur AVANT, avec le compte exact et la
 -- marche à suivre, pour que l'exploitant sache quoi faire sans lire ce fichier.
+-- MISE À JOUR DU 2026-11-09 : LE DIAGNOSTIC DISAIT UNE CHOSE FAUSSE.
+--
+-- Le message ci-dessous affirmait « Ces lignes sont de vraies donnees
+-- d assiduite » et renvoyait l'arbitrage à la vie scolaire. Le relevé sur la
+-- base réelle dit le contraire :
+--
+--   * 61 groupes, 61 lignes en surnombre — donc exactement deux lignes par
+--     groupe ;
+--   * 61 groupes sur 61 portent sur des élèves `donnees_semees = true` ;
+--   * ZÉRO groupe sur le seul élève authentique de la base ;
+--   * les deux lignes d'un groupe se CONTREDISENT (une journée de 6 h
+--     justifiée et une demi-journée de 3 h non justifiée le même jour), et
+--     portent le même horodatage de création à la microseconde près.
+--
+-- Ce ne sont donc pas des événements scolaires distincts à arbitrer : ce sont
+-- des artefacts du script de peuplement. Faire arbitrer la vie scolaire sur des
+-- absences qui n'ont jamais eu lieu lui ferait perdre son temps, et traiterait
+-- des données générées comme des données authentiques.
+--
+-- Le garde-fou compte donc désormais les deux populations SÉPARÉMENT, et
+-- adapte ce qu'il conseille. Il continue de refuser : supprimer des lignes
+-- d'assiduité reste une décision, et le retrait du jeu de données semé en est
+-- une — distincte de cette migration.
 DO $$
 DECLARE
     v_groupes BIGINT;
     v_surnombre BIGINT;
+    v_semes BIGINT;
+    v_authentiques BIGINT;
 BEGIN
-    SELECT COUNT(*), COALESCE(SUM(n - 1), 0)
-      INTO v_groupes, v_surnombre
-      FROM (
-        SELECT COUNT(*) AS n
+    WITH doublons AS (
+        SELECT inscription_id,
+               date_absence,
+               COALESCE(seance_id,  '00000000-0000-0000-0000-000000000000'::uuid) AS seance,
+               COALESCE(creneau_id, '00000000-0000-0000-0000-000000000000'::uuid) AS creneau,
+               COUNT(*) AS n
           FROM absences
-         GROUP BY inscription_id,
-                  date_absence,
-                  COALESCE(seance_id,  '00000000-0000-0000-0000-000000000000'::uuid),
-                  COALESCE(creneau_id, '00000000-0000-0000-0000-000000000000'::uuid)
+         GROUP BY 1, 2, 3, 4
         HAVING COUNT(*) > 1
-      ) AS doublons;
+    )
+    SELECT COUNT(*),
+           COALESCE(SUM(n - 1), 0),
+           -- Un groupe est « semé » si l'élève derrière son inscription l'est.
+           COUNT(*) FILTER (WHERE e.donnees_semees),
+           COUNT(*) FILTER (WHERE NOT e.donnees_semees)
+      INTO v_groupes, v_surnombre, v_semes, v_authentiques
+      FROM doublons d
+      JOIN inscriptions i ON i.id = d.inscription_id
+      JOIN eleves e       ON e.id = i.eleve_id;
 
     IF v_groupes > 0 THEN
         RAISE EXCEPTION
-            'Unicite des absences impossible : % groupe(s) de doublons, % ligne(s) en surnombre.',
-            v_groupes, v_surnombre
+            'Unicite des absences impossible : % groupe(s) de doublons, % ligne(s) en surnombre (% sur des eleves semes, % sur des eleves authentiques).',
+            v_groupes, v_surnombre, v_semes, v_authentiques
           USING
-            DETAIL = 'Une meme inscription a plusieurs absences pour la meme date et la meme seance/creneau. Ces lignes sont de vraies donnees d assiduite : cette migration ne les touche pas.',
-            HINT   = 'Inventorier d abord : node agent/scripts/inventaire-doublons-absences.mjs. Faire arbitrer chaque groupe par la vie scolaire (quelle ligne conserver, quel volume horaire retenir, quelle notification deja partie), corriger sous journal d audit, puis rejouer 0038.';
+            DETAIL = 'Une meme inscription a plusieurs absences pour la meme date et la meme seance/creneau. La repartition entre eleves semes et authentiques est donnee ci-dessus : elle decide de la marche a suivre.',
+            HINT   = 'Inventorier d abord : node agent/scripts/inventaire-doublons-absences.mjs. Les groupes portant sur des eleves AUTHENTIQUES doivent etre arbitres par la vie scolaire (quelle ligne conserver, quel volume horaire, quelle notification deja partie), corriges sous journal d audit. Les groupes portant sur des eleves SEMES relevent du retrait du jeu de donnees de demonstration, qui est une decision distincte et non un arbitrage pedagogique. Rejouer 0038 ensuite.';
     END IF;
 END $$;
 
