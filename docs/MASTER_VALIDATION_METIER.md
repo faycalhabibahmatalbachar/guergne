@@ -538,10 +538,14 @@ Tests : **771 / 771** côté agent ; `tsc --noEmit` du backend propre ; Biome : 
 diagnostic nouveau** (13 antérieurs, lignes identiques à `HEAD`).
 
 **Build de production** (`next build`, Turbopack, base de test forcée) :
-**réussi** sur le commit `6ad3c69` avec une installation propre des dépendances.
-Le premier essai, dans l'arbre de travail principal, avait échoué sur 10 erreurs
-`next/font/google`. Ce n'était pas le code : le même commit se construit avec une
-installation propre, et le `node_modules` principal provenait d'un `npm ci`
-interrompu par une coupure réseau (`ECONNRESET`). Preuve faite par comparaison
-dans un arbre de travail séparé — un premier essai avec une jonction vers
-`node_modules` avait été refusé par Turbopack et n'a pas été retenu.
+**réussi**, compilé en 54 s, 12 pages générées.
+
+Le premier essai avait échoué sur 10 erreurs `next/font/google`. La cause n'était
+pas le code — le même commit se construit dans un arbre de travail neuf — mais
+le cache `.next` de **581 Mo** laissé par les serveurs `next dev` de la séance :
+une fois mis de côté, le build passe dans l'arbre principal. Une première
+hypothèse (un `node_modules` abîmé par une coupure réseau) a été **démentie** :
+une réinstallation propre ne suffisait pas.
+
+Si le build échoue de nouveau sur `next/font/google` après un `next dev`,
+supprimer `web/.next` (cache régénérable, ignoré par Git) avant `npm run build`.
