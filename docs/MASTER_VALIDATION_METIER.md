@@ -475,3 +475,73 @@ la branche de **développement**, sans la 0040.
 Lire, dans Vercel → projet → Settings → Environment Variables → Production,
 l'hôte de `DATABASE_URL` (le préfixe `ep-…` seulement, jamais le mot de passe),
 et le comparer à l'endpoint de `br-red-waterfall` dans la console Neon.
+
+---
+
+## CRUD de l'agent — 2026-11-10
+
+Détail complet : [`docs/CRUD_AGENT.md`](CRUD_AGENT.md).
+
+### Constat de départ
+
+Le CRUD élèves / classes **existait déjà** dans les actions de l'interface web,
+avec ses permissions. L'agent n'en connaissait rien. Il a été **emprunté**, pas
+réécrit : l'agent passe par l'action web exacte, exécutée au nom d'un acteur
+vérifié (`executerEnTantQue`).
+
+### Défauts trouvés et corrigés en chemin
+
+| Défaut | Portée | Preuve |
+|---|---|---|
+| `changerClasse` acceptait une classe d'une **autre année** ou **archivée** | web + agent | refus vérifié en recette (classe archivée) |
+| `echec()` **avalait** les refus métier (« L'élève est déjà dans cette classe. ») | web + agent | message lisible vérifié en recette |
+| Détection d'unicité **morte** : Drizzle range le code 23505 dans `cause` | web + agent ; **5 autres fichiers** gardent le défaut (finances, parents ×3, personnel) | « Cet élément existe déjà. » vérifié en recette |
+| Message « classe complète » du déclencheur avalé (même cause) | web + agent | corrigé, non éprouvé (aucune classe pleine en test) |
+| Confirmation : pas d'expiration, attente non effacée, « oui » en préfixe | agent | 10 tests + 13 tests moteur |
+| Un 403 « écritures éteintes » annoncé comme « droits insuffisants » | agent | 4 tests client |
+| `supprimerClasse` = `DELETE` en cascade | non exposé à l'agent | route → 404, vérifié |
+
+### Recette HTTP réelle — base de test `br-calm-art`
+
+`agent/scripts/recette-crud-reel.mjs` : **45 / 45**, chaque opération vérifiée
+par l'API **et** par une requête SQL indépendante **et** par sa ligne d'audit.
+
+CREATE classe ×2 · refus de doublon · UPDATE classe · refus d'un champ interdit ·
+CREATE élève (élève + inscription + tuteur + historique, une transaction) ·
+refus homonyme · refus incomplet · refus classe inexistante · READ dossier,
+recherche, élèves de la classe · UPDATE élève · refus `statut` · changement de
+classe + trace · refus même classe · ARCHIVE classe pleine refusé · classe vide
+archivée (ligne conservée) · refus vers classe archivée · élève archivé (dossier
+conservé, historique +1) · faux jeton 401 · acteur inexistant 403 · acteur
+malformé 400 · PARENT 403 · **compte désactivé 403** · **DIRECTION sans
+`eleve:inscrire` 403, rien d'écrit** · JSON malformé 400 · `supprimerClasse` 404 ·
+**aucune notification envoyée (167 → 167)**.
+
+Trois lignes vertes de la première exécution ne prouvaient pas ce qu'elles
+affichaient — refus pour une autre raison, message générique, test sauté en
+silence. Corrigées : chaque refus est désormais vérifié **pour sa raison**.
+
+Nettoyage par identifiants capturés : base restituée à **549 élèves (1
+authentique, intact), 15 classes, 0 résidu** ; les 10 lignes d'audit de la
+recette sont **conservées** (aucune clé étrangère de l'audit vers `eleves`).
+
+### Non éprouvé, et pourquoi
+
+| Cas | Raison |
+|---|---|
+| Changement de classe vers une **autre année** | la base de test n'a qu'une année |
+| Surveillant **actif** hors périmètre | les 4 surveillants authentiques de la base de test sont **désactivés** |
+| Parcours WhatsApp réel d'une écriture | exige un message du SUPER_ADMIN ; non fait |
+| Production | écritures éteintes, non déployé (voir `CRUD_AGENT.md` §7) |
+
+Tests : **771 / 771** côté agent ; `tsc --noEmit` du backend propre ; Biome : **0
+diagnostic nouveau** (13 antérieurs, lignes identiques à `HEAD`).
+
+**Build de production** (`next build`, Turbopack, base de test forcée) :
+**réussi** sur le commit `6ad3c69` avec une installation propre des dépendances.
+Le premier essai, dans l'arbre de travail principal, avait échoué sur 10 erreurs
+`next/font/google`. Ce n'était pas le code : le même commit se construit avec une
+installation propre, et le `node_modules` principal provenait d'un `npm ci`
+interrompu par une coupure réseau (`ECONNRESET`). Preuve faite par comparaison
+dans un arbre de travail séparé — un premier essai avec une jonction vers
+`node_modules` avait été refusé par Turbopack et n'a pas été retenu.
