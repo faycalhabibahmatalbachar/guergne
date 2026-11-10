@@ -165,23 +165,42 @@ La matrice est **en base**, table `permissions` — pas dans le code. Relevé du
 | Rôle | Droits (nombre) | Écriture élèves / classes |
 |---|---|---|
 | SUPER_ADMIN | 78 | tout |
-| DIRECTION | 36 | `eleve:modifier`, `classe:creer`, `classe:modifier` seulement |
+| DIRECTION | **75 depuis 0041** (36 avant) | tout le métier — voir ci-dessous |
 | SECRETARIAT | — | `eleve:inscrire`, `eleve:modifier`, `eleve:affecter` |
 | CENSEUR | — | comme DIRECTION |
 | SURVEILLANT, ENSEIGNANT, COMPTABLE | — | lecture |
 | PARENT | — | refusé avant la matrice (rôle non habilité à l'administration) |
 
 **Décision définitive du propriétaire (2026-11-10) : la DIRECTION reçoit toutes
-les permissions MÉTIER.** Il lui en manque 42 ; la liste exacte et le partage
-métier / technique sont dans le prompt de reprise, §6. Ne **pas** reposer la
-question.
+les permissions MÉTIER.** Ne **pas** reposer la question.
+
+**APPLIQUÉE** le 2026-11-10 par `db/migrations/0041_direction_permissions_metier.sql`,
+sur `br-calm-art` seulement. DIRECTION : 36 → **75**, toutes portées `AUCUNE`,
+les huit autres rôles inchangés à la ligne près.
+
+L'écart de 42 s'est révélé être **39 métier + 3 réservés**, et non 38 + 4.
+`utilisateur:modifier` ne garde, dans tout le code, que le dossier administratif
+d'un enseignant, sa photographie et la lecture de son document — jamais un
+privilège. Le changement de rôle passe par `utilisateur:creer`, borné à
+`["ENSEIGNANT"]`, que la DIRECTION détenait déjà : le réserver ne protégeait donc
+rien. Le raisonnement complet est dans l'en-tête de la migration.
+
+Trois droits restent au seul SUPER_ADMIN : `permission:gerer`,
+`systeme:administrer`, `sauvegarde:executer`.
+
+La liste est **dérivée** et non recopiée, en base comme dans le pré-filtre de
+l'agent, et un test lit le catalogue du backend pour l'imposer. Détail et
+relevés : [`REGISTRE_CAPACITES_AGENT.md`](REGISTRE_CAPACITES_AGENT.md).
+
+**Production : 0041 n'y est PAS appliquée**, et ne doit pas l'être avant la
+preuve directe Vercel ↔ Neon.
 
 ## I. Tests
 
 | Suite | Commande | Résultat au 2026-11-10 |
 |---|---|---|
-| Agent (unitaires + moteur + intégration) | `cd agent && npm test` | **771 / 771** |
-| Recette CRUD réelle (base de test) | `cd agent && node scripts/recette-crud-reel.mjs` | **45 / 45** |
+| Agent (unitaires + moteur + intégration) | `cd agent && npm test` | **786 / 786** (771 au 2026-11-10 matin) |
+| Recette CRUD réelle (base de test) | `cd agent && node scripts/recette-crud-reel.mjs` | **51 / 51** (45 avant 0041) |
 | Recette lectures réelles | `cd agent && node scripts/recette-backend-reel.mjs` | **13 / 13** |
 | Typage backend | `cd web && npx tsc --noEmit -p .` | propre |
 | Lint backend (fichiers touchés) | `cd web && npx biome lint <fichiers>` | 0 diagnostic nouveau (13 antérieurs) |
@@ -267,9 +286,15 @@ variable `DATABASE_URL` de Vercel Production **n'a pas été lue** (aucun accès
 
 ## O. Tâches restantes, par priorité
 
-1. **DIRECTION : toutes les permissions métier** sur la base de test (migration
-   `0041`, rollback, recette des refus et des accès) — voir le prompt §6.
-2. Corriger la détection d'unicité dans les 5 fichiers restants (N).
+1. ~~**DIRECTION : toutes les permissions métier**~~ — **FAIT** le 2026-11-10
+   (migration `0041`, rollback écrit, recette 51/51, pré-filtre dérivé). Reste
+   à décider son application en production.
+2. **Les 8 opérations du backend qu'aucun outil de l'agent n'atteint** :
+   `rechercherTuteurs`, `statistiquesParents`, `releveEleve`,
+   `listerSituationsFinancieres`, `calendrierEvaluations`, `listerPeriodes`,
+   `listerClassesEtMatieres`, `listerSeries`. Nommées et contractualisées au §4
+   de [`REGISTRE_CAPACITES_AGENT.md`](REGISTRE_CAPACITES_AGENT.md) ; non écrites.
+3. Corriger la détection d'unicité dans les 5 fichiers restants (N).
 3. Preuve directe Vercel ↔ Neon ; relire `permissions` en production.
 4. Parcours WhatsApp réel : lecture, puis une écriture confirmée, sur l'environnement de test.
 5. Traiter `0038` (retrait du jeu semé ou arbitrage), puis `0033`, `0037`, `0039`.
