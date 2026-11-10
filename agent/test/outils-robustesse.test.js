@@ -46,11 +46,16 @@ const FORMES_DEGENEREES = [
 
 const avecRendu = ASSIDUITE_TOOLS.filter((o) => typeof o.rendre === "function");
 
-test("le catalogue compte bien 25 outils, dont 23 rendent du texte", () => {
+test("le catalogue compte bien 29 outils, dont 27 rendent du texte", () => {
   // Si ce compte change, c'est volontaire : il faut alors le constater ici
   // plutot que de laisser la couverture glisser en silence.
-  assert.equal(ASSIDUITE_TOOLS.length, 25);
-  assert.equal(avecRendu.length, 23);
+  //
+  // 2026-11-10 : 25 -> 29. Ajout de `classes.lister`, `classes.eleves`,
+  // `emploi_du_temps.consulter` et `etablissement.annee_courante`, qui
+  // correspondent a des operations que le backend exposait deja sans que
+  // l'agent les connaisse. Les quatre rendent du texte : 23 -> 27.
+  assert.equal(ASSIDUITE_TOOLS.length, 29);
+  assert.equal(avecRendu.length, 27);
 });
 
 test("chaque outil declare un nom, une permission et une description", () => {

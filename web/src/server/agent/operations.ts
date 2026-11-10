@@ -144,7 +144,11 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
   // --- Référentiel ----------------------------------------------------------
   // Sans ces lectures, l'agent est inutilisable par un humain : le reste du
   // catalogue ne parle qu'en UUID, alors qu'un surveillant dit « la 6ème B ».
-  listerClasses: { permission: "classe:lire", executer: () => listerClassesCourantes() },
+  // `anneeId` est désormais transmis. La fonction de domaine l'acceptait déjà,
+  // mais l'opération l'ignorait : elle rendait toujours l'année COURANTE. Depuis
+  // l'ouverture de 2026-2027 — encore sans classes — il était donc impossible de
+  // consulter les classes de 2025-2026, même en nommant l'année.
+  listerClasses: { permission: "classe:lire", executer: (p) => listerClassesCourantes(s(p.anneeId)) },
   listerPeriodes: {
     permission: "assiduite:lire",
     executer: async (p) => {

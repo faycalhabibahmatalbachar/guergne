@@ -28,6 +28,84 @@ const required = (v) => v !== undefined && v !== null && v !== "";
 const nb = (v, suffixe = "") => (v === null || v === undefined ? "non calculé" : `${v}${suffixe}`);
 const fcfa = (v) => (v === null || v === undefined ? "non calculé" : `${Number(v).toLocaleString("fr-FR")} FCFA`);
 
+/**
+ * Les jours tels que la base les numérote (`emploi_du_temps.jour_semaine`).
+ *
+ * Relevé en base : 1 à 6. Le samedi est ouvré au Tchad, et le 7 n'apparaît
+ * jamais. On ne présume donc pas d'un dimanche.
+ */
+export const JOURS = Object.freeze(["", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"]);
+
+/** « 07:55:00 » → « 07 h 55 ». Une heure absente le reste, et le dit. */
+const heure = (h) => {
+  const m = String(h ?? "").match(/^(\d{1,2}):(\d{2})/);
+  return m ? `${m[1].padStart(2, "0")} h ${m[2]}` : "heure inconnue";
+};
+
+/**
+ * L'emploi du temps, lisible sur un téléphone.
+ *
+ * Groupé par jour, dans l'ordre des créneaux. Une grille vide n'est PAS
+ * présentée comme « pas cours » : elle peut tout aussi bien signifier qu'aucun
+ * emploi du temps n'a été saisi pour cette année. On le dit — confondre une
+ * donnée absente avec un cours annulé ferait venir des élèves pour rien, ou
+ * les ferait rester chez eux.
+ */
+export function rendreEmploiDuTemps(brutes, p = {}) {
+  if (!Array.isArray(brutes)) return null;
+  // Une ligne nulle ou mal formée ne doit pas emporter toute la grille : le
+  // test de robustesse l'a montré, `null.jourSemaine` levait. Une ligne sans
+  // jour exploitable est écartée, et on le dit plus bas.
+  const lignes = brutes.filter((x) => x && typeof x === "object" && Number.isInteger(Number(x.jourSemaine)) && Number(x.jourSemaine) >= 1);
+  const ecartees = brutes.length - lignes.length;
+  const voulu = String((p ?? {}).jour ?? "").trim().toLowerCase();
+  const numeroVoulu = voulu ? JOURS.indexOf(voulu) : -1;
+  if (voulu && numeroVoulu <= 0) {
+    return `Jour non reconnu : « ${String(p.jour)} ». Indiquez lundi, mardi, mercredi, jeudi, vendredi ou samedi.`;
+  }
+  if (lignes.length === 0 && ecartees > 0) {
+    return "L'emploi du temps recu est illisible : aucune ligne ne porte de jour exploitable.";
+  }
+  if (lignes.length === 0) {
+    return "Aucun emploi du temps n'est enregistre pour cette classe et cette annee scolaire. Ce n'est pas l'absence de cours : la grille n'a pas ete saisie.";
+  }
+  const retenues = numeroVoulu > 0 ? lignes.filter((x) => Number(x.jourSemaine) === numeroVoulu) : lignes;
+  if (retenues.length === 0) {
+    return `Aucun cours enregistre le ${voulu} pour cette classe.`;
+  }
+  const parJour = new Map();
+  for (const x of retenues) {
+    const j = Number(x.jourSemaine);
+    if (!parJour.has(j)) parJour.set(j, []);
+    parJour.get(j).push(x);
+  }
+  const sorties = [];
+  const classe = retenues.find((x) => x.classeLibelle)?.classeLibelle;
+  sorties.push(`Emploi du temps${classe ? ` de la ${classe}` : ""}${numeroVoulu > 0 ? ` — ${voulu}` : ""} :`);
+  for (const j of [...parJour.keys()].sort((a, b) => a - b)) {
+    if (numeroVoulu <= 0) sorties.push(`\n${(JOURS[j] ?? `jour ${j}`).replace(/^./, (c) => c.toUpperCase())}`);
+    for (const x of parJour.get(j).sort((a, b) => (a.creneauOrdre ?? 0) - (b.creneauOrdre ?? 0))) {
+      const salle = x.salleCode ? ` — salle ${x.salleCode}` : "";
+      const prof = x.enseignantNom ? ` — ${x.enseignantNom}` : "";
+      // `heureFin` est celle du créneau de DÉPART. Pour un cours de deux
+      // créneaux, l'afficher annoncerait la fin une heure trop tôt : on donne
+      // alors le début et le nombre de créneaux, qui sont exacts.
+      const multiple = Number(x.nbCreneaux) > 1;
+      const horaire = multiple
+        ? `${heure(x.heureDebut)}, ${x.nbCreneaux} creneaux`
+        : `${heure(x.heureDebut)} – ${heure(x.heureFin)}`;
+      sorties.push(`• ${horaire} — ${val(x.matiereLibelle, "matiere inconnue")}${salle}${prof}`);
+    }
+  }
+  // Une grille non publiée n'est pas encore définitive : ne pas la présenter
+  // comme telle.
+  if (retenues.some((x) => x.publie === false)) {
+    sorties.push("\nAttention : une partie de cette grille n'est pas encore publiee.");
+  }
+  if (ecartees > 0) sorties.push(`\n${ecartees} ligne(s) illisible(s) ecartee(s).`);
+  return sorties.join("\n");
+}
+
 const ANNEE = "facultatif, identifiant d'annee scolaire (UUID) ; par defaut l'annee courante";
 const PERIODE = "facultatif, identifiant de periode scolaire (UUID) ; par defaut toutes les periodes";
 const CLASSE = "facultatif, identifiant de classe (UUID) ; par defaut toutes les classes";
@@ -219,6 +297,93 @@ ${alerte}` : liste;
     summarize: () => "Responsables d'un eleve.",
     rendre: (l) =>
       listeRendue(l, "Responsables", (x) => `${nomComplet(x)} — ${val(x.lienParente, "lien non precise")}${x.principal ? " (principal)" : ""}`),
+  },
+
+  // --- Classes, effectifs, emploi du temps ----------------------------------
+  //
+  // POURQUOI CES QUATRE OUTILS
+  // ---------------------------
+  // Le backend exposait déjà `listerClasses`, `listerElevesClasse`,
+  // `chargerEmploiDuTemps` et `anneeCourante`, mais l'agent n'en connaissait
+  // aucun. « Affiche les classes », « les élèves de la 6e A », « l'emploi du
+  // temps de demain » tombaient donc en clarification — faute d'outil, pas
+  // faute de donnée. Relevé du 2026-11-10 : 11 opérations du backend étaient
+  // invisibles pour l'agent.
+  {
+    name: "classes.lister",
+    module: "classes",
+    description: "lister les classes de l'annee scolaire courante, avec leur effectif",
+    permission: "classe:lire",
+    sensitivity: READ,
+    action: "listerClasses",
+    parametres: {},
+    validate: noErrs,
+    summarize: () => "Classes de l'etablissement.",
+    rendre: (l) => {
+      if (!Array.isArray(l)) return null;
+      // UNE ANNÉE NEUVE N'EST PAS UNE ERREUR.
+      //
+      // Depuis l'ouverture de 2026-2027, l'année courante n'a aucune classe :
+      // le passage d'année n'a pas eu lieu. « Classes : aucun résultat » le
+      // laisserait croire à une panne. On dit ce qui est.
+      if (l.length === 0) {
+        return "Aucune classe n'est encore enregistree pour l'annee scolaire en cours. Le passage d'annee doit etre fait avant de pouvoir consulter ou saisir par classe.";
+      }
+      return listeRendue(l, "Classes", (x) => {
+        const effectif = x.effectif === null || x.effectif === undefined ? "effectif inconnu" : `${x.effectif} eleve(s)`;
+        const capacite = x.capaciteMax ? ` sur ${x.capaciteMax} places` : "";
+        return `${val(x.libelle, val(x.code, "classe sans nom"))} — ${effectif}${capacite}`;
+      });
+    },
+  },
+  {
+    name: "classes.eleves",
+    module: "classes",
+    description: "liste des eleves inscrits dans une classe donnee",
+    permission: "eleve:lire",
+    sensitivity: READ,
+    action: "listerElevesClasse",
+    parametres: { classeId: "OBLIGATOIRE, identifiant de la classe (UUID), a recopier depuis la liste des classes" },
+    validate: (p) => (required(p.classeId) ? {} : { classeId: "Classe requise." }),
+    summarize: () => "Eleves d'une classe.",
+    rendre: (l) =>
+      listeRendue(l, "Eleves de la classe", (x) => `${nomComplet(x)} — ${val(x.matricule, "sans matricule")}${x.statut ? ` (${x.statut})` : ""}`),
+  },
+  {
+    name: "emploi_du_temps.consulter",
+    module: "emploi_du_temps",
+    description: "emploi du temps d'une classe ou d'un enseignant, eventuellement pour un seul jour",
+    permission: "emploi_du_temps:lire",
+    sensitivity: READ,
+    action: "chargerEmploiDuTemps",
+    parametres: {
+      classeId: "identifiant de la classe (UUID) ; classeId OU enseignantId est obligatoire",
+      enseignantId: "identifiant de l'enseignant (UUID) ; classeId OU enseignantId est obligatoire",
+      anneeId: ANNEE,
+      // Ce filtre est appliqué ICI, au rendu, et non par la route : c'est
+      // pourquoi il est annoncé. Un filtre annoncé mais ignoré ferait paraître
+      // la réponse filtrée sans qu'elle le soit.
+      jour: "facultatif, lundi, mardi, mercredi, jeudi, vendredi ou samedi ; par defaut toute la semaine",
+    },
+    validate: (p) =>
+      required(p.classeId) || required(p.enseignantId) ? {} : { classeId: "Classe ou enseignant requis." },
+    summarize: (p) => `Emploi du temps${p.jour ? ` du ${p.jour}` : ""}.`,
+    rendre: (l, p = {}) => rendreEmploiDuTemps(l, p),
+  },
+  {
+    name: "etablissement.annee_courante",
+    module: "etablissement",
+    description: "annee scolaire en cours, avec ses dates",
+    permission: "classe:lire",
+    sensitivity: READ,
+    action: "anneeCourante",
+    parametres: {},
+    validate: noErrs,
+    summarize: () => "Annee scolaire en cours.",
+    rendre: (a) => {
+      if (!a || typeof a !== "object") return "Aucune annee scolaire n'est marquee comme courante.";
+      return `Annee scolaire en cours : ${val(a.libelle)}, du ${jour(a.dateDebut)} au ${jour(a.dateFin)}.`;
+    },
   },
 
   // --- Personnel ------------------------------------------------------------

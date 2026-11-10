@@ -284,6 +284,13 @@ export interface CoursEdt {
   jourSemaine: number;
   creneauId: string;
   creneauOrdre: number;
+  /**
+   * Les heures du créneau. `creneauOrdre` seul ne dit rien à quelqu'un qui
+   * demande « à quelle heure ? » : sans elles, l'agent WhatsApp ne pouvait
+   * répondre que « créneau 3 », alors que la table jointe porte « 08:50 ».
+   */
+  heureDebut: string;
+  heureFin: string;
   nbCreneaux: number;
   semaineType: string | null;
   classeId: string;
@@ -318,6 +325,8 @@ export async function chargerEmploiDuTemps(anneeId: string, portee: PortéeEdt):
       jourSemaine: emploiDuTemps.jourSemaine,
       creneauId: emploiDuTemps.creneauId,
       creneauOrdre: creneauxHoraires.ordre,
+      heureDebut: creneauxHoraires.heureDebut,
+      heureFin: creneauxHoraires.heureFin,
       nbCreneaux: emploiDuTemps.nbCreneaux,
       semaineType: emploiDuTemps.semaineType,
       classeId: emploiDuTemps.classeId,
