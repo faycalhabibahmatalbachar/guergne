@@ -45,16 +45,46 @@ const gris = (s) => console.log(`\x1b[0;90m${s}\x1b[0m`);
 
 const argv = process.argv.slice(2);
 const essai = argv.includes("--essai");
-const fichier = argv.find((a) => !a.startsWith("--"));
+// La VALEUR de `--env` n'est pas le nom de la migration. Sans cette exclusion,
+// `--env web/.env.test.local 0041.sql` jouerait « web/.env.test.local » comme
+// migration — l'ordre des arguments ne doit pas changer le sens de la commande.
+const iEnv = argv.indexOf("--env");
+const iValeurEnv = iEnv >= 0 ? iEnv + 1 : -1; // sans `--env`, n'exclure AUCUN indice
+const fichier = argv.find((a, i) => !a.startsWith("--") && i !== iValeurEnv);
 
 if (!fichier) {
   rouge("usage : node scripts/appliquer-migration.mjs <fichier.sql> [--essai]");
+  rouge("        [--test | --dev | --production | --env <fichier>]   defaut : --test");
   process.exit(2);
+}
+
+/**
+ * QUELLE BASE ? LA QUESTION SE POSE, DONC ELLE SE DEMANDE.
+ *
+ * Ce script lisait `web/.env.local` EN DUR — c'est-à-dire la production. Une
+ * migration de recette jouée par distraction sur les vrais eleves ne se
+ * rattrape pas. Le fichier d'environnement est donc desormais un parametre,
+ * et le defaut est la base de TEST.
+ *
+ *   --test         web/.env.test.local        (defaut)
+ *   --dev          web/.env.development.local
+ *   --production   web/.env.local             explicite, et seulement ainsi
+ *   --env <chemin> n'importe quel autre fichier
+ */
+function fichierEnv() {
+  const i = process.argv.indexOf("--env");
+  if (i > 0 && process.argv[i + 1]) return process.argv[i + 1];
+  if (process.argv.includes("--production")) return "web/.env.local";
+  if (process.argv.includes("--dev")) return "web/.env.development.local";
+  // `--test` est le defaut ; l'accepter explicitement permet de l'ecrire dans
+  // une procedure, ou de le lire dans un historique de commandes.
+  return "web/.env.test.local";
 }
 
 /** La connexion directe : le pooler Neon en mode transaction ne supporte pas tout le DDL. */
 function connexion() {
-  const chemin = join(depot, "web", ".env.local");
+  const relatif = fichierEnv();
+  const chemin = join(depot, ...relatif.split("/"));
   if (!existsSync(chemin)) {
     rouge(`${chemin} est absent : impossible de joindre la base.`);
     process.exit(2);
@@ -67,11 +97,22 @@ function connexion() {
     }
     return null;
   };
-  const url = lire("DATABASE_URL_UNPOOLED") ?? lire("DATABASE_URL_DIRECT") ?? lire("DATABASE_URL");
+  const url =
+    lire("DATABASE_URL_TEST") ?? lire("DATABASE_URL_UNPOOLED") ?? lire("DATABASE_URL_DIRECT") ?? lire("DATABASE_URL");
   if (!url) {
-    rouge("Aucune URL de base dans web/.env.local");
+    rouge(`Aucune URL de base dans ${relatif}`);
     process.exit(2);
   }
+  // Dire laquelle, a voix haute, avant d'ecrire : un releve attribue a la
+  // mauvaise base vaut moins que pas de releve du tout.
+  let hote = "(hote illisible)";
+  try {
+    hote = new URL(url).hostname;
+  } catch {
+    /* une URL illisible echouera a la connexion, avec son propre message */
+  }
+  gris(`  environnement : ${relatif}`);
+  gris(`  hote Neon     : ${hote}`);
   return url;
 }
 
