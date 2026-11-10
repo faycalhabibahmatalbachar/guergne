@@ -90,3 +90,9 @@ agent/donnees-locales/
 # Cache de WhatsApp Web, cree par la bibliotheque a chaque session.
 .wwebjs_cache/
 .wwebjs_auth/
+
+# Artefacts de l'amorcage de l'agent (`index.js`) : cache Chromium et empreinte
+# des dependances installees. Legitimes dans le conteneur Altare, jamais dans Git
+# — le cache pese plusieurs centaines de megaoctets.
+agent/.cache/
+agent/.deps-*

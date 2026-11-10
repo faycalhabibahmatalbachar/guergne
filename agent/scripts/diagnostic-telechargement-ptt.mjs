@@ -207,6 +207,28 @@ async function principal() {
           } catch (e) {
             sortie.signature = `illisible : ${dire(e)}`;
           }
+          // LE MEDIA EXISTE-T-IL ENCORE SUR LE SERVEUR ?
+          //
+          // `mediaStage` vaut « FETCHING », et le gestionnaire expose
+          // `checkExistence` et `rmr`. `rmr` signifie « request media
+          // reupload » : c'est le mecanisme par lequel WhatsApp redemande au
+          // telephone de l'expediteur de reteleverser un media que le serveur
+          // ne detient plus. Avant d'accuser notre appel, il faut savoir si
+          // l'octet est encore quelque part.
+          try {
+            const existe = await gestionnaire.checkExistence({
+              directPath: ptt.directPath,
+              encFilehash: ptt.encFilehash,
+              filehash: ptt.filehash,
+              mediaKey: ptt.mediaKey,
+              mediaKeyTimestamp: ptt.mediaKeyTimestamp,
+              type: ptt.type,
+            });
+            sortie.etapes.existence = { ok: true, reponse: typeof existe === "object" ? Object.keys(existe) : String(existe) };
+          } catch (e) {
+            sortie.etapes.existence = { ok: false, erreur: dire(e) };
+          }
+
           // Le meme appel, mais en annoncant « audio » : si la validation
           // porte sur ce champ, la difference sera immediate.
           try {
