@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { and, eq, gt, lt } from "drizzle-orm";
 
 import { roleAutoriseAdministration } from "@/lib/acces-administration";
+import { acteurDelegue } from "@/server/auth/acteur-delegue";
 import { db } from "@/server/db";
 import { sessions, utilisateurs } from "@/server/db/schema";
 import type { RoleUtilisateur } from "@/server/guard/permissions";
@@ -75,6 +76,13 @@ export async function ouvrirSession(
  * session opaque, rien d'autre.
  */
 export async function sessionCourante(): Promise<Principal | null> {
+  // L'API agent exécute les actions web au nom d'un acteur déjà vérifié (jeton de
+  // service + compte rechargé depuis la base) : voir `acteur-delegue.ts`. Ce
+  // contexte ne peut être posé que par du code serveur ; un navigateur n'en a
+  // jamais, et retombe sur son cookie ci-dessous.
+  const delegue = acteurDelegue();
+  if (delegue) return delegue;
+
   const magasin = await cookies();
   const jeton = magasin.get(NOM_COOKIE)?.value;
   if (!jeton) return null;

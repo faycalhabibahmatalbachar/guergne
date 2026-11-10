@@ -1,5 +1,18 @@
+import { eq } from "drizzle-orm";
+
+import {
+  changerClasse,
+  changerStatut,
+  inscrireEleve,
+  modifierEleve,
+} from "@/app/(main)/dashboard/eleves/actions";
+import { creerClasse, modifierClasse } from "@/app/(main)/dashboard/parametres/actions";
+import { executerEnTantQue } from "@/server/auth/acteur-delegue";
 import type { Principal } from "@/server/auth/session";
-import { listerClassesCourantes, listerEleves, statistiquesEleves } from "@/server/domain/eleves";
+import { db } from "@/server/db";
+import { classes, eleves } from "@/server/db/schema";
+import { archiverClassePour } from "@/server/domain/classes-ecritures";
+import { chargerDossier, listerClassesCourantes, listerEleves, statistiquesEleves } from "@/server/domain/eleves";
 import {
   enregistrerAppelPour,
   enregistrerRetardPour,
@@ -8,7 +21,7 @@ import {
 } from "@/server/domain/assiduite-ecritures";
 import { calendrierEvaluations, listerEvaluations, releveEleve } from "@/server/domain/evaluations";
 import { listerSituations, recouvrementParClasse, statistiquesFinancieres } from "@/server/domain/finances";
-import { listerPeriodes } from "@/server/domain/parametres";
+import { listerNiveaux, listerPeriodes, listerSeries } from "@/server/domain/parametres";
 import { listerTuteurs, statistiquesParents, tuteursDeLEleve } from "@/server/domain/parents";
 import { chargerEmploiDuTemps, listerEnseignants, listerClassesEtMatieres } from "@/server/domain/personnel";
 import {
@@ -173,6 +186,21 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
       }),
   },
   statistiquesEleves: { permission: "eleve:lire", executer: async (p) => statistiquesEleves(await anneeDeTravail(p) ?? undefined) },
+  // Le dossier complet d'un élève : identité, inscription, tuteurs. C'est la
+  // lecture qui sert aussi de VÉRIFICATION après une écriture — l'agent ne dit
+  // « fait » qu'après avoir relu ce que le backend a réellement enregistré.
+  consulterEleve: {
+    permission: "eleve:lire",
+    executer: async (p) => {
+      const eleveId = s(p.eleveId);
+      if (!eleveId) throw new TypeError("eleveId requis");
+      return (await chargerDossier(eleveId)) ?? { ok: false, message: "Élève introuvable." };
+    },
+  },
+  // Niveaux et séries : ce qu'il faut pour créer une classe sans que personne
+  // n'ait à dicter un identifiant.
+  listerNiveaux: { permission: "classe:lire", executer: () => listerNiveaux() },
+  listerSeries: { permission: "classe:lire", executer: () => listerSeries(true) },
 
   // --- Parents et responsables ---------------------------------------------
   rechercherTuteurs: {
@@ -342,7 +370,143 @@ export const OPERATIONS_ECRITURE: Record<string, OutilExpose> = {
       return supprimerAbsencePour(acteur, id, s(p.motif) ?? "");
     },
   },
+
+  // --- Élèves, classes, inscriptions ----------------------------------------
+  //
+  // CES ÉCRITURES N'ONT PAS ÉTÉ RÉÉCRITES : ELLES SONT EMPRUNTÉES.
+  //
+  // Elles existaient déjà, éprouvées, dans les actions de l'interface web :
+  // détection des homonymes, matricule tiré d'une séquence verrouillée,
+  // transaction unique élève + inscription + tuteurs + statut, audit dans la
+  // transaction. Les recopier aurait créé une seconde implémentation, et la
+  // première divergence aurait été une faille.
+  //
+  // `executerEnTantQue` les exécute au nom de l'acteur que la route a vérifié
+  // (jeton + compte rechargé) : l'action y lit son auteur comme elle lirait une
+  // session web, et refait sa propre vérification de droits. Voir
+  // `@/server/auth/acteur-delegue`.
+  inscrireEleve: {
+    permission: "eleve:inscrire",
+    executer: (p, acteur) => executerEnTantQue(acteur, () => inscrireEleve(p)),
+  },
+  modifierEleve: {
+    permission: "eleve:modifier",
+    executer: async (p, acteur) => {
+      const eleveId = s(p.eleveId);
+      if (!eleveId) throw new TypeError("eleveId requis");
+      const demandees = (p.modifications && typeof p.modifications === "object" ? p.modifications : {}) as Record<string, unknown>;
+      const [actuel] = await db.select().from(eleves).where(eq(eleves.id, eleveId)).limit(1);
+      if (!actuel) return { ok: false, message: "Élève introuvable." };
+      // L'action web attend le dossier ENTIER ; l'agent n'en change qu'une
+      // partie. On part donc de l'état relu en base, et l'on n'y superpose que
+      // les champs de la liste blanche : le modèle ne peut pas glisser un
+      // `statut`, un `matricule` ou un identifiant dans une « modification ».
+      const fusion: Record<string, unknown> = {};
+      for (const champ of CHAMPS_ELEVE_MODIFIABLES) {
+        fusion[champ] = champ in demandees ? demandees[champ] : (actuel as Record<string, unknown>)[champ];
+      }
+      const ignores = Object.keys(demandees).filter((c) => !CHAMPS_ELEVE_MODIFIABLES.includes(c as never));
+      if (ignores.length > 0) {
+        return { ok: false, message: `Champ(s) non modifiable(s) par cette opération : ${ignores.join(", ")}.` };
+      }
+      return executerEnTantQue(acteur, () => modifierEleve(eleveId, nullsEnVide(fusion)));
+    },
+  },
+  changerClasseEleve: {
+    // `classeId` désigne la classe de DESTINATION : c'est elle que la route
+    // soumet au contrôle de périmètre avant l'exécution.
+    permission: "eleve:affecter",
+    executer: (p, acteur) => {
+      const inscriptionId = s(p.inscriptionId);
+      const classeId = s(p.classeId);
+      if (!inscriptionId || !classeId) throw new TypeError("inscriptionId et classeId requis");
+      return executerEnTantQue(acteur, () => changerClasse(inscriptionId, classeId, s(p.motif) ?? ""));
+    },
+  },
+  archiverEleve: {
+    // L'archivage passe par l'historique des statuts : un déclencheur reporte
+    // la valeur sur la fiche. Rien n'est supprimé, tout reste consultable.
+    permission: "eleve:modifier",
+    executer: (p, acteur) => {
+      const eleveId = s(p.eleveId);
+      if (!eleveId) throw new TypeError("eleveId requis");
+      return executerEnTantQue(acteur, () => changerStatut(eleveId, "ARCHIVE", { motif: s(p.motif) ?? "" }));
+    },
+  },
+  creerClasse: {
+    permission: "classe:creer",
+    executer: async (p, acteur) => {
+      // L'année n'est jamais dictée : « crée la 6ème C » vise l'année courante.
+      const anneeId = await anneeDeTravail(p);
+      if (!anneeId) return { ok: false, message: "Aucune année scolaire en cours." };
+      return executerEnTantQue(acteur, () =>
+        creerClasse({
+          anneeId,
+          niveauId: p.niveauId,
+          serieId: s(p.serieId) ?? null,
+          libelle: p.libelle,
+          code: p.code,
+          capaciteMax: p.capaciteMax,
+        }),
+      );
+    },
+  },
+  modifierClasse: {
+    permission: "classe:modifier",
+    executer: async (p, acteur) => {
+      const classeId = s(p.classeId);
+      if (!classeId) throw new TypeError("classeId requis");
+      const [actuelle] = await db.select().from(classes).where(eq(classes.id, classeId)).limit(1);
+      if (!actuelle) return { ok: false, message: "Classe introuvable." };
+      const demandees = (p.modifications && typeof p.modifications === "object" ? p.modifications : {}) as Record<string, unknown>;
+      const ignores = Object.keys(demandees).filter((c) => !CHAMPS_CLASSE_MODIFIABLES.includes(c as never));
+      if (ignores.length > 0) {
+        return { ok: false, message: `Champ(s) non modifiable(s) par cette opération : ${ignores.join(", ")}.` };
+      }
+      // `anneeId` vient de la classe elle-même : une modification ne déplace
+      // jamais une classe d'une année à l'autre (l'action web ne l'écrit pas).
+      return executerEnTantQue(acteur, () =>
+        modifierClasse(classeId, {
+          anneeId: actuelle.anneeId,
+          niveauId: demandees.niveauId ?? actuelle.niveauId,
+          serieId: "serieId" in demandees ? demandees.serieId : actuelle.serieId,
+          libelle: demandees.libelle ?? actuelle.libelle,
+          code: demandees.code ?? actuelle.code,
+          capaciteMax: demandees.capaciteMax ?? actuelle.capaciteMax,
+        }),
+      );
+    },
+  },
+  archiverClasse: {
+    // Jamais `supprimerClasse` : c'est un DELETE, et la grille horaire de la
+    // classe part avec elle en cascade. L'agent archive, il ne détruit pas.
+    permission: "classe:modifier",
+    executer: (p, acteur) => archiverClassePour(acteur, p),
+  },
 };
+
+/**
+ * Les champs du dossier élève qu'une modification par l'agent peut toucher.
+ *
+ * Exactement ceux que `modifierEleve` écrit. Ni `statut` (il passe par
+ * l'historique des statuts), ni `matricule` (il est attribué par séquence), ni
+ * aucun identifiant.
+ */
+const CHAMPS_ELEVE_MODIFIABLES = [
+  "nom", "prenom", "sexe", "dateNaissance", "lieuNaissance", "nationalite", "acteNaissanceNumero",
+  "adresse", "quartier", "telephone", "email", "groupeSanguin", "allergies", "observationsMedicales",
+  "situationParticuliere", "urgenceNom", "urgenceTelephone", "urgenceLien", "ecoleOrigine",
+] as const;
+
+const CHAMPS_CLASSE_MODIFIABLES = ["niveauId", "serieId", "libelle", "code", "capaciteMax"] as const;
+
+/**
+ * Le schéma web attend des chaînes pour les champs facultatifs : un `null` relu
+ * en base le ferait échouer sur un champ que l'agent n'a même pas touché.
+ */
+function nullsEnVide(o: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v ?? ""]));
+}
 
 /**
  * Opération demandée, et pourquoi elle n'est pas disponible le cas échéant.
