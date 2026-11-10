@@ -412,3 +412,66 @@ Limite honnête : sur la branche de développement, l'année courante **est**
 discriminer. Il ne le prouvera que sur la branche à 2026-2027.
 
 Tests : **742/742** côté agent ; `tsc --noEmit` du backend propre.
+
+---
+
+## Branche Neon de production — audit en lecture seule du 2026-11-10
+
+**Verdict : la production utilise `br-red-waterfall-b1ajf6iu`** — celle de
+`web/.env.local`, à l'année 2026-2027, avec la migration 0040.
+
+### Plateforme
+
+Le backend `web/` est lié au projet Vercel `prj_o5eaz…` (`web/.vercel/project.json`).
+Le dépôt cite 8 fois `https://lycee-guergne-renaissance.vercel.app`, dont les
+routes `/api/agent/…` et `/api/notifications/traiter`. La sonde publique
+`/api/sante` y répond `200`, `base: connectee`.
+
+### Ce qui n'a PAS pu être vérifié
+
+Les variables du déploiement Production : **aucun accès Vercel sur ce poste**
+(ni CLI, ni jeton). `DATABASE_URL` de Production n'a donc pas été lue. La
+sonde publique ne révèle rien de la base, à dessein.
+
+### Méthode écartée — et pourquoi
+
+Compter `pg_stat_database.xact_commit` sur chaque branche pendant 40 appels à la
+sonde de production. Elle concluait à une « troisième base ». **Un contrôle
+l'a invalidée** : 40 `SELECT 1` passés soi-même par le pooler de la même
+branche ne donnaient qu'un excédent de 1. Le compteur lu sur le compute direct
+ne voit pas fiablement le trafic du pooler. Sa conclusion a été retirée.
+
+### Preuve retenue : la divergence après bifurcation
+
+`agent/scripts/identifier-branche-production.mjs`, rejouable :
+
+| | `br-red-waterfall` | `br-calm-art` |
+|---|---|---|
+| Fichier | `.env.local` | `.env.development.local` |
+| Année courante | 2026-2027 | 2025-2026 |
+| Migration 0040 | présente | absente |
+| Point de bifurcation | 2026-11-01 15:18:51 UTC (1 034 lignes d'audit communes) | idem |
+| Audit après bifurcation | **13, toutes de clients distants** | 11, **toutes locales** |
+| Sessions après bifurcation | **5, toutes distantes** | **0** |
+| Dernière activité distante | **2026-11-10 08:34 UTC** | — |
+
+Après la bifurcation, **toute** l'activité de clients distants est sur
+`br-red-waterfall` ; `br-calm-art` n'a reçu que de l'activité locale, le jour
+même. Aucune adresse n'a été affichée : seuls des comptes par catégorie.
+
+### Distinction des environnements
+
+| Environnement | Base | Établi par |
+|---|---|---|
+| **Production** (Vercel) | `br-red-waterfall` | divergence d'activité — preuve indirecte |
+| **Développement** (`next dev`) | `br-calm-art` | Next charge `.env.development.local` avant `.env.local` |
+| **Altare** | aucune | n'héberge que l'agent WhatsApp, qui ne parle jamais à Neon et appelle `SCHOOL_API_BASE_URL` ; la valeur réelle sur Altare **n'a pas été lue** |
+
+Conséquence : l'agent local (`agent/.env` → `localhost:3000` → `next dev`) lit
+la branche de **développement**, sans la 0040.
+
+### Ce qui rendrait la preuve directe
+
+Lire, dans Vercel → projet → Settings → Environment Variables → Production,
+l'hôte de `DATABASE_URL` (le préfixe `ep-…` seulement, jamais le mot de passe),
+et le comparer à l'endpoint de `br-red-waterfall` dans la console Neon.
