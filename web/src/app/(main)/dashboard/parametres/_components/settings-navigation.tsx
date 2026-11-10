@@ -13,6 +13,7 @@ import {
   GraduationCap,
   KeyRound,
   type LucideIcon,
+  MessageSquare,
   School,
   ScrollText,
   Search,
@@ -42,6 +43,7 @@ const ICONS: Record<string, LucideIcon> = {
   wallet: Wallet,
   diagnostic: ClipboardCheck,
   audit: ScrollText,
+  whatsapp: MessageSquare,
 };
 
 function normaliser(texte: string) {

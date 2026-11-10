@@ -16,7 +16,8 @@ export type SettingsPermission =
   | "classe:modifier"
   | "notification:configurer"
   | "finance:configurer"
-  | "audit:lire";
+  | "audit:lire"
+  | "systeme:administrer";
 
 export const SETTINGS_PERMISSIONS: readonly SettingsPermission[] = [
   "parametre:modifier",
@@ -30,6 +31,9 @@ export const SETTINGS_PERMISSIONS: readonly SettingsPermission[] = [
   "notification:configurer",
   "finance:configurer",
   "audit:lire",
+  // Technique, et non métier : associer un appareil WhatsApp au compte de
+  // l'établissement n'est pas un geste de gestion scolaire.
+  "systeme:administrer",
 ];
 
 export type SettingsCard = SettingsSection & {
@@ -137,6 +141,17 @@ export const SETTINGS_CARDS: readonly SettingsCard[] = [
     keywords: "verification configuration coherence controle annee",
     droits: ["parametre:modifier"],
     action: "Lancer",
+  },
+  {
+    id: "whatsapp",
+    label: "Connexion WhatsApp",
+    description: "État de la session de l'assistant et code QR d'association.",
+    group: "FINANCES ET CONTRÔLE",
+    href: "/dashboard/parametres/whatsapp",
+    icon: "whatsapp",
+    keywords: "qr code appairage session assistant agent liaison telephone scanner",
+    droits: ["systeme:administrer"],
+    action: "Ouvrir",
   },
   {
     id: "audit",
