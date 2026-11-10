@@ -40,9 +40,39 @@ function config() {
   };
 }
 
-/** Jamais transférés ni parcourus : dépendances, secrets, état persistant, caches. */
-const EXCLUS_LOCAUX = [/node_modules/, /\.git/, /\.env$/, /\.env\./, /^donnees\//, /\.tmp$/];
-const EXCLUS_DISTANTS = new Set(["node_modules", ".npm", ".cache", "donnees", ".git", ".wwebjs_auth", "tmp"]);
+/**
+ * Jamais transférés ni parcourus : dépendances, secrets, état persistant, caches.
+ *
+ * LA LISTE ÉTAIT TROP COURTE, ET CELA S'EST VU LE 2026-11-10
+ * ----------------------------------------------------------
+ * Un déploiement a commencé à téléverser **2 476** fichiers au lieu de 75 : les
+ * 2 282 preuves et enregistrements de `donnees-locales/`, les 111 fichiers
+ * d'une sauvegarde du code d'Altare — renvoyée à Altare — et le cache
+ * `.wwebjs_cache/` d'une instance locale. Sur cette liaison, c'était des heures
+ * de transfert pour rien, et surtout : déposer le cache WhatsApp Web d'une
+ * autre machine dans le dossier où la bibliothèque va le relire est une
+ * invitation à un défaut incompréhensible trois semaines plus tard.
+ *
+ * `/^donnees\//` ne couvrait pas `donnees-locales/` : le nom diffère. Les
+ * répertoires de travail local sont donc nommés un par un ci-dessous.
+ */
+const EXCLUS_LOCAUX = [
+  /node_modules/,
+  /\.git/,
+  /\.env$/,
+  /\.env\./,
+  /^donnees\//,
+  /\.tmp$/,
+  // État et artefacts locaux : ils n'ont aucun sens sur le serveur.
+  /^donnees-locales\//,
+  /^sauvegardes\//,
+  /^\.wwebjs_cache\//,
+  /^\.wwebjs_auth\//,
+  /^\.cache\//,
+  /^\.deps-/,
+  /^preuves/,
+];
+const EXCLUS_DISTANTS = new Set(["node_modules", ".npm", ".cache", "donnees", ".git", ".wwebjs_auth", ".wwebjs_cache", "donnees-locales", "sauvegardes", "tmp"]);
 
 function fichiersLocaux(base) {
   const out = [];
