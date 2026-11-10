@@ -126,6 +126,39 @@ export class Pairing {
   }
 }
 
+/**
+ * Voie SERVEUR-À-SERVEUR : le jeton de service du backend, et lui seul.
+ *
+ * POURQUOI ELLE EXISTE À CÔTÉ DU JETON D'APPAIRAGE
+ * ------------------------------------------------
+ * Le jeton d'appairage est à usage unique et brûlé après le scan. C'est la
+ * bonne règle pour un secret remis à un humain, et c'est aussi ce qui rendait
+ * l'écran d'administration impossible : celui-ci doit pouvoir lire l'état et
+ * le QR à chaque redémarrage de l'agent, sans qu'un opérateur aille chercher
+ * un fichier dans le conteneur par SFTP.
+ *
+ * Le backend détient déjà `AGENT_SERVICE_TOKEN`, partagé avec l'agent. Ce
+ * secret est STRICTEMENT PLUS PUISSANT que le QR — il autorise les écritures
+ * scolaires. L'accepter ici n'ouvre donc aucun pouvoir nouveau, et il ne
+ * quitte jamais le serveur : le navigateur ne reçoit que des pixels.
+ *
+ * Deux différences assumées avec le jeton d'appairage : il n'est jamais brûlé
+ * (c'est une identité, pas un laissez-passer d'usage unique) et il n'est pas
+ * compté dans la limitation par origine (le backend n'est pas un visiteur).
+ * La comparaison reste à temps constant : une égalité qui fuit sa longueur de
+ * préfixe se devine octet par octet.
+ *
+ * @param {unknown} fourni   en-tête reçu
+ * @param {string|null|undefined} attendu  secret configuré, s'il existe
+ */
+export function jetonDeServiceValide(fourni, attendu) {
+  if (typeof fourni !== "string" || !fourni) return false;
+  if (typeof attendu !== "string" || !attendu) return false;
+  const a = Buffer.from(fourni);
+  const b = Buffer.from(attendu);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 /** Jeton d'appairage aléatoire, si l'environnement n'en fournit pas. */
 export function jetonAleatoire() {
   return randomBytes(24).toString("base64url");

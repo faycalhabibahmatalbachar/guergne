@@ -14,9 +14,11 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import QRCode from "qrcode";
 
-import { Pairing, pageAppairage } from "../src/pairing.js";
+import { Pairing, jetonDeServiceValide, pageAppairage } from "../src/pairing.js";
 
 const JETON = "jeton-integration-0123456789";
+/** Secret de service du backend : meme valeur des deux cotes, comme en production. */
+const JETON_SERVICE = "jeton-de-service-du-backend-012";
 
 function entetesSurs(extra = {}) {
   return {
@@ -32,6 +34,9 @@ function entetesSurs(extra = {}) {
 /** Monte un serveur réel autour d'un Pairing donné. */
 async function monter(pairing) {
   const autorise = (req, res) => {
+    // MEME ordre et MEME fonction que `app.js` : la voie serveur-a-serveur
+    // precede la voie humaine et n'en change aucune regle.
+    if (jetonDeServiceValide(req.headers["x-agent-service-token"], JETON_SERVICE)) return true;
     const r = pairing.verifier(req.headers["x-pairing-token"], {
       origine: req.socket?.remoteAddress ?? "inconnue",
     });
@@ -272,5 +277,85 @@ test("/sante reste fonctionnel et ne demande aucun jeton", async () => {
     assert.equal((await r.json()).processus, "ok");
   } finally {
     await s.fermer();
+  }
+});
+
+// --- La voie serveur-a-serveur, en HTTP reel ------------------------------
+
+test("le jeton de service lit l'etat et l'image, sans jeton d'appairage", async () => {
+  const p = new Pairing({ jeton: JETON });
+  p.nouveauQr("2@valeur-de-qr-de-test");
+  const { base, fermer } = await monter(p);
+  try {
+    const e = await fetch(`${base}/pairing/etat`, { headers: { "x-agent-service-token": JETON_SERVICE } });
+    assert.equal(e.status, 200);
+    const corps = await e.json();
+    assert.equal(corps.etat, "pret");
+    // L'etat ne doit JAMAIS porter la valeur du QR, quelle que soit la voie.
+    assert.ok(!JSON.stringify(corps).includes("2@valeur-de-qr-de-test"));
+
+    const q = await fetch(`${base}/pairing/qr`, { headers: { "x-agent-service-token": JETON_SERVICE } });
+    assert.equal(q.status, 200);
+    assert.equal(q.headers.get("content-type"), "image/png");
+    assert.equal(q.headers.get("cache-control"), "no-store, no-cache, must-revalidate, private");
+    const png = Buffer.from(await q.arrayBuffer());
+    assert.ok(png.length > 100);
+    assert.equal(png.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  } finally {
+    await fermer();
+  }
+});
+
+test("un faux jeton de service ne donne rien", async () => {
+  const p = new Pairing({ jeton: JETON });
+  p.nouveauQr("2@valeur-de-qr-de-test");
+  const { base, fermer } = await monter(p);
+  try {
+    for (const entete of [{ "x-agent-service-token": "faux" }, { "x-agent-service-token": "" }, {}]) {
+      const r = await fetch(`${base}/pairing/qr`, { headers: entete });
+      assert.equal(r.status, 401);
+    }
+  } finally {
+    await fermer();
+  }
+});
+
+test("le jeton de service reste valable apres authentification, mais le QR a disparu", async () => {
+  // Deux garanties d'un coup : le backend garde son acces (sinon l'ecran
+  // d'administration tomberait des que la session est liee) et ce qu'il
+  // obtient alors est l'etat, jamais une image, parce qu'il n'y en a plus.
+  const p = new Pairing({ jeton: JETON });
+  p.nouveauQr("2@valeur-de-qr-de-test");
+  p.marquerAuthentifie();
+  const { base, fermer } = await monter(p);
+  try {
+    const e = await fetch(`${base}/pairing/etat`, { headers: { "x-agent-service-token": JETON_SERVICE } });
+    assert.equal(e.status, 200);
+    assert.equal((await e.json()).etat, "authentifie");
+
+    const q = await fetch(`${base}/pairing/qr`, { headers: { "x-agent-service-token": JETON_SERVICE } });
+    assert.equal(q.status, 409);
+    assert.equal((await q.json()).erreur, "authentifie");
+  } finally {
+    await fermer();
+  }
+});
+
+test("la voie de service ne consomme pas la limitation par origine", async () => {
+  // Le backend sonde en boucle, toutes les cinq secondes. S'il etait compte
+  // comme un visiteur, il verrouillerait l'appairage pour le personnel.
+  const p = new Pairing({ jeton: JETON });
+  p.nouveauQr("2@valeur-de-qr-de-test");
+  const { base, fermer } = await monter(p);
+  try {
+    for (let i = 0; i < 20; i += 1) {
+      const r = await fetch(`${base}/pairing/etat`, { headers: { "x-agent-service-token": JETON_SERVICE } });
+      assert.equal(r.status, 200);
+    }
+    // Le personnel passe toujours, avec son propre jeton.
+    const humain = await fetch(`${base}/pairing/etat`, { headers: { "x-pairing-token": JETON } });
+    assert.equal(humain.status, 200);
+  } finally {
+    await fermer();
   }
 });

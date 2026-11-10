@@ -22,7 +22,7 @@ import { Agent } from "./src/engine.js";
 import { GuergneHttpClient } from "./src/guergne-client.js";
 import { IdentityStorePersistant } from "./src/identity-store.js";
 import { FOURNISSEURS as FOURNISSEURS_CONNUS, MoteurIA, configurerDepuisEnv } from "./src/ia.js";
-import { Pairing, jetonAleatoire, pageAppairage } from "./src/pairing.js";
+import { Pairing, jetonAleatoire, jetonDeServiceValide, pageAppairage } from "./src/pairing.js";
 import { MatricePermissions } from "./src/permissions-matrix.js";
 import { Referentiel } from "./src/referentiel.js";
 import { resoudreNomsEleves } from "./src/resolution-eleves.js";
@@ -468,6 +468,9 @@ function origineDe(req) {
 
 /** Vérifie le jeton d'appairage. Ni le jeton ni la raison du refus ne sont journalisés. */
 function autorise(req, res) {
+  // Voie serveur-a-serveur : le backend scolaire presente son jeton de
+  // service. Elle precede la voie humaine, et n'en modifie aucune regle.
+  if (jetonDeServiceValide(req.headers["x-agent-service-token"], CONF.jetonService)) return true;
   const r = pairing.verifier(req.headers["x-pairing-token"], { origine: origineDe(req) });
   if (r.ok) return true;
   const code = r.raison === "trop_de_tentatives" ? 429 : r.raison === "revoque" ? 410 : 401;

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { Pairing, jetonAleatoire, pageAppairage } from "../src/pairing.js";
+import { Pairing, jetonAleatoire, jetonDeServiceValide, pageAppairage } from "../src/pairing.js";
 
 const JETON = "jeton-de-test-0123456789";
 const creer = (t0 = 0) => {
@@ -126,4 +126,50 @@ test("la page ne contient aucune valeur de QR", () => {
   assert.equal(html.includes("2@"), false);
   // Le QR est chargé par requête séparée, pas incorporé dans le HTML.
   assert.equal(html.includes("data:image"), false);
+});
+
+// --- La voie serveur-a-serveur -------------------------------------------
+//
+// Elle existe pour que l'ecran d'administration puisse lire l'etat et le QR
+// sans qu'un humain aille chercher un fichier dans le conteneur. Elle ne doit
+// surtout pas devenir une porte derobee : ces tests fixent ses limites.
+
+test("le jeton de service est accepte tel quel", () => {
+  assert.equal(jetonDeServiceValide("secret-de-service", "secret-de-service"), true);
+});
+
+test("un jeton de service faux est refuse", () => {
+  assert.equal(jetonDeServiceValide("secret-de-servicX", "secret-de-service"), false);
+});
+
+test("un prefixe correct ne suffit pas", () => {
+  // Une comparaison naive qui s'arrete au premier octet different laisse
+  // deviner le secret octet par octet. Ici, les longueurs differentes sont
+  // rejetees avant toute comparaison.
+  assert.equal(jetonDeServiceValide("secret", "secret-de-service"), false);
+});
+
+test("sans secret configure, aucune voie de service n'existe", () => {
+  // Le defaut le plus dangereux serait qu'un deploiement sans
+  // AGENT_SERVICE_TOKEN accepte un en-tete vide comme preuve d'identite.
+  for (const attendu of [null, undefined, ""]) {
+    assert.equal(jetonDeServiceValide("n'importe quoi", attendu), false);
+    assert.equal(jetonDeServiceValide("", attendu), false);
+  }
+});
+
+test("un en-tete absent ou non textuel est refuse", () => {
+  for (const fourni of [undefined, null, "", 0, 1, [], {}, ["secret-de-service"]]) {
+    assert.equal(jetonDeServiceValide(fourni, "secret-de-service"), false);
+  }
+});
+
+test("le jeton de service n'est PAS brule par une authentification", () => {
+  // C'est la difference voulue avec le jeton d'appairage : le backend garde
+  // son identite apres le scan, sinon l'ecran cesserait de fonctionner.
+  const p = new Pairing({ jeton: "jeton-humain-0123456789" });
+  p.nouveauQr("valeur");
+  p.marquerAuthentifie();
+  assert.equal(p.verifier("jeton-humain-0123456789").ok, false);
+  assert.equal(jetonDeServiceValide("secret-de-service", "secret-de-service"), true);
 });
