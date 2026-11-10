@@ -100,12 +100,23 @@ async function nettoyer(fichierIds) {
     const compte = async (sql, p) => (await db.query(sql, p)).rowCount;
     // Les notifications produites pour l'eleve de synthese, AVANT de supprimer
     // l'eleve : la cle passerait a NULL et on ne les retrouverait plus.
-    const n0 = ids.eleveId ? await compte("DELETE FROM notifications WHERE eleve_id = $1", [ids.eleveId]) : 0;
-    const n1 = ids.eleveId ? await compte("DELETE FROM eleves WHERE id = $1 AND nom LIKE $2", [ids.eleveId, `%${MARQUE}%`]) : 0;
+    // Deux eleves de synthese depuis 0041 : celui du SUPER_ADMIN et celui que
+    // la DIRECTION inscrit elle-meme, pour prouver son nouveau droit.
+    const elevesSynthese = [ids.eleveId, ids.eleveDirectionId].filter(Boolean);
+    let n0 = 0;
+    let n1 = 0;
+    for (const id of elevesSynthese) {
+      n0 += await compte("DELETE FROM notifications WHERE eleve_id = $1", [id]);
+      n1 += await compte("DELETE FROM eleves WHERE id = $1 AND nom LIKE $2", [id, `%${MARQUE}%`]);
+    }
     // Le tuteur de synthese seulement s'il n'est rattache a PERSONNE d'autre.
-    const n2 = ids.tuteurId
-      ? await compte("DELETE FROM tuteurs t WHERE t.id = $1 AND t.telephone = $2 AND NOT EXISTS (SELECT 1 FROM eleve_tuteur et WHERE et.tuteur_id = t.id)", [ids.tuteurId, TELEPHONE_FICTIF])
-      : 0;
+    let n2 = 0;
+    for (const id of [ids.tuteurId, ids.tuteurDirectionId].filter(Boolean)) {
+      n2 += await compte(
+        "DELETE FROM tuteurs t WHERE t.id = $1 AND t.telephone = $2 AND NOT EXISTS (SELECT 1 FROM eleve_tuteur et WHERE et.tuteur_id = t.id)",
+        [id, TELEPHONE_FICTIF],
+      );
+    }
     let n3 = 0;
     for (const id of ids.classes ?? []) n3 += await compte("DELETE FROM classes WHERE id = $1 AND libelle LIKE $2", [id, `%${MARQUE}%`]);
     await db.query("COMMIT");
@@ -127,7 +138,7 @@ async function recette() {
   const client = new GuergneHttpClient({ baseUrl: BACKEND, serviceToken: jeton });
   const { db, branche } = await ouvrirBaseDeTest();
   const q = async (sql, p) => (await db.query(sql, p)).rows;
-  const ids = { branche, classes: [], eleveId: null, tuteurId: null, inscriptionId: null };
+  const ids = { branche, classes: [], eleveId: null, tuteurId: null, inscriptionId: null, eleveDirectionId: null, tuteurDirectionId: null };
   const fichierIds = join(process.env.TEMP ?? racine, `recette-crud-${Date.now()}.json`);
   const consigner = () => writeFileSync(fichierIds, JSON.stringify(ids, null, 2));
 
@@ -321,9 +332,14 @@ async function recette() {
       } else {
         constater("compte DESACTIVE : NON EXECUTE (aucun compte inactif)", false);
       }
-      // UN ROLE ACTIF SANS LA PERMISSION. La matrice reelle (table
-      // `permissions`) ne donne PAS `eleve:inscrire` a la DIRECTION : c'est le
-      // refus de role le plus probant disponible ici.
+      // LA DIRECTION INSCRIT — CE TEST A CHANGE DE SENS AVEC 0041.
+      //
+      // Il affirmait l'inverse : « DIRECTION (sans eleve:inscrire) qui inscrit :
+      // refuse ». C'etait vrai, et c'etait le defaut que le proprietaire a
+      // tranche le 2026-11-10 — la direction doit pouvoir inscrire. La
+      // migration 0041 lui accorde les 39 droits metier ; ce test prouve
+      // desormais qu'elle en dispose REELLEMENT par le chemin HTTP de l'agent,
+      // et non seulement dans une ligne de table.
       const [direction] = await q("SELECT id::text FROM utilisateurs WHERE NOT donnees_semees AND role = 'DIRECTION' AND actif LIMIT 1");
       if (direction) {
         const avantEleves = (await q("SELECT count(*)::int n FROM eleves"))[0].n;
@@ -331,11 +347,69 @@ async function recette() {
           { ...identite, prenom: `Direction${suffixe}`, classeId: classe2, tuteurs: [{ nom: MARQUE, prenom: "Tuteur", telephone: TELEPHONE_FICTIF, lien: "PERE", estPrincipal: true }] },
           { actorId: direction.id },
         );
+        ids.eleveDirectionId = rd?.data?.id ?? null;
         const apresEleves = (await q("SELECT count(*)::int n FROM eleves"))[0].n;
-        constater("DIRECTION (sans eleve:inscrire) qui inscrit : refuse, rien d'ecrit", rd?.ok === false && rd?.status === 403 && apresEleves === avantEleves, String(rd?.status));
+        constater(
+          "DIRECTION qui inscrit : AUTORISE (0041)",
+          rd?.ok === true && Boolean(ids.eleveDirectionId) && apresEleves === avantEleves + 1,
+          rd?.message ?? String(rd?.status),
+        );
+        // Un 200 ne vaut rien tant que la base ne le confirme pas : on relit
+        // l'eleve, son inscription, son tuteur, et la ligne d'audit — au nom de
+        // la DIRECTION, pas du jeton de service.
+        const [l] = ids.eleveDirectionId
+          ? await q(
+              "SELECT e.nom, i.id::text inscription, i.classe_id::text classe, et.tuteur_id::text tuteur FROM eleves e LEFT JOIN inscriptions i ON i.eleve_id = e.id LEFT JOIN eleve_tuteur et ON et.eleve_id = e.id WHERE e.id = $1",
+              [ids.eleveDirectionId],
+            )
+          : [];
+        ids.tuteurDirectionId = l?.tuteur ?? null;
+        constater("DIRECTION inscrit : persiste en base (eleve, inscription, classe, tuteur)",
+          Boolean(l?.inscription) && l?.classe === classe2 && Boolean(l?.tuteur), l?.nom ?? "absent");
+        const [tr] = ids.eleveDirectionId
+          ? await q(
+              "SELECT utilisateur_id::text acteur, role_acteur FROM journal_audit WHERE action = 'eleve.inscrit' AND entite_id::text = $1 ORDER BY cree_le DESC LIMIT 1",
+              [ids.eleveDirectionId],
+            )
+          : [];
+        // L'audit doit porter le nom de la DIRECTION, et non celui du jeton de
+        // service : c'est tout l'objet de `executerEnTantQue`.
+        constater(
+          "DIRECTION inscrit : audit au nom de l'acteur reel",
+          tr?.acteur === direction.id && tr?.role_acteur === "DIRECTION",
+          `${tr?.acteur ?? "aucune ligne"} ${tr?.role_acteur ?? ""}`.trim(),
+        );
       } else {
-        constater("refus de role DIRECTION : NON EXECUTE (aucun compte actif)", false);
+        constater("DIRECTION qui inscrit : NON EXECUTE (aucun compte actif)", false);
       }
+
+      // CE QUE LA DIRECTION NE PEUT TOUJOURS PAS.
+      //
+      // Aucune operation exposee a l'agent n'exige un droit reserve : les 18
+      // permissions du registre (`web/src/server/agent/operations.ts`) sont
+      // toutes metier. Un refus de bout en bout sur `permission:gerer` n'est
+      // donc PAS atteignable par cette voie, et pretendre le tester ici serait
+      // une mise en scene. On verifie l'autorite elle-meme — la table que
+      // `requirePermission` interroge — et le consommateur reel de
+      // `systeme:administrer` est eprouve ailleurs : l'ecran d'appairage
+      // WhatsApp (voir docs/CONNEXION_WHATSAPP.md).
+      const reserves = ["permission:gerer", "systeme:administrer", "sauvegarde:executer"];
+      const [{ n: nReserves }] = await q(
+        "SELECT count(*)::int n FROM permissions WHERE role = 'DIRECTION' AND action = ANY($1)",
+        [reserves],
+      );
+      constater("DIRECTION n'a AUCUN des 3 droits reserves", nReserves === 0, `${nReserves} trouve(s)`);
+      const [{ n: nDir }] = await q("SELECT count(*)::int n FROM permissions WHERE role = 'DIRECTION'");
+      const [{ n: nSa }] = await q("SELECT count(*)::int n FROM permissions WHERE role = 'SUPER_ADMIN'");
+      constater("DIRECTION = SUPER_ADMIN moins les 3 reserves", nDir === nSa - 3, `${nDir} / ${nSa}`);
+      const [{ n: nPortees }] = await q("SELECT count(*)::int n FROM permissions WHERE role = 'DIRECTION' AND portee <> 'AUCUNE'");
+      constater("DIRECTION : perimetre global, aucune portee restreinte", nPortees === 0, `${nPortees} restreinte(s)`);
+      // NON-REGRESSION des autres roles. Les comptes sont ceux releves le
+      // 2026-11-10, AVANT 0041 : ils ne doivent pas avoir bouge d'une ligne.
+      const attendus = { SUPER_ADMIN: 78, CENSEUR: 23, SECRETARIAT: 17, SURVEILLANT: 14, ENSEIGNANT: 14, PARENT: 13, COMPTABLE: 9, ELEVE: 7 };
+      const reels = Object.fromEntries((await q("SELECT role, count(*)::int n FROM permissions WHERE role <> 'DIRECTION' GROUP BY role")).map((r) => [r.role, r.n]));
+      const ecarts = Object.entries(attendus).filter(([r, n]) => reels[r] !== n).map(([r, n]) => `${r} ${reels[r] ?? 0}!=${n}`);
+      constater("aucun autre role n'a change", ecarts.length === 0 && Object.keys(reels).length === Object.keys(attendus).length, ecarts.join(", ") || "8 roles inchanges");
       const brut = await fetch(`${BACKEND}/api/agent/creerClasse`, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${jeton}`, "x-acteur-id": admin.id },
