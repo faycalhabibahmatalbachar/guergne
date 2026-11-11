@@ -23,6 +23,7 @@ import { creerAttente, evaluerReponse } from "./confirmation.js";
 import { DECISIONS, MOTIFS, NOTIFIER } from "./politiques.js";
 import { RAISONS, analyserJid, empreinte, jidUtilisateur, resoudreNumeroDepuisJid } from "./jid.js";
 import { INTENTIONS, normaliserPlan } from "./plan.js";
+import { analyserCommandeMemoire } from "./memory-policy.js";
 import { documentDeMission, genererDocument } from "./document.js";
 import { cleNotification } from "./notifications.js";
 import { ETAPE, agreger, estTransitoire, rendreBilan, validerMission } from "./mission.js";
@@ -111,6 +112,34 @@ export class Agent {
    * renvoie son message — ce qui ne change rien. Cette enveloppe transforme
    * toute défaillance en message explicite.
    */
+  async _sendText(msg, texte, { remember = false, intention = null, tool = null } = {}) {
+    await this.provider.sendText(msg.fromJid, texte);
+    if (this.memory?.enabled && msg?.memoryContext?.conversationId) {
+      try {
+        await this.memory.appendMessage({
+          session: msg.memoryContext,
+          text: texte,
+          direction: "outbound",
+          messageType: "text",
+          retainContent: remember,
+          intent: intention,
+          tool,
+        });
+      } catch (error) {
+        this.journalEtape?.({ event: "memory_reply_save_failed", code: error?.code ?? "unknown" });
+      }
+    }
+  }
+
+  async _clearMemoryState(session) {
+    if (!this.memory?.enabled || !session?.conversationId) return;
+    try {
+      await this.memory.clearState(session);
+    } catch (error) {
+      this.journalEtape?.({ event: "memory_state_clear_failed", code: error?.code ?? "unknown" });
+    }
+  }
+
   async handle(raw) {
     const runId = raw?.runId ?? uid("run");
     const msg = normalizeIncoming(raw);
@@ -140,10 +169,7 @@ export class Agent {
 
       // L'envoi peut échouer à son tour ; cela ne doit pas masquer la cause.
       try {
-        await this.provider.sendText(
-          msg.fromJid,
-          "Une erreur technique m'a empêché de traiter votre message. Réessayez dans un instant.",
-        );
+        await this._sendText(msg, "Une erreur technique m'a empêché de traiter votre message. Réessayez dans un instant.");
       } catch {
         /* le journal porte déjà l'échec */
       }
@@ -256,7 +282,7 @@ export class Agent {
     });
 
     if (!staff) {
-      await this.provider.sendText(msg.fromJid, "Numéro non autorisé.");
+      await this._sendText(msg, "Numéro non autorisé.");
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: null, role: null, channel: msg.kind,
         message: msg.text, intent: null, result: "REFUSED_UNKNOWN", raison,
@@ -285,7 +311,7 @@ export class Agent {
       const texte =
         `Agent WhatsApp connecte. Identite reconnue : ${staff.role}. ` +
         `Service IA : ${etat.ia ?? "inconnu"}. Backend scolaire : ${etat.backend ?? "inconnu"}.`;
-      await this.provider.sendText(msg.fromJid, texte);
+      await this._sendText(msg, texte);
       this.journalEtape?.({ event: "commande_diagnostic", run: runId, role: staff.role });
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
@@ -417,17 +443,128 @@ export class Agent {
       if (langueEntendue) this.provider.langueSouhaitee?.(msg.fromJid, langueEntendue);
     }
 
+    let memoryContext = null;
+    if (this.memory?.enabled) {
+      try {
+        memoryContext = await this.memory.prepare({
+          actorId: staff.id,
+          // Le JID canonique du numéro déjà autorisé, jamais un LID volatil.
+          jid: jidUtilisateur(resolution.numero),
+          providerMessageId: msg.id,
+          text,
+          messageType: msg.kind,
+        });
+        msg.memoryContext = memoryContext;
+        this.journalEtape?.({
+          event: "memory_context_loaded",
+          run: runId,
+          historyMessages: memoryContext.history?.length ?? 0,
+          pending: memoryContext.pending?.intention ?? null,
+        });
+      } catch (error) {
+        this.journalEtape?.({ event: "memory_unavailable", run: runId, code: error?.code ?? "unknown" });
+        msg.memoryContext = null;
+      }
+    }
+
+    // Commandes explicites de mémoire. Elles sont traitées après authentification
+    // et avant le NLU ; aucune donnée scolaire n'est envoyée au modèle pour cela.
+    const commandeMemoire = analyserCommandeMemoire(text);
+    if (commandeMemoire) {
+      if (!this.memory?.enabled) {
+        await this._sendText(msg, "La mémoire conversationnelle n'est pas activée.");
+        return { status: Status.COMPLETED, runId, memory: "disabled" };
+      }
+      if (commandeMemoire.type === "remember") {
+        await this.memory.saveFact({
+          actorId: staff.id,
+          category: commandeMemoire.category,
+          key: commandeMemoire.key,
+          value: commandeMemoire.value,
+          source: "user_explicit",
+          importance: 4,
+        });
+        await this._sendText(msg,
+          "C'est noté. Je retiendrai votre préférence : " + commandeMemoire.value +
+          ". Vous pouvez dire « Mémoire » pour la consulter ou « Oublie ma mémoire » pour l'effacer.");
+        return { status: Status.COMPLETED, runId, memory: "saved" };
+      }
+      if (commandeMemoire.type === "show") {
+        const facts = await this.memory.listFacts(staff.id);
+        const texte = facts.length
+          ? "Voici les préférences que j'ai mémorisées :\n" +
+            facts.map((f) => "• " + f.key + " : " + f.value).join("\n")
+          : "Je n'ai encore aucune préférence durable enregistrée.";
+        await this._sendText(msg, texte);
+        return { status: Status.COMPLETED, runId, memory: "listed", count: facts.length };
+      }
+      if (commandeMemoire.type === "forget") {
+        this.pending.delete(msg.fromJid);
+        const deleted = await this.memory.forgetActor(staff.id);
+        msg.memoryContext = null;
+        await this.provider.sendText(
+          msg.fromJid,
+          "Votre mémoire conversationnelle a été effacée : préférences, résumés, historique et demandes en attente.",
+        );
+        this.journalEtape?.({ event: "memory_forgotten", run: runId, ...deleted });
+        return { status: Status.COMPLETED, runId, memory: "forgotten", deleted };
+      }
+      if (commandeMemoire.type === "unsupported_remember") {
+        await this._sendText(msg,
+          "Pour protéger les informations des élèves, je mémorise uniquement trois préférences : " +
+          "la langue, le style de réponse et le format des rapports. Exemple : « Retiens que je préfère les réponses courtes ». " +
+          "Aucun nom, dossier ou renseignement scolaire n'est conservé comme préférence.");
+        return { status: Status.WAITING_INPUT, runId, memory: "unsupported" };
+      }
+    }
+
     // 4. Réponse à une confirmation en attente ?
     //
     // L'attente est à usage unique et RETIRÉE dès qu'on la lit : quelle que
     // soit l'issue, un second message ne la retrouvera pas. Voir
     // `confirmation.js` pour les trois failles que cela ferme.
-    const waiting = this.pending.get(msg.fromJid);
+    //
+    // Après un redémarrage, elle peut être relue depuis la mémoire Neon. Elle
+    // n'est alors reprise que si elle porte l'empreinte, l'expiration et
+    // l'utilisateur d'une attente durcie : `evaluerReponse` recalcule
+    // l'empreinte et applique le délai, exactement comme pour une attente en
+    // mémoire vive. Une ancienne forme, sans ces garanties, est ignorée.
+    const pendingMemory = memoryContext?.pending;
+    const persistee =
+      pendingMemory?.intention === "approval" && pendingMemory.empreinte && Number.isFinite(pendingMemory.expireA)
+        ? (() => {
+            const t = this.tools.get(pendingMemory.tool);
+            return t
+              ? Object.freeze({
+                  tool: t,
+                  params: pendingMemory.params ?? {},
+                  runId: pendingMemory.runId ?? runId,
+                  staffId: pendingMemory.staffId,
+                  empreinte: pendingMemory.empreinte,
+                  expireA: pendingMemory.expireA,
+                })
+              : null;
+          })()
+        : null;
+    const waiting = this.pending.get(msg.fromJid) ?? persistee;
     if (waiting) {
       this.pending.delete(msg.fromJid);
       const issue = evaluerReponse(waiting, { texte: text, staffId: staff.id });
       this.journalEtape?.({ event: "confirmation_evaluee", run: waiting.runId, outil: waiting.tool.name, issue, empreinte: waiting.empreinte });
+      // Quelle que soit l'issue, l'attente persistée tombe avec l'attente vive.
+      if (pendingMemory?.intention === "approval") await this._clearMemoryState(memoryContext);
       if (issue === "confirmer") {
+        // Les droits sont revérifiés au moment du oui : ils ont pu changer
+        // depuis le récapitulatif, a fortiori après un redémarrage.
+        if (!this.permissions.allows(staff, waiting.tool.permission)) {
+          await this._sendText(msg, "Vous n'avez plus les droits pour cette opération.");
+          this.audit.record({
+            runId: waiting.runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role,
+            channel: msg.kind, intent: waiting.tool.name, result: "DENIED",
+            permission: "DENIED:" + waiting.tool.permission, durationMs: Date.now() - started,
+          });
+          return { status: Status.FAILED, reason: "permission", runId: waiting.runId };
+        }
         return this._execute(waiting.tool, waiting.params, { staff, msg, runId: waiting.runId, transcription, started, confirmed: true });
       }
       if (issue === "annuler" || issue === "expiree" || issue === "autre_utilisateur") {
@@ -436,7 +573,7 @@ export class Agent {
           expiree: "La demande de confirmation a expiré : rien n'a été modifié. Reformulez la demande si elle tient toujours.",
           autre_utilisateur: "Cette confirmation ne correspond pas à la demande en cours : rien n'a été modifié.",
         }[issue];
-        await this.provider.sendText(msg.fromJid, texteIssue);
+        await this._sendText(msg, texteIssue);
         this.audit.record({
           runId: waiting.runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role,
           channel: msg.kind, intent: waiting.tool.name,
@@ -458,8 +595,32 @@ export class Agent {
     // 5. Compréhension (NLU ; réel : LLM)
     this.journalEtape?.({ event: "llm_request_started", run: runId });
     const debutNlu = Date.now();
-    const brut = await this.interpret(text, { staff, tools: this.tools });
+    const brut = await this.interpret(text, {
+      staff,
+      tools: this.tools,
+      memory: {
+        history: memoryContext?.history ?? [],
+        pending: memoryContext?.pending ?? null,
+        summaries: memoryContext?.summaries ?? [],
+        facts: memoryContext?.facts ?? [],
+        lastTask: memoryContext?.lastTask ?? null,
+      },
+    });
     const plan = normaliserPlan(brut, this.tools);
+    if (memoryContext && typeof this.memory?.annotateInbound === "function") {
+      try {
+        await this.memory.annotateInbound({
+          session: memoryContext,
+          providerMessageId: msg.id,
+          text,
+          intention: plan.type,
+          tool: plan.nomOutil ?? null,
+          retainContent: plan.type === INTENTIONS.CONVERSATION,
+        });
+      } catch (error) {
+        this.journalEtape?.({ event: "memory_message_classification_failed", code: error?.code ?? "unknown" });
+      }
+    }
     this.journalEtape?.({
       event: "intent_detected",
       run: runId,
@@ -472,7 +633,7 @@ export class Agent {
 
     // 5a. Conversation — aucune donnée n'est touchée, aucune permission en jeu.
     if (plan.type === INTENTIONS.CONVERSATION) {
-      await this.provider.sendText(msg.fromJid, plan.texte);
+      await this._sendText(msg, plan.texte, { remember: true, intention: "conversation" });
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
         intent: "conversation", result: "SUCCESS", durationMs: Date.now() - started,
@@ -488,14 +649,22 @@ export class Agent {
 
     // 5b. Clarification.
     if (plan.type === INTENTIONS.CLARIFIER) {
-      await this.provider.sendText(msg.fromJid, plan.question);
+      if (plan.tool && memoryContext) {
+        await this.memory.saveState(memoryContext, {
+          intention: "clarification",
+          tool: plan.nomOutil,
+          params: plan.params ?? {},
+          missingFields: plan.missingFields ?? [],
+        });
+      }
+      await this._sendText(msg, plan.question);
       return { status: Status.WAITING_INPUT, runId };
     }
 
     // 5c. Contrat rompu. On NOMME ce qui s'est passé : « Action inconnue. »
     // ne permettait aucun diagnostic, et laissait croire à un refus métier.
     if (plan.type !== INTENTIONS.OUTIL) {
-      await this.provider.sendText(msg.fromJid, this._messageDeRejet(plan));
+      await this._sendText(msg, this._messageDeRejet(plan));
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
         intent: null, result: "PLAN_INVALIDE", error: `${plan.rejet}:${plan.detail ?? ""}`,
@@ -510,7 +679,15 @@ export class Agent {
     // 6. Validation des paramètres (mêmes règles que guergne) — aucune écriture si invalide
     const errs = tool.validate(plan.params ?? {});
     if (Object.keys(errs).length > 0) {
-      await this.provider.sendText(msg.fromJid, "Précisez : " + Object.values(errs).join(" "));
+      if (memoryContext) {
+        await this.memory.saveState(memoryContext, {
+          intention: "clarification",
+          tool: tool.name,
+          params: plan.params ?? {},
+          missingFields: Object.keys(errs),
+        });
+      }
+      await this._sendText(msg, "Précisez : " + Object.values(errs).join(" "));
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
         intent: tool.name, params: plan.params, result: "INVALID", durationMs: Date.now() - started,
@@ -520,7 +697,8 @@ export class Agent {
 
     // 7. Pré-filtre de permission (le backend guergne reste l'autorité réelle)
     if (!this.permissions.allows(staff, tool.permission)) {
-      await this.provider.sendText(msg.fromJid, "Vous n'avez pas les droits pour cette opération.");
+      await this._clearMemoryState(memoryContext);
+      await this._sendText(msg, "Vous n'avez pas les droits pour cette opération.");
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
         intent: tool.name, params: plan.params, permission: `DENIED:${tool.permission}`,
@@ -607,14 +785,28 @@ export class Agent {
     const dejaConfirme = plan.confirmed && tool.confirmationObligatoire !== true;
     if (exigeConfirmation && !dejaConfirme) {
       this._metriques.confirmationsDemandees += 1;
-      this.pending.set(msg.fromJid, creerAttente({ tool, params: plan.params ?? {}, runId, staffId: staff.id }));
+      const attente = creerAttente({ tool, params: plan.params ?? {}, runId, staffId: staff.id });
+      this.pending.set(msg.fromJid, attente);
+      // Persistée pour survivre à un redémarrage — mais AVEC ce qui la rend
+      // sûre : l'empreinte des paramètres figés, l'expiration et l'utilisateur.
+      // Une attente relue sans eux est ignorée (voir l'étape 4).
+      if (memoryContext) {
+        await this.memory.saveState(memoryContext, {
+          intention: "approval",
+          tool: tool.name,
+          params: attente.params,
+          empreinte: attente.empreinte,
+          expireA: attente.expireA,
+          staffId: attente.staffId,
+          runId,
+          missingFields: [],
+        });
+      }
       // Le récapitulatif de `preparer` décrit ce que le BACKEND connaît ; à
       // défaut, le résumé de l'outil, bâti sur les seuls paramètres.
       const recapitulatif = preparation?.texte ?? tool.summarize(plan.params ?? {});
-      await this.provider.sendText(
-        msg.fromJid,
-        `${recapitulatif}\nRépondez *oui* pour confirmer, *non* pour annuler.`,
-      );
+      await this._sendText(msg, `${recapitulatif}
+Répondez *oui* pour confirmer, *non* pour annuler.`);
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
         intent: tool.name, params: plan.params, result: "WAITING_APPROVAL", durationMs: Date.now() - started,
@@ -663,8 +855,8 @@ export class Agent {
     const verif = validerMission(plan, this.tools);
     if (!verif.ok) {
       this.journalEtape?.({ event: "mission_refusee", run: runId, raison: verif.raison });
-      await this.provider.sendText(
-        msg.fromJid,
+      await this._sendText(
+        msg,
         "Je n'ai pas pu preparer ce travail. Demandez-moi plutot une consultation precise, par exemple « les absences de la 6eme B cette semaine ».",
       );
       this.audit.record({
@@ -704,7 +896,7 @@ export class Agent {
     }
 
     const bilan = rendreBilan({ but: verif.but, resultats });
-    await this.provider.sendText(msg.fromJid, bilan);
+    await this._sendText(msg, bilan);
     this._metriques.rapportsGeneres += 1;
 
     // Un bilan rendu en texte se lit une fois puis se perd dans la
@@ -971,6 +1163,17 @@ export class Agent {
     }
 
     if (ok) {
+      // Une lecture réussie devient le périmètre de référence des demandes
+      // de suivi. Seuls l'outil et les filtres autorisés sont persistés ;
+      // aucun résultat ni contenu d'élève n'est mémorisé.
+      if (tool.sensitivity === "read" && this.memory?.enabled && msg?.memoryContext?.conversationId) {
+        try {
+          await this.memory.saveLastTask(msg.memoryContext, { tool: tool.name, params });
+          this.journalEtape?.({ event: "memory_last_task_saved", run: runId, tool: tool.name });
+        } catch (memoryError) {
+          this.journalEtape?.({ event: "memory_last_task_save_failed", code: memoryError?.code ?? "unknown" });
+        }
+      }
       // Une relecture réussie a le dernier mot : elle décrit ce qui EST
       // enregistré, et non ce que l'appel a promis.
       if (verification?.ok === true && verification.texte) {
@@ -998,10 +1201,12 @@ export class Agent {
           texte = null;
         }
       }
-      await this.provider.sendText(msg.fromJid, texte || "✅ Opération effectuée.");
+      await this._sendText(msg, texte || "✅ Opération effectuée.");
+      await this._clearMemoryState(msg.memoryContext);
       return { status: Status.COMPLETED, runId, result };
     }
-    await this.provider.sendText(msg.fromJid, result && result.message ? result.message : "❌ L'opération a échoué.");
+    await this._sendText(msg, result && result.message ? result.message : "❌ L'opération a échoué.");
+    await this._clearMemoryState(msg.memoryContext);
     return { status: Status.FAILED, runId, error: error ? String(error.message ?? error) : result?.message ?? null };
   }
 }

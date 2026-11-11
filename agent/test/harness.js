@@ -27,6 +27,7 @@ export class GuergneSim {
     return { ok: true, message: `OK ${action}` };
   }
   listerAbsences(p, c) { return this._run("listerAbsences", p, c); }
+  rechercherEleves(p, c) { return this._run("rechercherEleves", p, c); }
   listerAlertes(p, c) { return this._run("listerAlertes", p, c); }
   controleSaisies(p, c) { return this._run("controleSaisies", p, c); }
   enregistrerAppel(p, c) { return this._run("enregistrerAppel", p, c); }
@@ -45,7 +46,7 @@ const DEFAULT_GRANTS = {
   ]),
 };
 
-export function makeAgent({ interpret, transcribe, grants = DEFAULT_GRANTS, guergne } = {}) {
+export function makeAgent({ interpret, transcribe, grants = DEFAULT_GRANTS, guergne, memory } = {}) {
   const provider = new FakeProvider();
   const identity = new IdentityStore([
     { jid: JID_SURVEILLANT, id: "staff-1", nom: "Awa Surveillante", role: "surveillant" },
@@ -60,6 +61,7 @@ export function makeAgent({ interpret, transcribe, grants = DEFAULT_GRANTS, guer
     tools: new ToolRegistry(ASSIDUITE_TOOLS),
     permissions: new FakePermissionChecker(grants),
     guergne: sim,
+    memory,
     interpret: interpret ?? (async () => ({ clarify: "?" })),
     transcribe,
   });

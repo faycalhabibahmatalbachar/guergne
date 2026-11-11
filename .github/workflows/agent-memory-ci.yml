@@ -1,0 +1,43 @@
+name: WhatsApp agent memory CI
+
+on:
+  pull_request:
+    paths:
+      - "agent/**"
+      - "db/migrations/0037_memorisation_conversationnelle_whatsapp.sql"
+      - ".github/workflows/agent-memory-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "agent/**"
+      - "db/migrations/0037_memorisation_conversationnelle_whatsapp.sql"
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Agent unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: agent/package-lock.json
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Syntax-check agent runtime and Altare diagnostics
+        run: |
+          node --check app.js
+          node --check src/memory.js
+          node --check src/memory-policy.js
+          node --check src/engine.js
+          node --check scripts/diag-altare.mjs
+      - name: Unit tests
+        run: npm test
