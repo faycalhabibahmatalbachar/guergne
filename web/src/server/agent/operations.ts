@@ -24,6 +24,7 @@ import { listerSituations, recouvrementParClasse, statistiquesFinancieres } from
 import { listerNiveaux, listerPeriodes, listerSeries } from "@/server/domain/parametres";
 import { listerTuteurs, statistiquesParents, tuteursDeLEleve } from "@/server/domain/parents";
 import { releveDetailleEleve } from "@/server/domain/releve-eleve";
+import { chargerFicheEleve } from "@/server/domain/fiche-eleve";
 import { chargerEmploiDuTemps, listerEnseignants, listerClassesEtMatieres } from "@/server/domain/personnel";
 import {
   absencesParMois,
@@ -251,6 +252,18 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
       const eleveId = s(p.eleveId);
       if (!eleveId) throw new TypeError("eleveId requis");
       return (await chargerDossier(eleveId)) ?? { ok: false, message: "Élève introuvable." };
+    },
+  },
+  // La fiche complète : les mêmes chargeurs et les mêmes droits, section par
+  // section, que la page /dashboard/eleves/[id]. Le droit d'entrée est
+  // `eleve:lire` ; notes, finances, assiduité, discipline, santé et journal
+  // sont filtrés à l'intérieur selon l'acteur, et nommés quand ils sont masqués.
+  ficheEleve: {
+    permission: "eleve:lire",
+    executer: async (p, acteur) => {
+      const eleveId = uuid(p.eleveId);
+      if (!eleveId) throw new TypeError("eleveId requis");
+      return (await chargerFicheEleve(eleveId, acteur)) ?? { ok: false, message: "Élève introuvable." };
     },
   },
   // Niveaux et séries : ce qu'il faut pour créer une classe sans que personne

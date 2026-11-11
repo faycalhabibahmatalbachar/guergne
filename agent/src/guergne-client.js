@@ -124,6 +124,7 @@ export class GuergneHttpClient {
 
   // --- Élèves, classes : lectures nécessaires aux écritures ---
   consulterEleve(p, c) { return this._call("consulterEleve", p, c); }
+  ficheEleve(p, c) { return this._call("ficheEleve", p, c); }
   listerNiveaux(p, c) { return this._call("listerNiveaux", p, c); }
   listerSeries(p, c) { return this._call("listerSeries", p, c); }
 

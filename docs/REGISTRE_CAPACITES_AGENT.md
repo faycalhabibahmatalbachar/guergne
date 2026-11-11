@@ -1,6 +1,6 @@
 # Registre des capacités de l'agent
 
-**Lycée Guergné La Renaissance** · relevé le 2026-11-10 · branche `voix-bidirectionnelle`
+**Lycée Guergné La Renaissance** · relevé le 2026-11-10, mis à jour le 2026-11-11 · branche `voix-bidirectionnelle`
 
 Correspondance entre ce que le backend expose et ce que l'agent sait appeler.
 Tous les nombres de ce document sont **mesurés** par lecture du code et par
@@ -15,7 +15,7 @@ refaisable.
 ```
    outils de l'agent                 opérations du backend              base
    agent/src/tools*.js      ──────▶  web/src/server/agent/              Neon
-   38 outils                         operations.ts                      permissions
+   46 outils                         operations.ts                      permissions
                                      46 opérations                      78 actions
    pré-filtre : refuse tôt           AUTORITÉ : AUTH → RÔLE → PÉRIMÈTRE
 ```
@@ -36,9 +36,9 @@ refaisable.
 |---|---|---|
 | Actions du vocabulaire | **78** | `ACTIONS` dans `web/src/server/guard/permissions.ts`, et 78 valeurs distinctes de `permissions.action` en base — les deux coïncident |
 | Opérations exposées à l'agent | **46** | `web/src/server/agent/operations.ts` : 35 lectures, 11 écritures |
-| Outils de l'agent | **38** | `tools.js` 11 · `tools-pilotage.js` 18 · `tools-dossiers.js` 9 |
+| Outils de l'agent | **46** | `tools.js` 11 · `tools-pilotage.js` 18 · `tools-dossiers.js` 9 · `tools-scolarite.js` 8 |
 | Outils citant une opération inexistante | **0** | un test structurel le fige |
-| Opérations sans outil | **8** | voir §4 |
+| Opérations sans outil | **0** | les huit du §4 sont branchées depuis `2f92a76` |
 
 ```bash
 # opérations exposées
@@ -90,8 +90,14 @@ personne ne dicte au téléphone : leur outil devra les résoudre dans `preparer
 comme les outils de dossier résolvent déjà un nom d'élève. C'est la seule
 difficulté réelle du lot.
 
-**Statut : NON VALIDÉ** — les outils ne sont pas écrits. Les nommer ici n'est
-pas les livrer.
+**Statut au 2026-11-11 : BRANCHÉES, VALIDÉES SUR TEST, DÉPLOYÉES.** Commit
+`2f92a76`, module `agent/src/tools-scolarite.js`. Les UUID sont résolus dans
+`preparer` (élève par nom ou matricule, classe par libellé, période par
+« premier trimestre » / « T2 »). Trois contrats ont été élargis :
+`rechercherTuteurs` (+ `etat`, `classeId`), `releveEleve` (relevé détaillé aux
+règles du bulletin, `eleveId` + `periodeNumero`), `listerSituationsFinancieres`
+(+ `enRetard`, `boursier`). Recette réelle 19/19 :
+`node agent/scripts/recette-scolarite-reel.mjs --base http://localhost:3100`.
 
 ## 5. Contrat d'un outil
 
@@ -168,15 +174,15 @@ permission métier ajoutée sans lui être accordée fait échouer la suite.
 | Retour arrière | **PARTIEL** | `db/rollback/0041_*.sql` écrit, ses 36 droits d'origine vérifiés contre la base ; **jamais exécuté** |
 | DIRECTION inscrit réellement | **VALIDÉ** | recette 51/51 : élève, inscription, classe, tuteur relus en SQL + `journal_audit` au nom de la DIRECTION |
 | Refus de bout en bout sur un droit réservé | **NON ATTEIGNABLE** par la voie de l'agent : aucune des 18 permissions du registre n'est un droit réservé. Vérifié sur l'autorité (la table) et, pour `systeme:administrer`, à l'écran d'appairage |
-| Pré-filtre de l'agent | **VALIDÉ** | 78 / 75, couverture complète du catalogue, 786/786 tests |
-| Les 8 outils manquants | **NON VALIDÉ** | nommés au §4, non écrits |
+| Pré-filtre de l'agent | **VALIDÉ** | 78 / 75, couverture complète du catalogue, 837/837 tests |
+| Les 8 outils manquants | **VALIDÉ SUR TEST, DÉPLOYÉ** | 19/19 contre la base de test ; trois répondent en production (séries, périodes, synthèse parents) |
 | Cartographie des 9 sections de la fiche élève | **NON VALIDÉ** | à faire |
-| 0041 en production | **NON APPLIQUÉE** — et volontairement : la preuve directe Vercel ↔ Neon manque toujours |
+| 0041 en production | **APPLIQUÉE** le 2026-11-11, sur autorisation du propriétaire | la production sert `br-red-waterfall` (prouvé par lecture réelle du backend) ; DIRECTION 36 → 75, les 8 autres rôles identiques |
 
 ## 8. Refaire le relevé
 
 ```bash
-cd agent && npm test                                   # 786 / 786
+cd agent && npm test                                   # 837 / 837
 node agent/scripts/audit-permissions.mjs               # matrice, base de TEST
 node agent/scripts/audit-permissions.mjs --production  # lecture seule
 ```

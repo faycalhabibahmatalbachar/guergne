@@ -11,6 +11,7 @@ import { STATUT_LISIBLE, jour, lignesDe, listeRendue, nomComplet, totalDe } from
 import { PILOTAGE_TOOLS } from "./tools-pilotage.js";
 import { DOSSIERS_TOOLS } from "./tools-dossiers.js";
 import { SCOLARITE_TOOLS } from "./tools-scolarite.js";
+import { FICHE_TOOLS } from "./fiche-eleve.js";
 
 const required = (v) => v !== undefined && v !== null && v !== "";
 const noErrs = () => ({});
@@ -368,7 +369,7 @@ const OUTILS_ASSIDUITE = [
  * Le nom `ASSIDUITE_TOOLS` est historique : il date du temps ou l'agent ne
  * savait rien faire d'autre. Il reste pour ne pas casser les appelants.
  */
-export const ASSIDUITE_TOOLS = [...OUTILS_ASSIDUITE, ...PILOTAGE_TOOLS, ...DOSSIERS_TOOLS, ...SCOLARITE_TOOLS];
+export const ASSIDUITE_TOOLS = [...OUTILS_ASSIDUITE, ...PILOTAGE_TOOLS, ...DOSSIERS_TOOLS, ...SCOLARITE_TOOLS, ...FICHE_TOOLS];
 
 export class ToolRegistry {
   constructor(tools = []) {

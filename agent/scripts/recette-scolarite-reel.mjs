@@ -266,6 +266,45 @@ async function principal() {
       apercu(rendu, 4);
     }
 
+    bleu("\n== 9 bis. eleves.fiche, la fiche complete ==");
+    {
+      const { FICHE_TOOLS } = await import("../src/fiche-eleve.js");
+      const fiche = FICHE_TOOLS[0];
+      const [cible] = await q(
+        `SELECT e.id::text, e.matricule FROM eleves e
+           JOIN inscriptions i ON i.eleve_id = e.id AND i.active AND i.annee_id = $1
+          WHERE EXISTS (SELECT 1 FROM eleve_tuteur et WHERE et.eleve_id = e.id)
+          ORDER BY (SELECT count(*) FROM absences a WHERE a.inscription_id = i.id) DESC LIMIT 1`,
+        [annee.id],
+      );
+      const prep = await fiche.preparer({ eleve: cible.matricule }, outils);
+      const r = await guergne.ficheEleve(prep.params, outils.ctx);
+      const d = r?.data;
+      const [v] = await q(
+        `SELECT (SELECT count(*)::int FROM eleve_tuteur WHERE eleve_id = $1) tuteurs,
+                (SELECT count(*)::int FROM pieces_dossier WHERE eleve_id = $1) pieces`,
+        [cible.id],
+      );
+      consigner("fiche : responsables = Neon", d?.tuteurs?.length === v.tuteurs, `agent ${d?.tuteurs?.length}, Neon ${v.tuteurs}`);
+      consigner("fiche : pieces = Neon", d?.pieces?.length === Math.min(v.pieces, 30), `agent ${d?.pieces?.length}, Neon ${v.pieces}`);
+      consigner("fiche SUPER_ADMIN : rien de masque, sante presente", d?.masquees?.length === 0 && Boolean(d?.identite?.sante), JSON.stringify(d?.masquees));
+      consigner("fiche : aucune URL de fichier exposee", !JSON.stringify(d?.pieces ?? []).includes("fichier_url") && !JSON.stringify(d?.pieces ?? []).includes("http"));
+      apercu(fiche.rendre(d), 14);
+
+      const [compta] = await q("SELECT id::text, role::text FROM utilisateurs WHERE role IN ('SECRETARIAT','COMPTABLE','ENSEIGNANT') AND actif ORDER BY donnees_semees, role, cree_le LIMIT 1");
+      if (compta) {
+        const rc = await guergne.ficheEleve(prep.params, { actorId: compta.id });
+        const m = rc?.data?.masquees ?? [];
+        consigner(
+          `fiche ${compta.role} : sante et journal masques, et nommes`,
+          rc?.ok !== false && !rc?.data?.identite?.sante && m.includes("santé") && m.includes("journal des modifications"),
+          rc?.ok === false ? `refus : ${rc.message}` : `masquees : ${m.join(", ")}`,
+        );
+      } else {
+        gris("  aucun SECRETARIAT, COMPTABLE ni ENSEIGNANT actif : filtrage par role non eprouve");
+      }
+    }
+
     bleu("\n== 9. Le guard s'applique aux nouveaux outils ==");
     if (parent) {
       const r = await guergne.statistiquesParents({}, { actorId: parent.id });

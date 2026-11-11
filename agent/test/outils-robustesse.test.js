@@ -46,7 +46,7 @@ const FORMES_DEGENEREES = [
 
 const avecRendu = ASSIDUITE_TOOLS.filter((o) => typeof o.rendre === "function");
 
-test("le catalogue compte bien 46 outils, dont 37 rendent du texte", () => {
+test("le catalogue compte bien 47 outils, dont 38 rendent du texte", () => {
   // Si ce compte change, c'est volontaire : il faut alors le constater ici
   // plutot que de laisser la couverture glisser en silence.
   //
@@ -67,8 +67,11 @@ test("le catalogue compte bien 46 outils, dont 37 rendent du texte", () => {
   // `notes.releve`, `pedagogie.calendrier_evaluations`, `finances.situations`,
   // `referentiel.periodes`, `referentiel.classes_matieres`,
   // `referentiel.series`. Toutes des lectures, toutes avec rendu : 29 -> 37.
-  assert.equal(ASSIDUITE_TOOLS.length, 46);
-  assert.equal(avecRendu.length, 37);
+  //
+  // 2026-11-11 (bis) : 46 -> 47. `eleves.fiche`, la fiche complete (memes
+  // chargeurs et memes droits que /dashboard/eleves/[id]). Avec rendu : 38.
+  assert.equal(ASSIDUITE_TOOLS.length, 47);
+  assert.equal(avecRendu.length, 38);
 });
 
 test("chaque outil declare un nom, une permission et une description", () => {
