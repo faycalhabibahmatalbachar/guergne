@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import {
   changerClasse,
@@ -19,10 +19,11 @@ import {
   justifierEnLotPour,
   supprimerAbsencePour,
 } from "@/server/domain/assiduite-ecritures";
-import { calendrierEvaluations, listerEvaluations, releveEleve } from "@/server/domain/evaluations";
+import { calendrierEvaluations, listerEvaluations } from "@/server/domain/evaluations";
 import { listerSituations, recouvrementParClasse, statistiquesFinancieres } from "@/server/domain/finances";
 import { listerNiveaux, listerPeriodes, listerSeries } from "@/server/domain/parametres";
 import { listerTuteurs, statistiquesParents, tuteursDeLEleve } from "@/server/domain/parents";
+import { releveDetailleEleve } from "@/server/domain/releve-eleve";
 import { chargerEmploiDuTemps, listerEnseignants, listerClassesEtMatieres } from "@/server/domain/personnel";
 import {
   absencesParMois,
@@ -97,6 +98,61 @@ const n = (v: unknown, defaut: number): number => (typeof v === "number" && Numb
  */
 async function anneeDeTravail(params: Record<string, unknown>): Promise<string | null> {
   return s(params.anneeId) ?? (await chargerAnneeCourante())?.id ?? null;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuid = (v: unknown): string | undefined => (typeof v === "string" && UUID_RE.test(v) ? v : undefined);
+
+/** Les états d'accès d'un parent que `construireFiltreTuteurs` sait filtrer. */
+const ETATS_TUTEUR = ["sans_compte", "invite", "actif", "revoque", "doublon"] as const;
+
+/**
+ * La période désignée, dans l'année de travail.
+ *
+ * Personne ne dicte l'UUID d'un trimestre. On accepte donc, dans l'ordre :
+ * un `periodeId`, un `periodeNumero` (1, 2, 3), ou rien — auquel cas c'est la
+ * période qui contient aujourd'hui, et à défaut la dernière commencée. Une
+ * période d'une autre année que celle demandée n'est jamais retenue.
+ */
+async function periodeDeTravail(p: Record<string, unknown>, anneeId: string): Promise<string | null> {
+  const id = uuid(p.periodeId);
+  const numero = typeof p.periodeNumero === "number" && Number.isInteger(p.periodeNumero) ? p.periodeNumero : null;
+  const r = await db.execute<{ id: string }>(sql`
+    SELECT id FROM periodes
+     WHERE annee_id = ${anneeId}::uuid
+       AND (${id ?? null}::uuid IS NULL OR id = ${id ?? null}::uuid)
+       AND (${numero}::int IS NULL OR numero = ${numero}::int)
+     ORDER BY (CURRENT_DATE BETWEEN date_debut AND date_fin) DESC,
+              (date_debut <= CURRENT_DATE) DESC,
+              CASE WHEN date_debut <= CURRENT_DATE THEN date_debut END DESC NULLS LAST,
+              numero
+     LIMIT 1
+  `);
+  return r.rows[0]?.id ?? null;
+}
+
+/**
+ * L'inscription d'un élève pour l'année de travail.
+ *
+ * Une inscription d'une AUTRE année n'est jamais rendue à la place : confondre
+ * l'historique et l'année courante est exactement l'erreur à éviter.
+ */
+async function inscriptionDeTravail(p: Record<string, unknown>): Promise<{ inscriptionId: string; anneeId: string } | null> {
+  const inscriptionId = uuid(p.inscriptionId);
+  if (inscriptionId) {
+    const r = await db.execute<{ annee_id: string }>(sql`SELECT annee_id FROM inscriptions WHERE id = ${inscriptionId}::uuid`);
+    return r.rows[0] ? { inscriptionId, anneeId: r.rows[0].annee_id } : null;
+  }
+  const eleveId = uuid(p.eleveId);
+  const anneeId = await anneeDeTravail(p);
+  if (!eleveId || !anneeId) return null;
+  const r = await db.execute<{ id: string }>(sql`
+    SELECT id FROM inscriptions
+     WHERE eleve_id = ${eleveId}::uuid AND annee_id = ${anneeId}::uuid
+     ORDER BY active DESC, date_inscription DESC
+     LIMIT 1
+  `);
+  return r.rows[0] ? { inscriptionId: r.rows[0].id, anneeId } : null;
 }
 
 /** Les consultations. Aucune n'écrit quoi que ce soit. */
@@ -205,7 +261,17 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
   // --- Parents et responsables ---------------------------------------------
   rechercherTuteurs: {
     permission: "tuteur:gerer",
-    executer: (p) => listerTuteurs({ recherche: s(p.recherche), page: n(p.page, 1), parPage: Math.min(n(p.parPage, 25), 100) }),
+    // `etat` et `classeId` sont honorés par le domaine depuis toujours ; ne pas
+    // les transmettre rendait « quels parents n'ont pas activé leur compte ? »
+    // impossible à poser. Un état inconnu est ignoré, jamais interprété.
+    executer: (p) =>
+      listerTuteurs({
+        recherche: s(p.recherche),
+        etat: (ETATS_TUTEUR as readonly string[]).includes(String(p.etat)) ? String(p.etat) : undefined,
+        classeId: uuid(p.classeId),
+        page: n(p.page, 1),
+        parPage: Math.min(n(p.parPage, 25), 100),
+      }),
   },
   statistiquesParents: { permission: "tuteur:gerer", executer: () => statistiquesParents() },
   tuteursDeLEleve: {
@@ -254,19 +320,22 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
   },
   calendrierEvaluations: {
     permission: "evaluation:lire",
-    executer: (p) => {
-      const periodeId = s(p.periodeId);
-      if (!periodeId) throw new TypeError("periodeId requis");
-      return calendrierEvaluations(periodeId, { classeId: s(p.classeId), type: s(p.type) });
+    executer: async (p) => {
+      const anneeId = await anneeDeTravail(p);
+      const periodeId = anneeId ? await periodeDeTravail(p, anneeId) : null;
+      if (!periodeId) return { ok: false, message: "Aucune période correspondante pour cette année scolaire." };
+      return calendrierEvaluations(periodeId, { classeId: uuid(p.classeId), type: s(p.type) });
     },
   },
   releveEleve: {
     permission: "note:lire",
-    executer: (p) => {
-      const inscriptionId = s(p.inscriptionId);
-      const periodeId = s(p.periodeId);
-      if (!inscriptionId || !periodeId) throw new TypeError("inscriptionId et periodeId requis");
-      return releveEleve(inscriptionId, periodeId);
+    executer: async (p) => {
+      if (!uuid(p.inscriptionId) && !uuid(p.eleveId)) throw new TypeError("eleveId ou inscriptionId requis");
+      const ins = await inscriptionDeTravail(p);
+      if (!ins) return { ok: false, message: "Aucune inscription de cet élève pour l'année demandée." };
+      const periodeId = await periodeDeTravail(p, ins.anneeId);
+      if (!periodeId) return { ok: false, message: "Aucune période correspondante pour cette année scolaire." };
+      return (await releveDetailleEleve(ins.inscriptionId, periodeId)) ?? { ok: false, message: "Relevé introuvable." };
     },
   },
 
@@ -333,6 +402,8 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
         anneeId,
         classeId: s(p.classeId),
         seulementImpayes: p.seulementImpayes === true,
+        enRetard: p.enRetard === true,
+        boursier: typeof p.boursier === "boolean" ? p.boursier : undefined,
         recherche: s(p.recherche),
       });
     },

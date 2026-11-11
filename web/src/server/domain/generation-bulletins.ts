@@ -116,7 +116,13 @@ interface LigneNote extends Record<string, unknown> {
  * devoir ne pèse pas le même poids en Terminale D qu'en 6ème. À défaut, on
  * retombe sur `PONDERATION_PAR_DEFAUT`, qui donne double poids à la composition.
  */
-async function ponderations(
+/**
+ * Coefficient et pondération de chaque matière notée au bulletin d'une classe.
+ *
+ * Exportée pour que le relevé consulté par l'agent applique EXACTEMENT les
+ * règles des bulletins, sans seconde implémentation qui divergerait.
+ */
+export async function ponderations(
   classeId: string,
 ): Promise<Map<string, { coefficient: number; ponderation: Ponderation }>> {
   const r = await db.execute<{

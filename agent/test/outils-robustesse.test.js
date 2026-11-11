@@ -46,7 +46,7 @@ const FORMES_DEGENEREES = [
 
 const avecRendu = ASSIDUITE_TOOLS.filter((o) => typeof o.rendre === "function");
 
-test("le catalogue compte bien 38 outils, dont 29 rendent du texte", () => {
+test("le catalogue compte bien 46 outils, dont 37 rendent du texte", () => {
   // Si ce compte change, c'est volontaire : il faut alors le constater ici
   // plutot que de laisser la couverture glisser en silence.
   //
@@ -61,8 +61,14 @@ test("le catalogue compte bien 38 outils, dont 29 rendent du texte", () => {
   // `eleves.changer_classe`, `eleves.archiver`, `classes.creer`,
   // `classes.modifier`, `classes.archiver`. Les ecritures n'ont pas de
   // `rendre` : leur compte rendu vient de `verifier`, apres relecture.
-  assert.equal(ASSIDUITE_TOOLS.length, 38);
-  assert.equal(avecRendu.length, 29);
+  //
+  // 2026-11-11 : 38 -> 46. Les huit operations que le backend exposait sans
+  // outil (registre §4) : `parents.rechercher`, `parents.statistiques`,
+  // `notes.releve`, `pedagogie.calendrier_evaluations`, `finances.situations`,
+  // `referentiel.periodes`, `referentiel.classes_matieres`,
+  // `referentiel.series`. Toutes des lectures, toutes avec rendu : 29 -> 37.
+  assert.equal(ASSIDUITE_TOOLS.length, 46);
+  assert.equal(avecRendu.length, 37);
 });
 
 test("chaque outil declare un nom, une permission et une description", () => {
