@@ -102,6 +102,31 @@ export class Referentiel {
    * doit recopier. Les tronquer le forcerait à compléter de lui-même, c'est-à-dire
    * à inventer — l'inverse du but recherché.
    */
+  /**
+   * Le même référentiel, SANS identifiant : ce que le modèle doit connaître
+   * pour comprendre « la 6e A » ou « le 2e trimestre », rien de plus. Les
+   * identifiants ne lui servent à rien depuis que le résolveur central les
+   * retrouve — et ce qu'il ne voit pas, il ne peut ni le recopier de travers
+   * ni le réclamer à l'utilisateur.
+   */
+  static enLibelles({ classes = [], periodes = [] }) {
+    if (!classes.length && !periodes.length) {
+      return "Referentiel indisponible pour l'instant : transmets la classe ou la periode telle que l'utilisateur l'a dite, elle sera verifiee ensuite.";
+    }
+    const lignes = [];
+    if (classes.length) {
+      lignes.push("Classes de l'annee en cours : " + classes.slice(0, MAX_LIBELLES).map((c) => c.libelle ?? c.code ?? "?").join(", ") + (classes.length > MAX_LIBELLES ? ", …" : "") + ".");
+    }
+    if (periodes.length) {
+      lignes.push("Periodes de l'annee en cours : " + periodes.map((p) => `${p.libelle ?? "?"}${p.dateDebut ? ` (du ${String(p.dateDebut).slice(0, 10)} au ${String(p.dateFin).slice(0, 10)})` : ""}`).join(" ; ") + ".");
+    }
+    lignes.push(
+      "Transmets la classe et la periode TELLES QUE L'UTILISATEUR LES A DITES (« 6e A », « sixieme a », « T2 ») : elles sont rapprochees de ces listes apres toi.",
+      "Une classe ou une periode absente de ces listes n'est pas une raison de poser une question : transmets-la, l'utilisateur sera prevenu si elle n'existe pas.",
+    );
+    return lignes.join("\n");
+  }
+
   static enTexte({ classes = [], periodes = [] }) {
     const lignes = [];
 

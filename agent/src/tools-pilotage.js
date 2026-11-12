@@ -138,14 +138,14 @@ export const PILOTAGE_TOOLS = [
   {
     name: "pilotage.effectifs_par_niveau",
     module: "pilotage",
-    description: "repartition des effectifs par niveau, avec le detail garcons / filles",
+    description: "effectifs par NIVEAU (toutes les 6emes ensemble, toutes les 5emes...), garcons / filles. Pour UNE classe precise, utiliser classes.eleves",
     permission: "statistique:lire",
     sensitivity: READ,
     action: "effectifsParNiveau",
     parametres: { anneeId: ANNEE },
     validate: noErrs,
     summarize: () => "Effectifs par niveau.",
-    rendre: (l) => listeRendue(l, "Effectifs par niveau", (x) => `${val(x.niveau, "niveau inconnu")} (${val(x.cycle)}) — ${val(x.total, 0)} eleves : ${val(x.garcons, 0)} G / ${val(x.filles, 0)} F`),
+    rendre: (l) => listeRendue(l, "Effectifs par niveau", (x) => `${val(x.niveau, "niveau inconnu")} (${val(x.cycle)}) — ${val(x.total, 0)} eleves : ${val(x.garcons, 0)} G / ${val(x.filles, 0)} F`, { max: 40 }),
   },
   {
     name: "pilotage.absences_par_mois",
@@ -158,7 +158,7 @@ export const PILOTAGE_TOOLS = [
     validate: noErrs,
     summarize: () => "Absences par mois.",
     rendre: (l) =>
-      listeRendue(l, "Absences par mois", (x) => `${val(x.libelle, val(x.mois, "mois inconnu"))} — ${val(x.nonJustifiees, 0)} h non justifiees, ${val(x.justifiees, 0)} h justifiees`),
+      listeRendue(l, "Absences par mois", (x) => `${val(x.libelle, val(x.mois, "mois inconnu"))} — ${val(x.nonJustifiees, 0)} h non justifiees, ${val(x.justifiees, 0)} h justifiees`, { max: 40 }),
   },
   {
     name: "pilotage.moyennes_par_classe",
@@ -171,7 +171,7 @@ export const PILOTAGE_TOOLS = [
     validate: noErrs,
     summarize: () => "Moyennes par classe.",
     rendre: (l) =>
-      listeRendue(l, "Moyennes par classe", (x) => `${val(x.classe, "classe inconnue")} (${val(x.effectif, 0)} eleves) — ${nb(x.moyenne, "/20")}, reussite ${nb(x.tauxReussite, " %")}`),
+      listeRendue(l, "Moyennes par classe", (x) => `${val(x.classe, "classe inconnue")} (${val(x.effectif, 0)} eleves) — ${nb(x.moyenne, "/20")}, reussite ${nb(x.tauxReussite, " %")}`, { max: 40 }),
   },
   {
     name: "pilotage.classement_classes",
@@ -184,7 +184,7 @@ export const PILOTAGE_TOOLS = [
     validate: noErrs,
     summarize: () => "Classement des classes.",
     rendre: (l) =>
-      listeRendue(l, "Classement des classes", (x) => `${val(x.rang, "?")}. ${val(x.classe, "classe inconnue")} — ${nb(x.moyenne, "/20")} (ecart ${nb(x.ecart)})`),
+      listeRendue(l, "Classement des classes", (x) => `${val(x.rang, "?")}. ${val(x.classe, "classe inconnue")} — ${nb(x.moyenne, "/20")} (ecart ${nb(x.ecart)})`, { max: 40 }),
   },
   {
     name: "pilotage.resultats_par_matiere",
@@ -198,7 +198,7 @@ export const PILOTAGE_TOOLS = [
     parametres: { periodeId: "OBLIGATOIRE, identifiant de periode scolaire (UUID)" },
     validate: (p) => (required(p.periodeId) ? {} : { periodeId: "Période requise." }),
     summarize: () => "Resultats par matiere.",
-    rendre: (l) => listeRendue(l, "Resultats par matiere", (x) => `${val(x.matiere, "matiere inconnue")} — ${nb(x.moyenne, "/20")} sur ${val(x.nbNotes, 0)} note(s)`),
+    rendre: (l) => listeRendue(l, "Resultats par matiere", (x) => `${val(x.matiere, "matiere inconnue")} — ${nb(x.moyenne, "/20")} sur ${val(x.nbNotes, 0)} note(s)`, { max: 40 }),
   },
   {
     name: "etablissement.statistiques",
@@ -228,6 +228,7 @@ export const PILOTAGE_TOOLS = [
     sensitivity: READ,
     action: "rechercherEleves",
     parametres: {
+      statut: "facultatif, UN statut : INSCRIT | TRANSFERE | ABANDON | EXCLU | SUSPENDU_DISCIPLINE | SUSPENDU_IMPAYE | ARCHIVE. « Ceux qui ont quitte l'etablissement » = une mission de trois recherches : TRANSFERE, ABANDON, EXCLU",
       recherche: "facultatif, nom, prenom ou matricule a chercher",
       classeId: CLASSE,
       parPage: "facultatif, nombre de resultats ; 25 par defaut, 100 au maximum",
@@ -268,7 +269,7 @@ ${alerte}` : liste;
   {
     name: "eleves.statistiques",
     module: "eleves",
-    description: "repartition des eleves par statut d'inscription",
+    description: "chiffres des eleves de l'annee : total, inscrits, nouveaux, reinscriptions, redoublants, suspendus, DOSSIERS INCOMPLETS (combien)",
     permission: "eleve:lire",
     sensitivity: READ,
     action: "statistiquesEleves",
@@ -277,9 +278,13 @@ ${alerte}` : liste;
     summarize: () => "Statistiques des eleves.",
     rendre: (d) => {
       if (!d || typeof d !== "object" || Array.isArray(d)) return null;
+      const LIBELLES = {
+        total: "élèves au total", inscrits: "inscrits", nouveaux: "nouveaux inscrits", incomplets: "dossiers incomplets",
+        suspendus: "suspendus", reinscriptions: "réinscriptions", redoublants: "redoublants",
+      };
       const lignes = Object.entries(d)
         .filter(([, v]) => typeof v === "number")
-        .map(([k, v]) => `• ${k} : ${v}`);
+        .map(([k, v]) => `• ${LIBELLES[k] ?? k} : ${v}`);
       return lignes.length ? ["Eleves :", ...lignes].join("\n") : null;
     },
   },
@@ -296,7 +301,17 @@ ${alerte}` : liste;
     validate: (p) => (required(p.eleveId) ? {} : { eleveId: "Élève requis." }),
     summarize: () => "Responsables d'un eleve.",
     rendre: (l) =>
-      listeRendue(l, "Responsables", (x) => `${nomComplet(x)} — ${val(x.lienParente, "lien non precise")}${x.principal ? " (principal)" : ""}`),
+      listeRendue(
+        l,
+        "Responsables",
+        // `lien` et `estPrincipal` : les noms que rend le backend. L'ancien rendu
+        // lisait `lienParente` et `principal`, qui n'existent pas — chaque
+        // responsable s'affichait « lien non precise », jamais principal.
+        (x) =>
+          `${nomComplet(x)} — ${val(x.lien ?? x.lienParente, "lien non precise")}, ${val(x.telephone, "sans telephone")}` +
+          `${x.estPrincipal ?? x.principal ? " (responsable principal)" : ""}${x.appActivee ? ", application activee" : ""}`,
+        { max: 10 },
+      ),
   },
 
   // --- Classes, effectifs, emploi du temps ----------------------------------
@@ -333,13 +348,13 @@ ${alerte}` : liste;
         const effectif = x.effectif === null || x.effectif === undefined ? "effectif inconnu" : `${x.effectif} eleve(s)`;
         const capacite = x.capaciteMax ? ` sur ${x.capaciteMax} places` : "";
         return `${val(x.libelle, val(x.code, "classe sans nom"))} — ${effectif}${capacite}`;
-      });
+      }, { max: 40 });
     },
   },
   {
     name: "classes.eleves",
     module: "classes",
-    description: "liste des eleves inscrits dans une classe donnee",
+    description: "liste ET NOMBRE des eleves inscrits dans UNE classe (« les eleves de 6e A », « combien d'eleves en 6e A »)",
     permission: "eleve:lire",
     sensitivity: READ,
     action: "listerElevesClasse",
@@ -398,7 +413,7 @@ ${alerte}` : liste;
     validate: noErrs,
     summarize: () => "Annuaire des enseignants.",
     rendre: (l) =>
-      listeRendue(l, "Enseignants", (x) => `${nomComplet(x)} — ${val(x.matricule)}${x.specialite ? `, ${x.specialite}` : ""}${x.statut ? ` (${x.statut})` : ""}`),
+      listeRendue(l, "Enseignants", (x) => `${nomComplet(x)} — ${val(x.matricule)}${x.specialite ? `, ${x.specialite}` : ""}${x.statut ? ` (${x.statut})` : ""}`, { max: 40 }),
   },
 
   // --- Pédagogie ------------------------------------------------------------
@@ -442,7 +457,7 @@ ${alerte}` : liste;
   {
     name: "finances.recouvrement_par_classe",
     module: "finances",
-    description: "etat du recouvrement classe par classe, avec le nombre d'eleves en retard de paiement",
+    description: "SYNTHESE du recouvrement, une ligne par CLASSE (montants et taux, aucun nom d'eleve). Pour savoir QUELS eleves doivent de l'argent, utiliser finances.situations",
     permission: "finance:lire",
     sensitivity: READ,
     action: "recouvrementParClasse",
@@ -450,6 +465,6 @@ ${alerte}` : liste;
     validate: noErrs,
     summarize: () => "Recouvrement par classe.",
     rendre: (l) =>
-      listeRendue(l, "Recouvrement par classe", (x) => `${val(x.classe, "classe inconnue")} — ${fcfa(x.totalPaye)} encaisses sur ${fcfa(x.totalDu)}, ${x.nbEnRetard ?? 0} en retard`),
+      listeRendue(l, "Recouvrement par classe", (x) => `${val(x.classe, "classe inconnue")} — ${fcfa(x.totalPaye)} encaisses sur ${fcfa(x.totalDu)}, ${x.nbEnRetard ?? 0} en retard`, { max: 40 }),
   },
 ];

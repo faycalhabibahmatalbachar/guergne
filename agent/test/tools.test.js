@@ -149,8 +149,16 @@ test("rendu : une donnée non tabulaire renvoie null (l'accusé générique repr
 test("le catalogue NLU annonce les paramètres de chaque outil", () => {
   const texte = reg.pourNlu();
   assert.match(texte, /assiduite\.consulter_absences \[read\]/);
-  assert.match(texte, /limite \(facultatif/);
-  assert.match(texte, /absenceIds \(obligatoire/);
+  // Forme courte : `nom*` = obligatoire, `nom` = facultatif (dit dans la légende).
+  assert.match(texte, /assiduite\.consulter_absences.*\s+parametres : .*limite/);
+  assert.doesNotMatch(texte, /\(facultatif/);
+  // Une absence se désigne par l'élève et le jour : personne ne connaît son
+  // identifiant, et le modèle ne doit ni le voir ni le réclamer.
+  assert.match(texte, /assiduite\.justifier_absences.*\s+parametres : eleve\* \([^)]*\), date\* \(/);
+  assert.doesNotMatch(texte, /absenceIds?\b/);
+  // AUCUN identifiant technique dans ce que voit le modèle.
+  assert.doesNotMatch(texte, /UUID|[a-z]+Ids? \(/);
+  assert.match(texte, /parametres : periode[^\n]*classe/);
   // Un outil sans paramètre le dit, plutôt que d'afficher une liste vide.
   const vide = new ToolRegistry([
     { name: "x.sans_parametre", module: "x", permission: "p", sensitivity: "read", action: "a", validate: () => ({}) },
@@ -188,6 +196,7 @@ test("l'invite système s'évalue et porte les consignes qui comptent", () => {
   // Les garde-fous : ne rien inventer, ne pas reclamer un facultatif, et ne
   // jamais avancer un chiffre scolaire de memoire.
   assert.match(invite, /n'invente aucune valeur, surtout pas un identifiant/);
+  assert.match(invite, /Tu ne connais AUCUN identifiant et tu n'en demandes JAMAIS/);
   assert.match(invite, /ne le demande JAMAIS a l'utilisateur/);
   assert.match(invite, /AUCUNE donnee scolaire par toi-meme/);
   assert.match(invite, /Outils disponibles :/);
@@ -199,10 +208,11 @@ test("un paramètre déclaré existe vraiment dans la liste blanche de l'API", (
   // Annoncer au modèle un paramètre que la route ignore produirait une réponse
   // qui paraît filtrée sans l'être. On fige donc la liste attendue.
   const attendus = {
-    "assiduite.consulter_absences": ["periodeId", "classeId", "statut", "depuis", "jusqua", "limite"],
+    "assiduite.consulter_absences": ["periodeId", "classeId", "statut", "eleveId", "depuis", "jusqua", "limite"],
+    "assiduite.consulter_retards": ["periodeId", "classeId", "eleveId", "depuis", "jusqua", "limite"],
     "assiduite.alertes": ["periodeId"],
-    "assiduite.justifier_absences": ["absenceIds", "statut", "motif"],
-    "assiduite.supprimer_absence": ["absenceId", "motif"],
+    "assiduite.justifier_absences": ["eleve", "date", "statut", "motif"],
+    "assiduite.supprimer_absence": ["eleve", "date", "motif"],
   };
   for (const [nom, champs] of Object.entries(attendus)) {
     assert.deepEqual(Object.keys(tool(nom).parametres), champs, nom);

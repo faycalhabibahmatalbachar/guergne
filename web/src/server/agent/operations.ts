@@ -25,7 +25,7 @@ import {
 } from "@/server/domain/assiduite-ecritures";
 import { calendrierEvaluations, listerEvaluations } from "@/server/domain/evaluations";
 import { listerSituations, recouvrementParClasse, statistiquesFinancieres } from "@/server/domain/finances";
-import { listerNiveaux, listerPeriodes, listerSeries } from "@/server/domain/parametres";
+import { listerAnnees, listerNiveaux, listerPeriodes, listerSeries } from "@/server/domain/parametres";
 import { listerTuteurs, statistiquesParents, tuteursDeLEleve } from "@/server/domain/parents";
 import { releveDetailleEleve } from "@/server/domain/releve-eleve";
 import { chargerFicheEleve } from "@/server/domain/fiche-eleve";
@@ -42,6 +42,7 @@ import { chargerAnneeCourante, chargerStatistiques } from "@/server/domain/table
 import {
   chargerConduiteClasse,
   compterAbsences,
+  compterRetards,
   listerAbsences,
   listerAlertes,
   listerElevesClasse,
@@ -180,6 +181,7 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
         statut: s(p.statut),
         depuis: s(p.depuis),
         jusqua: s(p.jusqua),
+        eleveId: uuid(p.eleveId),
       };
       const limite = Math.min(n(p.limite, 100), 500);
       const [lignes, total] = await Promise.all([listerAbsences({ ...filtres, limite }), compterAbsences(filtres)]);
@@ -188,7 +190,14 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
   },
   listerRetards: {
     permission: "assiduite:lire",
-    executer: (p) => listerRetards({ periodeId: s(p.periodeId), classeId: s(p.classeId), limite: n(p.limite, 100) }),
+    // Même contrat que les absences : les lignes ET le total, avec les filtres
+    // par élève et par dates que « les retards de la semaine » exige.
+    executer: async (p) => {
+      const filtres = { periodeId: s(p.periodeId), classeId: s(p.classeId), eleveId: uuid(p.eleveId), depuis: s(p.depuis), jusqua: s(p.jusqua) };
+      const limite = Math.min(n(p.limite, 100), 500);
+      const [lignes, total] = await Promise.all([listerRetards({ ...filtres, limite }), compterRetards(filtres)]);
+      return { lignes, total, limite, tronque: total > lignes.length };
+    },
   },
   listerAlertes: { permission: "assiduite:lire", executer: (p) => listerAlertes(s(p.periodeId)) },
   statistiquesVieScolaire: {
@@ -214,11 +223,12 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
   },
   listerIncidents: {
     permission: "discipline:lire",
-    executer: (p) => listerIncidents({ periodeId: s(p.periodeId), classeId: s(p.classeId), limite: n(p.limite, 100) }),
+    executer: (p) =>
+      listerIncidents({ periodeId: s(p.periodeId), classeId: s(p.classeId), eleveId: uuid(p.eleveId), depuis: s(p.depuis), jusqua: s(p.jusqua), limite: n(p.limite, 100) }),
   },
   listerSanctions: {
     permission: "discipline:lire",
-    executer: (p) => listerSanctions({ periodeId: s(p.periodeId), classeId: s(p.classeId), limite: n(p.limite, 100) }),
+    executer: (p) => listerSanctions({ periodeId: s(p.periodeId), classeId: s(p.classeId), eleveId: uuid(p.eleveId), limite: n(p.limite, 100) }),
   },
 
   // --- Référentiel ----------------------------------------------------------
@@ -286,6 +296,9 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
   },
   // Niveaux et séries : ce qu'il faut pour créer une classe sans que personne
   // n'ait à dicter un identifiant.
+  // Les années enregistrées : pour dire « je n'ai rien sur 2019-2020 » plutôt
+  // que de servir l'année en cours sous un autre nom.
+  listerAnnees: { permission: "classe:lire", executer: () => listerAnnees() },
   listerNiveaux: { permission: "classe:lire", executer: () => listerNiveaux() },
   listerSeries: { permission: "classe:lire", executer: () => listerSeries(true) },
 

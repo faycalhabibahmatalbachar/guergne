@@ -9,13 +9,50 @@ const MAX_TEXTE = 12_000;
 const MAX_HISTORIQUE = 12;
 const PARAMETRES_CONTEXTE_AUTORISES = new Set([
   "classeId", "periodeId", "depuis", "jusqua", "statut", "limite",
+  // Ajoutés avec le fil de conversation : toujours des RÉFÉRENCES et des
+  // filtres, jamais un nom ni un résultat.
+  "eleveId", "periodeNumero", "seulementImpayes", "enRetard", "boursier", "etat",
 ]);
+const UUID_MEMOIRE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+/** Au-delà, un contexte n'est plus « ce dont on vient de parler ». */
+const CONTEXTE_FRAIS_MS = 30 * 60 * 1000;
+
+/**
+ * Le foyer tel qu'il a le droit d'être persisté : des identifiants et deux
+ * drapeaux. Tout le reste est écarté — à l'écriture comme à la relecture.
+ */
+export function validerFoyer(f) {
+  if (!f || typeof f !== "object") return null;
+  const out = {};
+  for (const cle of ["classeId", "periodeId", "eleveId"]) {
+    if (typeof f[cle] === "string" && UUID_MEMOIRE.test(f[cle])) out[cle] = f[cle];
+  }
+  if (Array.isArray(f.eleveIds)) {
+    out.eleveIds = f.eleveIds.filter((x) => typeof x === "string" && UUID_MEMOIRE.test(x)).slice(0, 80);
+    out.eleveIdsTronques = f.eleveIdsTronques === true;
+    if (typeof f.origineEleves === "string" && /^[a-z0-9_.]{1,100}$/.test(f.origineEleves)) out.origineEleves = f.origineEleves;
+  }
+  if (typeof f.outil === "string" && /^[a-z0-9_.]{1,100}$/.test(f.outil)) out.outil = f.outil;
+  return Object.keys(out).length ? out : null;
+}
 
 export function filtrerParametresContexte(params = {}) {
   const propres = {};
   for (const [cle, valeur] of Object.entries(params ?? {})) {
     if (!PARAMETRES_CONTEXTE_AUTORISES.has(cle) || valeur == null || valeur === "") continue;
-    if (["classeId", "periodeId"].includes(cle)) {
+    if (["seulementImpayes", "enRetard", "boursier"].includes(cle)) {
+      if (typeof valeur === "boolean") propres[cle] = valeur;
+      continue;
+    }
+    if (cle === "etat") {
+      if (typeof valeur === "string" && /^[a-z_]{3,20}$/i.test(valeur)) propres[cle] = valeur;
+      continue;
+    }
+    if (cle === "periodeNumero") {
+      if ([1, 2, 3].includes(Number(valeur))) propres[cle] = Number(valeur);
+      continue;
+    }
+    if (["classeId", "periodeId", "eleveId"].includes(cle)) {
       if (typeof valeur === "string" &&
           /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(valeur)) {
         propres[cle] = valeur;
@@ -91,7 +128,8 @@ function typeMessage(type) {
 }
 
 export class NeonConversationMemory {
-  constructor({ connectionString, encryptionKey, hmacKey, pool = null, logger = null, maxConnections = 4, storeGeneralChat = false } = {}) {
+  constructor({ connectionString, encryptionKey, hmacKey, pool = null, logger = null, maxConnections = 4, storeGeneralChat = false, contexteFraisMs = CONTEXTE_FRAIS_MS } = {}) {
+    this.contexteFraisMs = contexteFraisMs;
     if (!connectionString && !pool) throw new Error("AGENT_MEMORY_DATABASE_URL est obligatoire.");
     this.encryptionKey = lireCle(encryptionKey, "AGENT_MEMORY_ENCRYPTION_KEY");
     this.hmacKey = lireCle(hmacKey, "AGENT_MEMORY_HMAC_KEY");
@@ -135,6 +173,7 @@ export class NeonConversationMemory {
     let summaries = [];
     let facts = [];
     let lastTask = null;
+    let foyer = null;
 
     try {
       await client.query("BEGIN");
@@ -182,12 +221,20 @@ export class NeonConversationMemory {
             nonce: row.nonce_chiffrement,
             tag: row.tag_authentification,
           }, this.encryptionKey));
-          lastTask = {
-            tool: row.outil,
-            params: filtrerParametresContexte(params),
-            updatedAt: row.modifie_le,
-            expiresAt: row.expire_le,
-          };
+          // Un contexte vieux de plus d'une demi-heure n'est plus « ce dont on
+          // vient de parler » : « et les retards ? » ne doit pas se rattacher à
+          // une classe évoquée la veille. La ligne reste en base jusqu'à son
+          // expiration ; elle n'est simplement plus servie comme fil.
+          const frais = Date.now() - new Date(row.modifie_le).getTime() <= this.contexteFraisMs;
+          if (frais) {
+            lastTask = row.outil === "foyer" ? null : {
+              tool: row.outil,
+              params: filtrerParametresContexte(params),
+              updatedAt: row.modifie_le,
+              expiresAt: row.expire_le,
+            };
+            foyer = validerFoyer(params?.__foyer);
+          }
         } catch {
           this._log("memory_context_decrypt_failed");
           lastTask = null;
@@ -215,10 +262,13 @@ export class NeonConversationMemory {
             params = null;
           }
         }
+        const attente = params?.__attente ?? null;
+        if (params && attente) delete params.__attente;
         pending = params === null ? null : {
           intention: row.intention_en_attente,
           tool: row.outil_en_attente,
           params,
+          ...(attente ? { empreinte: attente.empreinte, expireA: attente.expireA, staffId: attente.staffId, runId: attente.runId } : {}),
           missingFields: row.champs_manquants ?? [],
           expiresAt: row.expire_le,
         };
@@ -285,7 +335,7 @@ export class NeonConversationMemory {
       this.lastPurgeAt = Date.now();
       this.purgeExpired().catch(() => this._log("memory_purge_failed"));
     }
-    return { conversationId, actorId, history, pending, summaries, facts, lastTask };
+    return { conversationId, actorId, history, pending, summaries, facts, lastTask, foyer };
   }
 
   async annotateInbound({ session, providerMessageId, text = "", intention = null, tool = null, retainContent = false } = {}) {
@@ -336,7 +386,10 @@ export class NeonConversationMemory {
       throw new Error("Outil mémoire invalide.");
     }
     const propres = filtrerParametresContexte(params);
-    const encrypted = chiffrer(JSON.stringify(propres), this.encryptionKey);
+    // Le foyer voyage dans la MÊME ligne chiffrée : une conversation, un contexte.
+    const foyer = validerFoyer(session.foyer);
+    session.lastTask = { tool, params: propres };
+    const encrypted = chiffrer(JSON.stringify(foyer ? { ...propres, __foyer: foyer } : propres), this.encryptionKey);
     await this.pool.query(
       "INSERT INTO public.wa_conversation_context " +
       "(conversation_id, outil, parametres_chiffres, nonce_chiffrement, tag_authentification, version_cle, expire_le, modifie_le) " +
@@ -349,9 +402,38 @@ export class NeonConversationMemory {
     );
   }
 
-  async saveState(session, { intention = "clarification", tool = null, params = {}, missingFields = [] } = {}) {
+  /**
+   * Le foyer du fil : les entités dont on vient de parler, en identifiants.
+   * Fusionné avec celui de la session, puis réécrit avec la dernière tâche.
+   */
+  async saveFocus(session, foyer = {}) {
     if (!session?.conversationId) return;
-    const encrypted = chiffrer(JSON.stringify(params ?? {}), this.encryptionKey);
+    const fusion = { ...(session.foyer ?? {}) };
+    for (const [cle, valeur] of Object.entries(foyer ?? {})) if (valeur !== undefined) fusion[cle] = valeur;
+    session.foyer = validerFoyer(fusion);
+    const tache = session.lastTask ?? null;
+    const propres = filtrerParametresContexte(tache?.params ?? {});
+    const encrypted = chiffrer(JSON.stringify(session.foyer ? { ...propres, __foyer: session.foyer } : propres), this.encryptionKey);
+    await this.pool.query(
+      "INSERT INTO public.wa_conversation_context " +
+      "(conversation_id, outil, parametres_chiffres, nonce_chiffrement, tag_authentification, version_cle, expire_le, modifie_le) " +
+      "VALUES ($1, $2, $3, $4, $5, $6, now() + interval '7 days', now()) " +
+      "ON CONFLICT (conversation_id) DO UPDATE SET outil = EXCLUDED.outil, " +
+      "parametres_chiffres = EXCLUDED.parametres_chiffres, nonce_chiffrement = EXCLUDED.nonce_chiffrement, " +
+      "tag_authentification = EXCLUDED.tag_authentification, version_cle = EXCLUDED.version_cle, " +
+      "expire_le = EXCLUDED.expire_le, modifie_le = now()",
+      [session.conversationId, tache?.tool ?? "foyer", encrypted.ciphertext, encrypted.nonce, encrypted.tag, encrypted.keyVersion],
+    );
+  }
+
+  async saveState(session, { intention = "clarification", tool = null, params = {}, missingFields = [], empreinte = null, expireA = null, staffId = null, runId = null } = {}) {
+    if (!session?.conversationId) return;
+    // Une confirmation en attente porte ses GARANTIES : l'empreinte de
+    // l'action exacte, son expiration, l'acteur. Sans elles, l'attente relue
+    // après un redémarrage est inutilisable — le moteur la rejette, à raison.
+    // Elles voyagent dans le même bloc chiffré que les paramètres.
+    const garanties = empreinte && Number.isFinite(expireA) ? { __attente: { empreinte, expireA, staffId, runId } } : {};
+    const encrypted = chiffrer(JSON.stringify({ ...(params ?? {}), ...garanties }), this.encryptionKey);
     await this.pool.query(
       "INSERT INTO public.wa_conversation_state " +
       "(conversation_id, intention_en_attente, outil_en_attente, parametres_chiffres, nonce_chiffrement, " +
@@ -364,6 +446,15 @@ export class NeonConversationMemory {
       [session.conversationId, intention, tool, encrypted.ciphertext, encrypted.nonce, encrypted.tag,
         Array.isArray(missingFields) ? missingFields.map(String).slice(0, 20) : []],
     );
+  }
+
+  /** Ferme le fil durable : l'attente et le contexte de suivi. Les préférences restent. */
+  async resetFil(session) {
+    if (!session?.conversationId) return;
+    session.foyer = null;
+    session.lastTask = null;
+    await this.pool.query("DELETE FROM public.wa_conversation_state WHERE conversation_id = $1", [session.conversationId]);
+    await this.pool.query("DELETE FROM public.wa_conversation_context WHERE conversation_id = $1", [session.conversationId]);
   }
 
   async clearState(session) {

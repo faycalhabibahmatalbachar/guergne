@@ -32,6 +32,17 @@ import { ETAPE, agreger, estTransitoire, rendreBilan, validerMission } from "./m
 import { masquer } from "./identity-store.js";
 import { decrireErreur, resumerErreur } from "./erreurs.js";
 import { evaluerTranscription } from "./voix/qualite-transcription.js";
+import { extraireFoyer } from "./foyer.js";
+import { direManques } from "./manques.js";
+
+/** La valeur a-t-elle été écrite par l'utilisateur ? (au moins 6 mots significatifs sur 10) */
+function figureDans(valeur, corpus) {
+  const plat = (x) => String(x ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const c = ` ${plat(corpus)} `;
+  const mots = plat(valeur).split(" ").filter((m) => m.length >= 3 || /^\d+$/.test(m));
+  if (!mots.length) return false;
+  return mots.filter((m) => c.includes(` ${m} `) || c.includes(m)).length / mots.length >= 0.6;
+}
 
 let counter = 0;
 const uid = (p) => `${p}_${Date.now().toString(36)}_${(counter++).toString(36)}`;
@@ -56,6 +67,9 @@ export const Status = {
  * dependre d'aucune comprehension.
  */
 const COMMANDE_TEST = /^\s*TEST\s+AGENT\s*$/i;
+
+/** L'utilisateur ferme le fil lui-même. Volontairement étroit : une phrase entière, rien d'autre. */
+const NOUVEAU_SUJET = /^(nouveau sujet|nouvelle conversation|nouvelle demande|on change de sujet|changeons de sujet|autre sujet|repartons de z[ée]ro|on repart de z[ée]ro|oublie (ça|ca|cela|tout ça|le contexte|ce contexte))\s*[.!]*$/i;
 
 
 export class Agent {
@@ -112,7 +126,7 @@ export class Agent {
    * renvoie son message — ce qui ne change rien. Cette enveloppe transforme
    * toute défaillance en message explicite.
    */
-  async _sendText(msg, texte, { remember = false, intention = null, tool = null } = {}) {
+  async _sendText(msg, texte, { remember = false, intention = null, tool = null, fil = false } = {}) {
     await this.provider.sendText(msg.fromJid, texte);
     if (this.memory?.enabled && msg?.memoryContext?.conversationId) {
       try {
@@ -122,6 +136,9 @@ export class Agent {
           direction: "outbound",
           messageType: "text",
           retainContent: remember,
+          // `fil` : utile au fil de la conversation en cours, sans être un
+          // contenu que la mémoire DURABLE a le droit de garder.
+          fil,
           intent: intention,
           tool,
         });
@@ -282,7 +299,11 @@ export class Agent {
     });
 
     if (!staff) {
-      await this._sendText(msg, "Numéro non autorisé.");
+      // Un GROUPE ou une liste de diffusion ne reçoit RIEN : y répondre
+      // « Numéro non autorisé » écrirait dans une conversation que d'autres
+      // lisent, à chaque message de chacun. Le refus est consigné, pas publié.
+      const collectif = raison === RAISONS.GROUP_NOT_SUPPORTED || raison === RAISONS.BROADCAST_NOT_SUPPORTED;
+      if (!collectif) await this._sendText(msg, "Numéro non autorisé.");
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: null, role: null, channel: msg.kind,
         message: msg.text, intent: null, result: "REFUSED_UNKNOWN", raison,
@@ -467,6 +488,22 @@ export class Agent {
       }
     }
 
+    // « Nouveau sujet » : l'utilisateur ferme lui-même le fil. Tout ce qui
+    // rattachait la suite à la conversation précédente tombe — dernière
+    // consultation, foyer, question ou confirmation en attente.
+    if (NOUVEAU_SUJET.test(String(text ?? "").trim())) {
+      this.pending.delete(msg.fromJid);
+      if (memoryContext && typeof this.memory?.resetFil === "function") await this.memory.resetFil(memoryContext);
+      else await this._clearMemoryState(memoryContext);
+      await this._sendText(msg, "D'accord, on repart de zéro. Que souhaitez-vous ?");
+      this.journalEtape?.({ event: "fil_reinitialise", run: runId });
+      this.audit.record({
+        runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
+        intent: "nouveau_sujet", result: "SUCCESS", durationMs: Date.now() - started,
+      });
+      return { status: Status.COMPLETED, runId, memory: "fil_reinitialise" };
+    }
+
     // Commandes explicites de mémoire. Elles sont traitées après authentification
     // et avant le NLU ; aucune donnée scolaire n'est envoyée au modèle pour cela.
     const commandeMemoire = analyserCommandeMemoire(text);
@@ -592,10 +629,30 @@ export class Agent {
       });
     }
 
+    // 4 bis. Réponse à une question de CHOIX (« 2 », « celle de 6e B »).
+    //
+    // Le résolveur a montré des candidats et gardé leur liste. La réponse se
+    // compare à CETTE liste, sans modèle : « 2 » ne peut désigner que le
+    // deuxième candidat montré. Une réponse qui n'en désigne aucun fait tomber
+    // la question, et le message est compris comme une demande nouvelle.
+    let planImpose = null;
+    const enChoix = memoryContext?.pending?.intention === "choix" ? memoryContext.pending : null;
+    if (enChoix && this.resolveur) {
+      const { __choix: choix, ...reste } = enChoix.params ?? {};
+      const elu = this.resolveur.choisir(choix, text);
+      await this._clearMemoryState(memoryContext);
+      memoryContext.pending = null;
+      this.journalEtape?.({ event: "choix_evalue", run: runId, outil: enChoix.tool, compris: Boolean(elu) });
+      if (elu) {
+        for (const c of choix?.retirer ?? []) delete reste[c];
+        planImpose = { intention: "outil", outil: enChoix.tool, params: { ...reste, [choix.champ]: elu.id } };
+      }
+    }
+
     // 5. Compréhension (NLU ; réel : LLM)
     this.journalEtape?.({ event: "llm_request_started", run: runId });
     const debutNlu = Date.now();
-    const brut = await this.interpret(text, {
+    const brut = planImpose ?? await this.interpret(text, {
       staff,
       tools: this.tools,
       memory: {
@@ -604,9 +661,19 @@ export class Agent {
         summaries: memoryContext?.summaries ?? [],
         facts: memoryContext?.facts ?? [],
         lastTask: memoryContext?.lastTask ?? null,
+        foyer: memoryContext?.foyer ?? null,
       },
     });
-    const plan = normaliserPlan(brut, this.tools);
+    let plan = normaliserPlan(brut, this.tools);
+    // Une « mission » d'UNE seule consultation n'en est pas une : la conduire
+    // comme telle rendrait un décompte (« 11 résultats ») à la place de la
+    // réponse (les onze matières). Elle redevient l'outil qu'elle est.
+    if (plan.type === INTENTIONS.MISSION && plan.etapes.length === 1) {
+      const seule = plan.etapes[0];
+      const simple = normaliserPlan({ intention: "outil", outil: seule?.outil ?? seule?.tool, params: seule?.params ?? {} }, this.tools);
+      // Une écriture glissée dans une mission reste REFUSÉE, comme avant.
+      if (simple.type === INTENTIONS.OUTIL && simple.tool.sensitivity === "read") plan = simple;
+    }
     if (memoryContext && typeof this.memory?.annotateInbound === "function") {
       try {
         await this.memory.annotateInbound({
@@ -657,7 +724,11 @@ export class Agent {
           missingFields: plan.missingFields ?? [],
         });
       }
-      await this._sendText(msg, plan.question);
+      await this._sendText(msg, plan.question, { fil: true, intention: "clarification" });
+      this.audit.record({
+        runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
+        intent: plan.nomOutil ?? null, result: "CLARIFICATION", durationMs: Date.now() - started,
+      });
       return { status: Status.WAITING_INPUT, runId };
     }
 
@@ -673,8 +744,74 @@ export class Agent {
       return { status: Status.WAITING_INPUT, runId, rejet: plan.rejet };
     }
 
-    const tool = plan.tool;
     plan.params = plan.params ?? {};
+    return this._conduireOutil({ plan, staff, msg, runId, started, transcription, memoryContext, text });
+  }
+
+  /**
+   * Conduit UN outil, de la résolution de ses paramètres à son compte rendu.
+   *
+   * Séparé de `_traiter` pour une raison : une demande peut en porter deux
+   * (« les absents de 6e A, et préviens leurs parents »). La seconde repasse
+   * ici, entière — résolution, validation, permission, préparation,
+   * confirmation — comme si elle avait été écrite seule. Enchaîner n'est pas
+   * un raccourci.
+   */
+  async _conduireOutil({ plan, staff, msg, runId, started, transcription, memoryContext, text, enchaine = false }) {
+    const tool = plan.tool;
+    let notes = [];
+
+    // 5 bis. RÉSOLUTION DES ENTITÉS : ce qui a été nommé devient ce que le
+    // backend identifie. Voir `resolution-parametres.js`.
+    if (this.resolveur) {
+      let r;
+      const debutRes = Date.now();
+      try {
+        r = await this.resolveur.resoudre({ outil: tool, params: plan.params, staff, foyer: memoryContext?.foyer ?? null, texte: text });
+      } catch (e) {
+        r = { statut: "clarifier", question: `Je n'ai pas pu préparer la demande : ${resumerErreur(e)}`, erreur: true };
+      }
+      this.journalEtape?.({
+        event: "entites_resolues", run: runId, outil: tool.name, issue: r.statut,
+        choix: r.choix ? r.choix.candidats.length : null, champs: r.champs ?? null, dureeMs: Date.now() - debutRes,
+      });
+      if (r.statut === "clarifier") {
+        if (memoryContext && !r.erreur) {
+          await this.memory.saveState(
+            memoryContext,
+            r.choix
+              ? { intention: "choix", tool: tool.name, params: { ...plan.params, __choix: r.choix }, missingFields: [r.choix.champ] }
+              : { intention: "clarification", tool: tool.name, params: plan.params, missingFields: r.champs ?? [] },
+          );
+        }
+        // Un menu de candidats porte des noms d'élèves : il n'entre pas dans
+        // le fil relu par le modèle.
+        await this._sendText(msg, r.question, { fil: !r.choix, intention: "clarification" });
+        this.audit.record({
+          runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
+          intent: tool.name, result: r.erreur ? "FAILURE" : "CLARIFICATION", durationMs: Date.now() - started,
+        });
+        return { status: Status.WAITING_INPUT, reason: "resolution", runId };
+      }
+      plan.params = r.params;
+      notes = r.notes ?? [];
+    }
+
+    // 5 ter. CE QUI ENGAGE L'ÉTABLISSEMENT DOIT AVOIR ÉTÉ DIT.
+    //
+    // La référence d'une décision d'exclusion, l'établissement d'accueil d'un
+    // transfert : si le modèle a complété le champ de lui-même, la valeur est
+    // retirée — la validation la redemandera. On compare aux messages de
+    // l'utilisateur dans ce fil, jamais à ceux de l'agent.
+    if (Array.isArray(tool.ditParLUtilisateur)) {
+      const dits = [text, ...(memoryContext?.history ?? []).filter((m) => m.role === "user").map((m) => m.content)].join(" ");
+      for (const champ of tool.ditParLUtilisateur) {
+        if (plan.params?.[champ] && !figureDans(plan.params[champ], dits)) {
+          this.journalEtape?.({ event: "valeur_non_dite_retiree", run: runId, outil: tool.name, champ });
+          delete plan.params[champ];
+        }
+      }
+    }
 
     // 6. Validation des paramètres (mêmes règles que guergne) — aucune écriture si invalide
     const errs = tool.validate(plan.params ?? {});
@@ -687,7 +824,7 @@ export class Agent {
           missingFields: Object.keys(errs),
         });
       }
-      await this._sendText(msg, "Précisez : " + Object.values(errs).join(" "));
+      await this._sendText(msg, direManques(tool, errs), { fil: true, intention: "clarification" });
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
         intent: tool.name, params: plan.params, result: "INVALID", durationMs: Date.now() - started,
@@ -728,7 +865,7 @@ export class Agent {
         preparation = { ok: false, message: `Impossible de préparer la demande : ${resumerErreur(e)}` };
       }
       if (!preparation || preparation.ok === false) {
-        await this.provider.sendText(msg.fromJid, preparation?.message ?? "La demande ne peut pas être préparée.");
+        await this._sendText(msg, preparation?.message ?? "La demande ne peut pas être préparée.");
         this.audit.record({
           runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
           intent: tool.name, params: plan.params, result: "REJECTED_BEFORE_EXECUTION", durationMs: Date.now() - started,
@@ -815,7 +952,20 @@ Répondez *oui* pour confirmer, *non* pour annuler.`);
     }
 
     // 9. Exécution
-    return this._execute(tool, plan.params ?? {}, { staff, msg, runId, transcription, started, confirmed: !!plan.confirmed, verdict });
+    const issue = await this._execute(tool, plan.params ?? {}, { staff, msg, runId, transcription, started, confirmed: !!plan.confirmed, verdict, notes });
+
+    // ENCHAÎNEMENT : la consultation a abouti, et la demande portait une
+    // suite (« … et préviens leurs parents »). La suite voit le foyer que la
+    // consultation vient de poser — donc les élèves RÉELLEMENT listés.
+    if (plan.puis && !enchaine && issue?.status === Status.COMPLETED && tool.sensitivity === "read") {
+      const suite = normaliserPlan({ intention: "outil", outil: plan.puis.outil ?? plan.puis.tool, params: plan.puis.params ?? {} }, this.tools);
+      this.journalEtape?.({ event: "enchainement", run: runId, de: tool.name, vers: suite.nomOutil ?? null, valide: suite.type === INTENTIONS.OUTIL });
+      if (suite.type === INTENTIONS.OUTIL) {
+        const r2 = await this._conduireOutil({ plan: suite, staff, msg, runId, started, transcription, memoryContext: msg.memoryContext ?? memoryContext, text, enchaine: true });
+        return { ...r2, premier: issue };
+      }
+    }
+    return issue;
   }
 
   /**
@@ -885,6 +1035,33 @@ Répondez *oui* pour confirmer, *non* pour annuler.`);
       if (verdict?.decision === "AUTOMATIQUE") {
         this._metriques.automatiques += 1;
         this.politiques?.enregistrerExecution?.({ politique: verdict.politique, staff });
+      }
+
+      // Chaque étape a droit à la même résolution qu'une demande seule : le
+      // modèle écrit « 6e A », le backend reçoit l'identifiant de la 6ème A.
+      let empechement = null;
+      if (this.resolveur) {
+        try {
+          const res = await this.resolveur.resoudre({ outil: etape.tool, params: etape.params, staff, foyer: msg.memoryContext?.foyer ?? null, texte: "" });
+          if (res.statut === "clarifier") empechement = res.question;
+          else etape.params = res.params;
+        } catch (e) {
+          empechement = resumerErreur(e);
+        }
+      }
+      if (!empechement && typeof etape.tool.preparer === "function") {
+        try {
+          const prep = await etape.tool.preparer(etape.params ?? {}, { guergne: this.guergne, ctx: { actorId: staff.id } });
+          if (!prep || prep.ok === false) empechement = prep?.message ?? "préparation impossible";
+          else if (prep.params) etape.params = prep.params;
+        } catch (e) {
+          empechement = resumerErreur(e);
+        }
+      }
+      if (empechement) {
+        resultats.push({ ...base, statut: ETAPE.ECHOUEE, detail: String(empechement).split("\n")[0].slice(0, 140) });
+        this.journalEtape?.({ event: "mission_etape", run: runId, rang, statut: ETAPE.ECHOUEE, outil: etape.nomOutil, raison: "resolution" });
+        continue;
       }
 
       const r = await this._appelerAvecReprise({ etape, staff, runId, rang });
@@ -1089,7 +1266,8 @@ Répondez *oui* pour confirmer, *non* pour annuler.`);
     }
   }
 
-  async _execute(tool, params, { staff, msg, runId, transcription, started, confirmed, verdict = null }) {
+  async _execute(tool, params, { staff, msg, runId, transcription, started, confirmed, verdict = null, notes = [] }) {
+    const suffixe = notes.length ? "\n" + notes.join("\n") : "";
     // État avant (si le client sait le lire)
     let before = null;
     if (this.guergne.snapshot) {
@@ -1163,6 +1341,18 @@ Répondez *oui* pour confirmer, *non* pour annuler.`);
     }
 
     if (ok) {
+      // LE FOYER : de quoi l'on vient de parler. Des identifiants, jamais des
+      // noms ; ils repasseront par un outil — donc par les droits — avant de
+      // servir.
+      if (typeof this.memory?.saveFocus === "function" && msg?.memoryContext?.conversationId) {
+        try {
+          const foyer = extraireFoyer(tool, params, result?.data);
+          await this.memory.saveFocus(msg.memoryContext, foyer);
+          msg.memoryContext.foyer = { ...(msg.memoryContext.foyer ?? {}), ...foyer };
+        } catch {
+          /* le foyer est un confort : son échec ne retire rien à la réponse */
+        }
+      }
       // Une lecture réussie devient le périmètre de référence des demandes
       // de suivi. Seuls l'outil et les filtres autorisés sont persistés ;
       // aucun résultat ni contenu d'élève n'est mémorisé.
@@ -1177,7 +1367,8 @@ Répondez *oui* pour confirmer, *non* pour annuler.`);
       // Une relecture réussie a le dernier mot : elle décrit ce qui EST
       // enregistré, et non ce que l'appel a promis.
       if (verification?.ok === true && verification.texte) {
-        await this.provider.sendText(msg.fromJid, verification.texte);
+        await this.provider.sendText(msg.fromJid, verification.texte + suffixe);
+        await this._clearMemoryState(msg.memoryContext);
         return { status: Status.COMPLETED, runId, result, verifiee: true };
       }
       // Les écritures portent leur propre message ; les lectures renvoient
@@ -1201,7 +1392,12 @@ Répondez *oui* pour confirmer, *non* pour annuler.`);
           texte = null;
         }
       }
-      await this._sendText(msg, texte || "✅ Opération effectuée.");
+      // Une consultation sans mise en forme ne répond PAS « opération
+      // effectuée » : ce serait jeter la donnée qu'on vient de lire.
+      const defaut = tool.sensitivity === "read"
+        ? "La consultation a abouti, mais je ne sais pas encore présenter ce résultat ici. Consultez-le dans l'application."
+        : "✅ Opération effectuée.";
+      await this._sendText(msg, (texte || defaut) + suffixe, { tool: tool.sensitivity === "read" ? tool.name : null });
       await this._clearMemoryState(msg.memoryContext);
       return { status: Status.COMPLETED, runId, result };
     }

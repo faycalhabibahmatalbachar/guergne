@@ -58,6 +58,10 @@ export const STATUT_TOOLS = [
     permission: "eleve:lire",
     sensitivity: WRITE,
     confirmationObligatoire: true,
+    // Ces informations ENGAGENT l'établissement : elles doivent avoir été
+    // écrites par l'utilisateur. Le moteur retire toute valeur que le modèle
+    // aurait complétée de lui-même, et la redemande.
+    ditParLUtilisateur: ["decision", "etablissement"],
     action: "changerStatutEleve",
     parametres: {
       eleve: "OBLIGATOIRE, nom, prenom ou matricule de l'eleve",

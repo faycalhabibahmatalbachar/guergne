@@ -40,10 +40,18 @@ function validateRetard(p) {
   return e;
 }
 
+const DATE_ISO = /^\d{4}-\d{2}-\d{2}$/;
+/** L'absence est désignée par l'élève et le jour : personne ne connaît son identifiant. */
+const designeUneAbsence = (p) => required(p.eleveId ?? p.eleve) && DATE_ISO.test(String(p.date ?? ""));
+
 function validateJustifier(p) {
   const e = {};
-  if (!Array.isArray(p.absenceIds) || p.absenceIds.length === 0) e.absenceIds = "Aucune absence sélectionnée.";
-  else if (p.absenceIds.length > 200) e.absenceIds = "200 absences au maximum.";
+  if (Array.isArray(p.absenceIds) && p.absenceIds.length > 200) e.absenceIds = "200 absences au maximum.";
+  else if (!(Array.isArray(p.absenceIds) && p.absenceIds.length > 0) && !designeUneAbsence(p)) {
+    if (!required(p.eleveId ?? p.eleve)) e.eleve = "Information requise.";
+    if (!DATE_ISO.test(String(p.date ?? ""))) e.date = "Information requise.";
+  }
+  if (!required(p.statut)) p.statut = "JUSTIFIEE";
   if (!["JUSTIFIEE", "NON_JUSTIFIEE"].includes(p.statut)) e.statut = "Statut invalide.";
   if (p.statut === "JUSTIFIEE" && (!p.motif || p.motif.trim().length < 3)) e.motif = "Motif requis (≥3 caractères).";
   return e;
@@ -51,7 +59,10 @@ function validateJustifier(p) {
 
 function validateSupprimer(p) {
   const e = {};
-  if (!required(p.absenceId)) e.absenceId = "Absence requise.";
+  if (!required(p.absenceId) && !designeUneAbsence(p)) {
+    if (!required(p.eleveId ?? p.eleve)) e.eleve = "Information requise.";
+    if (!DATE_ISO.test(String(p.date ?? ""))) e.date = "Information requise.";
+  }
   if (!p.motif || p.motif.trim().length < 3) e.motif = "Motif requis (≥3 caractères).";
   return e;
 }
@@ -93,10 +104,31 @@ function validateSupprimer(p) {
  * ferait inventer au modèle des filtres silencieusement ignorés, ce qui est
  * pire qu'un filtre absent : la réponse paraîtrait filtrée sans l'être.
  */
+/**
+ * Les absences d'un élève un jour donné — relues au backend.
+ *
+ * `eleveId` vient du résolveur central : l'élève est déjà identifié sans
+ * ambiguïté quand on arrive ici.
+ */
+async function absencesDuJour(p, { guergne, ctx }) {
+  const eleveId = p.eleveId;
+  if (!required(eleveId)) return { ok: false, message: "Précisez l'élève concerné (nom ou matricule)." };
+  const [r, d] = await Promise.all([
+    guergne.listerAbsences({ eleveId, depuis: p.date, jusqua: p.date }, ctx),
+    guergne.consulterEleve({ eleveId }, ctx),
+  ]);
+  if (r?.ok === false) return { ok: false, message: r.message ?? "Les absences n'ont pas pu être lues." };
+  const e = d?.data?.eleve;
+  const qui = e ? `${nomComplet(e)}${e.matricule ? ` (${e.matricule})` : ""}` : "cet élève";
+  const lignes = lignesDe(r?.data) ?? [];
+  if (!lignes.length) return { ok: false, message: `Aucune absence enregistrée pour ${qui} le ${p.date}.` };
+  return { ok: true, lignes, qui, eleveId };
+}
+
 const OUTILS_ASSIDUITE = [
   {
     name: "assiduite.consulter_absences",
-    description: "lister les absences enregistrees (par classe, periode, statut ou dates)",
+    description: "lister les absences enregistrees — d'une classe, d'UN eleve, d'une periode, entre deux dates, justifiees ou non",
     module: "assiduite",
     permission: "assiduite:lire",
     sensitivity: READ,
@@ -105,6 +137,7 @@ const OUTILS_ASSIDUITE = [
       periodeId: "facultatif, identifiant de periode scolaire (UUID) ; par defaut toutes les periodes",
       classeId: "facultatif, identifiant de classe (UUID) ; par defaut toutes les classes",
       statut: "facultatif, JUSTIFIEE ou NON_JUSTIFIEE ; par defaut les deux",
+      eleveId: "facultatif, un seul eleve : son nom, son prenom ou son matricule",
       depuis: "facultatif, date de debut incluse (AAAA-MM-JJ)",
       jusqua: "facultatif, date de fin incluse (AAAA-MM-JJ)",
       limite: "facultatif, nombre maximum de lignes ; 100 par defaut",
@@ -149,7 +182,7 @@ const OUTILS_ASSIDUITE = [
     // La route expose cette lecture depuis l'origine ; aucun outil ne
     // l'offrait. Un surveillant ne pouvait donc pas demander les retards.
     name: "assiduite.consulter_retards",
-    description: "lister les retards enregistres",
+    description: "lister les retards enregistres — d'une classe, d'UN eleve, d'une periode ou entre deux dates",
     module: "assiduite",
     permission: "assiduite:lire",
     sensitivity: READ,
@@ -157,16 +190,24 @@ const OUTILS_ASSIDUITE = [
     parametres: {
       periodeId: "facultatif, identifiant de periode scolaire (UUID) ; par defaut toutes les periodes",
       classeId: "facultatif, identifiant de classe (UUID) ; par defaut toutes les classes",
+      eleveId: "facultatif, un seul eleve : son nom, son prenom ou son matricule",
+      depuis: "facultatif, date de debut incluse (AAAA-MM-JJ)",
+      jusqua: "facultatif, date de fin incluse (AAAA-MM-JJ)",
       limite: "facultatif, nombre maximum de lignes ; 100 par defaut",
     },
     validate: noErrs,
     summarize: (p) => `Consulter les retards${p.classeId ? " de la classe " + p.classeId : ""}.`,
-    rendre: (lignes) =>
-      listeRendue(lignes, "Retards", (l) => {
-        const duree = l.dureeMinutes != null ? `${l.dureeMinutes} min` : "duree inconnue";
-        const arrivee = l.heureArrivee ? `, arrive ${String(l.heureArrivee).slice(0, 5)}` : "";
-        return `${nomComplet(l)} (${l.classe ?? "classe inconnue"}) — ${jour(l.dateRetard)}, ${duree}${arrivee}`;
-      }),
+    rendre: (d) =>
+      listeRendue(
+        lignesDe(d),
+        "Retards",
+        (l) => {
+          const duree = l.dureeMinutes != null ? `${l.dureeMinutes} min` : "duree inconnue";
+          const arrivee = l.heureArrivee ? `, arrive ${String(l.heureArrivee).slice(0, 5)}` : "";
+          return `${nomComplet(l)} (${l.classe ?? "classe inconnue"}) — ${jour(l.dateRetard)}, ${duree}${arrivee}`;
+        },
+        { total: totalDe(d) },
+      ),
   },
   {
     name: "assiduite.tableau_de_bord",
@@ -232,6 +273,9 @@ const OUTILS_ASSIDUITE = [
     parametres: {
       periodeId: "facultatif, identifiant de periode scolaire (UUID) ; par defaut toutes les periodes",
       classeId: "facultatif, identifiant de classe (UUID) ; par defaut toutes les classes",
+      eleveId: "facultatif, un seul eleve : son nom, son prenom ou son matricule",
+      depuis: "facultatif, date de debut incluse (AAAA-MM-JJ)",
+      jusqua: "facultatif, date de fin incluse (AAAA-MM-JJ)",
       limite: "facultatif, nombre maximum de lignes ; 100 par defaut",
     },
     validate: noErrs,
@@ -256,6 +300,7 @@ const OUTILS_ASSIDUITE = [
     parametres: {
       periodeId: "facultatif, identifiant de periode scolaire (UUID) ; par defaut toutes les periodes",
       classeId: "facultatif, identifiant de classe (UUID) ; par defaut toutes les classes",
+      eleveId: "facultatif, un seul eleve : son nom, son prenom ou son matricule",
       limite: "facultatif, nombre maximum de lignes ; 100 par defaut",
     },
     validate: noErrs,
@@ -338,13 +383,43 @@ const OUTILS_ASSIDUITE = [
     requiresConfirmation: true,
     action: "justifierEnLot",
     parametres: {
-      absenceIds: "obligatoire, 200 identifiants d'absence au maximum",
-      statut: "obligatoire, JUSTIFIEE ou NON_JUSTIFIEE",
-      motif: "obligatoire si JUSTIFIEE, au moins 3 caracteres",
+      eleve: "OBLIGATOIRE, nom, prenom ou matricule de l'eleve",
+      date: "OBLIGATOIRE, jour de l'absence (AAAA-MM-JJ)",
+      statut: "facultatif, JUSTIFIEE (defaut) ou NON_JUSTIFIEE pour retirer une justification",
+      motif: "obligatoire pour justifier : le justificatif (certificat medical, deces dans la famille...), au moins 3 caracteres",
     },
     validate: validateJustifier,
     summarize: (p) =>
       `${p.statut === "JUSTIFIEE" ? "Justifier" : "Repasser en non justifiée"} ${(p.absenceIds || []).length} absence(s).`,
+    preparer: async (p, outils) => {
+      if (Array.isArray(p.absenceIds) && p.absenceIds.length) return { ok: true, params: { absenceIds: p.absenceIds, statut: p.statut, motif: p.motif } };
+      const a = await absencesDuJour(p, outils);
+      if (!a.ok) return a;
+      const cible = p.statut === "NON_JUSTIFIEE" ? "JUSTIFIEE" : "NON_JUSTIFIEE";
+      const concernees = a.lignes.filter((l) => l.statut === cible);
+      if (!concernees.length) {
+        return { ok: false, message: `${a.qui} : l'absence du ${p.date} est déjà ${STATUT_LISIBLE[p.statut] ?? p.statut}.` };
+      }
+      return {
+        ok: true,
+        params: { absenceIds: concernees.map((l) => l.id), statut: p.statut, motif: String(p.motif ?? "").trim(), eleveId: a.eleveId, date: p.date },
+        texte: [
+          `${p.statut === "JUSTIFIEE" ? "Justifier" : "Repasser en NON justifiée"} — ${a.qui}`,
+          ...concernees.map((l) => `• absence du ${jour(l.dateAbsence)}, ${Number(l.nbHeures)} h${l.matiere ? `, ${l.matiere}` : ""}`),
+          p.statut === "JUSTIFIEE" ? `• justificatif : ${String(p.motif ?? "").trim()}` : null,
+        ].filter(Boolean).join("\n"),
+      };
+    },
+    verifier: async ({ params, guergne, ctx }) => {
+      if (!params.eleveId || !params.date) return { ok: true };
+      const r = await guergne.listerAbsences({ eleveId: params.eleveId, depuis: params.date, jusqua: params.date }, ctx);
+      const lignes = lignesDe(r?.data) ?? [];
+      const visees = lignes.filter((l) => params.absenceIds.includes(l.id));
+      if (visees.length !== params.absenceIds.length) return { ok: false, raison: "les absences n'ont pas pu être relues" };
+      const fautives = visees.filter((l) => l.statut !== params.statut);
+      if (fautives.length) return { ok: false, raison: `${fautives.length} absence(s) relue(s) avec un autre statut` };
+      return { ok: true, texte: `✅ Vérifié : ${visees.length} absence(s) du ${params.date} désormais ${STATUT_LISIBLE[params.statut] ?? params.statut}(s).` };
+    },
   },
   {
     name: "assiduite.supprimer_absence",
@@ -355,10 +430,37 @@ const OUTILS_ASSIDUITE = [
     requiresConfirmation: true,
     action: "supprimerAbsence",
     parametres: {
-      absenceId: "obligatoire, identifiant de l'absence (UUID)",
-      motif: "obligatoire, au moins 3 caracteres",
+      eleve: "OBLIGATOIRE, nom, prenom ou matricule de l'eleve",
+      date: "OBLIGATOIRE, jour de l'absence a supprimer (AAAA-MM-JJ)",
+      motif: "OBLIGATOIRE, pourquoi on la supprime (au moins 3 caracteres)",
     },
     validate: validateSupprimer,
+    preparer: async (p, outils) => {
+      if (required(p.absenceId)) return { ok: true, params: { absenceId: p.absenceId, motif: p.motif } };
+      const a = await absencesDuJour(p, outils);
+      if (!a.ok) return a;
+      // Plusieurs absences le même jour : en supprimer une au hasard serait
+      // une faute. On les montre, et on s'arrête.
+      if (a.lignes.length > 1) {
+        return {
+          ok: false,
+          message: `${a.qui} a ${a.lignes.length} absences le ${p.date} (${a.lignes.map((l) => `${Number(l.nbHeures)} h${l.matiere ? ` de ${l.matiere}` : ""}`).join(", ")}). Supprimez celle qu'il faut depuis l'application : je ne peux pas les distinguer ici.`,
+        };
+      }
+      const l = a.lignes[0];
+      return {
+        ok: true,
+        params: { absenceId: l.id, motif: String(p.motif).trim(), eleveId: a.eleveId, date: p.date },
+        texte: `SUPPRIMER DÉFINITIVEMENT une absence — ${a.qui}\n• absence du ${jour(l.dateAbsence)}, ${Number(l.nbHeures)} h, ${STATUT_LISIBLE[l.statut] ?? l.statut}\n• motif de la suppression : ${String(p.motif).trim()}\n⚠️ Cette suppression ne se défait pas.`,
+      };
+    },
+    verifier: async ({ params, guergne, ctx }) => {
+      if (!params.eleveId || !params.date) return { ok: true };
+      const r = await guergne.listerAbsences({ eleveId: params.eleveId, depuis: params.date, jusqua: params.date }, ctx);
+      if (r?.ok === false) return { ok: false, raison: "la relecture a échoué" };
+      const reste = (lignesDe(r?.data) ?? []).some((l) => l.id === params.absenceId);
+      return reste ? { ok: false, raison: "l'absence figure toujours au dossier" } : { ok: true, texte: `✅ Vérifié : l'absence du ${params.date} n'existe plus (motif : ${params.motif}).` };
+    },
     summarize: (p) => `SUPPRIMER une absence (motif : ${p.motif}).`,
     // Meme raison que pour le retard : une suppression confirmee doit se dire,
     // d'autant qu'elle est irreversible.
@@ -373,6 +475,59 @@ const OUTILS_ASSIDUITE = [
  * savait rien faire d'autre. Il reste pour ne pas casser les appelants.
  */
 export const ASSIDUITE_TOOLS = [...OUTILS_ASSIDUITE, ...PILOTAGE_TOOLS, ...DOSSIERS_TOOLS, ...SCOLARITE_TOOLS, ...FICHE_TOOLS, ...PARENTS_TOOLS, ...NOTIFICATIONS_TOOLS, ...STATUT_TOOLS];
+
+/**
+ * Un paramètre tel que le modèle doit le voir.
+ *
+ * Les outils d'origine déclarent `classeId`, `periodeId`, `eleveId`… : ce que
+ * l'API attend. Montrés tels quels, ils faisaient recopier des UUID au modèle
+ * — ou les lui faisaient demander à l'utilisateur (« Quel est l'identifiant
+ * (UUID) de la classe 6e A ? »). Le modèle voit donc des MOTS ; c'est le
+ * résolveur central (`resolution-parametres.js`) qui en fait des identifiants.
+ */
+const EN_MOTS = { classeId: "classe", periodeId: "periode", eleveId: "eleve", enseignantId: "enseignant", matiereId: "matiere", anneeId: "annee" };
+
+/** Dit UNE fois, en tête du registre : le répéter sur 52 outils coûtait un quart de l'invite. */
+const LEGENDE = [
+  "Parametres communs a plusieurs outils (ecris-les TELS QUE L'UTILISATEUR LES A DITS) :",
+  "  classe = la classe (« 6e A », « terminale D ») ; periode = un TRIMESTRE et rien d'autre (« 1er trimestre », « T2 ») :",
+  "  une semaine, un mois ou un jour se donnent par depuis/jusqua, jamais par periode ;",
+  "  eleve = nom, prenom ou matricule de l'eleve ; enseignant = son nom ; matiere = son nom ;",
+  "  annee = a remplir SEULEMENT si l'utilisateur nomme une autre annee scolaire que celle en cours ;",
+  "  depuis / jusqua = dates incluses, AAAA-MM-JJ ; limite / parPage = nombre maximum de lignes.",
+  "Un parametre suivi de * est OBLIGATOIRE. Tous les autres sont facultatifs : ils restent ABSENTS quand la demande ne les precise pas.",
+].join("\n");
+
+function enMots(nom, role) {
+  const mot = EN_MOTS[nom];
+  if (!mot) return [nom, role];
+  if (nom === "anneeId") return null; // décrit une fois dans la légende
+  const texte = String(role ?? "");
+  // Une période « obligatoire » ne l'est plus pour l'utilisateur : à défaut,
+  // le résolveur retient la période en cours (lectures) ou celle de la date
+  // (écritures).
+  const oblig = /^obligatoire/i.test(texte) && nom !== "periodeId";
+  const defaut = nom === "periodeId" && /^obligatoire/i.test(texte) ? " ; par defaut la periode en cours" : (texte.match(/; (par defaut[^;]*)$/)?.[0] ?? "");
+  const ou = /classeId OU|OU enseignantId/.test(texte) ? " ; classe OU enseignant est obligatoire" : "";
+  const precision = nom === "eleveId" && /un seul eleve/.test(texte) ? ", pour un seul eleve" : "";
+  return [mot, `${oblig ? "OBLIGATOIRE" : "facultatif"}${precision}${defaut}${ou}`];
+}
+
+/** Paramètres dont le sens est donné une fois, dans la légende. */
+const SANS_DETAIL = new Set(["depuis", "jusqua", "limite", "parPage", "page"]);
+
+/**
+ * Un paramètre en une forme courte : `nom*` s'il est obligatoire, `nom` sinon,
+ * suivi de ce qui lui est PROPRE. « facultatif » répété quatre cents fois
+ * pesait un quart de l'invite et n'apprenait rien : l'astérisque le dit.
+ */
+function enBref(nom, role) {
+  const texte = String(role ?? "").trim();
+  const oblig = /^obligatoire\b/i.test(texte);
+  let detail = texte.replace(/^(obligatoire|facultatif)\b\s*[,;:]?\s*/i, "").trim();
+  if (SANS_DETAIL.has(nom)) detail = "";
+  return `${nom}${oblig ? "*" : ""}${detail ? ` (${detail})` : ""}`;
+}
 
 export class ToolRegistry {
   constructor(tools = []) {
@@ -418,6 +573,8 @@ export class ToolRegistry {
     return [
       inviteContrat(),
       "",
+      LEGENDE,
+      "",
       "Outils disponibles :",
       this.pourNlu(),
       "",
@@ -434,9 +591,12 @@ export class ToolRegistry {
         // Un parametre nomme REMPLACE celui qu'il alimente : demander a la fois
         // `eleves` et `absents` ferait inventer au modele des identifiants.
         const vers = new Set(Object.values(t.nommes ?? {}).map((d) => d.vers));
-        const declares = Object.entries(t.parametres ?? {}).filter(([n]) => !vers.has(n));
-        const nommes = Object.entries(t.nommes ?? {}).map(([n, d]) => `${n} (${d.role})`);
-        const noms = [...nommes, ...declares.map(([n, role]) => `${n} (${role})`)];
+        const declares = Object.entries(t.parametres ?? {})
+          .filter(([n]) => !vers.has(n))
+          .map(([n, role]) => enMots(n, role))
+          .filter(Boolean);
+        const nommes = Object.entries(t.nommes ?? {}).map(([n, d]) => `${n}* (${d.role})`);
+        const noms = [...nommes, ...declares.map(([n, role]) => enBref(n, role))];
         const quoi = t.description ? ` — ${t.description}` : "";
         return `- ${t.name} [${t.sensitivity}]${quoi}\n  parametres : ${noms.length ? noms.join(", ") : "aucun"}`;
       })

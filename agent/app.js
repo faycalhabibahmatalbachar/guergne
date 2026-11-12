@@ -25,9 +25,11 @@ import { FOURNISSEURS as FOURNISSEURS_CONNUS, MoteurIA, configurerDepuisEnv } fr
 import { Pairing, jetonAleatoire, jetonDeServiceValide, pageAppairage } from "./src/pairing.js";
 import { MatricePermissions } from "./src/permissions-matrix.js";
 import { Referentiel } from "./src/referentiel.js";
-import { resoudreNomsEleves } from "./src/resolution-eleves.js";
-import { resoudreClasse } from "./src/resolveur.js";
-import { completerParametresContexte, resoudreDemandeSuivi } from "./src/memory-policy.js";
+import { creerInterprete } from "./src/interprete.js";
+import { Resolveur } from "./src/resolution-parametres.js";
+import { MemoireVive } from "./src/memoire-vive.js";
+import { MemoireComposee } from "./src/memoire-composee.js";
+import { Supervision } from "./src/supervision.js";
 import { NeonConversationMemory } from "./src/memory.js";
 import {
   CompteurJournalierPersistant,
@@ -126,9 +128,13 @@ const battement = setInterval(() => {
 battement.unref?.();
 
 // --- Dépendances ------------------------------------------------------------
-const audit = new AuditLog((e) =>
-  console.log(JSON.stringify({ ts: e.at, type: "audit", run: e.runId, intent: e.intent, result: e.result })),
-);
+// La supervision ecoute les memes evenements que le journal, et n'en garde que
+// la forme : intention, outil, issue, duree. Aucun texte, aucun parametre.
+const supervision = new Supervision();
+const audit = new AuditLog((e) => {
+  console.log(JSON.stringify({ ts: e.at, type: "audit", run: e.runId, intent: e.intent, result: e.result }));
+  supervision.surAudit(e);
+});
 const iaConfiguree = confIA.presents.some((n) => !confIA.desactives.includes(n));
 const backendConfigure = Boolean(CONF.apiEcole && CONF.jetonService);
 
@@ -174,8 +180,24 @@ if (memoire) {
   await memoire.ping();
   console.log("[memory] Neon conversationnelle active");
 } else {
-  console.log("[memory] desactivee (AGENT_MEMORY_ENABLED=false)");
+  console.log("[memory] durable desactivee (AGENT_MEMORY_ENABLED=false) : memoire de session en memoire vive");
 }
+// Sans la memoire durable, le fil de la conversation vit en memoire vive : il
+// se perd au redemarrage, mais « et les retards ? » garde un sens entre deux
+// messages. Rien n'est ecrit nulle part.
+const memoireDeSession = memoire
+  ? new MemoireComposee({
+      vive: new MemoireVive(),
+      durable: memoire,
+      journal: (e) => {
+        console.log(JSON.stringify({ ts: new Date().toISOString(), ...e }));
+        supervision.surMemoire(e);
+      },
+    })
+  : new MemoireVive();
+// Le resolveur central : ce que l'utilisateur a NOMME devient ce que le backend
+// IDENTIFIE. Le modele n'ecrit plus aucun identifiant.
+const resolveur = new Resolveur({ guergne, referentiel });
 
 // L'association numéro → compte interne vit en base côté guergne. Tant que ce
 // point n'est pas branché, le magasin démarre vide : AUCUN numéro n'est reconnu,
@@ -385,9 +407,13 @@ const agent = new Agent({
   // Journal d'etape : il porte le meme `run` que le transport, de la reception
   // a la reponse. Sans cette correlation, un message disparu ne laisse aucune
   // piste a suivre.
-  journalEtape: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), type: "agent", ...e })),
+  journalEtape: (e) => {
+    console.log(JSON.stringify({ ts: new Date().toISOString(), type: "agent", ...e }));
+    supervision.surEtape(e);
+  },
   selEmpreinte: SEL_EMPREINTE,
-  memory: memoire,
+  memory: memoireDeSession,
+  resolveur,
   /**
    * Etat des dependances, pour la commande de diagnostic.
    *
@@ -413,165 +439,11 @@ const agent = new Agent({
       memoire: memoire ? "Neon active" : "desactivee",
     };
   },
-  interpret: async (texte, ctx = {}) => {
-    if (!ia) throw new Error("Aucun fournisseur IA configuré : compréhension indisponible.");
-    const listes = await referentiel.pour(ctx.staff?.id);
-    const mem = ctx.memory ?? {};
-    const pending = mem.pending ?? null;
-
-    // Une réponse courte à une clarification est résolue sans LLM.
-    if (
-      pending?.intention === "clarification" &&
-      pending.tool === "eleves.rechercher" &&
-      (pending.missingFields ?? []).includes("classeId")
-    ) {
-      const resolution = resoudreClasse(listes.classes, texte);
-      if (resolution.statut === "unique") {
-        return {
-          intention: "outil",
-          outil: "eleves.rechercher",
-          params: { ...(pending.params ?? {}), classeId: resolution.classe.id },
-        };
-      }
-      const candidats = (resolution.candidats ?? []).map((c) => c.libelle ?? c.code ?? c.nom ?? "?");
-      return {
-        intention: "clarifier",
-        question: resolution.statut === "ambigu"
-          ? "Plusieurs classes correspondent. Précisez laquelle : " + candidats.join(", ") + "."
-          : "Je ne retrouve pas cette classe dans le référentiel. Indiquez son libellé exact.",
-        outil: "eleves.rechercher",
-        params: pending.params ?? {},
-        missingFields: ["classeId"],
-      };
-    }
-
-    // Relances courtes (« et les retards ? ») : choisir l'outil de lecture
-    // sans demander au LLM de deviner le lien avec la consultation précédente.
-    const suivi = resoudreDemandeSuivi({ texte, dernierTravail: mem.lastTask });
-    if (suivi) return suivi;
-
-    // Cas fréquent : le responsable demande la liste sans préciser la classe.
-    const demandeListeEleves =
-      /\b(?:quels?\s+sont|quelles?\s+sont|qui\s+sont|liste|affiche|montre|donne)\b[\s\S]{0,100}\b(?:eleves?|élèves?)\b/iu.test(texte) &&
-      /\bclasse\b/iu.test(texte);
-    if (demandeListeEleves) {
-      const match = String(texte).match(/\bclasse\b(?:\s+(?:de|du|des|la))?\s+(.+?)(?:[?.!,;]|$)/iu);
-      const libelle = match?.[1]?.trim();
-      if (!libelle) {
-        return {
-          intention: "clarifier",
-          question: "De quelle classe souhaitez-vous consulter la liste des élèves ?",
-          outil: "eleves.rechercher",
-          params: {},
-          missingFields: ["classeId"],
-        };
-      }
-      const resolution = resoudreClasse(listes.classes, libelle);
-      if (resolution.statut === "unique") {
-        return {
-          intention: "outil",
-          outil: "eleves.rechercher",
-          params: { classeId: resolution.classe.id },
-        };
-      }
-      const candidats = (resolution.candidats ?? []).map((c) => c.libelle ?? c.code ?? c.nom ?? "?");
-      return {
-        intention: "clarifier",
-        question: resolution.statut === "ambigu"
-          ? "Plusieurs classes correspondent. Précisez laquelle : " + candidats.join(", ") + "."
-          : "Je ne retrouve pas cette classe dans le référentiel. Indiquez son libellé exact.",
-        outil: "eleves.rechercher",
-        params: {},
-        missingFields: ["classeId"],
-      };
-    }
-
-    const messages = [
-      { role: "system", content: outils.invitePourNlu() },
-      { role: "system", content: Referentiel.enTexte(listes) },
-      {
-        role: "system",
-        content: "L'historique aide à comprendre les réponses courtes et les pronoms. " +
-          "Les données scolaires officielles doivent toujours être consultées avec un outil réel ; " +
-          "ne les déduis jamais d'un ancien message.",
-      },
-    ];
-    for (const resume of mem.summaries ?? []) {
-      messages.push({ role: "system", content: "Résumé antérieur : " + resume });
-    }
-    for (const fait of mem.facts ?? []) {
-      messages.push({
-        role: "system",
-        content: "Contexte non sensible mémorisé (" + fait.category + ") : " + fait.key + " = " + fait.value,
-      });
-    }
-
-    if (mem.lastTask?.tool) {
-      messages.push({
-        role: "system",
-        content: "CONTEXTE DE SUIVI DE LA DERNIERE CONSULTATION : outil=" + mem.lastTask.tool +
-          ", filtres autorisés=" + JSON.stringify(mem.lastTask.params ?? {}) + ". " +
-          "Si la nouvelle demande est une suite explicite (par exemple « et les retards ? » ou « pour la même classe »), " +
-          "réutilise les filtres pertinents. Si l'utilisateur nomme une autre classe ou une autre période, " +
-          "prends sa nouvelle précision. Ne réutilise jamais un identifiant d'élève, un résultat scolaire ou un nom ; " +
-          "les données officielles doivent être relues avec un outil métier.",
-      });
-    }
-    if (pending?.intention === "clarification" && pending.tool) {
-      messages.push({
-        role: "system",
-        content: "REPRISE OBLIGATOIRE : l'utilisateur répond à ta question précédente. " +
-          "Conserve l'outil " + pending.tool + ", les paramètres déjà collectés " +
-          JSON.stringify(pending.params ?? {}) + " et complète uniquement les champs manquants " +
-          JSON.stringify(pending.missingFields ?? []) + ". Utilise le référentiel fourni, n'invente aucun identifiant.",
-      });
-    }
-    for (const message of (mem.history ?? []).slice(-12)) {
-      if (["user", "assistant"].includes(message.role) && typeof message.content === "string") {
-        messages.push({ role: message.role, content: message.content.slice(-8_000) });
-      }
-    }
-    messages.push({ role: "user", content: texte });
-
-    const r = await ia.completerJson(messages);
-    const plan = r.objet;
-    if (!plan) return { clarify: "Je n'ai pas compris la demande." };
-    if (plan.clarify) {
-      return {
-        intention: "clarifier",
-        question: plan.clarify,
-        outil: plan.tool ?? plan.outil ?? undefined,
-        params: plan.params ?? {},
-        missingFields: plan.missingFields ?? [],
-      };
-    }
-    const nomOutil = plan.tool ?? plan.outil;
-    if (!nomOutil) return plan;
-
-    const outil = outils.get(nomOutil);
-    const contexte = completerParametresContexte({
-      texte,
-      dernierTravail: mem.lastTask,
-      outilLecture: outil?.sensitivity === "read",
-      parametres: plan.params ?? {},
-    });
-    const conv = await resoudreNomsEleves({
-      outil,
-      params: contexte.parametres,
-      guergne,
-      acteurId: ctx.staff?.id,
-    });
-    if (conv.statut === "clarifier") {
-      return {
-        intention: "clarifier",
-        question: conv.question,
-        outil: nomOutil,
-        params: plan.params ?? {},
-        missingFields: ["recherche"],
-      };
-    }
-    return { ...plan, tool: nomOutil, params: conv.params };
-  },
+  interpret: creerInterprete({
+    ia, outils, referentiel, guergne,
+    resolutionCentrale: true,
+    journal: (e) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...e })),
+  }),
   // La transcription REND la langue entendue, et non seulement le texte :
   // repondre en francais a une question posee en arabe serait pire que de ne
   // pas repondre. La langue n'est pas imposee a Whisper, elle est detectee.
@@ -762,6 +634,32 @@ createServer(async (req, res) => {
   // Elle ne touche a rien : ni session WhatsApp, ni donnees, ni fichiers. Elle
   // libere le verrou et sort, pour que l'instance suivante ne trouve pas un
   // verrou vivant. La session persistante est sur le volume et survit.
+  // Supervision de l'agent : outils utilises, echecs, demandes mal comprises,
+  // operations lentes, confirmations en attente. Jeton de service exige ; aucun
+  // contenu de message ni parametre n'y figure (voir `src/supervision.js`).
+  if (url === "/diagnostic/supervision") {
+    const entete = req.headers["authorization"];
+    const jeton = typeof entete === "string" && entete.startsWith("Bearer ") ? entete.slice(7) : null;
+    if (!CONF.jetonService || jeton !== CONF.jetonService) {
+      res.writeHead(CONF.jetonService ? 401 : 503, entetesSurs({ "content-type": "application/json" })).end(
+        JSON.stringify({ ok: false, message: CONF.jetonService ? "Service non authentifie." : "Service non configure." }),
+      );
+      return;
+    }
+    res.writeHead(200, entetesSurs({ "content-type": "application/json", "cache-control": "no-store" })).end(
+      JSON.stringify({
+        ok: true,
+        ...supervision.rapport({
+          memoire: { durable: Boolean(memoire), ...(memoireDeSession.etat?.() ?? {}) },
+          confirmationsEnAttente: agent.pending.size,
+          autonomie: agent.metriques,
+          ia: ia?.etatFournisseurs ?? null,
+        }),
+      }),
+    );
+    return;
+  }
+
   if (url === "/diagnostic/redemarrer") {
     if (req.method !== "POST") {
       res.writeHead(405, entetesSurs({ allow: "POST" })).end();

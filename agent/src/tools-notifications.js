@@ -55,6 +55,9 @@ export function rendreDevis(d, { titre, corps, canal, cible }) {
   ].join("\n");
 }
 
+/** Au-delà, on prévient une classe entière, pas une liste. */
+const MAX_ELEVES_GROUPE = 80;
+
 export const NOTIFICATIONS_TOOLS = [
   {
     name: "notifications.parents",
@@ -66,17 +69,20 @@ export const NOTIFICATIONS_TOOLS = [
     confirmationObligatoire: true,
     action: "envoyerNotificationParents",
     parametres: {
-      eleve: "nom ou matricule de l'eleve dont on previent les parents (OU classe)",
+      eleve: "nom ou matricule de l'eleve dont on previent les parents (OU eleves, OU classe)",
+      eleves: "plusieurs eleves a la fois : ecris « @eleves_du_resultat » pour ceux que la derniere consultation vient de lister (« leurs parents », « ces eleves »)",
       responsable: "facultatif, avec eleve : un seul responsable (« le pere », un prenom) ; par defaut tous",
       classe: "libelle de la classe dont on previent les parents (OU eleve)",
       etat: "facultatif, avec classe : sans compte | invite | actif",
-      titre: "OBLIGATOIRE, objet court (3 a 80 caracteres)",
+      titre: "facultatif, objet court (3 a 80 caracteres) ; a defaut « Information du lycée »",
       message: "OBLIGATOIRE, texte du message (5 a 600 caracteres)",
       canal: "facultatif, automatique (defaut) | application | SMS | application et SMS",
     },
     validate: (p) => {
       const e = {};
-      if (!required(p.eleve) && !required(p.eleveId) && !required(p.classe)) e.destinataires = "Précisez l'élève ou la classe.";
+      const plusieurs = Array.isArray(p.eleveIds) ? p.eleveIds.length > 0 : required(p.eleves);
+      if (!required(p.eleve) && !required(p.eleveId) && !required(p.classe) && !plusieurs) e.destinataires = "Précisez l'élève ou la classe dont il faut prévenir les parents.";
+      if (!required(p.titre)) p.titre = "Information du lycée";
       const titre = String(p.titre ?? "").trim();
       const corps = String(p.message ?? p.corps ?? "").trim();
       if (titre.length < 3 || titre.length > 80) e.titre = "Objet de 3 à 80 caractères.";
@@ -92,7 +98,29 @@ export const NOTIFICATIONS_TOOLS = [
 
       let selection;
       let cible;
-      if (required(p.eleve) || required(p.eleveId)) {
+      if (Array.isArray(p.eleveIds) && p.eleveIds.length) {
+        // Un ENSEMBLE d'élèves — ceux qu'une consultation vient de lister. Leurs
+        // responsables sont relus un à un : la liste ne vient pas de la mémoire.
+        const ids = [...new Set(p.eleveIds)].slice(0, MAX_ELEVES_GROUPE);
+        const tuteurs = new Set();
+        let sansResponsable = 0;
+        for (let i = 0; i < ids.length; i += 8) {
+          const lot = await Promise.all(ids.slice(i, i + 8).map((eleveId) => outils.guergne.tuteursDeLEleve({ eleveId }, outils.ctx)));
+          for (const r of lot) {
+            if (r?.ok === false) return { ok: false, message: r.message ?? "Les responsables n'ont pas pu être relus." };
+            const liste = Array.isArray(r?.data) ? r.data : [];
+            if (!liste.length) sansResponsable += 1;
+            for (const x of liste) tuteurs.add(x.id ?? x.tuteurId);
+          }
+        }
+        tuteurs.delete(undefined);
+        if (!tuteurs.size) return { ok: false, message: "Aucun de ces élèves n'a de responsable rattaché." };
+        selection = { mode: "ids", ids: [...tuteurs] };
+        cible =
+          `responsables de ${ids.length} élève(s)` +
+          (p.eleveIds.length > ids.length ? ` (limité aux ${ids.length} premiers sur ${p.eleveIds.length})` : "") +
+          (sansResponsable ? ` — ${sansResponsable} élève(s) sans responsable rattaché` : "");
+      } else if (required(p.eleve) || required(p.eleveId)) {
         const r = await resoudreEleveParNom(p.eleveId ?? p.eleve, outils);
         if (!r.ok) return r;
         const f = donnees(await outils.guergne.ficheEleve({ eleveId: r.eleve.id }, outils.ctx));

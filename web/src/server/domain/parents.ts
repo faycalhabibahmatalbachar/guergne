@@ -65,6 +65,11 @@ export function construireFiltreTuteurs(filtres: Pick<FiltresTuteurs, "recherche
     (${recherche} = '' OR
       t.nom ILIKE ${`%${recherche}%`} OR
       t.prenom ILIKE ${`%${recherche}%`} OR
+      -- « Abdoulaye DJIMET » ou « DJIMET Abdoulaye » : le nom complet, dans les
+      -- deux ordres. Sans cela, chercher un parent par son prénom ET son nom
+      -- ne rendait personne.
+      (t.prenom || ' ' || t.nom) ILIKE ${`%${recherche}%`} OR
+      (t.nom || ' ' || t.prenom) ILIKE ${`%${recherche}%`} OR
       t.telephone ILIKE ${`%${recherche}%`})
     AND (${etat} = '' OR
       (${etat} = 'sans_compte' AND t.utilisateur_id IS NULL) OR

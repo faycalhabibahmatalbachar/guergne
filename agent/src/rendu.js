@@ -42,14 +42,14 @@ export const lignesDe = (d) => (Array.isArray(d) ? d : Array.isArray(d?.lignes) 
 /** Total reel d'une reponse bornee, ou `null` si elle n'en annonce pas. */
 export const totalDe = (d) => (Array.isArray(d) ? null : typeof d?.total === "number" ? d.total : null);
 
-export function listeRendue(lignes, titre, ligne, { total = null } = {}) {
+export function listeRendue(lignes, titre, ligne, { total = null, max = MAX_LIGNES } = {}) {
   if (!Array.isArray(lignes)) return null;
   // Une ligne vide ou mal formee ne doit pas emporter la reponse entiere : le
   // backend peut rendre une colonne absente, et l'utilisateur merite les
   // autres lignes.
   const utilisables = lignes.filter((l) => l !== null && l !== undefined);
   if (utilisables.length === 0) return `${titre} : aucun résultat.`;
-  const montrees = utilisables.slice(0, MAX_LIGNES);
+  const montrees = utilisables.slice(0, max);
   const reste = utilisables.length - montrees.length;
   const rendue = (l) => {
     try {

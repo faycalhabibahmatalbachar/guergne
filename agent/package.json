@@ -8,6 +8,11 @@
     "start": "node index.js",
     "test": "node --test \"test/**/*.test.js\"",
     "sante": "curl -s localhost:8080/sante",
+    "agent:evaluate": "node banc/lancer.mjs --etiquette campagne",
+    "agent:evaluate:reprendre": "node banc/lancer.mjs --etiquette campagne --reprendre",
+    "agent:parler": "node banc/parler.mjs",
+    "agent:memoire": "node banc/memoire-durable.mjs",
+    "agent:catalogue": "node banc/catalogue.mjs",
     "postinstall": "node scripts/rustine-wwebjs.mjs",
     "verifier-rustines": "node scripts/rustine-wwebjs.mjs --verifier"
   },

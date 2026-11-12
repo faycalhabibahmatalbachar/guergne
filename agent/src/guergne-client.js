@@ -126,6 +126,7 @@ export class GuergneHttpClient {
   consulterEleve(p, c) { return this._call("consulterEleve", p, c); }
   ficheEleve(p, c) { return this._call("ficheEleve", p, c); }
   listerNiveaux(p, c) { return this._call("listerNiveaux", p, c); }
+  listerAnnees(p, c) { return this._call("listerAnnees", p, c); }
   listerSeries(p, c) { return this._call("listerSeries", p, c); }
 
   // --- Élèves, classes : écritures (éteintes tant que le backend ne les active pas) ---

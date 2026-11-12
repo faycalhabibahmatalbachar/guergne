@@ -63,9 +63,12 @@ export async function listerAbsences(filtres: {
   statut?: string;
   depuis?: string;
   jusqua?: string;
+  /** Un seul élève : « les absences de Mahamat ». */
+  eleveId?: string;
   limite?: number;
 }): Promise<LigneAbsence[]> {
   const conditions = [];
+  if (filtres.eleveId) conditions.push(eq(inscriptions.eleveId, filtres.eleveId));
   if (filtres.periodeId) conditions.push(eq(absences.periodeId, filtres.periodeId));
   if (filtres.classeId) conditions.push(eq(inscriptions.classeId, filtres.classeId));
   if (filtres.statut) conditions.push(sql`${absences.statut} = ${filtres.statut}`);
@@ -117,8 +120,10 @@ export async function compterAbsences(filtres: {
   statut?: string;
   depuis?: string;
   jusqua?: string;
+  eleveId?: string;
 }): Promise<number> {
   const conditions = [];
+  if (filtres.eleveId) conditions.push(eq(inscriptions.eleveId, filtres.eleveId));
   if (filtres.periodeId) conditions.push(eq(absences.periodeId, filtres.periodeId));
   if (filtres.classeId) conditions.push(eq(inscriptions.classeId, filtres.classeId));
   if (filtres.statut) conditions.push(sql`${absences.statut} = ${filtres.statut}`);
@@ -174,14 +179,40 @@ export interface LigneRetard {
   motif: string | null;
 }
 
-export async function listerRetards(filtres: {
-  periodeId?: string;
-  classeId?: string;
-  limite?: number;
-}): Promise<LigneRetard[]> {
+/** Les mêmes filtres pour la liste et pour son décompte : ils ne peuvent pas diverger. */
+function conditionsRetards(filtres: { periodeId?: string; classeId?: string; eleveId?: string; depuis?: string; jusqua?: string }) {
   const conditions = [];
   if (filtres.periodeId) conditions.push(eq(retards.periodeId, filtres.periodeId));
   if (filtres.classeId) conditions.push(eq(inscriptions.classeId, filtres.classeId));
+  if (filtres.eleveId) conditions.push(eq(inscriptions.eleveId, filtres.eleveId));
+  if (filtres.depuis) conditions.push(gte(retards.dateRetard, filtres.depuis));
+  if (filtres.jusqua) conditions.push(lte(retards.dateRetard, filtres.jusqua));
+  return conditions;
+}
+
+/**
+ * Nombre de retards répondant aux filtres, sans la borne de lignes : sans lui,
+ * 100 lignes sur 209 se lisent comme « 100 retards ».
+ */
+export async function compterRetards(filtres: { periodeId?: string; classeId?: string; eleveId?: string; depuis?: string; jusqua?: string }): Promise<number> {
+  const conditions = conditionsRetards(filtres);
+  const [r] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(retards)
+    .innerJoin(inscriptions, eq(inscriptions.id, retards.inscriptionId))
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
+  return r?.n ?? 0;
+}
+
+export async function listerRetards(filtres: {
+  periodeId?: string;
+  classeId?: string;
+  eleveId?: string;
+  depuis?: string;
+  jusqua?: string;
+  limite?: number;
+}): Promise<LigneRetard[]> {
+  const conditions = conditionsRetards(filtres);
 
   return db
     .select({
@@ -224,9 +255,15 @@ export async function listerIncidents(filtres: {
   periodeId?: string;
   classeId?: string;
   gravite?: string;
+  eleveId?: string;
+  depuis?: string;
+  jusqua?: string;
   limite?: number;
 }): Promise<LigneIncident[]> {
   const conditions = [];
+  if (filtres.eleveId) conditions.push(eq(inscriptions.eleveId, filtres.eleveId));
+  if (filtres.depuis) conditions.push(gte(incidents.dateIncident, filtres.depuis));
+  if (filtres.jusqua) conditions.push(lte(incidents.dateIncident, filtres.jusqua));
   if (filtres.periodeId) conditions.push(eq(incidents.periodeId, filtres.periodeId));
   if (filtres.classeId) conditions.push(eq(inscriptions.classeId, filtres.classeId));
   if (filtres.gravite) conditions.push(sql`${incidents.gravite} = ${filtres.gravite}`);
@@ -277,9 +314,11 @@ export async function listerSanctions(filtres: {
   type?: string;
   /** Vrai : seulement celles qui restent à exécuter. */
   enAttente?: boolean;
+  eleveId?: string;
   limite?: number;
 }): Promise<LigneSanction[]> {
   const conditions = [];
+  if (filtres.eleveId) conditions.push(eq(inscriptions.eleveId, filtres.eleveId));
   if (filtres.periodeId) conditions.push(eq(sanctions.periodeId, filtres.periodeId));
   if (filtres.classeId) conditions.push(eq(inscriptions.classeId, filtres.classeId));
   if (filtres.type) conditions.push(sql`${sanctions.type} = ${filtres.type}`);

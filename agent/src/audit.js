@@ -4,6 +4,8 @@
  * confirmation, état avant/après, résultat, erreur, durée). `redact` retire les
  * secrets des paramètres AVANT journalisation (Règle 7 : ne jamais logguer un secret).
  */
+const MAX_ENTREES = 500;
+
 export class AuditLog {
   constructor(sink = null) {
     this._entries = [];
@@ -12,6 +14,10 @@ export class AuditLog {
   record(entry) {
     const e = { at: new Date().toISOString(), ...entry, params: redact(entry.params) };
     this._entries.push(e);
+    // Borne : ce journal porte des messages et des paramètres. Le garder sans
+    // limite en mémoire, c'était à la fois une fuite et un stock de données
+    // personnelles qui ne servait à rien.
+    if (this._entries.length > MAX_ENTREES) this._entries.splice(0, this._entries.length - MAX_ENTREES);
     if (this._sink) this._sink(e);
     return e;
   }

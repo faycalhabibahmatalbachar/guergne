@@ -140,9 +140,11 @@ test("un eleve sans matricule ne produit pas un trou", () => {
 
 test("les responsables portent leur lien de parente", () => {
   const texte = rendre("parents.tuteurs_de_l_eleve", [
-    { prenom: "Djasrabé", nom: "ABAKAR", lienParente: "PERE", principal: true },
+    // Les champs que rend RÉELLEMENT le backend (`lien`, `estPrincipal`) :
+    // l'ancien rendu lisait `lienParente` et `principal`, absents de la réponse.
+    { prenom: "Djasrabé", nom: "ABAKAR", lien: "PERE", estPrincipal: true, telephone: "+23591000030" },
   ]);
-  assert.match(texte, /Djasrabé ABAKAR — PERE \(principal\)/);
+  assert.match(texte, /Djasrabé ABAKAR — PERE, \+23591000030 \(responsable principal\)/);
 });
 
 test("tuteurs_de_l_eleve exige un eleve", () => {

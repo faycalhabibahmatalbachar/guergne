@@ -167,7 +167,7 @@ export const SCOLARITE_TOOLS = [
     name: "parents.rechercher",
     module: "parents",
     description:
-      "rechercher les parents et tuteurs par nom ou telephone, ou par etat de leur compte (sans compte, invite jamais connecte, actif, revoque, doublon), eventuellement dans une classe",
+      "retrouver un parent ou tuteur par son nom OU son TELEPHONE (« a qui est ce numero ? ») ; la reponse donne aussi SES ENFANTS (« quels enfants sont rattaches a ce parent ») ; ou lister les parents selon l'etat de leur compte (sans compte, invite jamais connecte, actif, revoque, doublon), eventuellement dans une classe",
     permission: "tuteur:gerer",
     sensitivity: READ,
     action: "rechercherTuteurs",
@@ -289,7 +289,7 @@ export const SCOLARITE_TOOLS = [
     name: "finances.situations",
     module: "finances",
     description:
-      "situation financiere eleve par eleve : paye, reste du, echeances en retard ; filtrable par classe, impayes, retard, boursiers, ou un eleve precis",
+      "LISTE NOMINATIVE des eleves avec ce qu'ils ont paye et ce qu'ils doivent encore — « qui n'a pas paye », « les impayes de la 2nde A », « les boursiers », « eleves en retard de paiement », ou la situation d'UN eleve",
     permission: "finance:lire",
     sensitivity: READ,
     action: "listerSituationsFinancieres",
@@ -298,7 +298,7 @@ export const SCOLARITE_TOOLS = [
       seulementImpayes: "facultatif, true pour ne garder que ceux qui doivent encore de l'argent",
       enRetard: "facultatif, true pour ne garder que ceux dont une echeance est depassee",
       boursier: "facultatif, true pour les seuls boursiers, false pour les non-boursiers",
-      recherche: "facultatif, nom, prenom ou matricule d'un eleve",
+      eleve: "facultatif, UN eleve precis : son nom, son prenom ou son matricule (« la situation de X », « combien doit-il »)",
     },
     validate: noErrs,
     summarize: () => "Situations financieres.",
@@ -306,6 +306,15 @@ export const SCOLARITE_TOOLS = [
       const c = await classeOptionnelle(p, outils);
       if (!c.ok) return c;
       const bool = (v) => v === true || v === "true";
+      // Un élève précis : le résolveur l'a identifié. On le retrouve par son
+      // matricule, seule clé que la recherche du backend garantit unique.
+      if (required(p.eleveId)) {
+        const d = await outils.guergne.consulterEleve({ eleveId: p.eleveId }, outils.ctx);
+        const matricule = d?.data?.eleve?.matricule;
+        if (!matricule) return { ok: false, message: "Le dossier de l'élève n'a pas pu être relu." };
+        return { ok: true, params: { recherche: matricule, eleveId: p.eleveId } };
+      }
+      if (required(p.eleve) && !required(p.recherche)) p.recherche = p.eleve;
       return {
         ok: true,
         params: {
