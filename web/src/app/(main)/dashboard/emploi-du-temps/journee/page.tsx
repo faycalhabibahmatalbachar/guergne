@@ -119,7 +119,6 @@ export default async function PageJournee({
         peutGerer={peutGerer}
         disponibles={disponibles}
         coursOuvert={coursOuvert}
-        anneeId={annee.id}
       />
     </Page>
   );
