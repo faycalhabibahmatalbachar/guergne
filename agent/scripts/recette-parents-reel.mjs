@@ -211,6 +211,47 @@ async function principal() {
       constater("un second envoi avec la meme cle ne cree rien", (await parTel()) === apres, `${await parTel()}`);
     }
 
+    bleu("\n== 7 bis. Situation scolaire : transfert, puis exclusion definitive ==");
+    {
+      const { STATUT_TOOLS } = await import("../src/tools-statut.js");
+      const st = STATUT_TOOLS[0];
+      const etat = async (id) =>
+        (await q(
+          `SELECT e.statut::text statut,
+                  (SELECT count(*)::int FROM inscriptions i WHERE i.eleve_id = e.id AND i.active) actives,
+                  (SELECT count(*)::int FROM historique_statuts h WHERE h.eleve_id = e.id) histo,
+                  (SELECT etablissement_destination FROM inscriptions i WHERE i.eleve_id = e.id ORDER BY date_inscription DESC LIMIT 1) dest
+             FROM eleves e WHERE e.id = $1`,
+          [id],
+        ))[0];
+
+      const dit = { ...dit1, statut: "transfert", motif: "Déménagement de la famille (recette)", etablissement: "Lycée de recette, Moundou" };
+      constater("validate : transfert complet accepte", Object.keys(st.validate({ ...dit, eleve: "x" })).length === 0);
+      const prep = await st.preparer(dit, outils);
+      constater("preparer annonce la cloture de l'inscription", prep.ok && /sera close/.test(prep.texte), prep.message ?? "");
+      const r = await guergne.changerStatutEleve(prep.params, ctx);
+      const v = await st.verifier({ params: prep.params, guergne, ctx });
+      const e = await etat(e1);
+      constater("API", r?.ok === true, r?.message ?? "");
+      constater("relecture (verifier)", v.ok === true, v.raison ?? "");
+      constater("en base : TRANSFERE, inscription close, destination, historique", e.statut === "TRANSFERE" && e.actives === 0 && e.dest === dit.etablissement && e.histo >= 1, JSON.stringify(e));
+      const [{ n }] = await q("SELECT count(*)::int n FROM journal_audit WHERE action = 'eleve.transfere' AND eleve_id = $1 AND utilisateur_id = $2", [e1, admin.id]);
+      constater("audit au nom de l'acteur", n === 1, `${n}`);
+      const apres = await st.preparer({ ...dit1, statut: "abandon", motif: "plus de nouvelles (recette)" }, outils);
+      constater("un eleve parti : plus aucune decision", apres.ok === false && /déjà quitté/.test(apres.message ?? ""), apres.message ?? "");
+      const direct = await guergne.changerStatutEleve({ eleveId: e1, statut: "ABANDON", motif: "contournement (recette)" }, ctx);
+      constater("... ni par l'API directement", direct?.ok === false, direct?.message ?? "");
+
+      const excl = await st.preparer({ ...dit2, statut: "exclusion définitive", motif: "Faits graves (recette)", decision: "conseil de discipline de recette du 12/11/2026" }, outils);
+      const re = await guergne.changerStatutEleve(excl.params, ctx);
+      const ve = await st.verifier({ params: excl.params, guergne, ctx });
+      const [h] = await q("SELECT motif FROM historique_statuts WHERE eleve_id = $1 ORDER BY cree_le DESC LIMIT 1", [e2]);
+      constater("exclusion : enregistree et relue", re?.ok === true && ve.ok === true, re?.message ?? ve.raison ?? "");
+      constater("la reference de la decision est dans l'historique", /conseil de discipline de recette/.test(h?.motif ?? ""), h?.motif);
+      const statutInconnu = await guergne.changerStatutEleve({ eleveId: e2, statut: "DIPLOME", motif: "contournement (recette)" }, ctx);
+      constater("un statut hors liste est refuse par la route", statutInconnu?.ok === false, statutInconnu?.message ?? "");
+    }
+
     bleu("\n== 8. Ecritures eteintes = refusees ==");
     gris("  (couvert par la recette CRUD : ECRITURES_DESACTIVEES quand la variable est absente)");
   } finally {

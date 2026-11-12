@@ -37,7 +37,19 @@ export interface FicheEleve {
     age: number | null;
     sante?: { groupeSanguin: string | null; allergies: string | null; observationsMedicales: string | null };
   };
-  inscription: DossierComplet["inscription"];
+  /**
+   * La DERNIÈRE inscription, active ou non (c'est la règle du chargeur
+   * partagé), complétée de ce qui dit si elle est close. Sans `active`, un
+   * élève transféré se lisait « inscrit en 3e A ».
+   */
+  inscription:
+    | (NonNullable<DossierComplet["inscription"]> & {
+        active: boolean;
+        dateSortie: string | null;
+        motifSortie: string | null;
+        etablissementDestination: string | null;
+      })
+    | null;
   tuteurs: DossierComplet["tuteurs"];
   parcours: DossierComplet["parcours"];
   scolarite: (Partial<DossierScolarite> & { periodeReleve: string | null }) | null;
@@ -86,7 +98,7 @@ export async function chargerFicheEleve(eleveId: string, acteur: Principal): Pro
   if (!voitJournal) masquees.push("journal des modifications");
 
   const { periode } = await chargerStatistiques();
-  const [scolarite, pieces, journal] = await Promise.all([
+  const [scolarite, pieces, journal, sortie] = await Promise.all([
     inscription && (voitNotes || voitAssiduite || voitDiscipline || voitFinances)
       ? chargerDossierScolarite(inscription.id, periode?.id ?? null, {
           notes: voitNotes,
@@ -109,7 +121,15 @@ export async function chargerFicheEleve(eleveId: string, acteur: Principal): Pro
            ORDER BY cree_le DESC LIMIT 20
         `)
       : Promise.resolve(null),
+    inscription
+      ? db.execute<{ active: boolean; date_sortie: string | null; motif_sortie: string | null; destination: string | null }>(sql`
+          SELECT active, date_sortie::text AS date_sortie, motif_sortie,
+                 etablissement_destination AS destination
+            FROM inscriptions WHERE id = ${inscription.id}::uuid
+        `)
+      : Promise.resolve(null),
   ]);
+  const s = sortie?.rows[0];
 
   const { groupeSanguin, allergies, observationsMedicales, ...identite } = dossier.eleve;
   return {
@@ -118,7 +138,15 @@ export async function chargerFicheEleve(eleveId: string, acteur: Principal): Pro
       age: ageAu(dossier.eleve.dateNaissance),
       ...(voitSante ? { sante: { groupeSanguin, allergies, observationsMedicales } } : {}),
     },
-    inscription,
+    inscription: inscription
+      ? {
+          ...inscription,
+          active: s?.active ?? false,
+          dateSortie: s?.date_sortie ?? null,
+          motifSortie: s?.motif_sortie ?? null,
+          etablissementDestination: s?.destination ?? null,
+        }
+      : null,
     tuteurs: dossier.tuteurs,
     parcours: dossier.parcours,
     scolarite: scolarite

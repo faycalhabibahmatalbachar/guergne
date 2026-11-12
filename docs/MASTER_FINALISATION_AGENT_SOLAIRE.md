@@ -131,10 +131,31 @@ groupe » ; outil `notifications.parents`.
 
 Recette : `recette-parents-reel.mjs`, 30/30 (sections 1 à 7).
 
-### LOTS 7 à 9 · NON AUDITÉS à cette date
+### LOT 7 — Situation scolaire · VALIDÉ SUR TEST
 
-Transferts, abandons et exclusions ; documents (à construire), notes et
-finances complets ; intelligence conversationnelle.
+Opération `changerStatutEleve` → action `changerStatut` de l'écran (historique
+des statuts, clôture de l'inscription pour un départ, audit, notifications).
+Outil `eleves.changer_statut`.
+
+| Exigence | État | Preuve (recette 41/41) |
+|---|---|---|
+| Transfert : établissement d'accueil exigé, inscription close, destination enregistrée | VALIDÉ SUR TEST | statut TRANSFERE, 0 inscription active, destination relue, audit `eleve.transfere` |
+| Certificat de transfert | EXISTANT | lien `/api/documents/certificat-transfert/{eleveId}` donné après vérification (droit `document:emettre`) |
+| Abandon | IMPLÉMENTÉ | même parcours que le transfert |
+| Exclusion définitive : décision de l'autorité compétente exigée | VALIDÉ SUR TEST | sans référence : non préparée ; la référence entre dans le motif historisé |
+| Aucune décision sur un élève parti | VALIDÉ SUR TEST | refus par l'agent ET par l'API |
+| Statuts hors liste (DIPLOME…) | VALIDÉ SUR TEST | refus de la route |
+| Droit réel par statut | IMPLÉMENTÉ | exigé par l'action (`eleve:exclure`, `eleve:transferer`, `eleve:suspendre`, `eleve:reactiver`) |
+
+Défaut trouvé par la recette : la fiche présentait la DERNIÈRE inscription
+sans dire qu'elle était close — un élève transféré se lisait « inscrit en
+3e A ». La fiche porte désormais `active`, la date, le motif et la destination
+de sortie, et l'affiche.
+
+### LOTS 8 et 9 · NON COMMENCÉS
+
+Documents (à construire : `pieces_dossier` n'a ni service ni statut de
+vérification), notes et finances en écriture ; intelligence conversationnelle.
 
 ## 2. Tests
 

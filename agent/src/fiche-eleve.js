@@ -65,6 +65,14 @@ export function rendreFiche(f) {
           `${i.estRedoublant ? ", redoublant" : ""}${i.estBoursier ? ", boursier" : ""} — inscrit le ${jour(i.dateInscription)}`
       : "• Aucune inscription active pour l'année en cours",
   );
+  // La dernière inscription peut être CLOSE (transfert, abandon, exclusion) :
+  // la présenter sans le dire ferait croire l'élève toujours en classe.
+  if (i && typeof i === "object" && i.active === false) {
+    out.push(
+      `• ⚠️ Inscription CLOSE${i.dateSortie ? ` le ${jour(i.dateSortie)}` : ""}${i.motifSortie ? ` — ${i.motifSortie}` : ""}` +
+        `${i.etablissementDestination ? ` — vers ${i.etablissementDestination}` : ""}`,
+    );
+  }
   const anciens = tableau(f.parcours).filter((p) => p && !p.active);
   if (anciens.length) out.push(`• Parcours : ${anciens.slice(0, 4).map((p) => `${val(p.anneeLibelle)} ${val(p.classeLibelle)}`).join(" · ")}`);
 

@@ -74,6 +74,12 @@ test("une section que le backend n'a pas ouverte n'est ni inventee ni presentee 
   assert.match(t, /Non affiché faute de droit : notes, finances, santé\./);
 });
 
+test("une inscription close est dite close, avec sa date et sa destination", () => {
+  const t = rendreFiche({ ...COMPLETE, inscription: { ...COMPLETE.inscription, active: false, dateSortie: "2026-11-12", motifSortie: "Déménagement", etablissementDestination: "Lycée de Moundou" } });
+  assert.match(t, /Inscription CLOSE le 2026-11-12 — Déménagement — vers Lycée de Moundou/);
+  assert.doesNotMatch(rendreFiche({ ...COMPLETE, inscription: { ...COMPLETE.inscription, active: true } }), /CLOSE/);
+});
+
 test("un dossier incomplet est signale champ par champ", () => {
   const t = rendreFiche({ ...COMPLETE, identite: { ...COMPLETE.identite, lieuNaissance: null, photoUrl: null } });
   assert.match(t, /Dossier incomplet : lieu de naissance, photo/);

@@ -108,6 +108,12 @@ async function anneeDeTravail(params: Record<string, unknown>): Promise<string |
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const uuid = (v: unknown): string | undefined => (typeof v === "string" && UUID_RE.test(v) ? v : undefined);
 
+/**
+ * Les statuts qu'un agent peut faire prononcer. Ni DIPLOME ni ARCHIVE (ce
+ * dernier a son opération dédiée, `archiverEleve`).
+ */
+const STATUTS_AGENT = ["TRANSFERE", "ABANDON", "EXCLU", "SUSPENDU_DISCIPLINE", "SUSPENDU_IMPAYE", "INSCRIT"] as const;
+
 /** Les états d'accès d'un parent que `construireFiltreTuteurs` sait filtrer. */
 const ETATS_TUTEUR = ["sans_compte", "invite", "actif", "revoque", "doublon"] as const;
 
@@ -588,6 +594,33 @@ export const OPERATIONS_ECRITURE: Record<string, OutilExpose> = {
   envoyerNotificationParents: {
     permission: "message:envoyer",
     executer: (p, acteur) => executerEnTantQue(acteur, () => envoyerNotificationsGroupe(p)),
+  },
+
+  // --- Situation scolaire : transfert, abandon, exclusion, suspension --------
+  // `changerStatut` est le parcours de l'écran : historique des statuts (jamais
+  // `eleves.statut` en direct), clôture de l'inscription de l'année pour un
+  // départ, refus de toute décision sur un élève déjà parti, audit, file des
+  // notifications. Le DROIT réel dépend du statut (eleve:exclure,
+  // eleve:transferer, eleve:suspendre…) et c'est l'action qui l'exige :
+  // l'entrée ne demande que de pouvoir lire l'élève.
+  changerStatutEleve: {
+    permission: "eleve:lire",
+    executer: (p, acteur) => {
+      const eleveId = uuid(p.eleveId);
+      const statut = String(p.statut ?? "");
+      if (!eleveId) throw new TypeError("eleveId requis");
+      if (!(STATUTS_AGENT as readonly string[]).includes(statut)) {
+        return Promise.resolve({ ok: false, message: `Statut non autorisé par cette voie : ${statut}.` });
+      }
+      return executerEnTantQue(acteur, () =>
+        changerStatut(eleveId, statut as (typeof STATUTS_AGENT)[number], {
+          motif: s(p.motif) ?? "",
+          dateEffet: s(p.dateEffet),
+          dateFinPrevue: s(p.dateFinPrevue),
+          etablissement: s(p.etablissement),
+        }),
+      );
+    },
   },
 
   // --- Parents et responsabilités --------------------------------------------
