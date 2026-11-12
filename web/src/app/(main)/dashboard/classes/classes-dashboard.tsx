@@ -35,6 +35,7 @@ import {
 import { toast } from "sonner";
 
 import { EnTetePage } from "@/components/socle/en-tete-page";
+import { SelecteurAnnee } from "@/components/socle/selecteur-annee";
 import { RangeeStatistiques, Statistique } from "@/components/socle/statistique";
 import { Button } from "@/components/ui/button";
 import {
@@ -440,25 +441,7 @@ export function ClassesDashboard({
         description="Gérez toutes les classes de l’établissement."
         actions={
           <>
-            {/* Le sélecteur d’année reprend la hauteur et le rayon des autres
-                contrôles : il mesurait 44 px quand les boutons voisins en font 36. */}
-            <label className="relative flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-foreground text-sm">
-              <CalendarDays className="size-4" aria-hidden />
-              <span className="sr-only">Année scolaire</span>
-              <select
-                aria-label="Année scolaire"
-                value={annee.id}
-                onChange={(e) => router.push("/dashboard/classes?annee=" + encodeURIComponent(e.target.value))}
-                className="max-w-40 cursor-pointer appearance-none bg-transparent pr-5 font-medium outline-none"
-              >
-                {annees.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.libelle}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 size-4" aria-hidden />
-            </label>
+            <SelecteurAnnee anneeId={annee.id} annees={annees} />
             {peutCreer && peutEditerCetteAnnee && (
               <Button type="button" onClick={() => ouvrir(null)}>
                 <Plus aria-hidden /> Ajouter une classe
