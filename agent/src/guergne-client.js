@@ -139,4 +139,6 @@ export class GuergneHttpClient {
   rattacherTuteur(p, c) { return this._call("rattacherTuteur", p, c); }
   detacherTuteur(p, c) { return this._call("detacherTuteur", p, c); }
   modifierResponsabilitesTuteur(p, c) { return this._call("modifierResponsabilitesTuteur", p, c); }
+  devisNotificationParents(p, c) { return this._call("devisNotificationParents", p, c); }
+  envoyerNotificationParents(p, c) { return this._call("envoyerNotificationParents", p, c); }
 }

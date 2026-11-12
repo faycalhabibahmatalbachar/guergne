@@ -111,10 +111,29 @@ Défauts corrigés dans l'action web (donc aussi pour l'écran) :
 téléphone écrit à l'identique ; un double rattachement finissait en erreur
 générique.
 
-### LOTS 6 à 9 · NON AUDITÉS à cette date
+### LOT 6 — Notifications aux parents · VALIDÉ SUR TEST
 
-Notifications (SMS, consentement, devis), transferts, abandons et exclusions,
-documents/notes/finances complets, intelligence conversationnelle.
+Opérations `devisNotificationParents` (lecture) et `envoyerNotificationParents`
+(écriture), qui appellent TELLES QUELLES les actions de l'écran « Notifier un
+groupe » ; outil `notifications.parents`.
+
+| Exigence | État | Preuve (recette réelle, base de test) |
+|---|---|---|
+| Cibler exactement (« uniquement le père de… », « les deux responsables », « parents de 4e B non activés ») | VALIDÉ SUR TEST | sélection d'UN identifiant pour « le père » |
+| Devis avant le oui : joignables, canaux, coût SMS | VALIDÉ SUR TEST | 1 SMS, 50 FCFA |
+| Consentement SMS respecté | VALIDÉ SUR TEST | sans `accepte_sms` : « aucun parent joignable », rien proposé |
+| Audience et coût figés entre devis et envoi | IMPLÉMENTÉ | empreinte + plafonds transmis ; refus côté action web |
+| Idempotence | VALIDÉ SUR TEST | même clé d'envoi : aucun doublon |
+| « En file », jamais « délivré » | VALIDÉ SUR TEST | compte rendu de `verifier` |
+| Envoi réel de SMS | **NON FAIT, volontairement** | passerelle SMS neutralisée pendant la recette ; aucune famille contactée |
+| Suivi de livraison (envoyé / délivré / échoué) | AUDITÉ — à exposer | colonnes `statut`, `envoye_le`, `erreur` de `notifications` |
+
+Recette : `recette-parents-reel.mjs`, 30/30 (sections 1 à 7).
+
+### LOTS 7 à 9 · NON AUDITÉS à cette date
+
+Transferts, abandons et exclusions ; documents (à construire), notes et
+finances complets ; intelligence conversationnelle.
 
 ## 2. Tests
 

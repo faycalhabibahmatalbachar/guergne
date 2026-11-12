@@ -117,8 +117,13 @@ async function principal() {
         const tampon = Buffer.isBuffer(brut) ? brut : Buffer.from(brut);
         empreinteDistante = sha(tampon.toString("utf8").replace(/\r\n/g, "\n"));
         etat = empreinteDistante === empreinteLocale ? "identique" : "DIFFERENT";
-      } catch {
-        etat = "ABSENT";
+      } catch (e) {
+        // Seul un fichier INTROUVABLE est absent. Le 2026-11-11, une liaison
+        // saturée a fait échouer 85 lectures d'affilée : comptées « ABSENT »,
+        // elles annonçaient src/engine.js manquant sur un serveur qui l'avait.
+        // Une lecture ratée ne dit rien du serveur ; elle le dit.
+        const introuvable = e?.code === 2 || e?.code === "ENOENT" || /no such file/i.test(String(e?.message ?? ""));
+        etat = introuvable ? "ABSENT" : "ILLISIBLE";
       }
       resultats.push({ relatif, etat, empreinteLocale, empreinteDistante, octets: local.length });
       if (!liste && etat !== "identique") {
@@ -132,6 +137,15 @@ async function principal() {
     await sftp.end().catch(() => {});
   }
 
+  const illisibles = resultats.filter((r) => r.etat === "ILLISIBLE");
+  if (illisibles.length > 0) {
+    // Une comparaison incomplète ne produit PAS de liste de dépôt : elle
+    // ferait réenvoyer des fichiers présents, ou en taire d'autres.
+    console.error(`\n${illisibles.length} fichier(s) distant(s) illisible(s) — comparaison INCOMPLETE, relancer :`);
+    console.error(`  ${illisibles.slice(0, 10).map((r) => r.relatif).join(" ")}${illisibles.length > 10 ? " …" : ""}`);
+    process.exitCode = 1;
+    return;
+  }
   const aDeposer = resultats.filter((r) => r.etat !== "identique");
   if (liste) {
     // Sortie brute, destinee a etre passee a depot-cible.mjs.

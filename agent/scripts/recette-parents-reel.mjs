@@ -181,13 +181,48 @@ async function principal() {
       constater("... ni par l'API directement", direct?.ok === false, direct?.message ?? "");
     }
 
-    bleu("\n== 7. Ecritures eteintes = refusees ==");
+    bleu("\n== 7. Notifier « uniquement le pere » de l'eleve 2 ==");
+    {
+      const { NOTIFICATIONS_TOOLS } = await import("../src/tools-notifications.js");
+      const notif = NOTIFICATIONS_TOOLS[0];
+      const dit = { ...dit2, responsable: "le père", titre: "Recette", message: "Message de recette, ne pas tenir compte.", canal: "SMS" };
+      const parTel = async () =>
+        (await q("SELECT count(*)::int n FROM notifications WHERE regexp_replace(telephone,'[^0-9]','','g') = $1", [TEL_A.replace(/\D/g, "")]))[0].n;
+
+      // a) Sans consentement SMS, un parent sans compte n'est pas joignable.
+      await db.query("UPDATE tuteurs SET accepte_sms = false WHERE id = $1 AND nom = $2", [tA, MARQUE]);
+      const sans = await notif.preparer(dit, outils);
+      constater("sans consentement SMS : rien a envoyer", sans.ok === false && /Aucun parent joignable/.test(sans.message ?? ""), sans.message ?? "PROPOSE — anomalie");
+
+      // b) Consentement pose sur la fiche de SYNTHESE : un SMS, chiffre.
+      await db.query("UPDATE tuteurs SET accepte_sms = true WHERE id = $1 AND nom = $2", [tA, MARQUE]);
+      const prep = await notif.preparer(dit, outils);
+      constater("avec consentement : devis d'UN SMS, au seul pere", prep.ok && prep.params.selection.ids.length === 1 && prep.params.selection.ids[0] === tA && prep.params.plafondNotifications === 1, prep.message ?? prep.texte?.split("\n")[3]);
+      constater("le devis chiffre le cout", prep.ok && prep.params.plafondCoutFcfa > 0, `${prep.params?.plafondCoutFcfa} FCFA`);
+      const avant = await parTel();
+      const r = await guergne.envoyerNotificationParents(prep.params, ctx);
+      const v = await notif.verifier({ result: r, params: prep.params });
+      const apres = await parTel();
+      constater("envoi accepte et dit « en file »", v.ok === true && /mise en file/.test(v.texte ?? ""), v.raison ?? r?.data?.message ?? r?.message);
+      constater("exactement UN message en file pour ce numero", apres - avant === 1, `${avant} -> ${apres}`);
+
+      // c) Meme cle d'envoi : aucun doublon.
+      await guergne.envoyerNotificationParents(prep.params, ctx);
+      constater("un second envoi avec la meme cle ne cree rien", (await parTel()) === apres, `${await parTel()}`);
+    }
+
+    bleu("\n== 8. Ecritures eteintes = refusees ==");
     gris("  (couvert par la recette CRUD : ECRITURES_DESACTIVEES quand la variable est absente)");
   } finally {
     bleu("\n== Nettoyage, par identifiants ==");
     try {
       await db.query("BEGIN");
       let n = 0;
+      // Les notifications de recette, par les numeros fictifs (verifies libres au depart).
+      n += (await db.query(
+        "DELETE FROM notifications WHERE regexp_replace(telephone,'[^0-9]','','g') IN ($1, $2)",
+        [TEL_A.replace(/\D/g, ""), TEL_B.replace(/\D/g, "")],
+      )).rowCount;
       for (const id of ids.eleves) {
         n += (await db.query("DELETE FROM notifications WHERE eleve_id = $1", [id])).rowCount;
         n += (await db.query("DELETE FROM eleves WHERE id = $1 AND nom = $2", [id, MARQUE])).rowCount;

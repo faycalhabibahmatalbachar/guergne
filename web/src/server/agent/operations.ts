@@ -10,6 +10,7 @@ import {
   rattacherTuteur,
 } from "@/app/(main)/dashboard/eleves/actions";
 import { creerClasse, modifierClasse } from "@/app/(main)/dashboard/parametres/actions";
+import { apercuNotificationsGroupe, envoyerNotificationsGroupe } from "@/app/(main)/dashboard/parents/actions-groupe";
 import { executerEnTantQue } from "@/server/auth/acteur-delegue";
 import type { Principal } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -256,6 +257,14 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
       if (!eleveId) throw new TypeError("eleveId requis");
       return (await chargerDossier(eleveId)) ?? { ok: false, message: "Élève introuvable." };
     },
+  },
+  // Le DEVIS d'une notification aux parents, avant tout envoi : destinataires
+  // joignables, canal réel de chacun (push, SMS, boîte interne), SMS
+  // dédoublonnés, consentement respecté, coût en FCFA et empreinte de
+  // l'audience. C'est l'action de l'écran « Notifier un groupe », telle quelle.
+  devisNotificationParents: {
+    permission: "message:envoyer",
+    executer: (p, acteur) => executerEnTantQue(acteur, () => apercuNotificationsGroupe(p)),
   },
   // La fiche complète : les mêmes chargeurs et les mêmes droits, section par
   // section, que la page /dashboard/eleves/[id]. Le droit d'entrée est
@@ -569,6 +578,16 @@ export const OPERATIONS_ECRITURE: Record<string, OutilExpose> = {
     // classe part avec elle en cascade. L'agent archive, il ne détruit pas.
     permission: "classe:modifier",
     executer: (p, acteur) => archiverClassePour(acteur, p),
+  },
+
+  // L'envoi, par la même action que l'écran : elle refuse si l'audience a
+  // changé depuis le devis (empreinte), si le coût dépasse le plafond accepté,
+  // ou si une diffusion large n'est pas explicitement confirmée ; la clé
+  // d'envoi rend un second appel inoffensif. Les SMS ne partent qu'aux
+  // numéros qui y ont consenti.
+  envoyerNotificationParents: {
+    permission: "message:envoyer",
+    executer: (p, acteur) => executerEnTantQue(acteur, () => envoyerNotificationsGroupe(p)),
   },
 
   // --- Parents et responsabilités --------------------------------------------
