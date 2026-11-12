@@ -15,15 +15,15 @@ DÉPLOYÉ · VALIDÉ EN PRODUCTION · BLOQUÉ
 
 | Élément | État | Preuve |
 |---|---|---|
-| Branche de travail | `voix-bidirectionnelle` = `main` = `3b6a003` | `git ls-remote` : même hash pour les deux refs |
-| Production web (Vercel) | **DÉPLOYÉE** depuis `3b6a003` | déploiement GitHub/Vercel `7720683828`, statut `success` ; `/api/whatsapp/etat` passe de 404 à 401 |
+| Branche de travail | `voix-bidirectionnelle` = `main` = `4265f0b` (2026-11-12) | `git ls-remote` : même hash pour les deux refs |
+| Production web (Vercel) | **DÉPLOYÉE** : `3b6a003`, puis `b683cdd`, `3b7301a`, `4265f0b` | statut Vercel `success` pour chacun ; `/api/whatsapp/etat` passe de 404 à 401 ; nouvelles routes de l'agent en 401 sans jeton |
 | Base servie par la production | **`br-red-waterfall-b1ajf6iu` — PROUVÉ** | appel réel du backend de production (jeton de service, lecture) : année `2026-2027` et trimestres 01/10–22/12/2026, données qui n'existent que sur cette branche (0040) |
 | Base de test | `br-calm-art-b18uihy2` (année 2025-2026) | `web/.env.development.local` |
 | Migration 0041 en production | **APPLIQUÉE** le 2026-11-11 | essai à blanc, puis application ; DIRECTION 36 → 75 droits, les 8 autres rôles identiques (diff des comptes avant/après) |
 | Migrations en attente, prod ET test | 0033, 0037_notes_tracabilite, 0038, 0039 | `_migrations` relu sur les deux branches ; le code livré tourne sans elles (recettes vertes sur test) |
 | Écritures de l'agent en production | **ÉTEINTES** | `inscrireEleve` sur la prod : `ECRITURES_DESACTIVEES` |
-| Agent Altare | **EN COURS** de déploiement | code déployé du 2026-11-05 ; 20 fichiers différents, 6 absents (comparaison par empreinte) |
-| WhatsApp | **DÉCONNECTÉ** — appareil délié côté WhatsApp | `/sante` : `attenteScanQr: true`, `jamaisConnecte: true` depuis 2026-11-11 12:09 UTC |
+| Agent Altare | **DÉPLOYÉ ET EXÉCUTÉ** le 2026-11-12 | sauvegarde vérifiée du code précédent (139 fichiers) ; 42 fichiers déposés et relus par empreinte ; redémarrage par `/diagnostic/redemarrer` ; la voie d'appairage par jeton de service (absente de l'ancienne version) répond 200 ; processus stable depuis 12:09 UTC |
+| WhatsApp | **EN ATTENTE DE SCAN** — appareil délié côté WhatsApp | `/sante` : `whatsapp: qr`, `attenteScanQr: true` ; profil LocalAuth intact (`session WhatsApp : 1 entrée`) |
 | Accès Vercel (CLI) | **BLOQUÉ** — en attente de `npx vercel login` par le propriétaire | nécessaire pour poser `AGENT_BASE_URL` |
 
 ## 1. Lots
@@ -42,7 +42,8 @@ Conflits résolus en gardant les deux apports ; la confirmation durcie n'a pas
 |---|---|---|
 | Écran `/dashboard/parametres/whatsapp` | DÉPLOYÉ | routes `etat` et `qr` en production (401 sans session) |
 | `AGENT_BASE_URL` dans Vercel | BLOQUÉ | accès Vercel requis |
-| Code de l'agent sur Altare | EN COURS | sauvegarde du code déployé, puis dépôt ciblé vérifié par empreinte, puis redémarrage par `/diagnostic/redemarrer` |
+| Code de l'agent sur Altare | DÉPLOYÉ ET EXÉCUTÉ | voir §0 ; retour arrière : `sauvegardes/altare-code-2026-11-11T20-21-19-297Z` via `depot-cible.mjs` |
+| Rustines whatsapp-web.js au démarrage | DÉPLOYÉ | `index.js` les pose à chaque démarrage : `npm ci --ignore-scripts` les effaçait sans les rejouer |
 | Scan réel | BLOQUÉ (téléphone) | choix du propriétaire : scanner depuis l'écran HTTPS |
 | `.wwebjs_cache` distant | AUDITÉ — laissé en place | cache de versions HTML que la bibliothèque écrit elle-même ; les deux fichiers venus d'un poste local y sont de même nature, sans donnée de session |
 | `sonde-espace.tmp` (20 Mo) | AUDITÉ — laissé en place | sonde d'espace d'une session précédente ; à retirer lors d'une intervention de maintenance |
