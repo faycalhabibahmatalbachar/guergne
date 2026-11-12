@@ -81,10 +81,20 @@ function Champ({ icone: Icone, libelle, valeur }: { icone: typeof Phone; libelle
   );
 }
 
-export default async function PageDossierParent({ params }: { params: Promise<{ id: string }> }) {
+export default async function PageDossierParent({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ annee?: string }>;
+}) {
   const principal = await exigerPage("tuteur:gerer");
   const { id } = await params;
-  const dossier = await chargerDossierTuteur(id);
+  const filtres = await searchParams;
+  const anneeId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(filtres.annee ?? "")
+    ? filtres.annee
+    : undefined;
+  const dossier = await chargerDossierTuteur(id, anneeId);
   if (!dossier) notFound();
 
   const [peutSms, peutInviter, peutLierEnfant] = await Promise.all([
@@ -125,7 +135,7 @@ export default async function PageDossierParent({ params }: { params: Promise<{ 
     <main className="mx-auto max-w-[1560px] space-y-5 pb-8 text-foreground">
       <nav aria-label="Retour" className="print:hidden">
         <Link
-          href="/dashboard/parents"
+          href={anneeId ? `/dashboard/parents?annee=${encodeURIComponent(anneeId)}` : "/dashboard/parents"}
           className="inline-flex items-center gap-2 rounded-lg px-1 py-1.5 text-sm font-semibold text-info transition-colors hover:text-info hover:underline focus-visible:outline-2 focus-visible:outline-blue-600"
         >
           <ArrowLeft className="size-4" aria-hidden />
@@ -313,7 +323,7 @@ export default async function PageDossierParent({ params }: { params: Promise<{ 
                     </span>
                     <div className="min-w-0 flex-1">
                       <Link
-                        href={"/dashboard/eleves/" + e.eleveId}
+                        href={"/dashboard/eleves/" + e.eleveId + (anneeId ? "?annee=" + encodeURIComponent(anneeId) : "")}
                         className="inline-flex max-w-full items-center gap-1.5 break-words text-sm font-bold text-foreground hover:text-info hover:underline"
                       >
                         {e.prenom} {e.nom}
@@ -328,7 +338,7 @@ export default async function PageDossierParent({ params }: { params: Promise<{ 
                       {LIENS[e.lien] ?? e.lien}
                     </span>
                     <Link
-                      href={"/dashboard/eleves/" + e.eleveId}
+                      href={"/dashboard/eleves/" + e.eleveId + (anneeId ? "?annee=" + encodeURIComponent(anneeId) : "")}
                       title={"Voir le dossier de " + e.prenom}
                       aria-label={"Consulter " + e.prenom + " " + e.nom}
                       className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-info-doux/90"
