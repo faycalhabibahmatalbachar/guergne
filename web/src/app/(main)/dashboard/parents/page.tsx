@@ -83,7 +83,7 @@ export default async function PageParents({
             </Button>
           )}
           <Button asChild variant="outline" className="font-semibold">
-            <a href={`/dashboard/parents/familles${annee ? `?annee=${encodeURIComponent(annee.id)}` : ""}`}>
+            <a href="/dashboard/parents/familles">
               <House className="size-4" aria-hidden />
               Familles & fratries
             </a>
@@ -94,7 +94,7 @@ export default async function PageParents({
               Exporter Excel
             </a>
           </Button>
-          {annee ? <SelecteurAnnee anneeId={annee.id} annees={annees} /> : null}
+          {annee ? <SelecteurAnnee anneeId={annee.id} annees={annees} reinitialiser={["classe"]} /> : null}
           <CreerParent />
         </div>
       </header>
