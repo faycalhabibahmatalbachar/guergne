@@ -337,7 +337,9 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
                 </p>
                 {filtreActif ? (
                   <Button asChild variant="outline" size="sm">
-                    <Link href="/dashboard/eleves">Effacer les filtres</Link>
+                    <Link href={anneeId ? `/dashboard/eleves?annee=${encodeURIComponent(anneeId)}` : "/dashboard/eleves"}>
+                    Effacer les filtres
+                  </Link>
                   </Button>
                 ) : peutCreer ? (
                   <Button asChild size="sm">
@@ -382,7 +384,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
                       {peutAffecter || peutEnvoyer ? <CaseSelection id={e.id} className="px-3 py-2" /> : null}
                       <td className="px-3 py-2">
                         <Link
-                          href={`/dashboard/eleves/${e.id}`}
+                          href={`/dashboard/eleves/${e.id}${anneeId ? `?annee=${encodeURIComponent(anneeId)}` : ""}`}
                           className="flex items-center gap-2.5 font-semibold text-foreground hover:text-info"
                         >
                           <Avatar className="size-9 shrink-0">
@@ -415,7 +417,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
                         <div className="max-w-[185px] truncate font-medium">
                           {e.parentId && peutVoirParents ? (
                             <Link
-                              href={"/dashboard/parents/" + e.parentId}
+                              href={"/dashboard/parents/" + e.parentId + (anneeId ? "?annee=" + encodeURIComponent(anneeId) : "")}
                               title={"Ouvrir la fiche du tuteur " + (e.parentNom ?? "")}
                               className="rounded-sm text-foreground underline-offset-4 hover:text-succes hover:underline focus-visible:outline-2 focus-visible:outline-emerald-600 dark:hover:text-succes"
                             >
