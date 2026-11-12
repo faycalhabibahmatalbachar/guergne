@@ -21,10 +21,12 @@ export function SelecteurCible({
   vue,
   cibles,
   cibleId,
+  anneeId,
 }: {
   vue: "classe" | "enseignant" | "salle";
   cibles: Array<{ id: string; libelle: string }>;
   cibleId: string;
+  anneeId: string;
 }) {
   const routeur = useRouter();
 
@@ -34,7 +36,11 @@ export function SelecteurCible({
       <NativeSelect
         id="cible"
         value={cibleId}
-        onChange={(e) => routeur.push(`/dashboard/emploi-du-temps?vue=${vue}&cible=${e.target.value}`)}
+        onChange={(e) =>
+          routeur.push(
+            `/dashboard/emploi-du-temps?vue=${vue}&cible=${e.target.value}&annee=${encodeURIComponent(anneeId)}`,
+          )
+        }
       >
         {cibles.map((c) => (
           <option key={c.id} value={c.id}>
