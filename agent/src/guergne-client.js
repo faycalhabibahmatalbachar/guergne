@@ -136,4 +136,7 @@ export class GuergneHttpClient {
   creerClasse(p, c) { return this._call("creerClasse", p, c); }
   modifierClasse(p, c) { return this._call("modifierClasse", p, c); }
   archiverClasse(p, c) { return this._call("archiverClasse", p, c); }
+  rattacherTuteur(p, c) { return this._call("rattacherTuteur", p, c); }
+  detacherTuteur(p, c) { return this._call("detacherTuteur", p, c); }
+  modifierResponsabilitesTuteur(p, c) { return this._call("modifierResponsabilitesTuteur", p, c); }
 }

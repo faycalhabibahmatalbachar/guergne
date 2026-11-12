@@ -3,8 +3,11 @@ import { eq, sql } from "drizzle-orm";
 import {
   changerClasse,
   changerStatut,
+  detacherTuteur,
   inscrireEleve,
   modifierEleve,
+  modifierResponsabilitesTuteur,
+  rattacherTuteur,
 } from "@/app/(main)/dashboard/eleves/actions";
 import { creerClasse, modifierClasse } from "@/app/(main)/dashboard/parametres/actions";
 import { executerEnTantQue } from "@/server/auth/acteur-delegue";
@@ -566,6 +569,40 @@ export const OPERATIONS_ECRITURE: Record<string, OutilExpose> = {
     // classe part avec elle en cascade. L'agent archive, il ne détruit pas.
     permission: "classe:modifier",
     executer: (p, acteur) => archiverClassePour(acteur, p),
+  },
+
+  // --- Parents et responsabilités --------------------------------------------
+  // Les MÊMES actions que la fiche élève (gestion-tuteurs.tsx). Ce qui les
+  // rend sûres pour l'agent est dans l'action, pas ici : réutilisation d'une
+  // fiche existante (par identifiant, puis par les chiffres du numéro),
+  // refus d'un double rattachement, transfert — et non retrait — du
+  // responsable principal, un tuteur au moins conservé, audit.
+  rattacherTuteur: {
+    permission: "tuteur:gerer",
+    executer: (p, acteur) => {
+      const eleveId = uuid(p.eleveId);
+      if (!eleveId) throw new TypeError("eleveId requis");
+      const { eleveId: _ignore, ...tuteur } = p;
+      return executerEnTantQue(acteur, () => rattacherTuteur(eleveId, tuteur));
+    },
+  },
+  detacherTuteur: {
+    permission: "tuteur:gerer",
+    executer: (p, acteur) => {
+      const eleveId = uuid(p.eleveId);
+      const tuteurId = uuid(p.tuteurId);
+      if (!eleveId || !tuteurId) throw new TypeError("eleveId et tuteurId requis");
+      return executerEnTantQue(acteur, () => detacherTuteur(eleveId, tuteurId));
+    },
+  },
+  modifierResponsabilitesTuteur: {
+    permission: "tuteur:gerer",
+    executer: (p, acteur) => {
+      const eleveId = uuid(p.eleveId);
+      const tuteurId = uuid(p.tuteurId);
+      if (!eleveId || !tuteurId) throw new TypeError("eleveId et tuteurId requis");
+      return executerEnTantQue(acteur, () => modifierResponsabilitesTuteur(eleveId, tuteurId, p.responsabilites));
+    },
   },
 };
 

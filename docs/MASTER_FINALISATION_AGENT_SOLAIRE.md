@@ -93,10 +93,28 @@ du rendu et par la lecture du code (`peut(acteur, …)` par section).
 
 Recette : 23/23 (`recette-scolarite-reel.mjs`, section 9 bis).
 
-### LOTS 5 à 9 · NON AUDITÉS à cette date
+### LOT 5 — Parents et responsabilités · VALIDÉ SUR TEST
 
-Parents et responsabilités (écritures), notifications, transferts, abandons et
-exclusions, documents/notes/finances complets, intelligence conversationnelle.
+| Capacité | Opération / outil | État | Preuve |
+|---|---|---|---|
+| Rattacher un parent (nouveau ou existant) | `rattacherTuteur` / `parents.rattacher` | VALIDÉ SUR TEST | recette 24/24 |
+| Réutiliser la fiche d'un parent déjà connu | action web corrigée | VALIDÉ SUR TEST | numéro écrit autrement → toujours 1 fiche, 2 enfants |
+| Refuser un double rattachement | action web corrigée | VALIDÉ SUR TEST | « Ce parent est déjà rattaché à cet élève » |
+| Changer lien et responsabilités | `modifierResponsabilitesTuteur` (NOUVELLE action) / `parents.responsabilites` | VALIDÉ SUR TEST | un seul principal relu ; audit avant/après |
+| Transfert du responsable principal | idem | VALIDÉ SUR TEST | retirer le titre sans successeur : refusé |
+| Retirer un responsable | `detacherTuteur` / `parents.detacher` | VALIDÉ SUR TEST | fiche conservée ; dernier responsable : refusé |
+| Lister, filtrer par état de compte | `parents.rechercher` (LOT 3) | VALIDÉ EN PRODUCTION (lecture) | |
+| Invitations, codes, révocation | `inviterTuteur`, `renvoyerCode`, `revoquerAcces` existent | AUDITÉ — non exposés | impliquent un envoi de SMS : à brancher avec le LOT 6 (consentement, devis) |
+
+Défauts corrigés dans l'action web (donc aussi pour l'écran) :
+`existantId` était accepté puis ignoré ; le parent n'était retrouvé que sur un
+téléphone écrit à l'identique ; un double rattachement finissait en erreur
+générique.
+
+### LOTS 6 à 9 · NON AUDITÉS à cette date
+
+Notifications (SMS, consentement, devis), transferts, abandons et exclusions,
+documents/notes/finances complets, intelligence conversationnelle.
 
 ## 2. Tests
 

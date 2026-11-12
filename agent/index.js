@@ -150,6 +150,27 @@ log(`Node ${process.version} — ${racine}`);
 
 installerDependances();
 
+/**
+ * Les rustines de whatsapp-web.js, à CHAQUE démarrage.
+ *
+ * `npm ci` efface `node_modules`, et `--ignore-scripts` empêche le
+ * `postinstall` qui les posait. Sans cette étape, le premier changement de
+ * verrou réinstallait une bibliothèque nue : la réception des notes vocales
+ * retombait sur `InvalidMediaFileType`, sans rien qui le signale au déploiement.
+ *
+ * Le script est idempotent (chaque rustine a un témoin). Un échec ne bloque
+ * pas le démarrage — le texte fonctionne sans elles — mais il est dit.
+ */
+function appliquerRustines() {
+  const r = spawnSync(process.execPath, [join(racine, "scripts", "rustine-wwebjs.mjs")], {
+    cwd: racine,
+    stdio: "inherit",
+  });
+  if (r.status === 0) log("rustines whatsapp-web.js en place");
+  else erreur(`rustines whatsapp-web.js NON appliquees (code ${r.status}) : la reception des notes vocales peut echouer`);
+}
+appliquerRustines();
+
 const restantes = manquantes();
 if (restantes.length > 0) {
   // On refuse de démarrer une application incomplète : mieux vaut un échec

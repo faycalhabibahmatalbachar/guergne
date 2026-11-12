@@ -46,7 +46,7 @@ const FORMES_DEGENEREES = [
 
 const avecRendu = ASSIDUITE_TOOLS.filter((o) => typeof o.rendre === "function");
 
-test("le catalogue compte bien 47 outils, dont 38 rendent du texte", () => {
+test("le catalogue compte bien 50 outils, dont 38 rendent du texte", () => {
   // Si ce compte change, c'est volontaire : il faut alors le constater ici
   // plutot que de laisser la couverture glisser en silence.
   //
@@ -70,7 +70,11 @@ test("le catalogue compte bien 47 outils, dont 38 rendent du texte", () => {
   //
   // 2026-11-11 (bis) : 46 -> 47. `eleves.fiche`, la fiche complete (memes
   // chargeurs et memes droits que /dashboard/eleves/[id]). Avec rendu : 38.
-  assert.equal(ASSIDUITE_TOOLS.length, 47);
+  //
+  // 2026-11-11 (ter) : 47 -> 50. Trois ecritures sur les responsables :
+  // `parents.rattacher`, `parents.detacher`, `parents.responsabilites`. Sans
+  // `rendre` : leur compte rendu vient de `verifier`, apres relecture.
+  assert.equal(ASSIDUITE_TOOLS.length, 50);
   assert.equal(avecRendu.length, 38);
 });
 

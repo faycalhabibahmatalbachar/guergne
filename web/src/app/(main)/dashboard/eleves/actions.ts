@@ -726,9 +726,45 @@ export async function rattacherTuteur(eleveId: string, donnees: unknown): Promis
     if (!analyse.success) return { ok: false, erreurs: messages(analyse.error) };
 
     const t = analyse.data;
+    let reutilise = false;
 
     await db.transaction(async (tx) => {
-      const [existant] = await tx.select({ id: tuteurs.id }).from(tuteurs).where(eq(tuteurs.telephone, t.telephone));
+      // RETROUVER LE PARENT AVANT D'EN CRÉER UN.
+      //
+      // 1. `existantId`, quand l'écran ou l'agent a déjà désigné la fiche :
+      //    il était accepté par le schéma, puis ignoré.
+      // 2. Sinon le téléphone, comparé sur ses SEULS CHIFFRES — c'est la règle
+      //    de `construireFiltreTuteurs` pour les doublons. La comparaison
+      //    textuelle exacte créait une seconde fiche pour « +235 66 00 00 00 »
+      //    face à « 66000000 ».
+      // Plusieurs fiches pour un même numéro : on ne choisit pas à la place de
+      // l'établissement.
+      let existant: { id: string } | undefined;
+      if (t.existantId) {
+        [existant] = await tx.select({ id: tuteurs.id }).from(tuteurs).where(eq(tuteurs.id, t.existantId));
+        if (!existant) throw new RefusMetier("Le parent désigné n'existe pas.");
+      } else {
+        const memes = await tx.execute<{ id: string }>(sql`
+          SELECT id FROM tuteurs
+           WHERE regexp_replace(telephone, '[^0-9]', '', 'g') = regexp_replace(${t.telephone}, '[^0-9]', '', 'g')
+           LIMIT 2
+        `);
+        if (memes.rows.length > 1) {
+          throw new RefusMetier(
+            "Plusieurs fiches parent partagent ce numéro : désignez celle à rattacher plutôt que d'en créer une troisième.",
+          );
+        }
+        existant = memes.rows[0];
+      }
+      reutilise = Boolean(existant);
+
+      if (existant) {
+        const [deja] = await tx
+          .select({ n: sql<number>`1` })
+          .from(eleveTuteur)
+          .where(and(eq(eleveTuteur.eleveId, eleveId), eq(eleveTuteur.tuteurId, existant.id)));
+        if (deja) throw new RefusMetier("Ce parent est déjà rattaché à cet élève.");
+      }
 
       const tuteurId =
         existant?.id ??
@@ -773,7 +809,7 @@ export async function rattacherTuteur(eleveId: string, donnees: unknown): Promis
       action: "tuteur.rattache",
       entite: "eleve_tuteur",
       eleveId,
-      apres: { nom: `${t.prenom} ${t.nom}`, lien: t.lien },
+      apres: { nom: `${t.prenom} ${t.nom}`, lien: t.lien, ficheExistanteReutilisee: reutilise },
     });
 
     revalidatePath(`/dashboard/eleves/${eleveId}`);
@@ -812,6 +848,109 @@ export async function detacherTuteur(eleveId: string, tuteurId: string): Promise
     return SUCCES_VIDE;
   } catch (erreur) {
     return echec(erreur, "Le retrait du tuteur a échoué.");
+  }
+}
+
+const schemaResponsabilites = z
+  .object({
+    lien: z.enum(["PERE", "MERE", "TUTEUR", "ONCLE", "TANTE", "GRAND_PARENT", "FRERE_SOEUR", "AUTRE"]).optional(),
+    estPrincipal: z.boolean().optional(),
+    estTuteurLegal: z.boolean().optional(),
+    estResponsableFinancier: z.boolean().optional(),
+    estContactUrgence: z.boolean().optional(),
+    autoriseRetrait: z.boolean().optional(),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0, { message: "Aucune modification demandée." });
+
+/**
+ * Change le lien et les responsabilités d'un parent DÉJÀ rattaché.
+ *
+ * Jusqu'ici, la seule voie était de détacher puis de rattacher : on perdait la
+ * trace de ce qui avait changé, et l'élève passait un instant sans responsable
+ * principal.
+ *
+ * Le responsable principal se TRANSFÈRE, il ne se retire pas : désigner un
+ * nouveau principal ôte le titre à l'ancien dans la même transaction (l'index
+ * unique partiel l'exige), mais retirer le titre sans en désigner d'autre est
+ * refusé — un élève ne doit pas se retrouver sans interlocuteur désigné par une
+ * simple case décochée.
+ */
+export async function modifierResponsabilitesTuteur(
+  eleveId: string,
+  tuteurId: string,
+  donnees: unknown,
+): Promise<Resultat> {
+  try {
+    const acteur = await requirePermission("tuteur:gerer");
+    const analyse = schemaResponsabilites.safeParse(donnees);
+    if (!analyse.success) return { ok: false, erreurs: messages(analyse.error) };
+    const v = analyse.data;
+
+    const { avant, apres } = await db.transaction(async (tx) => {
+      const lignes = await tx.execute<{
+        tuteur_id: string;
+        lien: string;
+        est_principal: boolean;
+        est_tuteur_legal: boolean;
+        est_responsable_financier: boolean;
+        est_contact_urgence: boolean;
+        autorise_retrait: boolean;
+      }>(sql`
+        SELECT tuteur_id, lien::text, est_principal, est_tuteur_legal, est_responsable_financier,
+               est_contact_urgence, autorise_retrait
+          FROM eleve_tuteur WHERE eleve_id = ${eleveId}::uuid FOR UPDATE
+      `);
+      const lien = lignes.rows.find((l) => l.tuteur_id === tuteurId);
+      if (!lien) throw new RefusMetier("Ce parent n'est pas rattaché à cet élève.");
+      if (v.estPrincipal === false && lien.est_principal) {
+        throw new RefusMetier(
+          "Le responsable principal se transfère : désignez le nouveau principal plutôt que de retirer le titre.",
+        );
+      }
+      const ancienPrincipal = lignes.rows.find((l) => l.est_principal)?.tuteur_id ?? null;
+      if (v.estPrincipal === true && !lien.est_principal) {
+        await tx
+          .update(eleveTuteur)
+          .set({ estPrincipal: false })
+          .where(and(eq(eleveTuteur.eleveId, eleveId), eq(eleveTuteur.estPrincipal, true)));
+      }
+      const maj = {
+        ...(v.lien ? { lien: v.lien } : {}),
+        ...(v.estPrincipal !== undefined ? { estPrincipal: v.estPrincipal } : {}),
+        ...(v.estTuteurLegal !== undefined ? { estTuteurLegal: v.estTuteurLegal } : {}),
+        ...(v.estResponsableFinancier !== undefined ? { estResponsableFinancier: v.estResponsableFinancier } : {}),
+        ...(v.estContactUrgence !== undefined ? { estContactUrgence: v.estContactUrgence } : {}),
+        ...(v.autoriseRetrait !== undefined ? { autoriseRetrait: v.autoriseRetrait } : {}),
+      };
+      await tx
+        .update(eleveTuteur)
+        .set(maj)
+        .where(and(eq(eleveTuteur.eleveId, eleveId), eq(eleveTuteur.tuteurId, tuteurId)));
+      return {
+        avant: { ...lien, ancienPrincipal },
+        apres: {
+          tuteurId,
+          ...maj,
+          ...(v.estPrincipal === true && ancienPrincipal && ancienPrincipal !== tuteurId
+            ? { principalRetireA: ancienPrincipal }
+            : {}),
+        },
+      };
+    });
+
+    await journaliser(acteur, {
+      action: "tuteur.responsabilites_modifiees",
+      entite: "eleve_tuteur",
+      eleveId,
+      avant,
+      apres,
+    });
+
+    revalidatePath(`/dashboard/eleves/${eleveId}`);
+    return SUCCES_VIDE;
+  } catch (erreur) {
+    return echec(erreur, "La modification des responsabilités a échoué.");
   }
 }
 
