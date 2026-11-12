@@ -4,6 +4,7 @@ import { CalendarClock, CalendarDays, Printer } from "lucide-react";
 import type { Metadata } from "next";
 
 import { EnTetePage, Page } from "@/components/socle/en-tete-page";
+import { SelecteurAnnee } from "@/components/socle/selecteur-annee";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,7 +17,7 @@ import {
   listerEnseignants,
   listerSalles,
 } from "@/server/domain/personnel";
-import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
+import { listerAnnees } from "@/server/domain/parametres";
 import { exigerPage } from "@/server/guard";
 
 import { Prerequis } from "../_components/prerequis";
@@ -34,14 +35,15 @@ type Vue = (typeof VUES)[number];
 export default async function PageEmploiDuTemps({
   searchParams,
 }: {
-  searchParams: Promise<{ vue?: string; cible?: string }>;
+  searchParams: Promise<{ vue?: string; cible?: string; annee?: string }>;
 }) {
   await exigerPage("emploi_du_temps:lire");
 
   const params = await searchParams;
   const vue: Vue = VUES.includes(params.vue as Vue) ? (params.vue as Vue) : "classe";
 
-  const annee = await chargerAnneeCourante();
+  const annees = await listerAnnees();
+  const annee = annees.find((a) => a.id === params.annee) ?? annees.find((a) => a.estCourante) ?? annees[0] ?? null;
 
   if (!annee) {
     return (
@@ -104,19 +106,20 @@ export default async function PageEmploiDuTemps({
             conflits sont refusés à l&apos;enregistrement.
           </>
         }
+        actions={<SelecteurAnnee anneeId={annee.id} annees={annees} reinitialiser={["cible"]} />}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs value={vue}>
           <TabsList>
             <TabsTrigger value="classe" asChild>
-              <Link href="/dashboard/emploi-du-temps?vue=classe">Par classe</Link>
+              <Link href={`/dashboard/emploi-du-temps?vue=classe&annee=${encodeURIComponent(annee.id)}`}>Par classe</Link>
             </TabsTrigger>
             <TabsTrigger value="enseignant" asChild>
-              <Link href="/dashboard/emploi-du-temps?vue=enseignant">Par enseignant</Link>
+              <Link href={`/dashboard/emploi-du-temps?vue=enseignant&annee=${encodeURIComponent(annee.id)}`}>Par enseignant</Link>
             </TabsTrigger>
             <TabsTrigger value="salle" asChild>
-              <Link href="/dashboard/emploi-du-temps?vue=salle">Par salle</Link>
+              <Link href={`/dashboard/emploi-du-temps?vue=salle&annee=${encodeURIComponent(annee.id)}`}>Par salle</Link>
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -128,13 +131,13 @@ export default async function PageEmploiDuTemps({
         */}
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/emploi-du-temps/calendrier">
+            <Link href={`/dashboard/emploi-du-temps/calendrier?annee=${encodeURIComponent(annee.id)}`}>
               <CalendarDays aria-hidden />
               Calendrier annuel
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/emploi-du-temps/journee">
+            <Link href={`/dashboard/emploi-du-temps/journee?annee=${encodeURIComponent(annee.id)}`}>
               <CalendarClock aria-hidden />
               Journée et remplacements
             </Link>
@@ -161,7 +164,7 @@ export default async function PageEmploiDuTemps({
         <>
           <Card>
             <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-              <SelecteurCible vue={vue} cibles={cibles} cibleId={cibleId} />
+              <SelecteurCible vue={vue} cibles={cibles} cibleId={cibleId} anneeId={annee.id} />
               {/*
                 Le PDF plutôt que l'impression du navigateur : celle-ci
                 emporterait les boutons et les marges propres à chaque poste.
