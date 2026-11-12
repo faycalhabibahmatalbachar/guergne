@@ -12,11 +12,17 @@ import 'emploi_du_temps.dart';
 
 /// Ouvre la liste des annonces par-dessus l'écran courant.
 ///
-/// Les annonces n'ont plus d'onglet depuis le Design 3 — l'onglet « Plus »
-/// a pris leur place — mais elles restent à un geste : la cloche de l'accueil,
-/// la carte « Dernière annonce », la tuile d'accès rapide, et ici.
+/// Elles ont leur onglet dans la coque ; ce raccourci sert aux écrans ouverts
+/// par-dessus elle, qui n'ont pas la barre d'onglets sous la main.
 void ouvrirAnnonces(BuildContext context) {
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const EcranAnnonces()));
+}
+
+/// Ouvre la page de tous les services, depuis « Voir tout » sur l'accueil.
+void ouvrirPlus(BuildContext context, {required VoidCallback versCompte}) {
+  Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => EcranPlus(versCompte: versCompte)));
 }
 
 void ouvrirBulletins(BuildContext context) {
@@ -27,12 +33,12 @@ void ouvrirEmploiDuTemps(BuildContext context) {
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const EcranEmploiDuTemps()));
 }
 
-/// Onglet « Plus » : tout ce qui se consulte moins souvent.
+/// Page « Tous les services » : tout ce qui se consulte moins souvent.
 ///
-/// Cinq onglets est le maximum lisible en bas d'écran. Les quatre premiers
-/// portent ce que le parent regarde chaque semaine — accueil, résultats,
-/// assiduité, scolarité ; le cinquième rassemble le reste plutôt que d'en
-/// sacrifier un arbitrairement.
+/// Elle a été un onglet (« Plus ») le temps du Design 3. La maquette « vert
+/// profond » rend le cinquième onglet aux annonces ; cette page s'ouvre
+/// désormais depuis « Voir tout », sur l'accueil, et reste la porte des
+/// bulletins, de l'emploi du temps et du compte.
 class EcranPlus extends ConsumerWidget {
   const EcranPlus({super.key, required this.versCompte});
 
@@ -46,7 +52,7 @@ class EcranPlus extends ConsumerWidget {
     final profil = accueil?.profil ?? ref.watch(sessionProvider).profil;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Plus')),
+      appBar: AppBar(title: const Text('Tous les services')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(ThemeLgr.espace, 4, ThemeLgr.espace, 24),
         children: [

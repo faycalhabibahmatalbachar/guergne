@@ -6,11 +6,12 @@ import '../design/barre_navigation.dart';
 import '../design/theme.dart';
 import '../etat/fournisseurs.dart';
 import '../services/banniere_notification.dart';
+import '../services/notifications.dart';
 import 'accueil.dart';
+import 'annonces.dart';
 import 'assiduite.dart';
 import 'finances.dart';
 import 'notes.dart';
-import 'plus.dart';
 import 'profil.dart';
 
 /// Coque de l'application : les cinq onglets.
@@ -27,14 +28,13 @@ import 'profil.dart';
 /// page rétablit l'état : les cinq restent vivantes une fois visitées, et
 /// aucune ne se reconstruit au retour. On a les deux.
 ///
-/// Design 3 : le cinquième onglet est « Plus », et non plus « Annonces ».
-/// Les annonces, les bulletins, l'emploi du temps et le compte y sont
-/// rassemblés ; les annonces restent aussi à un geste depuis l'accueil — la
-/// cloche, la carte « Dernière annonce », la tuile d'accès rapide.
+/// Maquette « vert profond » : le cinquième onglet est « Annonces ». Les
+/// bulletins, l'emploi du temps et le compte se trouvent dans « Tous les
+/// services », ouvert depuis « Voir tout » sur l'accueil.
 ///
 /// Le profil n'est PAS une sixième page. C'est un écran de réglages, pas une
-/// étape du parcours : il s'ouvre en superposition depuis « Plus » et se
-/// referme par le retour du système.
+/// étape du parcours : il s'ouvre en superposition et se referme par le
+/// retour du système.
 class Coque extends ConsumerStatefulWidget {
   const Coque({super.key});
 
@@ -45,6 +45,10 @@ class Coque extends ConsumerStatefulWidget {
 class _EtatCoque extends ConsumerState<Coque> {
   final _pages = PageController();
   int _onglet = 0;
+
+  /// Gardé dans un champ : `dispose` doit se désabonner, et `ref` n'est plus
+  /// utilisable à ce moment-là — Riverpod lève une erreur à la déconnexion.
+  late final ServiceNotifications _notifications;
 
   /// Aller à un onglet, depuis la barre du bas ou une notification.
   ///
@@ -76,16 +80,16 @@ class _EtatCoque extends ConsumerState<Coque> {
     // Une notification tapée demande un écran. On l'écoute ici parce que la
     // coque est le premier widget capable de naviguer — le service, lui,
     // reçoit la demande avant même que l'interface n'existe.
-    final service = ref.read(notificationsProvider);
-    service.routeDemandee.addListener(_suivreRoute);
-    if (service.routeDemandee.value != null) {
+    _notifications = ref.read(notificationsProvider);
+    _notifications.routeDemandee.addListener(_suivreRoute);
+    if (_notifications.routeDemandee.value != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _suivreRoute());
     }
   }
 
   @override
   void dispose() {
-    ref.read(notificationsProvider).routeDemandee.removeListener(_suivreRoute);
+    _notifications.routeDemandee.removeListener(_suivreRoute);
     _pages.dispose();
     super.dispose();
   }
@@ -102,15 +106,8 @@ class _EtatCoque extends ConsumerState<Coque> {
     ref.read(notificationsProvider).routeDemandee.value = null;
     if (!mounted) return;
 
-    // Les annonces n'ont plus d'onglet : la notification ouvre directement
-    // leur liste, par-dessus l'accueil — le retour y ramène.
-    if (route.contains('annonce')) {
-      _aller(0);
-      ouvrirAnnonces(context);
-      return;
-    }
-
     final onglet = switch (route) {
+      final r when r.contains('annonce') => EcranAccueil.ongletAnnonces,
       final r when r.contains('assiduite') => 2,
       final r when r.contains('bulletin') || r.contains('note') => 1,
       final r when r.contains('paiement') || r.contains('echeance') => 3,
@@ -121,8 +118,8 @@ class _EtatCoque extends ConsumerState<Coque> {
 
   @override
   Widget build(BuildContext context) {
-    // Le compteur d'annonces non lues, porté par l'onglet « Plus » qui les
-    // contient — en plus de la cloche de l'accueil. C'est le seul badge de
+    // Le compteur d'annonces non lues, porté par leur onglet — en plus de la
+    // cloche de l'accueil. C'est le seul badge de
     // l'application, réservé à ce qui demande vraiment une action.
     final nonLues =
         ref.watch(accueilProvider).value?.valeur.annonces.where((a) => !a.lue).length ?? 0;
@@ -140,7 +137,7 @@ class _EtatCoque extends ConsumerState<Coque> {
               const _Vivante(child: EcranNotes()),
               const _Vivante(child: EcranAssiduite()),
               const _Vivante(child: EcranFinances()),
-              _Vivante(child: EcranPlus(versCompte: _ouvrirCompte)),
+              const _Vivante(child: EcranAnnonces()),
             ],
           ),
 
@@ -190,13 +187,13 @@ class _EtatCoque extends ConsumerState<Coque> {
           ),
           const DestinationParent(
             libelle: 'Résultats',
-            icone: Icons.bar_chart_rounded,
-            iconeActive: Icons.bar_chart_rounded,
+            icone: Icons.leaderboard_outlined,
+            iconeActive: Icons.leaderboard_rounded,
           ),
           const DestinationParent(
             libelle: 'Assiduité',
-            icone: Icons.event_available_outlined,
-            iconeActive: Icons.event_available_rounded,
+            icone: Icons.calendar_month_outlined,
+            iconeActive: Icons.calendar_month_rounded,
           ),
           const DestinationParent(
             libelle: 'Scolarité',
@@ -204,9 +201,9 @@ class _EtatCoque extends ConsumerState<Coque> {
             iconeActive: Icons.account_balance_wallet_rounded,
           ),
           DestinationParent(
-            libelle: 'Plus',
-            icone: Icons.more_horiz_rounded,
-            iconeActive: Icons.more_horiz_rounded,
+            libelle: 'Annonces',
+            icone: Icons.campaign_outlined,
+            iconeActive: Icons.campaign_rounded,
             badge: nonLues,
           ),
         ],

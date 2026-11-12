@@ -176,7 +176,13 @@ class _EtatActivation extends ConsumerState<EcranActivation> {
         child: SafeArea(
           child: Column(
             children: [
-              Expanded(flex: 2, child: _enTete(context)),
+              // Réduit plutôt que rogné : sur un écran très court — petite
+              // fenêtre de navigateur, clavier ouvert — le bloc de marque
+              // dépassait de sa zone et débordait sur le formulaire.
+              Expanded(
+                flex: 2,
+                child: FittedBox(fit: BoxFit.scaleDown, child: _enTete(context)),
+              ),
               Expanded(
                 flex: 3,
                 child: Container(
