@@ -172,7 +172,7 @@ export default async function PageEmploiDuTemps({
                 seule.
               */}
               <Button asChild variant="outline" size="sm">
-                <a href={`/api/emploi-du-temps/${vue}/${cibleId}`} target="_blank" rel="noreferrer">
+                <a href={`/api/emploi-du-temps/${vue}/${cibleId}?annee=${encodeURIComponent(annee.id)}`} target="_blank" rel="noreferrer">
                   <Printer aria-hidden />
                   Imprimer
                 </a>
