@@ -118,7 +118,12 @@ export function FiltresEleves({
               size="sm"
               onClick={() => {
                 setRecherche("");
-                demarrer(() => router.push("/dashboard/eleves"));
+                const annee = parametres.get("annee");
+                const cible = new URLSearchParams();
+                if (annee) cible.set("annee", annee);
+                demarrer(() =>
+                  router.push(cible.size ? `/dashboard/eleves?${cible.toString()}` : "/dashboard/eleves"),
+                );
               }}
             >
               <X className="size-4" aria-hidden /> Effacer
