@@ -24,7 +24,7 @@ DÉPLOYÉ · VALIDÉ EN PRODUCTION · BLOQUÉ
 | Écritures de l'agent en production | **ÉTEINTES** | `inscrireEleve` sur la prod : `ECRITURES_DESACTIVEES` |
 | Agent Altare | **DÉPLOYÉ ET EXÉCUTÉ** le 2026-11-12 | sauvegarde vérifiée du code précédent (139 fichiers) ; 42 fichiers déposés et relus par empreinte ; redémarrage par `/diagnostic/redemarrer` ; la voie d'appairage par jeton de service (absente de l'ancienne version) répond 200 ; processus stable depuis 12:09 UTC |
 | WhatsApp | **EN ATTENTE DE SCAN** — appareil délié côté WhatsApp | `/sante` : `whatsapp: qr`, `attenteScanQr: true` ; profil LocalAuth intact (`session WhatsApp : 1 entrée`) |
-| Accès Vercel (CLI) | **BLOQUÉ** — en attente de `npx vercel login` par le propriétaire | nécessaire pour poser `AGENT_BASE_URL` |
+| Accès Vercel (CLI) | connecté (2026-11-12) | projet `lycee-guergne-renaissance` (`prj_o5eaznJW…`) ; Production : `DATABASE_URL` → `ep-winter-term-b1wnn2fd` = br-red-waterfall (**preuve directe**, hôte seul relu, fichier temporaire supprimé) |
 
 ## 1. Lots
 
@@ -41,7 +41,10 @@ Conflits résolus en gardant les deux apports ; la confirmation durcie n'a pas
 | Élément | État | Détail |
 |---|---|---|
 | Écran `/dashboard/parametres/whatsapp` | DÉPLOYÉ | routes `etat` et `qr` en production (401 sans session) |
-| `AGENT_BASE_URL` dans Vercel | BLOQUÉ | accès Vercel requis |
+| `AGENT_BASE_URL` dans Vercel | DÉPLOYÉ | valeur reprise de la configuration existante (`http://se-kna02.altare.global:25278`) ; jetons Vercel et Altare identiques (le même jeton est accepté par les deux) ; redéploiement Production puis `137b660` |
+| Chaîne Vercel → Altare (voie de service) | VALIDÉ | `/pairing/etat` 200 « pret », `/pairing/qr` 200 image/png réelle |
+| Écran sous session | EN ATTENTE | connexion du propriétaire dans le navigateur |
+| Redémarrage par `/diagnostic/redemarrer` | DÉPLOYÉ — durée variable | 30 s le 12/11 à 12:01, mais 8 min à 12:48 ; pendant ce temps l'agent ne répond pas |
 | Code de l'agent sur Altare | DÉPLOYÉ ET EXÉCUTÉ | voir §0 ; retour arrière : `sauvegardes/altare-code-2026-11-11T20-21-19-297Z` via `depot-cible.mjs` |
 | Rustines whatsapp-web.js au démarrage | DÉPLOYÉ | `index.js` les pose à chaque démarrage : `npm ci --ignore-scripts` les effaçait sans les rejouer |
 | Scan réel | BLOQUÉ (téléphone) | choix du propriétaire : scanner depuis l'écran HTTPS |
