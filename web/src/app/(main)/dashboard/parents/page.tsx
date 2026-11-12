@@ -74,6 +74,7 @@ export default async function PageParents({
           aria-label="Actions sur les comptes parents"
           className="flex flex-wrap items-center gap-2 sm:justify-end"
         >
+          {annee ? <SelecteurAnnee anneeId={annee.id} annees={annees} reinitialiser={["classe"]} /> : null}
           {peutInviter && (
             <Button asChild variant="outline" className="font-semibold">
               <a href="/dashboard/parents/invitations">
@@ -94,7 +95,6 @@ export default async function PageParents({
               Exporter Excel
             </a>
           </Button>
-          {annee ? <SelecteurAnnee anneeId={annee.id} annees={annees} reinitialiser={["classe"]} /> : null}
           <CreerParent />
         </div>
       </header>
