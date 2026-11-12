@@ -315,7 +315,10 @@ export interface DossierTuteur {
  * déclencheurs. Afficher « joignable par push » alors que les notifications
  * partent en SMS serait pire que ne rien afficher.
  */
-export async function chargerDossierTuteur(tuteurId: string): Promise<DossierTuteur | null> {
+export async function chargerDossierTuteur(tuteurId: string, anneeId?: string): Promise<DossierTuteur | null> {
+  const anneeFiltre = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(anneeId ?? "")
+    ? anneeId
+    : null;
   const base = await db.execute<Record<string, never>>(sql`
     SELECT t.id, t.nom, t.prenom, t.telephone, t.telephone_secondaire, t.email,
            t.profession, t.employeur, t.adresse, t.quartier, t.sexe::text AS sexe,
@@ -332,7 +335,13 @@ export async function chargerDossierTuteur(tuteurId: string): Promise<DossierTut
            fn_canal_tuteur(t.id)::text AS canal_joignable,
            (SELECT count(*) FROM appareils a
              WHERE a.utilisateur_id = t.utilisateur_id AND a.actif) AS nb_appareils,
-           (SELECT count(*) FROM eleve_tuteur et WHERE et.tuteur_id = t.id) AS nb_enfants
+           (SELECT count(*) FROM eleve_tuteur et
+             WHERE et.tuteur_id = t.id
+               AND (${anneeFiltre}::uuid IS NULL OR EXISTS (
+                 SELECT 1 FROM inscriptions ic
+                  WHERE ic.eleve_id = et.eleve_id AND ic.active
+                    AND ic.annee_id = ${anneeFiltre}::uuid
+               ))) AS nb_enfants
       FROM tuteurs t
       LEFT JOIN utilisateurs u ON u.id = t.utilisateur_id
      WHERE t.id = ${tuteurId}::uuid
@@ -348,9 +357,21 @@ export async function chargerDossierTuteur(tuteurId: string): Promise<DossierTut
            et.est_tuteur_legal, et.est_contact_urgence, et.autorise_retrait
       FROM eleve_tuteur et
       JOIN eleves e ON e.id = et.eleve_id
-      LEFT JOIN inscriptions i ON i.eleve_id = e.id AND i.active
-      LEFT JOIN classes c      ON c.id = i.classe_id
+      LEFT JOIN LATERAL (
+        SELECT i1.classe_id
+          FROM inscriptions i1
+         WHERE i1.eleve_id = e.id AND i1.active
+           AND (${anneeFiltre}::uuid IS NULL OR i1.annee_id = ${anneeFiltre}::uuid)
+         ORDER BY i1.date_inscription DESC, i1.cree_le DESC
+         LIMIT 1
+      ) i ON TRUE
+      LEFT JOIN classes c ON c.id = i.classe_id
      WHERE et.tuteur_id = ${tuteurId}::uuid
+       AND (${anneeFiltre}::uuid IS NULL OR EXISTS (
+         SELECT 1 FROM inscriptions i2
+          WHERE i2.eleve_id = e.id AND i2.active
+            AND i2.annee_id = ${anneeFiltre}::uuid
+       ))
      ORDER BY e.nom, e.prenom
   `);
 
