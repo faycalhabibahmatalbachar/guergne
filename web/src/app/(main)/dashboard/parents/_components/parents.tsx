@@ -541,7 +541,7 @@ export function Parents({
                           </span>
                           <div className="min-w-0">
                             <Link
-                              href={`/dashboard/parents/${t.id}`}
+                              href={`/dashboard/parents/${t.id}${anneeId ? `?annee=${encodeURIComponent(anneeId)}` : ""}`}
                               className="block max-w-[225px] truncate font-semibold text-foreground hover:text-succes hover:underline"
                               title={t.prenom + " " + t.nom}
                             >
