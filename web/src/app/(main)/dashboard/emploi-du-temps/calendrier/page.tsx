@@ -5,8 +5,9 @@ import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 
 import { EnTetePage, Page } from "@/components/socle/en-tete-page";
+import { SelecteurAnnee } from "@/components/socle/selecteur-annee";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { sessionCourante } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { genererDatesCalendrier } from "@/server/domain/calendrier-scolaire";
@@ -117,45 +118,29 @@ export default async function PageCalendrierAnnuel({ searchParams }: { searchPar
           </>
         }
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/emploi-du-temps">
-              <ArrowLeft aria-hidden />
-              Emploi du temps
-            </Link>
-          </Button>
+          <>
+            <SelecteurAnnee
+              anneeId={annee.id}
+              annees={annees.map((option) => ({
+                id: option.id,
+                libelle: option.libelle,
+                estCourante: option.est_courante,
+              }))}
+            />
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/dashboard/emploi-du-temps?annee=${encodeURIComponent(annee.id)}`}>
+                <ArrowLeft aria-hidden />
+                Emploi du temps
+              </Link>
+            </Button>
+          </>
         }
       />
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Année scolaire</CardTitle>
-          <CardDescription>
-            Le calendrier est calculé de manière inclusive entre le {annee.date_debut} et le {annee.date_fin}. Changer
-            d’année ne modifie aucune autre année.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form method="GET" action="/dashboard/emploi-du-temps/calendrier" className="flex flex-wrap items-end gap-3">
-            <label className="grid gap-2 text-sm font-medium" htmlFor="annee-scolaire">
-              Année à consulter
-              <select
-                id="annee-scolaire"
-                name="annee"
-                defaultValue={annee.id}
-                className="h-10 min-w-56 rounded-md border border-input bg-background px-3 text-sm"
-              >
-                {annees.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.libelle}
-                    {option.est_courante ? " — année courante" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button type="submit">Afficher</Button>
-          </form>
-        </CardContent>
-      </Card>
+      <p className="text-sm text-muted-foreground">
+        Calendrier de l’année {annee.libelle}, du {annee.date_debut} au {annee.date_fin}. Changer d’année ne modifie
+        aucune autre année.
+      </p>
 
       <VueCalendrierAnnuel
         anneeId={annee.id}
