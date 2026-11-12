@@ -10,7 +10,6 @@ import {
   BarChart3,
   BellRing,
   BookOpen,
-  CalendarDays,
   Check,
   ChevronDown,
   ClipboardList,
