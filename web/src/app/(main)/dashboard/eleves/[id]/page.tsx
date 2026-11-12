@@ -91,8 +91,18 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: "Dossier élève" };
 }
 
-export default async function PageDossier({ params }: { params: Promise<{ id: string }> }) {
+export default async function PageDossier({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ annee?: string }>;
+}) {
   const { id } = await params;
+  const filtres = await searchParams;
+  const anneeId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(filtres.annee ?? "")
+    ? filtres.annee
+    : undefined;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
 
   // Authentifier d'abord, puis vérifier la portée réelle sur cette classe.
@@ -293,7 +303,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           >
             {voisins?.precedent ? (
               <Button asChild variant="outline" size="sm" className="gap-1.5">
-                <Link href={"/dashboard/eleves/" + voisins.precedent}>
+                <Link href={"/dashboard/eleves/" + voisins.precedent + (anneeId ? "?annee=" + encodeURIComponent(anneeId) : "")}>
                   <ArrowLeft className="size-4" aria-hidden />
                   Précédent
                 </Link>
@@ -306,7 +316,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
             )}
             {voisins?.suivant ? (
               <Button asChild variant="outline" size="sm" className="gap-1.5">
-                <Link href={"/dashboard/eleves/" + voisins.suivant}>
+                <Link href={"/dashboard/eleves/" + voisins.suivant + (anneeId ? "?annee=" + encodeURIComponent(anneeId) : "")}>
                   Suivant
                   <ChevronRight className="size-4" aria-hidden />
                 </Link>
@@ -779,7 +789,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
                         <ul className="space-y-1">
                           {t.autresEnfants.map((f) => (
                             <li key={f.id}>
-                              <Link href={`/dashboard/eleves/${f.id}`} className="text-primary text-sm hover:underline">
+                              <Link href={`/dashboard/eleves/${f.id}${anneeId ? `?annee=${encodeURIComponent(anneeId)}` : ""}`} className="text-primary text-sm hover:underline">
                                 {f.prenom} {f.nom}
                                 {f.classe ? <span className="text-muted-foreground"> — {f.classe}</span> : null}
                               </Link>
@@ -1029,7 +1039,7 @@ export default async function PageDossier({ params }: { params: Promise<{ id: st
           size="sm"
           className="w-full justify-center text-xs font-semibold hover:border-succes-trait hover:bg-succes-doux/90 dark:bg-background sm:w-auto"
         >
-          <Link href="/dashboard/eleves">
+          <Link href={anneeId ? `/dashboard/eleves?annee=${encodeURIComponent(anneeId)}` : "/dashboard/eleves"}>
             <ArrowLeft className="size-4" aria-hidden />
             Retour à la liste des élèves
           </Link>
