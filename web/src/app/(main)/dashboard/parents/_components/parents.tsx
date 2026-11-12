@@ -193,7 +193,7 @@ export function Parents({
         },
         exclureIds: exclusions,
       }
-    : { mode: "ids" as const, ids: selection };
+    : { mode: "ids" as const, ids: selection, anneeId };
 
   const naviguer = (params: Record<string, string>) => {
     const url = new URLSearchParams({
