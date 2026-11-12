@@ -36,6 +36,7 @@ export interface FiltresTuteurs {
   /** 'sans_compte' | 'invite' | 'actif' | 'revoque' | 'doublon' */
   etat?: string;
   classeId?: string;
+  anneeId?: string;
   page?: number;
   parPage?: number;
 }
@@ -57,10 +58,11 @@ export interface ResultatTuteurs {
  *   - actif        : le parent utilise réellement l'application
  */
 /** Shared audience predicate for list, bulk preview and bulk sends. */
-export function construireFiltreTuteurs(filtres: Pick<FiltresTuteurs, "recherche" | "etat" | "classeId">) {
+export function construireFiltreTuteurs(filtres: Pick<FiltresTuteurs, "recherche" | "etat" | "classeId" | "anneeId">) {
   const recherche = filtres.recherche?.trim() ?? "";
   const etat = filtres.etat ?? "";
   const classeId = filtres.classeId ?? "";
+  const anneeId = filtres.anneeId ?? "";
   return sql`
     (${recherche} = '' OR
       t.nom ILIKE ${`%${recherche}%`} OR
@@ -77,10 +79,17 @@ export function construireFiltreTuteurs(filtres: Pick<FiltresTuteurs, "recherche
           AND regexp_replace(meme_numero.telephone, '[^0-9]', '', 'g')
               = regexp_replace(t.telephone, '[^0-9]', '', 'g')
       )))
+    AND (NULLIF(${anneeId}, '')::uuid IS NULL OR EXISTS (
+      SELECT 1 FROM eleve_tuteur etAnnee
+        JOIN inscriptions iAnnee ON iAnnee.eleve_id = etAnnee.eleve_id AND iAnnee.active
+       WHERE etAnnee.tuteur_id = t.id
+         AND iAnnee.annee_id = NULLIF(${anneeId}, '')::uuid))
     AND (NULLIF(${classeId}, '')::uuid IS NULL OR EXISTS (
       SELECT 1 FROM eleve_tuteur et2
         JOIN inscriptions i2 ON i2.eleve_id = et2.eleve_id AND i2.active
-       WHERE et2.tuteur_id = t.id AND i2.classe_id = NULLIF(${classeId}, '')::uuid))
+       WHERE et2.tuteur_id = t.id
+         AND i2.classe_id = NULLIF(${classeId}, '')::uuid
+         AND (NULLIF(${anneeId}, '')::uuid IS NULL OR i2.annee_id = NULLIF(${anneeId}, '')::uuid)))
   `;
 }
 
@@ -108,14 +117,22 @@ export async function listerTuteurs(filtres: FiltresTuteurs = {}): Promise<Resul
                  AND regexp_replace(autre.telephone, '[^0-9]', '', 'g')
                      = regexp_replace(t.telephone, '[^0-9]', '', 'g')
              ) AS "doublonTelephone",
-             (SELECT count(*) FROM eleve_tuteur et WHERE et.tuteur_id = t.id) AS "nbEnfants",
+             (SELECT count(*) FROM eleve_tuteur et
+                WHERE et.tuteur_id = t.id
+                  AND (NULLIF(${filtres.anneeId ?? ""}, '')::uuid IS NULL OR EXISTS (
+                    SELECT 1 FROM inscriptions ie
+                     WHERE ie.eleve_id = et.eleve_id AND ie.active
+                       AND ie.annee_id = NULLIF(${filtres.anneeId ?? ""}, '')::uuid
+                  ))) AS "nbEnfants",
              COALESCE((
                SELECT string_agg(e.prenom || ' ' || e.nom || ' (' || c.libelle || ')', ', ')
                  FROM eleve_tuteur et
                  JOIN eleves e ON e.id = et.eleve_id
                  LEFT JOIN inscriptions i ON i.eleve_id = e.id AND i.active
+                   AND (NULLIF(${filtres.anneeId ?? ""}, '')::uuid IS NULL OR i.annee_id = NULLIF(${filtres.anneeId ?? ""}, '')::uuid)
                  LEFT JOIN classes c ON c.id = i.classe_id
                 WHERE et.tuteur_id = t.id
+                  AND (NULLIF(${filtres.anneeId ?? ""}, '')::uuid IS NULL OR i.id IS NOT NULL)
              ), '') AS enfants
         FROM tuteurs t
         LEFT JOIN utilisateurs u ON u.id = t.utilisateur_id
@@ -149,7 +166,7 @@ export interface StatistiquesParents {
   doublons: number;
 }
 
-export async function statistiquesParents(): Promise<StatistiquesParents> {
+export async function statistiquesParents(anneeId?: string): Promise<StatistiquesParents> {
   const r = await db.execute<Record<string, unknown>>(sql`
     SELECT
       count(*)::int AS total,
@@ -167,6 +184,7 @@ export async function statistiquesParents(): Promise<StatistiquesParents> {
       ))::int AS doublons
       FROM tuteurs t
       LEFT JOIN utilisateurs u ON u.id = t.utilisateur_id
+      WHERE ${construireFiltreTuteurs({ recherche: "", etat: "", classeId: "", anneeId: anneeId ?? "" })}
   `);
 
   const l = r.rows[0] ?? {};
