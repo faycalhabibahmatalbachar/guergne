@@ -118,3 +118,29 @@ test("verifier : un serveur qui dit ok sans avoir ecrit est demasque", async () 
 test("ces trois ecritures exigent toutes une confirmation qu'aucune politique ne leve", () => {
   for (const o of PARENTS_TOOLS) assert.equal(o.confirmationObligatoire, true, o.name);
 });
+
+test("rattacher un parent DÉJÀ rattaché en changeant son rôle devient une modification de responsabilités", async () => {
+  const E = "33333333-3333-4333-8333-333333333333";
+  const T = "55555555-5555-4555-8555-555555555555";
+  const tuteurs = [
+    { id: "66666666-6666-4666-8666-666666666666", nom: "BANCIA", prenom: "Omar", lien: "PERE", telephone: "+33199001250", estPrincipal: true },
+    { id: T, nom: "BANCIA", prenom: "Mariam", lien: "MERE", telephone: "+33199001251", estPrincipal: false },
+  ];
+  const outils = {
+    ctx: {},
+    guergne: {
+      rechercherEleves: async () => ({ ok: true, data: [{ id: E, nom: "BANCIA", prenom: "Yara", matricule: "M1" }] }),
+      consulterEleve: async () => ({ ok: true, data: { eleve: { id: E, nom: "BANCIA", prenom: "Yara", matricule: "M1" } } }),
+      rechercherTuteurs: async () => ({ ok: true, data: { lignes: [{ id: T, nom: "BANCIA", prenom: "Mariam", telephone: "+33199001251", enfants: "Yara BANCIA" }] } }),
+      tuteursDeLEleve: async () => ({ ok: true, data: tuteurs }),
+      ficheEleve: async () => ({ ok: true, data: { identite: { nom: "BANCIA", prenom: "Yara" }, tuteurs } }),
+    },
+  };
+  const rattacher = PARENTS_TOOLS.find((o) => o.name === "parents.rattacher");
+  const r = await rattacher.preparer({ eleve: "Yara BANCIA", telephone: "+33199001251", lien: "mère", estPrincipal: true }, outils);
+  assert.equal(r.ok, true, r.message);
+  assert.equal(r.outil, "parents.responsabilites");
+  const sansChangement = await rattacher.preparer({ eleve: "Yara BANCIA", telephone: "+33199001251", lien: "mère" }, outils);
+  assert.equal(sansChangement.ok, false);
+  assert.match(sansChangement.message, /déjà responsable/);
+});

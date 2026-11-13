@@ -137,6 +137,11 @@ export class Resolveur {
     return choisir(choix, texte);
   }
 
+  /** Après une écriture sur les classes : la liste en cache est périmée. */
+  oublierReferentiel(acteurId) {
+    this._referentiel.oublier?.(acteurId);
+  }
+
   /**
    * @param {object} o
    * @param {object} o.outil   l'outil du registre
@@ -179,6 +184,24 @@ export class Resolveur {
       p.eleveIds = ids;
       if (foyer.eleveIdsTronques) notes.push("⚠️ La liste précédente était tronquée : seuls les élèves affichés sont pris en compte.");
     }
+    // Une LISTE d'élèves donnée à un outil qui ne sait pas en filtrer une : le
+    // backend l'ignorerait et rendrait l'école entière (observé au banc :
+    // « parmi eux, lesquels ont été absents ? » → 60 absences de toutes les
+    // classes). Un seul élève devient `eleveId` ; une liste issue d'une classe
+    // devient cette classe ; sinon, on le dit.
+    if (Array.isArray(p.eleveIds) && !declare("eleves") && !declare("eleveIds")) {
+      const ids = p.eleveIds;
+      delete p.eleveIds;
+      if (ids.length === 1 && (declare("eleve") || declare("eleveId"))) {
+        p.eleveId = ids[0];
+      } else if (foyer?.classeId && (declare("classeId") || declare("classe")) && !dit(p.classe) && !dit(p.classeId)) {
+        p.classeId = foyer.classeId;
+        notes.push("(Consulté pour toute la classe des élèves listés.)");
+      } else if (!(dit(p.classe) || dit(p.classeId))) {
+        return clarifier("Cette consultation ne sait pas se limiter à une liste d'élèves. Donnez une classe, ou un élève.", { champs: ["classe"] });
+      }
+    }
+
     // Filet : l'outil exige un élève, le modèle n'en a mis aucun, mais le
     // message le désigne par un pronom et le fil en porte un.
     const veutEleve = declare("eleve") || declare("eleveId");
@@ -208,7 +231,7 @@ export class Resolveur {
         const lettreA = new RegExp("\\b(" + NIVEAUX_DITS + ")\\s+à(?=\\s|$|[?.!,])", "iu");
         if (/^\s*\S+\s*$/.test(propre) && lettreA.test(String(texte ?? "")) && !/\s[a-z]$/i.test(propre)) {
           const m = String(texte).match(lettreA);
-          if (m && normaliser(m[1]).replace(/eme$|e$/, "") === normaliser(propre).replace(/eme$|e$/, "")) propre = propre + " A";
+          if (m && canoniserClasse(m[1]) === canoniserClasse(propre)) propre = propre + " A";
         }
         const r = await this._classe(propre, staff);
         listes.classes = r.classes ?? listes.classes;
@@ -245,6 +268,17 @@ export class Resolveur {
         if (!r.ok && !(dit(p.depuis) || dit(p.jusqua))) return clarifier(r.message, { champs: ["periode"] });
         if (r.ok) p.periodeId = r.periode.id;
         else delete p.periodeId;
+        // Un trimestre qui ne contient pas les dates demandées viderait la
+        // réponse sans le dire : les dates, plus précises, l'emportent.
+        if (r.ok && (dit(p.depuis) || dit(p.jusqua))) {
+          const d = String(r.periode.dateDebut ?? r.periode.date_debut ?? "").slice(0, 10);
+          const fn = String(r.periode.dateFin ?? r.periode.date_fin ?? "").slice(0, 10);
+          const hors = (x) => dit(x) && d && fn && (String(x) < d || String(x) > fn);
+          if (hors(p.depuis) || hors(p.jusqua)) {
+            delete p.periodeId;
+            notes.push(`(Les dates demandées ne sont pas dans le ${r.periode.libelle} : ce sont elles qui ont été retenues.)`);
+          }
+        }
       }
       delete p.periode;
       delete p.periodeNumero;

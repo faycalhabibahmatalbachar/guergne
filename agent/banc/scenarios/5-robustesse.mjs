@@ -42,7 +42,11 @@ export default [
   },
   {
     id: "ro-04", domaine: "robustesse", etiquettes: ["panne", "referentiel"],
-    sabotage: { listerClasses: async () => ({ ok: false, message: "Erreur interne du serveur (500)." }), listerPeriodes: async () => ({ ok: false, message: "Erreur interne du serveur (500)." }) },
+    sabotage: {
+      listerClasses: async () => ({ ok: false, message: "Erreur interne du serveur (500)." }),
+      nommerClasses: async () => ({ ok: false, message: "Erreur interne du serveur (500)." }),
+      listerPeriodes: async () => ({ ok: false, message: "Erreur interne du serveur (500)." }),
+    },
     tours: [{
       // Sans la liste des classes, « 6e A » ne peut pas être résolue : le dire.
       dit: "les absences de la 6e A",

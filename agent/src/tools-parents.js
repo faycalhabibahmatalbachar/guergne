@@ -52,6 +52,9 @@ export function lienDe(dit) {
 }
 
 /** Les responsabilités, dans les mots de l'établissement. */
+/** L'outil « responsabilités », défini plus bas dans ce module. */
+const RESPONSABILITES_OUTIL = () => PARENTS_TOOLS.find((o) => o.name === "parents.responsabilites");
+
 export const RESPONSABILITES = {
   estPrincipal: "responsable principal",
   estTuteurLegal: "tuteur légal",
@@ -127,7 +130,7 @@ export const PARENTS_TOOLS = [
     name: "parents.rattacher",
     module: "parents",
     description:
-      "rattacher un parent ou tuteur a un eleve. Si une fiche existe deja pour ce telephone (meme parent d'un autre enfant), elle est REUTILISEE au lieu d'en creer une nouvelle",
+      "AJOUTER un NOUVEAU responsable a un eleve (avec son telephone). Si une fiche existe deja pour ce telephone (meme parent d'un autre enfant), elle est REUTILISEE. Pour changer le role d'un responsable deja rattache, utiliser parents.responsabilites",
     permission: "tuteur:gerer",
     sensitivity: WRITE,
     confirmationObligatoire: true,
@@ -166,6 +169,25 @@ export const PARENTS_TOOLS = [
         };
       }
       const existant = memes[0];
+      // DÉJÀ responsable de CET élève : rattacher échouerait (« déjà
+      // rattaché »). Si la demande change un rôle (« la mère devient
+      // principale »), c'est une modification de responsabilités : on la
+      // prépare comme telle, avec son propre récapitulatif et sa relecture.
+      if (existant) {
+        const deja = donnees(await outils.guergne.tuteursDeLEleve?.({ eleveId: r.eleve.id }, outils.ctx));
+        const lie = (Array.isArray(deja) ? deja : []).find((x) => (x.id ?? x.tuteurId) === existant.id);
+        if (lie) {
+          const changeLien = lien && lien !== lie.lien;
+          if (Object.keys(resp).length === 0 && !changeLien) {
+            return { ok: false, message: `${nomComplet(existant)} est déjà responsable de ${nomComplet(r.eleve)} (${val(lie.lien)}) : rien à rattacher.` };
+          }
+          const prep = await RESPONSABILITES_OUTIL().preparer(
+            { eleveId: r.eleve.id, tuteur: existant.telephone, ...(changeLien ? { lien } : {}), ...resp },
+            outils,
+          );
+          return prep?.ok === false ? prep : { ...prep, outil: "parents.responsabilites" };
+        }
+      }
       if (!existant && (!required(p.nom) || !required(p.prenom))) {
         return { ok: false, message: "Aucune fiche parent n'existe pour ce numéro : donnez son nom et son prénom pour la créer." };
       }
@@ -243,7 +265,7 @@ export const PARENTS_TOOLS = [
     name: "parents.responsabilites",
     module: "parents",
     description:
-      "changer le lien ou les responsabilites d'un responsable deja rattache : responsable principal (transfert), tuteur legal, responsable financier, contact d'urgence, autorise au retrait",
+      "changer le ROLE d'un responsable DEJA rattache : « X devient responsable principal », « la mere est autorisee au retrait », « le pere n'est plus responsable financier », changer son lien. N'ajoute personne",
     permission: "tuteur:gerer",
     sensitivity: WRITE,
     confirmationObligatoire: true,

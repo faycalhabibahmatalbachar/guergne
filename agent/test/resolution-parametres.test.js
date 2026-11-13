@@ -386,3 +386,32 @@ test("sans `classe:lire`, l'acteur reçoit au moins les noms des classes", async
   const r = await new Referentiel({ guergne }).pour("surveillant");
   assert.equal(r.classes.length, CLASSES.length);
 });
+
+// --- Régressions du cycle 5 (rejeu 5-rejeu) ---------------------------------
+
+test("une liste d'élèves donnée à un outil qui ne la filtre pas devient leur classe, jamais l'école entière", async () => {
+  const { resoudre } = monter();
+  const r = await resoudre("assiduite.consulter_absences", { eleves: JETONS.ELEVES, depuis: "2026-06-01", jusqua: "2026-06-05" }, { foyer: { classeId: id(1), eleveIds: [id(21), id(24)] } });
+  assert.equal(r.statut, "ok", JSON.stringify(r));
+  assert.equal(r.params.classeId, id(1));
+  assert.equal(r.params.eleveIds, undefined);
+  const seul = await resoudre("assiduite.consulter_absences", { eleves: JETONS.ELEVES }, { foyer: { eleveIds: [id(23)] } });
+  assert.equal(seul.params.eleveId, id(23));
+  const sansClasse = await resoudre("assiduite.consulter_absences", { eleves: JETONS.ELEVES }, { foyer: { eleveIds: [id(21), id(23)] } });
+  assert.equal(sansClasse.statut, "clarifier");
+});
+
+test("un trimestre qui ne contient pas les dates demandées est écarté : les dates l'emportent", async () => {
+  const { resoudre } = monter();
+  const r = await resoudre("assiduite.consulter_absences", { periode: "1er trimestre", depuis: "2026-06-01", jusqua: "2026-06-05" });
+  assert.equal(r.params.periodeId, undefined);
+  assert.match(r.notes.join(" "), /dates/);
+  const coherent = await resoudre("assiduite.consulter_absences", { periode: "3e trimestre", depuis: "2026-06-01", jusqua: "2026-06-05" });
+  assert.equal(coherent.params.periodeId, id(13));
+});
+
+test("« la terminale à » : la lettre A, même si le modèle n'a transmis que « terminale »", async () => {
+  const { resoudre } = monter({ classes: [...CLASSES, { id: id(5), libelle: "Terminale A", code: "TA" }] });
+  const r = await resoudre("emploi_du_temps.consulter", { classe: "terminale" }, { texte: "l'emploi du temps de la terminale à" });
+  assert.equal(r.params.classeId, id(5), JSON.stringify(r));
+});

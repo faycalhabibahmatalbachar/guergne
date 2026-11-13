@@ -215,6 +215,9 @@ export function ouvrirConversation({ ia, acteur, memoire = true, sabotage = null
       const evIA = evenementsIA.slice(i0);
       const reponses = provider.sent.slice(s0).filter((x) => x.kind === "text").map((x) => x.text);
       const intention = mesEvenements.find((e) => e.event === "intent_detected") ?? null;
+      // Réorienté par la préparation (« rattacher » un parent déjà rattaché =
+      // changer ses responsabilités) : c'est l'outil EXÉCUTÉ qui compte.
+      const reoriente = mesEvenements.find((e) => e.event === "outil_reoriente") ?? null;
       const dernierAudit = audit.last?.() ?? null;
       const llm = evIA.filter((e) => e.type === "llm");
       return {
@@ -225,7 +228,7 @@ export function ouvrirConversation({ ia, acteur, memoire = true, sabotage = null
         reponse: reponses.join("\n---\n"),
         medias: provider.sent.slice(s0).filter((x) => x.kind !== "text").length,
         intention: intention?.intention ?? null,
-        outil: intention?.outil ?? (intention?.intention === "mission" ? "mission" : null),
+        outil: reoriente?.vers ?? intention?.outil ?? (intention?.intention === "mission" ? "mission" : null),
         rejet: intention?.rejet ?? null,
         audit: dernierAudit ? { intent: dernierAudit.intent, result: dernierAudit.result, params: dernierAudit.params ?? null } : null,
         appels: appels.slice(a0),

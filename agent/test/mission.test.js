@@ -259,14 +259,24 @@ test("le rapport est transmis aux responsables, sans rien leur demander", async 
   assert.ok(!/confirmer/i.test(avis));
 });
 
-test("une mission dont une etape ecrit est refusee avant toute execution", async () => {
+test("une mission dont plusieurs etapes ecrivent est refusee avant toute execution", async () => {
   const h = monter({
-    plan: { ...MISSION, etapes: [{ outil: "assiduite.enregistrer_appel", params: {} }] },
+    plan: { ...MISSION, etapes: [MISSION.etapes[0], { outil: "assiduite.enregistrer_appel", params: {} }, { outil: "assiduite.supprimer_absence", params: {} }] },
   });
   const r = await h.ecrire();
   assert.equal(r.rejet, "MISSION_INVALIDE");
   assert.equal(h.appels.length, 0, "rien ne doit avoir ete appele");
   assert.equal(h.audit.last().result, "PLAN_INVALIDE");
+  // Le refus dit ce qui se passe : une modification à la fois, rien de fait.
+  assert.match(h.provider.sent.at(-1).text, /une modification à la fois[\s\S]*Rien n'a été fait/);
+});
+
+test("une « mission » d'une seule ecriture redevient l'outil, et n'ecrit rien sans les controles", async () => {
+  const h = monter({ plan: { ...MISSION, etapes: [{ outil: "assiduite.enregistrer_appel", params: {} }] } });
+  const r = await h.ecrire();
+  assert.notEqual(r.rejet, "MISSION_INVALIDE");
+  assert.ok(["WAITING_INPUT", "WAITING_APPROVAL"].includes(r.status), r.status);
+  assert.equal(h.appels.filter((a) => /enregistrer/i.test(a.action ?? a)).length, 0, "aucune ecriture");
 });
 
 test("les indicateurs comptent le rapport genere", async () => {
@@ -296,4 +306,12 @@ test("une etape en echec est comptee comme telle", async () => {
   await h.ecrire();
   assert.equal(h.agent.metriques.operationsEchouees, 1);
   assert.equal(h.agent.metriques.operationsReussies, 1);
+});
+
+test("une mission « chercher puis ecrire » se reduit a l'ecriture, sans rien executer avant les controles", async () => {
+  const h = monter({ plan: { ...MISSION, etapes: [MISSION.etapes[0], { outil: "assiduite.enregistrer_appel", params: {} }] } });
+  const r = await h.ecrire();
+  assert.notEqual(r.rejet, "MISSION_INVALIDE");
+  assert.ok(["WAITING_INPUT", "WAITING_APPROVAL"].includes(r.status), r.status);
+  assert.equal(h.appels.filter((a) => /enregistrer/i.test(a.action ?? a)).length, 0);
 });
