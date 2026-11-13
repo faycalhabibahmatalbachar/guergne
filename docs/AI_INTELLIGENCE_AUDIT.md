@@ -40,7 +40,7 @@ Deux propriétés, toutes deux testées (`test/resolution-parametres.test.js`) :
 - **aucun identifiant technique** : ni UUID, ni nom de paramètre en `…Id` ;
 - **aucune donnée scolaire** : le modèle planifie, il ne lit pas. Les résultats d'une consultation ne lui sont jamais renvoyés.
 
-Taille : environ 19 500 caractères pour le registre, soit près de 6 000 jetons par appel.
+Taille : 21 300 caractères pour le registre complet (près de 6 000 jetons). Depuis le cycle 4, seuls les outils que le message peut concerner sont détaillés (`selection-outils.js`) : 8 000 à 11 000 caractères, 3 800 jetons par appel en moyenne. Le registre complet n'est envoyé que pour un message qui n'évoque aucun domaine (« bonjour »).
 
 ## 3. Défauts trouvés, composant responsable, correction
 

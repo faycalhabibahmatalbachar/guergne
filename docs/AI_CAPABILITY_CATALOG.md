@@ -2,7 +2,7 @@
 
 > Document **généré** par `node banc/catalogue.mjs` à partir du registre des outils, de la liste blanche du backend et du catalogue de scénarios. Ne pas le modifier à la main : relancer la commande.
 
-Généré le 2026-11-12 — sans rapport de campagne : la colonne « observé » est vide.
+Généré le 2026-11-13 — observations de la campagne « 3-complet » (2026-11-12 15:57 UTC).
 
 ## Vue d'ensemble
 
@@ -13,7 +13,8 @@ Généré le 2026-11-12 — sans rapport de campagne : la colonne « observé »
 | dont écritures | 16 |
 | Servis par le backend (liste blanche) | 52 / 52 |
 | Visés par au moins un scénario | 52 / 52 |
-| Scénarios au catalogue | 132 (180 tours) |
+| Réellement exercés dans la campagne | 50 / 52 |
+| Scénarios au catalogue | 190 (251 tours) |
 
 Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que **le backend** sait faire, et ce que **l'agent** peut déclencher. Ce catalogue ne décrit que le troisième. Ce que l'agent ne sait PAS faire est listé à la fin.
 
@@ -30,7 +31,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerAbsences`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : as-01, as-02, as-03, as-04, as-05, as-08, as-14, as-15, as-16, co-04, dr-01, mt-01, mt-02, mt-07, mt-10, mt-12, mt-14, ro-01, ro-02, ro-09
+- **Scénarios** : as-01, as-02, as-03, as-04, as-05, as-08, as-14, as-15, as-16, co-04, cv-01, cv-03, cv-04, cv-06, dr-01, mt-01, mt-02, mt-07, mt-10, mt-12, mt-14, ro-01, ro-02, ro-09, va-abs-bref, va-abs-fautes, va-abs-formel, va-abs-indirect, va-abs-inverse, va-abs-parle, va-abs-sms, va-abs-vocal — observé sur 31 tour(s), dont 28 sans défaut
 
 ### `assiduite.alertes`
 
@@ -43,7 +44,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerAlertes`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : as-09
+- **Scénarios** : as-09 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `assiduite.consulter_retards`
 
@@ -56,7 +57,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerRetards`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : as-06, as-07, mt-01, mt-08, mt-10, ro-03, ro-10, ro-13
+- **Scénarios** : as-06, as-07, cv-02, cv-04, mt-01, mt-08, mt-10, ro-03, ro-10, ro-13, va-ret-bref, va-ret-fautes, va-ret-formel, va-ret-indirect, va-ret-parle, va-ret-vocal — observé sur 15 tour(s), dont 13 sans défaut
 
 ### `assiduite.tableau_de_bord`
 
@@ -69,7 +70,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `statistiquesVieScolaire`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : as-10, co-04
+- **Scénarios** : as-10, co-04 — observé sur 2 tour(s), dont 2 sans défaut
 
 ### `assiduite.conduite_classe`
 
@@ -82,7 +83,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `chargerConduiteClasse`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : no-08
+- **Scénarios** : no-08 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `assiduite.enregistrer_appel`
 
@@ -95,7 +96,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `enregistrerAppel`
 - **Vérification** : message du backend — pas de relecture dédiée
 - **Rendu** : ⚠️ message générique
-- **Scénarios** : ec-06
+- **Scénarios** : ec-06 — observé sur 2 tour(s), dont 2 sans défaut
 
 ### `assiduite.enregistrer_retard`
 
@@ -108,7 +109,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `enregistrerRetard`
 - **Vérification** : message du backend — pas de relecture dédiée
 - **Rendu** : mis en forme
-- **Scénarios** : ec-07
+- **Scénarios** : ec-07 — observé sur 2 tour(s), dont 2 sans défaut
 
 ### `assiduite.justifier_absences`
 
@@ -121,7 +122,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `justifierEnLot`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-08
+- **Scénarios** : ec-08 — observé sur 2 tour(s), dont 2 sans défaut
 
 ### `assiduite.supprimer_absence`
 
@@ -134,7 +135,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `supprimerAbsence`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : mis en forme
-- **Scénarios** : ec-09
+- **Scénarios** : ec-09 — observé sur 2 tour(s), dont 0 sans défaut
 
 ## Domaine : classes
 
@@ -149,11 +150,11 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerClasses`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : cl-01, cl-02, co-08
+- **Scénarios** : cl-01, cl-02, co-08, va-eff-bref, va-eff-fautes, va-eff-formel, va-eff-indirect, va-eff-liste, va-eff-parle — observé sur 5 tour(s), dont 5 sans défaut
 
 ### `classes.eleves`
 
-- **Intention** : liste des eleves inscrits dans une classe donnee
+- **Intention** : liste ET NOMBRE des eleves inscrits dans UNE classe (« les eleves de 6e A », « combien d'eleves en 6e A »)
 - **Risque** : lecture
 - **Permission d'entrée** : `eleve:lire` (le backend revérifie, et peut exiger davantage)
 - **Opération backend** : `listerElevesClasse`
@@ -162,7 +163,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerElevesClasse`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : cl-02, cl-05, cl-06, el-05, el-06, mt-06
+- **Scénarios** : cl-02, cl-05, cl-06, cv-01, el-05, el-06, mt-06, va-eff-bref, va-eff-fautes, va-eff-formel, va-eff-indirect, va-eff-liste, va-eff-parle — observé sur 6 tour(s), dont 6 sans défaut
 
 ### `referentiel.niveaux`
 
@@ -175,7 +176,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerNiveaux`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : cl-07
+- **Scénarios** : cl-07 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `classes.creer`
 
@@ -188,7 +189,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `creerClasse`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-15
+- **Scénarios** : ec-15 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `classes.modifier`
 
@@ -201,7 +202,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `modifierClasse`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-15
+- **Scénarios** : ec-15 — observé sur 1 tour(s), dont 0 sans défaut
 
 ### `classes.archiver`
 
@@ -214,7 +215,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `archiverClasse`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-15
+- **Scénarios** : ec-15 — observé sur 2 tour(s), dont 0 sans défaut
 
 ## Domaine : discipline
 
@@ -229,7 +230,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerIncidents`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : as-11
+- **Scénarios** : as-11 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `discipline.consulter_sanctions`
 
@@ -242,7 +243,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerSanctions`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : as-12
+- **Scénarios** : as-12 — observé sur 1 tour(s), dont 1 sans défaut
 
 ## Domaine : eleves
 
@@ -257,11 +258,11 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `rechercherEleves`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : cl-02, ec-03, el-03, el-04, el-05, el-06, el-09, el-10, el-12, el-13, mt-06, mt-14
+- **Scénarios** : cl-02, cv-01, ec-03, el-03, el-04, el-05, el-06, el-09, el-10, el-12, el-13, mt-06, mt-14, va-eff-bref, va-eff-fautes, va-eff-formel, va-eff-indirect, va-eff-liste, va-eff-parle — observé sur 5 tour(s), dont 5 sans défaut
 
 ### `eleves.statistiques`
 
-- **Intention** : repartition des eleves par statut : combien d'inscrits, et combien ont QUITTE l'etablissement (transferes, abandons, exclus)
+- **Intention** : chiffres des eleves de l'annee : total, inscrits, nouveaux, reinscriptions, redoublants, suspendus, DOSSIERS INCOMPLETS (combien)
 - **Risque** : lecture
 - **Permission d'entrée** : `eleve:lire` (le backend revérifie, et peut exiger davantage)
 - **Opération backend** : `statistiquesEleves`
@@ -270,7 +271,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `statistiquesEleves`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : co-08, el-07, el-08, el-13
+- **Scénarios** : co-08, el-07, el-08, el-13 — observé sur 2 tour(s), dont 2 sans défaut
 
 ### `eleves.dossier`
 
@@ -283,7 +284,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `consulterEleve`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : ec-03, el-02, el-03, el-04, el-09, el-10, el-11, el-12, mt-03, mt-14, pa-01, pa-02, pa-03
+- **Scénarios** : cv-02, ec-03, el-02, el-03, el-04, el-09, el-10, el-11, el-12, mt-03, mt-14, pa-01, pa-02, pa-03, va-fiche-formel, va-fiche-indirect, va-fiche-inverse, va-fiche-minuscules, va-fiche-parle, va-fiche-vocal, va-par-bref, va-par-formel, va-par-indirect, va-par-parle, va-par-vocal — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `eleves.inscrire`
 
@@ -296,7 +297,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `inscrireEleve`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-01, ec-16
+- **Scénarios** : ec-01, ec-16 — observé sur 4 tour(s), dont 4 sans défaut
 
 ### `eleves.modifier`
 
@@ -309,7 +310,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `modifierEleve`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-02, ro-05, ro-06
+- **Scénarios** : ec-02, ro-05, ro-06 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `eleves.changer_classe`
 
@@ -322,7 +323,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `changerClasseEleve`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-03
+- **Scénarios** : ec-03 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `eleves.archiver`
 
@@ -335,7 +336,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `archiverEleve`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-12, ec-14
+- **Scénarios** : ec-12, ec-14 — observé sur 2 tour(s), dont 2 sans défaut
 
 ### `eleves.fiche`
 
@@ -348,7 +349,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `ficheEleve`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : as-16, dr-05, dr-06, ec-03, el-01, el-02, el-03, el-04, el-09, el-10, el-11, el-12, fi-02, fi-03, fi-09, mt-03, mt-04, mt-05, mt-14, pa-01, pa-02, pa-03
+- **Scénarios** : as-16, cv-02, cv-06, dr-05, dr-06, ec-03, el-01, el-02, el-03, el-04, el-09, el-10, el-11, el-12, fi-02, fi-03, fi-09, mt-03, mt-04, mt-05, mt-14, pa-01, pa-02, pa-03, va-fiche-formel, va-fiche-indirect, va-fiche-inverse, va-fiche-minuscules, va-fiche-parle, va-fiche-vocal, va-notes-bref, va-notes-formel, va-notes-indirect, va-notes-parle, va-par-bref, va-par-formel, va-par-indirect, va-par-parle, va-par-vocal, va-solde-bref, va-solde-formel, va-solde-indirect, va-solde-parle — observé sur 17 tour(s), dont 16 sans défaut
 
 ### `eleves.changer_statut`
 
@@ -361,7 +362,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `changerStatutEleve` — champs qui doivent avoir été écrits par l'utilisateur : decision, etablissement
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-11, ec-13
+- **Scénarios** : ec-11, ec-13 — observé sur 3 tour(s), dont 3 sans défaut
 
 ## Domaine : emploi_du_temps
 
@@ -376,7 +377,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `chargerEmploiDuTemps`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : cl-03, cl-04, pi-06
+- **Scénarios** : cl-03, cl-04, pi-06, va-edt-bref, va-edt-formel, va-edt-parle, va-edt-vocal — observé sur 6 tour(s), dont 6 sans défaut
 
 ## Domaine : etablissement
 
@@ -391,7 +392,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `anneeCourante`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : mt-07, pi-03
+- **Scénarios** : mt-07, pi-03 — observé sur 2 tour(s), dont 2 sans défaut
 
 ## Domaine : finances
 
@@ -406,7 +407,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `statistiquesFinancieres`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : fi-04
+- **Scénarios** : fi-04 — observé sur 2 tour(s), dont 2 sans défaut
 
 ### `finances.recouvrement_par_classe`
 
@@ -419,7 +420,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `recouvrementParClasse`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : fi-05
+- **Scénarios** : fi-05 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `finances.situations`
 
@@ -432,7 +433,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `listerSituationsFinancieres`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : fi-01, fi-02, fi-03, fi-06, fi-07, fi-08, fi-09, mt-03, mt-15
+- **Scénarios** : fi-01, fi-02, fi-03, fi-06, fi-07, fi-08, fi-09, mt-03, mt-15, va-fin-bref, va-fin-fautes, va-fin-formel, va-fin-indirect, va-fin-parle, va-solde-bref, va-solde-formel, va-solde-indirect, va-solde-parle — observé sur 14 tour(s), dont 9 sans défaut
 
 ## Domaine : notes
 
@@ -447,7 +448,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `releveEleve`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : mt-03, mt-11, no-01, no-02
+- **Scénarios** : cv-02, cv-05, mt-03, mt-11, no-01, no-02, va-notes-bref, va-notes-formel, va-notes-indirect, va-notes-parle — observé sur 7 tour(s), dont 7 sans défaut
 
 ## Domaine : notifications
 
@@ -462,7 +463,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `envoyerNotificationParents`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-05, mt-12, mt-13
+- **Scénarios** : cv-01, ec-05, mt-12, mt-13 — observé sur 3 tour(s), dont 2 sans défaut
 
 ## Domaine : parents
 
@@ -477,11 +478,11 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `tuteursDeLEleve`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : mt-03, pa-01, pa-02, pa-03
+- **Scénarios** : mt-03, pa-01, pa-02, pa-03, va-par-bref, va-par-formel, va-par-indirect, va-par-parle, va-par-vocal — observé sur 7 tour(s), dont 7 sans défaut
 
 ### `parents.rechercher`
 
-- **Intention** : rechercher les parents et tuteurs par nom ou telephone, ou par etat de leur compte (sans compte, invite jamais connecte, actif, revoque, doublon), eventuellement dans une classe
+- **Intention** : retrouver un parent ou tuteur par son nom OU son TELEPHONE (« a qui est ce numero ? ») ; la reponse donne aussi SES ENFANTS (« quels enfants sont rattaches a ce parent ») ; ou lister les parents selon l'etat de leur compte (sans compte, invite jamais connecte, actif, revoque, doublon), eventuellement dans une classe
 - **Risque** : lecture
 - **Permission d'entrée** : `tuteur:gerer` (le backend revérifie, et peut exiger davantage)
 - **Opération backend** : `rechercherTuteurs`
@@ -490,7 +491,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `rechercherTuteurs`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : mt-09, pa-02, pa-04, pa-05, pa-07, pa-08, pa-09
+- **Scénarios** : mt-09, pa-02, pa-04, pa-05, pa-07, pa-08, pa-09, va-sans-bref, va-sans-formel, va-sans-indirect, va-sans-parle — observé sur 5 tour(s), dont 5 sans défaut
 
 ### `parents.statistiques`
 
@@ -503,11 +504,11 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `statistiquesParents`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : pa-04, pa-05, pa-06
+- **Scénarios** : pa-04, pa-05, pa-06, va-sans-bref, va-sans-formel, va-sans-indirect, va-sans-parle — observé sur 5 tour(s), dont 3 sans défaut
 
 ### `parents.rattacher`
 
-- **Intention** : rattacher un parent ou tuteur a un eleve. Si une fiche existe deja pour ce telephone (meme parent d'un autre enfant), elle est REUTILISEE au lieu d'en creer une nouvelle
+- **Intention** : AJOUTER un NOUVEAU responsable a un eleve (avec son telephone). Si une fiche existe deja pour ce telephone (meme parent d'un autre enfant), elle est REUTILISEE. Pour changer le role d'un responsable deja rattache, utiliser parents.responsabilites
 - **Risque** : écriture (confirmation selon politique) — confirmation TOUJOURS exigée
 - **Permission d'entrée** : `tuteur:gerer` (le backend revérifie, et peut exiger davantage)
 - **Opération backend** : `rattacherTuteur`
@@ -516,7 +517,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `rattacherTuteur`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-04, ec-17
+- **Scénarios** : ec-04, ec-17 — observé sur 2 tour(s), dont 2 sans défaut
 
 ### `parents.detacher`
 
@@ -529,11 +530,11 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `detacherTuteur`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-10
+- **Scénarios** : ec-10 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `parents.responsabilites`
 
-- **Intention** : changer le lien ou les responsabilites d'un responsable deja rattache : responsable principal (transfert), tuteur legal, responsable financier, contact d'urgence, autorise au retrait
+- **Intention** : changer le ROLE d'un responsable DEJA rattache : « X devient responsable principal », « la mere est autorisee au retrait », « le pere n'est plus responsable financier », changer son lien. N'ajoute personne
 - **Risque** : écriture (confirmation selon politique) — confirmation TOUJOURS exigée
 - **Permission d'entrée** : `tuteur:gerer` (le backend revérifie, et peut exiger davantage)
 - **Opération backend** : `modifierResponsabilitesTuteur`
@@ -542,7 +543,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `modifierResponsabilitesTuteur`
 - **Vérification** : relecture après écriture (`verifier`)
 - **Rendu** : texte de la vérification
-- **Scénarios** : ec-04
+- **Scénarios** : ec-04 — non exercé dans cette campagne
 
 ## Domaine : pedagogie
 
@@ -557,7 +558,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerEvaluations`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : no-03, no-04
+- **Scénarios** : no-03, no-04 — observé sur 2 tour(s), dont 2 sans défaut
 
 ### `pedagogie.calendrier_evaluations`
 
@@ -570,7 +571,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : préparation (relecture au backend, récapitulatif) → appel `calendrierEvaluations`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : no-03, no-04
+- **Scénarios** : no-03, no-04 — non exercé dans cette campagne
 
 ### `referentiel.classes_matieres`
 
@@ -583,7 +584,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerClassesEtMatieres`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : cl-09
+- **Scénarios** : cl-09 — observé sur 1 tour(s), dont 1 sans défaut
 
 ## Domaine : personnel
 
@@ -598,7 +599,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerEnseignants`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : mt-07, pi-04, pi-05
+- **Scénarios** : mt-07, pi-04, pi-05 — observé sur 2 tour(s), dont 2 sans défaut
 
 ## Domaine : pilotage
 
@@ -613,11 +614,11 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `indicateursCles`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : co-04, co-08, el-07, mt-07, pi-01, pi-08
+- **Scénarios** : co-04, co-08, el-07, mt-07, pi-01, pi-08 — observé sur 2 tour(s), dont 2 sans défaut
 
 ### `pilotage.effectifs_par_niveau`
 
-- **Intention** : repartition des effectifs par niveau, avec le detail garcons / filles
+- **Intention** : effectifs par NIVEAU (toutes les 6emes ensemble, toutes les 5emes...), garcons / filles. Pour UNE classe precise, utiliser classes.eleves
 - **Risque** : lecture
 - **Permission d'entrée** : `statistique:lire` (le backend revérifie, et peut exiger davantage)
 - **Opération backend** : `effectifsParNiveau`
@@ -626,7 +627,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `effectifsParNiveau`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : co-08, el-07, pi-02
+- **Scénarios** : co-08, el-07, pi-02 — observé sur 5 tour(s), dont 1 sans défaut
 
 ### `pilotage.absences_par_mois`
 
@@ -639,7 +640,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `absencesParMois`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : as-13
+- **Scénarios** : as-13 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `pilotage.moyennes_par_classe`
 
@@ -652,7 +653,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `moyennesParClasse`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : no-06
+- **Scénarios** : no-06 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `pilotage.classement_classes`
 
@@ -665,7 +666,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `classementClasses`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : no-05, no-06
+- **Scénarios** : no-05, no-06 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `pilotage.resultats_par_matiere`
 
@@ -678,7 +679,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `resultatsParMatiere`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : no-07, no-09
+- **Scénarios** : no-07, no-09 — observé sur 2 tour(s), dont 2 sans défaut
 
 ### `etablissement.statistiques`
 
@@ -691,7 +692,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `statistiquesEtablissement`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : co-08, el-07, mt-07, pi-01, pi-08
+- **Scénarios** : co-08, el-07, mt-07, pi-01, pi-08 — observé sur 1 tour(s), dont 1 sans défaut
 
 ## Domaine : scolarite
 
@@ -706,7 +707,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerPeriodes`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : pi-07
+- **Scénarios** : pi-07 — observé sur 1 tour(s), dont 1 sans défaut
 
 ### `referentiel.series`
 
@@ -719,7 +720,7 @@ Trois niveaux à ne pas confondre : ce que **l'interface web** propose, ce que *
 - **Exécution** : appel `listerSeries`
 - **Vérification** : comparaison à l'oracle SQL dans le banc
 - **Rendu** : mis en forme
-- **Scénarios** : cl-08
+- **Scénarios** : cl-08 — observé sur 1 tour(s), dont 1 sans défaut
 
 ## Couverture
 

@@ -2,6 +2,18 @@
 
 Ce qui est prêt, ce qui ne l'est pas, dans quel ordre déployer, et comment revenir en arrière.
 
+## État au 13 novembre 2026, 15 h 05 UTC — DÉPLOYÉ
+
+| | Fait | Preuve |
+|---|---|---|
+| Fusion | `main` (26 commits d'un autre ingénieur) fusionné dans la branche, sans conflit ; `main` avancé en avance rapide à `3cc69db` | `git log origin/main` |
+| Vérifications avant | 936 tests agent, 241 tests backend, typage, build (webpack) du code fusionné | — |
+| Backend | Vercel Production, statut « success » sur `3cc69db` | appels réels sur le domaine : `nommerClasses` → 9 classes (identifiant, libellé, code), `listerAnnees` → 2 années, `listerRetards` → `{lignes, total}`, `rechercherTuteurs` → 200 |
+| Agent | sauvegarde du code en place (`sauvegardes/altare-code-2026-11-13T14-06-27-037Z`, 153 fichiers) ; 24 fichiers déposés et vérifiés par empreinte ; redémarré à 15:03:14 UTC, de retour à 15:04:27 | `/sante` 200, WhatsApp **ready** (session conservée) ; `/diagnostic/supervision` (route nouvelle) → 200, mémoire de session active |
+| Lint | erreurs préexistantes sur des lignes non modifiées (`server-only`, conditions de `parents.ts` venues de `main`) | `npx biome lint` |
+
+Le parcours WhatsApp réel avec le nouveau cerveau n'a **pas** été éprouvé : il demande un message envoyé depuis un téléphone autorisé.
+
 ## 1. Ce qui part en production
 
 | Composant | Contenu | Où |
@@ -58,7 +70,7 @@ Si ces clés sont celles d'Altare, la production n'a aujourd'hui qu'un fournisse
 
 ## 7. Ce qui n'est pas prouvé
 
-- Le parcours WhatsApp réel avec le nouveau cerveau : WhatsApp attend toujours le scan du QR.
+- Le parcours WhatsApp réel avec le nouveau cerveau : WhatsApp est prêt, mais aucun message réel n'a été envoyé depuis le déploiement.
 - Les écritures en production : éteintes.
 - La mémoire durable en production : éteinte ; prouvée sur la base de test seulement.
 - Une campagne complète du banc sur le code final : le quota du modèle ne le permet plus aujourd'hui (voir `docs/AI_TEST_CAMPAIGN_REPORT.md`).

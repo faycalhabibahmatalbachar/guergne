@@ -55,6 +55,30 @@ Les 135 scénarios mesurés de ces deux campagnes ont donné 4 défauts nouveaux
 
 Tests de régression ajoutés : `test/plan-action-inventee.test.js`, 5 tests dans `test/resolution-parametres.test.js`, test « nouveau sujet » renforcé.
 
-## Cycle 4 — `4-complet`
+## Cycle 4 — invite réduite (`5-rejeu`, 45 scénarios non réussis du cycle 3)
 
-Voir `docs/AI_TEST_CAMPAIGN_REPORT.md` pour les chiffres et les défauts restants.
+La campagne `4-complet` a été arrêtée au 2e scénario : un tour par minute. L'invite de 6 000 jetons ne tenait qu'une fois par minute dans le quota de Groq, et OpenRouter avait épuisé son crédit. **Correction** : `selection-outils.js` ne détaille plus que les outils que le message peut concerner. Les autres sont nommés. L'invite passe de 21 300 à 8 000–11 000 caractères. Sur les 199 tours du catalogue, l'outil attendu est toujours détaillé : vérifié sans modèle par `banc/couverture-selection.mjs`, en test permanent.
+
+Résultat : 37 des 45 scénarios réussis, aucune saturation.
+
+| Cause | Scénario | Composant | Correction (cycle 5) |
+|---|---|---|---|
+| « parmi eux, lesquels ont été absents ? » → la liste d'élèves est passée à un outil qui ne la filtre pas : **60 absences de toute l'école** | cv-01 | résolveur | liste → classe d'origine, ou élève unique, ou question ; jamais transmise telle quelle |
+| Un trimestre contradictoire avec les dates : réponse vide | cv-01 | résolveur | les dates l'emportent, et c'est dit |
+| « la sixième à » : le modèle ne transmet que « sixième » | ro-09, va-edt-vocal | résolveur | comparaison canonique du niveau, lettre A rétablie depuis le message |
+| Repli sur `nommerClasses` non prévu par le scénario | ro-04 | banc | scénario corrigé : la panne simulée couvre aussi le repli |
+
+## Cycles 5 et 6 — rejeux ciblés (`6-rejeu` à `9-ec15-3`)
+
+| Cause | Scénario | Composant | Correction |
+|---|---|---|---|
+| « La mère devient la responsable principale » → `rattacher` (déjà rattachée → refus du backend) | ec-04 | choix du modèle, répété malgré un exemple | **déterministe** : la préparation de `rattacher` reconnaît un parent déjà rattaché et réoriente vers `responsabilites`, sous la permission de cet outil. Vérifié en base : la mère est seule principale. |
+| « passe la capacité de Banc Gamma à 35 » → recréation de la classe | ec-15 | liste des classes en cache 15 min : la classe créée n'apparaissait pas au modèle | cache vidé après toute écriture sur les classes |
+| Mission « chercher la classe puis la modifier » refusée | ec-15 | moteur | une mission d'une seule écriture parmi des lectures est réduite à cette écriture |
+| Mission de deux écritures (« recréer puis archiver ») | ec-15 | modèle | refus maintenu ; le message dit désormais « une modification à la fois, rien n'a été fait » et liste les opérations |
+
+Tests de régression ajoutés aux cycles 4 à 6 : `test/selection-outils.test.js`, `test/plan-action-inventee.test.js`, et des cas dans `test/resolution-parametres.test.js`, `test/parents-outils.test.js`, `test/mission.test.js` et `test/tools.test.js` (l'agent refiltre par élève avant toute justification ou suppression).
+
+## Campagne finale (`10-final`, code déployé)
+
+Arrêtée au 65e scénario par le quota quotidien du modèle : 60 réussis sur 62 jugés, 3 non jugés. Les deux échecs (`el-08`, `as-10`) sont des choix d'outil discutables, dont la réponse reste exacte. Détail dans `docs/AI_TEST_CAMPAIGN_REPORT.md`.

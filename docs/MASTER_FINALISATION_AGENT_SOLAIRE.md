@@ -177,3 +177,10 @@ vérification), notes et finances en écriture ; intelligence conversationnelle.
 | Web en production | Vercel → Deployments → *Promote* du déploiement de `e61202c` |
 | 0041 | `db/rollback/0041_direction_permissions_metier.sql` (jamais exécuté ; ses 36 droits d'origine vérifiés contre la base) |
 | Agent Altare | dossier de sauvegarde produit par `sauvegarde-code-altare.mjs`, redéposé par `depot-cible.mjs` |
+
+
+## Mission « cerveau IA » (12-13 novembre 2026)
+
+Résolveur central d'entités, mémoire de conversation (vive + durable), sélection d'outils, enchaînements, garde-fous, supervision, banc d'essai contre le vrai modèle. **Déployé** le 13 novembre (backend Vercel `3cc69db`, agent Altare redémarré à 15:04 UTC, WhatsApp ready).
+
+Pour reprendre : `docs/AI_INTELLIGENCE_AUDIT.md` (par où passe un message), `docs/AI_TEST_CAMPAIGN_REPORT.md` (où en sont les mesures), `docs/AI_FAILURE_ANALYSIS.md` (ce qui a été corrigé, cycle par cycle), `docs/AI_PRODUCTION_READINESS.md` (ce qui est en ligne, et le risque de quota du modèle).
