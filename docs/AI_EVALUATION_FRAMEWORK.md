@@ -38,6 +38,9 @@ cd web && AGENT_ECRITURES_ACTIVES=true SMS_API_URL= SMS_API_KEY= FCM_PROJECT_ID=
 | `npm run agent:catalogue -- banc/rapports/<campagne>.json` | régénère `docs/AI_CAPABILITY_CATALOG.md` |
 | `BANC_MEMOIRE=non BANC_SANS_EXTENSIONS=oui node banc/lancer.mjs …` | le moteur sans résolveur ni mémoire : la référence |
 | `BANC_ROLE=SURVEILLANT npm run agent:parler -- "…"` | parler sous un autre rôle |
+| `node banc/couverture-selection.mjs` | sans modèle : vérifie que la sélection d'outils détaille toujours l'outil attendu, sur tout le catalogue |
+
+Le lanceur **attend** quand tous les fournisseurs du modèle sont en quota (65 s, trois fois au plus) et renvoie le même message : ces tours sont comptés à part (« modèle saturé »), jamais comme une erreur de compréhension. Si aucun fournisseur n'est disponible avant longtemps (quota du jour, crédit épuisé), il **s'arrête proprement** ; `--reprendre` repart du scénario suivant.
 
 ## Verrous
 

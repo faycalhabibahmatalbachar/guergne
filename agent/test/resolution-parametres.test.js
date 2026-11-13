@@ -344,3 +344,45 @@ test("aucun identifiant technique dans le registre que voit le modèle", () => {
   assert.doesNotMatch(texte, /UUID/);
   assert.doesNotMatch(texte, /\b(classeId|periodeId|eleveId|enseignantId|matiereId|anneeId|absenceIds?|inscriptionId)\b/);
 });
+
+// --- Régressions du cycle 4 (campagne 3-complet) ----------------------------
+
+test("« la sixième à » : la lettre A mal transcrite est rendue à la classe", async () => {
+  const { resoudre } = monter();
+  const r = await resoudre("assiduite.consulter_absences", { classe: "sixième" }, { texte: "donne moi les absence de la sixième à" });
+  assert.equal(r.params.classeId, id(1), JSON.stringify(r));
+  const sans = await resoudre("assiduite.consulter_absences", { classe: "sixième" }, { texte: "les absences de la sixième" });
+  assert.equal(sans.statut, "clarifier", "sans la lettre, « la sixième » reste ambiguë");
+});
+
+test("« 6e » n'est pas le code d'une classe : c'est un niveau, donc une question", async () => {
+  const { resoudre } = monter({ classes: [...CLASSES, { id: id(9), libelle: "6E", code: "6E" }] });
+  const r = await resoudre("assiduite.consulter_absences", { classe: "6e" });
+  assert.equal(r.statut, "clarifier");
+  assert.equal((await resoudre("assiduite.consulter_absences", { classe: "6A" })).params.classeId, id(1));
+});
+
+test("une classe tout juste créée est trouvée : la liste est relue une fois", async () => {
+  const classes = [...CLASSES];
+  const { resoudre } = monter({ classes });
+  await resoudre("assiduite.consulter_absences", { classe: "6e A" }); // remplit le cache
+  classes.push({ id: id(8), libelle: "Banc Gamma", code: "BG9" });
+  const r = await resoudre("classes.modifier", { classe: "Banc Gamma", modifications: { capaciteMax: 35 } });
+  assert.equal(r.statut, "ok", JSON.stringify(r));
+});
+
+test("les homonymes sont proposés dans l'ordre des matricules : « le 2 » est reproductible", async () => {
+  const { resoudre } = monter({ eleves: [ELEVES[1], ELEVES[0], ELEVES[2]] });
+  const r = await resoudre("eleves.fiche", { eleve: "Amina ABAKAR" });
+  assert.deepEqual(r.choix.candidats.map((c) => c.matricule), ["LGR-2025-1230", "LGR-2025-1274"]);
+});
+
+test("sans `classe:lire`, l'acteur reçoit au moins les noms des classes", async () => {
+  const guergne = {
+    listerClasses: async () => ({ ok: false, message: "Accès refusé" }),
+    nommerClasses: async () => ({ ok: true, data: CLASSES.map(({ id: i, libelle, code }) => ({ id: i, libelle, code })) }),
+    listerPeriodes: async () => ({ ok: true, data: PERIODES }),
+  };
+  const r = await new Referentiel({ guergne }).pour("surveillant");
+  assert.equal(r.classes.length, CLASSES.length);
+});

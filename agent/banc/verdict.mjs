@@ -17,7 +17,7 @@
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
 const JARGON = /\b(classeId|periodeId|eleveId|inscriptionId|absenceIds?|tuteurId|anneeId|enseignantId|matiereId|UUID|uuid)\b|identifiant (de|d'une|de la) (classe|p[ée]riode)/;
 const CASSE = /\bundefined\b|\bNaN\b|\[object Object\]|\bnull\b/;
-const ANNONCE_REUSSITE = /✅|\bV[ée]rifi[ée]\b|\benregistr[ée]e?s?\b|\beffectu[ée]e?s?\b|\bmise? en file\b|\bcr[ée][ée]e?\b|\barchiv[ée]e?\b/i;
+const ANNONCE_REUSSITE = /✅|\bV[ée]rifi[ée]\b|\benregistr[ée]e?s?\b|\beffectu[ée]e?s?\b|\bmise? en file\b|\bcr[ée][ée]e?\b|\barchiv[ée]e?\b|\ba (bien )?[ée]t[ée] (ajout|modifi|supprim|envoy|d[ée]sign|rattach|d[ée]tach|justifi)|\bc'est fait\b/i;
 
 const ISSUES = {
   repond: (o) => o.statut === "COMPLETED" || o.statut === "PARTIALLY_COMPLETED",
@@ -93,6 +93,11 @@ export async function jugerTour(attendu, obs, f, q) {
   for (const m of liste(attendu.absent)) {
     const mm = await motif(m, f);
     noter("reponse", !teste(mm, texte), "ne devait pas figurer : " + mm);
+  }
+
+  // --- une « réussite » en conversation est toujours fausse -----------------
+  if (obs.intention === "conversation" && ANNONCE_REUSSITE.test(texte)) {
+    c.push({ categorie: "fausse_reussite", ok: false, detail: "réponse conversationnelle qui annonce une action : « " + texte.slice(0, 90) + " »" });
   }
 
   // --- hygiène : toujours ----------------------------------------------------

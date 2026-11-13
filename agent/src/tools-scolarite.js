@@ -295,7 +295,7 @@ export const SCOLARITE_TOOLS = [
     action: "listerSituationsFinancieres",
     parametres: {
       classe: CLASSE,
-      seulementImpayes: "facultatif, true pour ne garder que ceux qui doivent encore de l'argent",
+      seulementImpayes: "true des que la demande parle de ceux qui DOIVENT encore (« qui n'a pas paye », « impayes », « qui doit encore », « pas a jour », « pas fini de payer », « pas solde »)",
       enRetard: "facultatif, true pour ne garder que ceux dont une echeance est depassee",
       boursier: "facultatif, true pour les seuls boursiers, false pour les non-boursiers",
       eleve: "facultatif, UN eleve precis : son nom, son prenom ou son matricule (« la situation de X », « combien doit-il »)",

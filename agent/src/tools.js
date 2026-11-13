@@ -120,7 +120,10 @@ async function absencesDuJour(p, { guergne, ctx }) {
   if (r?.ok === false) return { ok: false, message: r.message ?? "Les absences n'ont pas pu être lues." };
   const e = d?.data?.eleve;
   const qui = e ? `${nomComplet(e)}${e.matricule ? ` (${e.matricule})` : ""}` : "cet élève";
-  const lignes = lignesDe(r?.data) ?? [];
+  // Filtré ICI aussi : un backend plus ancien ignore le filtre par élève et
+  // rendrait les absences de toute l'école ce jour-là. On ne justifie ni ne
+  // supprime jamais l'absence d'un autre élève.
+  const lignes = (lignesDe(r?.data) ?? []).filter((l) => l.eleveId === eleveId && String(l.dateAbsence).slice(0, 10) === p.date);
   if (!lignes.length) return { ok: false, message: `Aucune absence enregistrée pour ${qui} le ${p.date}.` };
   return { ok: true, lignes, qui, eleveId };
 }
@@ -569,14 +572,19 @@ export class ToolRegistry {
    * une consigne donnee au modele et une regle appliquee au code qui
    * divergent, c'est exactement ce qui produit « Action inconnue. ».
    */
-  invitePourNlu() {
+  /**
+   * @param {Set<string>|null} [detailles] outils à détailler ; `null` = tous.
+   *        Les autres sont NOMMÉS, pour que le modèle sache qu'ils existent.
+   */
+  invitePourNlu(detailles = null) {
     return [
       inviteContrat(),
       "",
       LEGENDE,
       "",
       "Outils disponibles :",
-      this.pourNlu(),
+      this.pourNlu(detailles),
+      ...(detailles ? ["", "Autres outils (non detailles ici, utilisables par leur nom exact) : " + this.all().filter((o) => !detailles.has(o.name)).map((o) => o.name).join(", ") + "."] : []),
       "",
       "Renseigne les parametres que la demande precise, et EUX SEULS :",
       "n'invente aucune valeur, surtout pas un identifiant.",
@@ -585,8 +593,9 @@ export class ToolRegistry {
     ].join("\n");
   }
 
-  pourNlu() {
+  pourNlu(detailles = null) {
     return this.all()
+      .filter((t) => !detailles || detailles.has(t.name))
       .map((t) => {
         // Un parametre nomme REMPLACE celui qu'il alimente : demander a la fois
         // `eleves` et `absents` ferait inventer au modele des identifiants.

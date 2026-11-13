@@ -53,6 +53,9 @@ const PRONOM_PLURIEL = /\b(leurs?|eux|elles|ils|ces eleves|ceux-la|les memes)\b/
 
 const MAX_CANDIDATS = 8;
 
+/** Les niveaux tels qu'on les dit, pour reconnaître « la sixième à ». */
+const NIVEAUX_DITS = "sixi[eè]me|cinqui[eè]me|quatri[eè]me|troisi[eè]me|seconde|premi[eè]re|terminale|[3-6](?:e|[eè]me)|2nde|1[eè]re";
+
 const nomEleve = (e) => `${e.prenom ?? ""} ${e.nom ?? ""}`.trim();
 const libelleCandidatEleve = (e) =>
   `${nomEleve(e)}${e.classeLibelle ? ` — ${e.classeLibelle}` : ""}${e.matricule ? ` (${e.matricule})` : ""}`;
@@ -199,12 +202,16 @@ export class Resolveur {
         }
         classeId = classeDite;
       } else {
-        const propre = nettoyerClasse(classeDite) || String(classeDite);
-        // Le CODE de la classe d'abord (« 6A », « 4B », « TD », « 1S ») : c'est
-        // ce qu'on écrit sur un téléphone, et il est unique.
-        const compact = (x) => normaliser(x).split(" ").join("");
-        const parCode = listes.classes.filter((c) => c.code && compact(c.code) === compact(propre));
-        const r = parCode.length === 1 ? { statut: "unique", classe: parCode[0] } : resoudreClasse(listes.classes, propre);
+        let propre = nettoyerClasse(classeDite) || String(classeDite);
+        // « la sixième à » : la lettre A, mal transcrite en préposition. Si le
+        // modèle n'a transmis que le niveau, le message, lui, porte la lettre.
+        const lettreA = new RegExp("\\b(" + NIVEAUX_DITS + ")\\s+à(?=\\s|$|[?.!,])", "iu");
+        if (/^\s*\S+\s*$/.test(propre) && lettreA.test(String(texte ?? "")) && !/\s[a-z]$/i.test(propre)) {
+          const m = String(texte).match(lettreA);
+          if (m && normaliser(m[1]).replace(/eme$|e$/, "") === normaliser(propre).replace(/eme$|e$/, "")) propre = propre + " A";
+        }
+        const r = await this._classe(propre, staff);
+        listes.classes = r.classes ?? listes.classes;
         if (r.statut === "unique") classeId = r.classe.id;
         else if (r.statut === "ambigu") {
           const candidats = r.candidats.slice(0, MAX_CANDIDATS).map((c) => ({ id: c.id, libelle: c.libelle ?? c.code, classe: c.libelle, indices: [c.libelle, c.code] }));
@@ -325,10 +332,46 @@ export class Resolveur {
 
   // --------------------------------------------------------------------------
 
+  /**
+   * Une classe parmi celles de l'année. Le CODE d'abord (« 6A », « 4B »,
+   * « TD ») — sauf s'il n'est qu'un niveau (« 6e » désigne la sixième, pas une
+   * classe dont le code serait « 6E »). Une classe introuvable fait relire la
+   * liste une fois : elle vient peut-être d'être créée.
+   */
+  async _classe(propre, staff) {
+    const essayer = (classes) => {
+      const compact = (x) => normaliser(x).split(" ").join("");
+      const niveauSeul = /^([1-6]|t)$/.test(canoniserClasse(propre));
+      if (niveauSeul) {
+        // Un niveau seul désigne TOUTES ses classes : « 6e » face à « 6ème A »,
+        // « 6ème B » et une classe nommée « 6E » est une question, pas un choix.
+        const niveau = canoniserClasse(propre);
+        const duNiveau = classes.filter((c) => {
+          const k = canoniserClasse(c.libelle ?? c.code ?? "");
+          return k === niveau || k.startsWith(niveau + " ");
+        });
+        if (duNiveau.length > 1) return { statut: "ambigu", candidats: duNiveau };
+      }
+      const parCode = niveauSeul ? [] : classes.filter((c) => c.code && compact(c.code) === compact(propre));
+      return parCode.length === 1 ? { statut: "unique", classe: parCode[0] } : resoudreClasse(classes, propre);
+    };
+    let classes = (await this._referentiel.pour(staff?.id)).classes;
+    let r = essayer(classes);
+    if (r.statut === "aucun" && typeof this._referentiel.oublier === "function") {
+      this._referentiel.oublier(staff?.id);
+      classes = (await this._referentiel.pour(staff?.id)).classes;
+      r = essayer(classes);
+    }
+    return { ...r, classes };
+  }
+
   _issueEleve(r, designation, champ) {
     if (r.statut === "erreur") return { statut: "clarifier", question: r.message };
     if (r.statut === "ambigu") {
-      const candidats = r.candidats.slice(0, MAX_CANDIDATS).map((e) => ({
+      // Toujours dans le même ordre (le matricule) : la question est
+      // reproductible, et « le 2 » désigne le même élève d'une fois à l'autre.
+      const tries = [...r.candidats].sort((a, b) => String(a.matricule ?? "").localeCompare(String(b.matricule ?? "")));
+      const candidats = tries.slice(0, MAX_CANDIDATS).map((e) => ({
         id: e.id ?? e.eleveId,
         libelle: libelleCandidatEleve(e),
         matricule: e.matricule,

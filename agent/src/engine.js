@@ -68,6 +68,9 @@ export const Status = {
  */
 const COMMANDE_TEST = /^\s*TEST\s+AGENT\s*$/i;
 
+/** Un acquiescement ou un refus seul, sans autre demande. */
+const REPONSE_SEULE = /^(oui|ok|okay|d'accord|daccord|vas-y|vas y|go|confirme|je confirme|valide|c'est bon|parfait|yes|non|annule|annuler|laisse tomber|stop|no)\s*[.!]*$/i;
+
 /** L'utilisateur ferme le fil lui-même. Volontairement étroit : une phrase entière, rien d'autre. */
 const NOUVEAU_SUJET = /^(nouveau sujet|nouvelle conversation|nouvelle demande|on change de sujet|changeons de sujet|autre sujet|repartons de z[ée]ro|on repart de z[ée]ro|oublie (ça|ca|cela|tout ça|le contexte|ce contexte))\s*[.!]*$/i;
 
@@ -186,7 +189,12 @@ export class Agent {
 
       // L'envoi peut échouer à son tour ; cela ne doit pas masquer la cause.
       try {
-        await this._sendText(msg, "Une erreur technique m'a empêché de traiter votre message. Réessayez dans un instant.");
+        // Le modèle saturé n'est pas une panne de l'agent : le dire autrement
+        // évite de chercher le défaut au mauvais endroit, et dit quoi faire.
+        const texte = e?.code === "IA_INDISPONIBLE"
+          ? "Je suis momentanément saturé et n'ai pas pu lire votre demande. Rien n'a été fait. Renvoyez-la dans une minute."
+          : "Une erreur technique m'a empêché de traiter votre message. Réessayez dans un instant.";
+        await this._sendText(msg, texte);
       } catch {
         /* le journal porte déjà l'échec */
       }
@@ -629,6 +637,25 @@ export class Agent {
       });
     }
 
+    // 4 ter. Un « oui » ou un « non » qui ne répond à RIEN.
+    //
+    // Laissé au modèle, un « oui » orphelin est devenu « D'accord, la mère a
+    // été ajoutée comme responsable principal » — une écriture annoncée qui
+    // n'a jamais eu lieu. Il n'y a rien à comprendre : on dit qu'il n'y avait
+    // rien en attente.
+    const enChoixAvant = memoryContext?.pending?.intention === "choix";
+    if (!waiting && !enChoixAvant && REPONSE_SEULE.test(String(text ?? "").trim())) {
+      const oui = /^(oui|ok|okay|d'accord|daccord|vas-y|vas y|go|confirme|je confirme|valide|c'est bon|parfait|yes)\b/i.test(String(text).trim());
+      await this._sendText(msg, oui
+        ? "Aucune opération n'attendait de confirmation : rien n'a été fait. Que souhaitez-vous faire ?"
+        : "Rien n'était en attente : rien n'a été fait.");
+      this.audit.record({
+        runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
+        intent: "reponse_orpheline", result: "SUCCESS", durationMs: Date.now() - started,
+      });
+      return { status: oui ? Status.WAITING_INPUT : Status.CANCELLED, runId, orpheline: true };
+    }
+
     // 4 bis. Réponse à une question de CHOIX (« 2 », « celle de 6e B »).
     //
     // Le résolveur a montré des candidats et gardé leur liste. La réponse se
@@ -979,6 +1006,8 @@ Répondez *oui* pour confirmer, *non* pour annuler.`);
     switch (plan.rejet) {
       case "OUTIL_INCONNU":
         return "Je ne sais pas faire cette operation. Demandez-moi plutot une consultation d'assiduite, de retards, d'incidents ou de sanctions.";
+      case "ACTION_INVENTEE":
+        return "Je n'ai rien modifié : je ne peux agir qu'à travers une opération que vous confirmez. Reformulez la demande complète, par exemple « Mariam devient responsable principale de Yara ».";
       case "DONNEES_INVENTEES":
         // Le cas le plus important : mieux vaut une question qu'un chiffre faux.
         return "Je ne peux pas repondre de memoire a une question sur l'etablissement. Precisez la classe et la periode, et j'irai consulter les donnees reelles.";

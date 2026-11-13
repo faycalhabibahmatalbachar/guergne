@@ -122,7 +122,7 @@ const INTENTIONS = [
   },
   {
     cle: "va-sans", domaine: "variantes-parents", capacites: ["parents.rechercher"],
-    attendu: { outil: ["parents.rechercher", "parents.statistiques"], issue: "repond", contient: [(f) => f.nombre(f.totaux.parents_sans_compte)] },
+    attendu: { outil: ["parents.rechercher", "parents.statistiques"], issue: "repond", contient: [async (f) => f.nombre(await f.parentsSansCompte())] },
     dits: [
       ["formel", "Combien de parents ne disposent pas encore d'un compte sur l'application ?"],
       ["parle", "y a combien de parents qui ont pas de compte ?"],

@@ -31,6 +31,7 @@ import { resoudreNomsEleves } from "./resolution-eleves.js";
 import { resoudreClasse } from "./resolveur.js";
 import { completerParametresContexte, resoudreDemandeSuivi } from "./memory-policy.js";
 import { parametresLisibles } from "./foyer.js";
+import { selectionnerOutils } from "./selection-outils.js";
 
 const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -106,8 +107,11 @@ export function creerInterprete({ ia, outils, referentiel, guergne, resolutionCe
     const listes = await referentiel.pour(ctx.staff?.id);
     const mem = ctx.memory ?? {};
     const pending = mem.pending ?? null;
+    // Seuls les outils que le message peut concerner sont détaillés : voir
+    // `selection-outils.js` (quota de jetons des fournisseurs).
+    const selection = selectionnerOutils({ texte, outils: outils.all(), dernierOutil: mem.lastTask?.tool ?? null, attente: pending?.tool ?? null });
     const messages = [
-      { role: "system", content: outils.invitePourNlu() },
+      { role: "system", content: outils.invitePourNlu(selection.detailles) },
       { role: "system", content: resolutionCentrale ? Referentiel.enLibelles(listes) : Referentiel.enTexte(listes) },
       { role: "system", content: contexteDates(maintenant()) },
     ];
@@ -138,7 +142,7 @@ export function creerInterprete({ ia, outils, referentiel, guergne, resolutionCe
       }
     }
     messages.push({ role: "user", content: texte });
-    return { messages, listes };
+    return { messages, listes, selection };
   }
 
   async function interpret(texte, ctx = {}) {
@@ -190,16 +194,22 @@ export function creerInterprete({ ia, outils, referentiel, guergne, resolutionCe
       }
     }
 
-    const { messages } = await assembler(texte, ctx);
+    const { messages, selection } = await assembler(texte, ctx);
     journal?.({
       type: "invite_assemblee",
       messages: messages.length,
       caracteres: messages.reduce((s, m) => s + m.content.length, 0),
       historique: (mem.history ?? []).length,
       fil: Boolean(mem.lastTask || mem.foyer),
+      outilsDetailles: selection.detailles ? selection.detailles.size : "tous",
+      domaines: selection.domaines,
     });
 
-    const r = await ia.completerJson(messages);
+    // Un plafond de sortie : sans lui, certains fournisseurs réservent leur
+    // maximum (32 768 jetons) et refusent la requête dès que le crédit baisse.
+    // Un plan JSON tient en quelques centaines de jetons ; la marge couvre le
+    // raisonnement des modèles qui raisonnent avant de répondre.
+    const r = await ia.completerJson(messages, { maxTokens: 2_000 });
     const plan = r.objet;
     if (!plan) return { clarify: "Je n'ai pas compris la demande." };
     if (plan.clarify) {

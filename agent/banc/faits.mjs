@@ -124,6 +124,9 @@ export async function chargerFaits(q) {
   );
   f.totaux = tot;
 
+  /** Compteurs relus AU MOMENT du contrôle : la campagne écrit pendant qu'elle mesure. */
+  f.parentsSansCompte = async () => (await q("SELECT count(*)::int n FROM tuteurs WHERE utilisateur_id IS NULL"))[0].n;
+
   f.sansAccent = sansAccent;
   /** Un nombre tel que l'agent l'écrit : « 26 757 500 », espaces fines ou non. */
   f.nombre = (n) => new RegExp("(?<![\\d])" + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[\\s\\u202f\\u00a0.]?") + "(?![\\d])");

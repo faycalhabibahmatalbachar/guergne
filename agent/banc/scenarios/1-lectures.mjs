@@ -211,7 +211,7 @@ export default [
     tours: [{
       dit: "Quels parents n'ont pas de compte ?",
       outil: ["parents.rechercher", "parents.statistiques"], issue: "repond",
-      contient: [(f) => f.nombre(f.totaux.parents_sans_compte)],
+      contient: [async (f) => f.nombre(await f.parentsSansCompte())],
     }],
   },
   {

@@ -80,6 +80,7 @@ export class GuergneHttpClient {
   // Personne ne dicte un UUID sur WhatsApp. Ces deux lectures donnent la liste
   // réelle de l'établissement, dans le périmètre de l'acteur.
   listerClasses(p, c) { return this._call("listerClasses", p, c); }
+  nommerClasses(p, c) { return this._call("nommerClasses", p, c); }
   listerPeriodes(p, c) { return this._call("listerPeriodes", p, c); }
   // L'effectif d'une classe porte `inscriptionId` — la cle que les ecritures
   // d'assiduite exigent, et que personne ne dicte de memoire.

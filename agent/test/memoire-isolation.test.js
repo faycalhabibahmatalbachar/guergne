@@ -150,8 +150,10 @@ test("« nouveau sujet » ferme le fil, y compris une confirmation en attente", 
   await dire(A, "supprime", { intention: "outil", outil: "assiduite.supprimer_absence", params: { absenceId: "abs-1", motif: "saisie en double" } });
   const r = await dire(A, "Nouveau sujet");
   assert.equal(r.memory, "fil_reinitialise");
-  await dire(A, "oui");
+  const r2 = await dire(A, "oui");
   assert.equal(guergne.countOf("supprimerAbsence"), 0, "la confirmation a survécu à « nouveau sujet »");
+  assert.equal(r2.orpheline, true, "le « oui » devait être dit sans objet");
+  await dire(A, "suite");
   assert.equal(vus.at(-1).memoire.lastTask, null);
   assert.equal(vus.at(-1).memoire.foyer, null);
 });

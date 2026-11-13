@@ -66,6 +66,7 @@ const ctxAdmin = { actorId: acteurs.SUPER_ADMIN.id };
 const besoinSynthese = scenarios.some((s) => s.synthese);
 let synthese = null;
 const resultats = [];
+let arret = null;
 // REPRISE : une campagne interrompue ne recommence pas ce qu'elle a déjà
 // mesuré. Les scénarios jugés sont relus du fichier partiel ; seuls les autres
 // sont joués. (Même étiquette = même code : ne pas reprendre après une modification.)
@@ -97,6 +98,15 @@ try {
   if (synthese?.surveillant) acteurs.SURVEILLANT = synthese.surveillant;
 
   for (const [i, sc] of scenarios.entries()) {
+    // Tous les fournisseurs du modèle écartés pour longtemps (quota du jour,
+    // crédit épuisé) : continuer ne mesurerait que leur indisponibilité. On
+    // s'arrête proprement ; `--reprendre` reprendra au scénario suivant.
+    const etats = Object.values(ia.etatFournisseurs).filter((e) => e.statut !== "non_configure" && e.statut !== "desactive");
+    if (etats.length && etats.every((e) => e.statut === "ecarte" || (e.statut === "limite" && e.cooldownRestantMs > 5 * 60_000))) {
+      console.log("\n  ARRÊT : aucun fournisseur du modèle disponible avant longtemps (quota ou crédit). Reprendre avec --reprendre.");
+      arret = "modele_indisponible";
+      break;
+    }
     const role = sc.role ?? "SUPER_ADMIN";
     const acteur = acteurs[role];
     const sortie = { id: sc.id, domaine: sc.domaine, capacites: sc.capacites ?? [], etiquettes: sc.etiquettes ?? [], role, fichier: sc.fichier, tours: [] };
@@ -122,12 +132,26 @@ try {
         horloge += 4_000;
         const dit = typeof tour.dit === "function" ? tour.dit(f) : tour.dit;
         let obs;
+        let attentesIA = 0;
         try {
           obs = await conv.dire(dit);
+          // Tous les fournisseurs du modèle en quota : la demande n'a pas été
+          // lue, rien n'a été fait. Juger la compréhension là-dessus mesurerait
+          // le quota, pas l'agent. On attend la fin du refroidissement et on
+          // renvoie le MÊME message — au plus trois fois — et on le compte.
+          while (/Aucun fournisseur IA disponible/.test(String(obs?.resultat?.error ?? "")) && attentesIA < 3) {
+            attentesIA += 1;
+            console.log("\x1b[0;90m         modèle saturé : attente de 65 s (" + attentesIA + "/3)\x1b[0m");
+            await new Promise((r) => setTimeout(r, 65_000));
+            horloge += 65_000;
+            obs = await conv.dire(dit);
+          }
         } catch (e) {
           obs = { texte: dit, statut: "EXCEPTION", reponse: "", reponses: [], appels: [], evenements: [], llm: { appels: 0, tokens: 0, ms: 0, fournisseurs: [], echecs: 0 }, dureeMs: 0, intention: null, outil: null, erreur: String(e?.stack ?? e).slice(0, 400) };
         }
-        const controles = await jugerTour(tour, obs, f, q);
+        const controles = /Aucun fournisseur IA disponible/.test(String(obs?.resultat?.error ?? ""))
+          ? [{ categorie: "infrastructure", ok: false, detail: "modèle indisponible (quota de tous les fournisseurs) — demande non lue" }]
+          : await jugerTour(tour, obs, f, q);
         if (obs.erreur) controles.push({ categorie: "execution", ok: false, detail: obs.erreur });
         sortie.tours.push({
           dit,
@@ -138,6 +162,7 @@ try {
           reponse: obs.reponse,
           appels: obs.appels.map((a) => ({ action: a.action, params: a.params, ok: a.ok, message: a.message, ms: a.ms })),
           llm: obs.llm,
+          attentesIA,
           dureeMs: obs.dureeMs,
           controles,
         });
@@ -213,6 +238,7 @@ const mesures = {
     total: tours.length,
   },
   faussesReussites: { nombre: controles.filter((c) => c.categorie === "fausse_reussite").length, total: tours.length },
+  modeleIndisponible: { tours: controles.filter((c) => c.categorie === "infrastructure").length, attentes: tours.reduce((s, t) => s + (t.attentesIA ?? 0), 0) },
   latenceMs: { moyenne: durees.length ? Math.round(durees.reduce((a, b) => a + b, 0) / durees.length) : null, p50: centile(50), p95: centile(95), max: durees.at(-1) ?? null },
   llm: {
     appels: tours.reduce((s, t) => s + t.llm.appels, 0),
@@ -222,6 +248,7 @@ const mesures = {
     fournisseurs: Object.fromEntries(Object.entries(ia.etatFournisseurs).filter(([, e]) => e.appels).map(([n, e]) => [n, { appels: e.appels, succes: e.succes, echecs: e.echecs, jetons: e.tokens, latenceMoyenneMs: e.latenceMoyenneMs }])),
   },
   dureeCampagneS: Math.round((Date.now() - debutCampagne) / 1000),
+  arret,
 };
 const parDomaine = {};
 for (const s of resultats) {
@@ -239,6 +266,7 @@ const pc = (t) => (t.taux == null ? "—" : (t.taux * 100).toFixed(1) + " % (" +
 const md = [
   "# Campagne « " + etiquette + " » — " + new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC",
   "",
+  ...(arret ? ["**Campagne arrêtée avant la fin : " + arret + ".** Les scénarios non joués ne sont pas comptés.", ""] : []),
   "Base : `" + oracle.branche + "` (test). Mémoire de session : " + (process.env.BANC_MEMOIRE !== "non" ? "oui" : "non") + ". Scénarios joués : " + resultats.length + " sur " + totalCatalogue + " au catalogue.",
   "",
   "| Mesure | Valeur |",
@@ -257,6 +285,7 @@ const md = [
   "| Clarifications inutiles | " + mesures.clarificationsInutiles.nombre + " / " + mesures.clarificationsInutiles.total + " tours |",
   "| Paramètres techniques exposés | " + mesures.parametresTechniquesExposes.nombre + " / " + mesures.parametresTechniquesExposes.total + " tours |",
   "| Fausses annonces de réussite | " + mesures.faussesReussites.nombre + " |",
+  "| Tours perdus, modèle saturé (non jugés) | " + mesures.modeleIndisponible.tours + " (" + mesures.modeleIndisponible.attentes + " attente(s) de refroidissement) |",
   "| Latence par tour | moyenne " + mesures.latenceMs.moyenne + " ms · p50 " + mesures.latenceMs.p50 + " ms · p95 " + mesures.latenceMs.p95 + " ms |",
   "| Jetons par conversation | " + mesures.llm.jetonsParConversation + " (" + mesures.llm.appels + " appels au modèle, " + mesures.llm.echecs + " échecs de fournisseur) |",
   "",

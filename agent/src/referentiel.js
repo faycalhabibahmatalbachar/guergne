@@ -53,8 +53,9 @@ export class Referentiel {
   }
 
   /** Vide le cache — utile après un changement d'année scolaire. */
-  oublier() {
-    this._cache.clear();
+  oublier(acteurId = undefined) {
+    if (acteurId === undefined) this._cache.clear();
+    else this._cache.delete(String(acteurId ?? ""));
   }
 
   /**
@@ -78,7 +79,13 @@ export class Referentiel {
       this._guergne.listerPeriodes({}, ctx).catch(() => null),
     ]);
 
-    const classes = rc?.ok && Array.isArray(rc.data) ? rc.data : null;
+    let classes = rc?.ok && Array.isArray(rc.data) ? rc.data : null;
+    // Un acteur qui lit les élèves sans gérer les classes (un surveillant)
+    // reçoit au moins leurs noms : c'est tout ce qu'il faut pour les résoudre.
+    if (classes === null && typeof this._guergne.nommerClasses === "function") {
+      const rn = await this._guergne.nommerClasses({}, ctx).catch(() => null);
+      if (rn?.ok && Array.isArray(rn.data)) classes = rn.data;
+    }
     const periodes = rp?.ok && Array.isArray(rp.data) ? rp.data : null;
 
     // Lecture partiellement ou totalement ratée : on sert ce qu'on a, sans

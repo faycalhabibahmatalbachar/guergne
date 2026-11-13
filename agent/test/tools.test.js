@@ -269,3 +269,21 @@ test("le client n'expose pas de methode que la route ne sert pas", () => {
     assert.ok(servies.has(nom), `le client expose « ${nom} », absent de la liste blanche de l'API`);
   }
 });
+
+test("justifier par élève et date : jamais l'absence d'un autre élève, même si le backend ignore le filtre", async () => {
+  const E = "33333333-3333-4333-8333-333333333333";
+  const outils = {
+    ctx: {},
+    guergne: {
+      // Un backend ancien : le filtre `eleveId` est ignoré, toute l'école revient.
+      listerAbsences: async () => ({ ok: true, data: { lignes: [
+        { id: "a-autre", eleveId: "44444444-4444-4444-8444-444444444444", dateAbsence: "2026-03-10", statut: "NON_JUSTIFIEE", nbHeures: 2 },
+        { id: "a-lui", eleveId: E, dateAbsence: "2026-03-10", statut: "NON_JUSTIFIEE", nbHeures: 1 },
+      ], total: 2 } }),
+      consulterEleve: async () => ({ ok: true, data: { eleve: { id: E, prenom: "Xavier", nom: "BANCIA", matricule: "M1" } } }),
+    },
+  };
+  const r = await tool("assiduite.justifier_absences").preparer({ eleveId: E, date: "2026-03-10", statut: "JUSTIFIEE", motif: "certificat médical" }, outils);
+  assert.equal(r.ok, true, r.message);
+  assert.deepEqual(r.params.absenceIds, ["a-lui"]);
+});

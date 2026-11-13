@@ -239,6 +239,16 @@ export const OPERATIONS_LECTURE: Record<string, OutilExpose> = {
   // l'ouverture de 2026-2027 — encore sans classes — il était donc impossible de
   // consulter les classes de 2025-2026, même en nommant l'année.
   listerClasses: { permission: "classe:lire", executer: (p) => listerClassesCourantes(s(p.anneeId)) },
+  // Les NOMS des classes, rien d'autre — pour qui lit des élèves sans gérer
+  // les classes (un surveillant n'a pas `classe:lire`). Sans eux, l'agent ne
+  // pouvait pas comprendre « les absences de la 6e A » pour un surveillant,
+  // alors que le surveillant a le droit de lire ces absences. Savoir dans
+  // quelle classe est un élève est déjà ouvert par `eleve:lire` : ce n'est pas
+  // un droit de plus.
+  nommerClasses: {
+    permission: "eleve:lire",
+    executer: async (p) => (await listerClassesCourantes(s(p.anneeId))).map((c) => ({ id: c.id, libelle: c.libelle, code: c.code })),
+  },
   listerPeriodes: {
     permission: "assiduite:lire",
     executer: async (p) => {

@@ -46,8 +46,11 @@ export default [
     tours: [{
       // Sans la liste des classes, « 6e A » ne peut pas être résolue : le dire.
       dit: "les absences de la 6e A",
-      appel: { action: "listerAbsences", params: (p) => !p.classeId || /^[0-9a-f-]{36}$/.test(p.classeId) === false || "un identifiant de classe a été inventé" },
-      absent: [/✅/],
+      // Sans référentiel, la classe ne peut pas être identifiée : l'agent le
+      // dit, et n'interroge pas les absences avec un identifiant deviné.
+      appel: { action: "listerAbsences", jamais: true },
+      contient: [/classes/i],
+      absent: [/✅/, /UUID|identifiant/i],
     }],
   },
   {

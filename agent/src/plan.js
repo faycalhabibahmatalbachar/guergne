@@ -46,6 +46,7 @@ export const REJETS = {
   CHAMP_MANQUANT: "CHAMP_MANQUANT",
   MISSION_INVALIDE: "MISSION_INVALIDE",
   DONNEES_INVENTEES: "DONNEES_INVENTEES",
+  ACTION_INVENTEE: "ACTION_INVENTEE",
 };
 
 const texteUtile = (v) => (typeof v === "string" && v.trim().length > 0 ? v.trim() : null);
@@ -76,6 +77,14 @@ export function citeDesDonneesScolaires(texte) {
   // scolaire en cours est une donnée de l'établissement, pas un calcul.
   if (/\b20\d{2}\s?[-–‑/]\s?20\d{2}\b/.test(String(texte ?? ""))) return true;
   return CHIFFRE_PUIS_NOM.test(String(texte ?? ""));
+}
+
+/** Une réponse conversationnelle qui affirme qu'une écriture a eu lieu. */
+const ACTION_FAITE =
+  /\b(a|ont|avons|ai) (bien )?(été )?(ajout|modifi|enregistr|supprim|envoy|cr[ée][ée]|archiv|transf[ée]r|justifi|rattach|d[ée]tach|d[ée]sign|inscri|mis à jour|mise à jour|corrig|exclu|valid)|\bc'est fait\b|\bj'ai (bien )?(ajout|modifi|enregistr|supprim|envoy|cr[ée][ée]|archiv|transf[ée]r|justifi|rattach|d[ée]tach|inscri|corrig|not[ée])/i;
+
+export function annonceUneAction(texte) {
+  return ACTION_FAITE.test(String(texte ?? ""));
 }
 
 /**
@@ -120,6 +129,11 @@ export function normaliserPlan(brut, registre) {
   if (intention === INTENTIONS.CONVERSATION) {
     const texte = texteUtile(brut.reponse) ?? texteUtile(brut.texte);
     if (!texte) return { type: "invalide", rejet: REJETS.CHAMP_MANQUANT, detail: "conversation sans reponse" };
+    if (annonceUneAction(texte)) {
+      // « La mère a été ajoutée » : en conversation, rien n'a été écrit. Le
+      // laisser passer serait annoncer une modification qui n'existe pas.
+      return { type: "invalide", rejet: REJETS.ACTION_INVENTEE, detail: "action annoncee sans outil" };
+    }
     if (citeDesDonneesScolaires(texte)) {
       // Le modèle n'a lu aucune donnée : ce chiffre est inventé. Le transmettre
       // le ferait passer pour un relevé de l'établissement.
@@ -196,6 +210,8 @@ export function inviteContrat() {
     "  eleve, un parent, un numero de telephone) : l'utilisateur est un",
     "  responsable authentifie du lycee, et ses droits sont verifies apres toi.",
     "  « A qui est ce numero ? » est une recherche de parent.",
+    "- Une estimation (« a peu pres », « environ ») se consulte aussi : tu",
+    "  n'estimes rien de toi-meme, tu appelles l'outil.",
     "- Tu ne demandes pas de precision qu'un parametre facultatif rendrait",
     "  inutile : sans periode ni classe, l'outil repond pour toutes.",
     "",
@@ -209,10 +225,22 @@ export function inviteContrat() {
     "  absence n'est jamais une raison de clarifier : l'outil a ses valeurs par",
     "  defaut (toutes les classes, la periode en cours…).",
     "- N'invente aucune valeur : ni motif, ni decision, ni telephone, ni date.",
+    "  Mais RECOPIE celles que l'utilisateur donne : « elle a ete saisie par erreur »,",
+    "  « certificat medical », « demenagement » sont des motifs.",
     "  S'il manque une information obligatoire pour une ECRITURE, envoie quand",
     "  meme l'outil avec ce que tu as : l'information manquante sera demandee.",
     "- Les dates se donnent au format AAAA-MM-JJ, calculees depuis la date du jour",
     "  fournie plus bas.",
+    "",
+    "EXEMPLES (forme exacte attendue) :",
+    '- « fiche achta djimet » / « tout ce que tu as sur Achta Djimet » -> {"intention":"outil","outil":"eleves.fiche","params":{"eleve":"achta djimet"}}',
+    '- « parents achta djimet » -> {"intention":"outil","outil":"parents.tuteurs_de_l_eleve","params":{"eleve":"achta djimet"}}',
+    '- « Achta Djimet il doit encore combien ? » -> {"intention":"outil","outil":"finances.situations","params":{"eleve":"Achta Djimet"}}',
+    '- « relevé achta djimet » -> {"intention":"outil","outil":"notes.releve","params":{"eleve":"achta djimet"}}',
+    '- « impayés 1S » -> {"intention":"outil","outil":"finances.situations","params":{"classe":"1S","seulementImpayes":true}}',
+    '- « combien en 3e B ? » -> {"intention":"outil","outil":"classes.eleves","params":{"classe":"3e B"}}',
+    '- « retards de la semaine derniere » -> {"intention":"outil","outil":"assiduite.consulter_retards","params":{"depuis":"<lundi>","jusqua":"<dimanche>"}}',
+    "Un nom ecrit en minuscules, une phrase sans verbe, un mot tronque restent des demandes : traite-les, ne demande pas de reformuler.",
     "",
     "REGLE ABSOLUE : tu n'as acces a AUCUNE donnee scolaire par toi-meme.",
     "Absences, retards, incidents, eleves, classes, notes, effectifs, paiements,",

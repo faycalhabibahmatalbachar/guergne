@@ -42,6 +42,8 @@ const DELAI_MS = 30_000;
 
 /** Durée de mise à l'écart par défaut quand un fournisseur rend 429 sans `Retry-After`. */
 const COOLDOWN_DEFAUT_MS = 60_000;
+/** Mise à l'écart d'un fournisseur dont le crédit est épuisé (HTTP 402). */
+const COOLDOWN_CREDIT_MS = 10 * 60_000;
 /** Tentatives maximales sur un même fournisseur pour une erreur transitoire. */
 const TENTATIVES_TRANSITOIRES = 3;
 
@@ -56,6 +58,9 @@ const TENTATIVES_TRANSITOIRES = 3;
 export function classerErreur(statut) {
   if (statut === 401 || statut === 403) return "fatal";
   if (statut === 429) return "quota";
+  // 402 : crédit épuisé. Réessayer dans la seconde est inutile ; on écarte le
+  // fournisseur un long moment, comme un quota.
+  if (statut === 402) return "credit";
   return "transitoire";
 }
 
@@ -374,6 +379,9 @@ export class MoteurIA {
       e.ecarte = true;
       e.authentifie = false;
       this._trace({ type: "fournisseur_ecarte", fournisseur: nom, raison: "authentification" });
+    } else if (categorie === "credit") {
+      e.jusqua = this._horloge() + COOLDOWN_CREDIT_MS;
+      this._trace({ type: "fournisseur_cooldown", fournisseur: nom, dureeMs: COOLDOWN_CREDIT_MS, raison: "credit" });
     } else if (categorie === "quota") {
       // Un 429 prouve que la clé est acceptée : le service répond, il limite.
       if (e.authentifie === null) e.authentifie = true;
