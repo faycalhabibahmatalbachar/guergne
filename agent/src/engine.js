@@ -695,11 +695,24 @@ export class Agent {
     // Une « mission » d'UNE seule consultation n'en est pas une : la conduire
     // comme telle rendrait un décompte (« 11 résultats ») à la place de la
     // réponse (les onze matières). Elle redevient l'outil qu'elle est.
+    // Une « mission » qui cherche puis écrit (« trouve la classe, puis change sa
+    // capacité ») : les recherches sont le travail du résolveur. Seule
+    // l'écriture compte, et elle passera par toute la chaîne de contrôle.
+    if (plan.type === INTENTIONS.MISSION && plan.etapes.length > 1) {
+      const ecritures = plan.etapes.filter((e) => {
+        const o = this.tools.get(e?.outil ?? e?.tool);
+        return o && o.sensitivity !== "read";
+      });
+      if (ecritures.length === 1) plan = { ...plan, etapes: ecritures };
+    }
     if (plan.type === INTENTIONS.MISSION && plan.etapes.length === 1) {
       const seule = plan.etapes[0];
       const simple = normaliserPlan({ intention: "outil", outil: seule?.outil ?? seule?.tool, params: seule?.params ?? {} }, this.tools);
-      // Une écriture glissée dans une mission reste REFUSÉE, comme avant.
-      if (simple.type === INTENTIONS.OUTIL && simple.tool.sensitivity === "read") plan = simple;
+      // Lecture OU écriture : redevenue un outil, elle passe par toute la
+      // chaîne — résolution, validation, permission, préparation, et la
+      // confirmation si l'outil l'exige. Rien n'est exécuté de plus. Une
+      // mission de PLUSIEURS étapes qui contient une écriture reste refusée.
+      if (simple.type === INTENTIONS.OUTIL) plan = simple;
     }
     if (memoryContext && typeof this.memory?.annotateInbound === "function") {
       try {
@@ -785,7 +798,7 @@ export class Agent {
    * un raccourci.
    */
   async _conduireOutil({ plan, staff, msg, runId, started, transcription, memoryContext, text, enchaine = false }) {
-    const tool = plan.tool;
+    let tool = plan.tool;
     let notes = [];
 
     // 5 bis. RÉSOLUTION DES ENTITÉS : ce qui a été nommé devient ce que le
@@ -900,6 +913,27 @@ export class Agent {
         return { status: Status.WAITING_INPUT, reason: "preparation", runId };
       }
       if (preparation.params) plan.params = preparation.params;
+      // La préparation a reconnu que la demande relève d'un AUTRE outil
+      // (« rattacher » un parent déjà rattaché = changer ses responsabilités).
+      // C'est cet outil qui sera confirmé, exécuté et relu — sous SA permission.
+      if (preparation.outil && preparation.outil !== tool.name) {
+        const autre = this.tools.get(preparation.outil);
+        if (!autre) {
+          await this._sendText(msg, "La demande ne peut pas être préparée.");
+          return { status: Status.WAITING_INPUT, reason: "preparation", runId };
+        }
+        this.journalEtape?.({ event: "outil_reoriente", run: runId, de: tool.name, vers: autre.name });
+        tool = autre;
+        plan.tool = autre;
+        if (!this.permissions.allows(staff, tool.permission)) {
+          await this._sendText(msg, "Vous n'avez pas les droits pour cette opération.");
+          this.audit.record({
+            runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
+            intent: tool.name, permission: `DENIED:${tool.permission}`, result: "DENIED", durationMs: Date.now() - started,
+          });
+          return { status: Status.FAILED, reason: "permission", runId };
+        }
+      }
     }
 
     // 8. Confirmation forte pour une opération sensible ou en lot (brief §10)
@@ -1034,9 +1068,18 @@ Répondez *oui* pour confirmer, *non* pour annuler.`);
     const verif = validerMission(plan, this.tools);
     if (!verif.ok) {
       this.journalEtape?.({ event: "mission_refusee", run: runId, raison: verif.raison });
+      // Plusieurs MODIFICATIONS demandées d'un coup : chacune se prépare et se
+      // confirme à part. On le dit, avec la liste — et non « demandez une
+      // consultation », qui laissait croire la demande incomprise.
+      const ecritures = (Array.isArray(plan.etapes) ? plan.etapes : [])
+        .map((e) => this.tools.get(e?.outil ?? e?.tool))
+        .filter((o) => o && o.sensitivity !== "read");
       await this._sendText(
         msg,
-        "Je n'ai pas pu preparer ce travail. Demandez-moi plutot une consultation precise, par exemple « les absences de la 6eme B cette semaine ».",
+        ecritures.length
+          ? "Je ne fais qu'une modification à la fois, et chacune se confirme. Rien n'a été fait. Dites-moi laquelle d'abord :\n" +
+              ecritures.map((o) => "• " + (o.description ?? o.name).split(" — ")[0].split(" : ")[0]).join("\n")
+          : "Je n'ai pas pu preparer ce travail. Demandez-moi plutot une consultation precise, par exemple « les absences de la 6eme B cette semaine ».",
       );
       this.audit.record({
         runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
@@ -1335,6 +1378,10 @@ Répondez *oui* pour confirmer, *non* pour annuler.`);
       this.journalEtape?.({ event: "ecriture_verifiee", run: runId, outil: tool.name, verifiee: verification?.ok === true, raison: verification?.raison ?? null });
     }
     this._metriques[ok ? "operationsReussies" : "operationsEchouees"] += 1;
+    // Une classe créée, renommée ou archivée : la liste des classes que voient
+    // le modèle et le résolveur est périmée. Sans cela, « passe la capacité de
+    // Banc Gamma à 35 » juste après sa création la faisait recréer.
+    if (ok && tool.sensitivity !== "read" && tool.module === "classes") this.resolveur?.oublierReferentiel?.(staff.id);
     this._metriques[tool.sensitivity === "read" ? "consultations" : "ecritures"] += 1;
 
     // Les responsables sont INFORMES, pas sollicites : la notification rend

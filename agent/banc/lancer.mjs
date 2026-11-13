@@ -161,6 +161,11 @@ try {
           rejet: obs.rejet ?? null,
           reponse: obs.reponse,
           appels: obs.appels.map((a) => ({ action: a.action, params: a.params, ok: a.ok, message: a.message, ms: a.ms })),
+          // La trace du moteur, sans le journal du modèle : de quoi savoir
+          // POURQUOI un tour a pris le chemin qu'il a pris.
+          trace: obs.evenements
+            .filter((e) => ["intent_detected", "entites_resolues", "choix_evalue", "enchainement", "outil_reoriente", "mission_refusee", "mission_etape", "valeur_non_dite_retiree", "ecriture_verifiee", "confirmation_evaluee", "politique_evaluee", "invite_assemblee"].includes(e.event ?? e.type))
+            .map(({ ts, run, ...e }) => e),
           llm: obs.llm,
           attentesIA,
           dureeMs: obs.dureeMs,
