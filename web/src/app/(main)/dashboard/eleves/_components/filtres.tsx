@@ -24,26 +24,22 @@ import { LIBELLES_STATUT } from "@/lib/eleves-constantes";
 
 const TOUS = "__tous__";
 type Classe = { id: string; libelle: string; niveauId: string; niveauLibelle: string };
-type Annee = { id: string; libelle: string; estCourante: boolean };
 type Valeurs = {
   q: string;
   classe: string;
   niveau: string;
   statut: string;
   dossier: string;
-  annee: string;
   rapide: string;
 };
 type Statistiques = { total: number; inscrits: number; suspendus: number; incomplets: number; redoublants: number };
 
 export function FiltresEleves({
   classes,
-  annees,
   valeurs,
   statistiques,
 }: {
   classes: Classe[];
-  annees: Annee[];
   valeurs: Valeurs;
   statistiques: Statistiques;
 }) {
@@ -81,7 +77,6 @@ export function FiltresEleves({
       valeurs.niveau ||
       valeurs.statut ||
       valeurs.dossier ||
-      valeurs.annee ||
       valeurs.rapide,
   );
   const raccourcis = [
@@ -123,7 +118,12 @@ export function FiltresEleves({
               size="sm"
               onClick={() => {
                 setRecherche("");
-                demarrer(() => router.push("/dashboard/eleves"));
+                const annee = parametres.get("annee");
+                const cible = new URLSearchParams();
+                if (annee) cible.set("annee", annee);
+                demarrer(() =>
+                  router.push(cible.size ? `/dashboard/eleves?${cible.toString()}` : "/dashboard/eleves"),
+                );
               }}
             >
               <X className="size-4" aria-hidden /> Effacer
@@ -212,28 +212,10 @@ export function FiltresEleves({
                 </SelectContent>
               </Select>
             </div>
-            <div className="lg:col-span-1">
-              <Select
-                value={valeurs.annee || TOUS}
-                onValueChange={(v) => appliquer({ annee: v, classe: "", niveau: "" })}
-              >
-                <SelectTrigger className="h-10 w-full">
-                  <SelectValue placeholder="Année scolaire" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={TOUS}>Année courante</SelectItem>
-                  {annees.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.libelle}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </>
         ) : (
           <div className="flex items-center gap-2 text-xs text-muted-foreground lg:col-span-6">
-            <ListFilter className="size-4" aria-hidden /> Niveau · Statut · Dossier · Année
+            <ListFilter className="size-4" aria-hidden /> Niveau · Statut · Dossier
           </div>
         )}
       </div>

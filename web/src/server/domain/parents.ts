@@ -36,6 +36,7 @@ export interface FiltresTuteurs {
   /** 'sans_compte' | 'invite' | 'actif' | 'revoque' | 'doublon' */
   etat?: string;
   classeId?: string;
+  anneeId?: string;
   page?: number;
   parPage?: number;
 }
@@ -57,10 +58,11 @@ export interface ResultatTuteurs {
  *   - actif        : le parent utilise réellement l'application
  */
 /** Shared audience predicate for list, bulk preview and bulk sends. */
-export function construireFiltreTuteurs(filtres: Pick<FiltresTuteurs, "recherche" | "etat" | "classeId">) {
+export function construireFiltreTuteurs(filtres: Pick<FiltresTuteurs, "recherche" | "etat" | "classeId" | "anneeId">) {
   const recherche = filtres.recherche?.trim() ?? "";
   const etat = filtres.etat ?? "";
   const classeId = filtres.classeId ?? "";
+  const anneeId = filtres.anneeId ?? "";
   return sql`
     (${recherche} = '' OR
       t.nom ILIKE ${`%${recherche}%`} OR
@@ -82,10 +84,17 @@ export function construireFiltreTuteurs(filtres: Pick<FiltresTuteurs, "recherche
           AND regexp_replace(meme_numero.telephone, '[^0-9]', '', 'g')
               = regexp_replace(t.telephone, '[^0-9]', '', 'g')
       )))
+    AND (NULLIF(${anneeId}, '')::uuid IS NULL OR EXISTS (
+      SELECT 1 FROM eleve_tuteur etAnnee
+        JOIN inscriptions iAnnee ON iAnnee.eleve_id = etAnnee.eleve_id AND iAnnee.active
+       WHERE etAnnee.tuteur_id = t.id
+         AND iAnnee.annee_id = NULLIF(${anneeId}, '')::uuid))
     AND (NULLIF(${classeId}, '')::uuid IS NULL OR EXISTS (
       SELECT 1 FROM eleve_tuteur et2
         JOIN inscriptions i2 ON i2.eleve_id = et2.eleve_id AND i2.active
-       WHERE et2.tuteur_id = t.id AND i2.classe_id = NULLIF(${classeId}, '')::uuid))
+       WHERE et2.tuteur_id = t.id
+         AND i2.classe_id = NULLIF(${classeId}, '')::uuid
+         AND (NULLIF(${anneeId}, '')::uuid IS NULL OR i2.annee_id = NULLIF(${anneeId}, '')::uuid)))
   `;
 }
 
@@ -113,14 +122,22 @@ export async function listerTuteurs(filtres: FiltresTuteurs = {}): Promise<Resul
                  AND regexp_replace(autre.telephone, '[^0-9]', '', 'g')
                      = regexp_replace(t.telephone, '[^0-9]', '', 'g')
              ) AS "doublonTelephone",
-             (SELECT count(*) FROM eleve_tuteur et WHERE et.tuteur_id = t.id) AS "nbEnfants",
+             (SELECT count(*) FROM eleve_tuteur et
+                WHERE et.tuteur_id = t.id
+                  AND (NULLIF(${filtres.anneeId ?? ""}, '')::uuid IS NULL OR EXISTS (
+                    SELECT 1 FROM inscriptions ie
+                     WHERE ie.eleve_id = et.eleve_id AND ie.active
+                       AND ie.annee_id = NULLIF(${filtres.anneeId ?? ""}, '')::uuid
+                  ))) AS "nbEnfants",
              COALESCE((
                SELECT string_agg(e.prenom || ' ' || e.nom || ' (' || c.libelle || ')', ', ')
                  FROM eleve_tuteur et
                  JOIN eleves e ON e.id = et.eleve_id
                  LEFT JOIN inscriptions i ON i.eleve_id = e.id AND i.active
+                   AND (NULLIF(${filtres.anneeId ?? ""}, '')::uuid IS NULL OR i.annee_id = NULLIF(${filtres.anneeId ?? ""}, '')::uuid)
                  LEFT JOIN classes c ON c.id = i.classe_id
                 WHERE et.tuteur_id = t.id
+                  AND (NULLIF(${filtres.anneeId ?? ""}, '')::uuid IS NULL OR i.id IS NOT NULL)
              ), '') AS enfants
         FROM tuteurs t
         LEFT JOIN utilisateurs u ON u.id = t.utilisateur_id
@@ -154,7 +171,7 @@ export interface StatistiquesParents {
   doublons: number;
 }
 
-export async function statistiquesParents(): Promise<StatistiquesParents> {
+export async function statistiquesParents(anneeId?: string): Promise<StatistiquesParents> {
   const r = await db.execute<Record<string, unknown>>(sql`
     SELECT
       count(*)::int AS total,
@@ -172,6 +189,7 @@ export async function statistiquesParents(): Promise<StatistiquesParents> {
       ))::int AS doublons
       FROM tuteurs t
       LEFT JOIN utilisateurs u ON u.id = t.utilisateur_id
+      WHERE ${construireFiltreTuteurs({ recherche: "", etat: "", classeId: "", anneeId: anneeId ?? "" })}
   `);
 
   const l = r.rows[0] ?? {};
@@ -302,7 +320,10 @@ export interface DossierTuteur {
  * déclencheurs. Afficher « joignable par push » alors que les notifications
  * partent en SMS serait pire que ne rien afficher.
  */
-export async function chargerDossierTuteur(tuteurId: string): Promise<DossierTuteur | null> {
+export async function chargerDossierTuteur(tuteurId: string, anneeId?: string): Promise<DossierTuteur | null> {
+  const anneeFiltre = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(anneeId ?? "")
+    ? anneeId
+    : null;
   const base = await db.execute<Record<string, never>>(sql`
     SELECT t.id, t.nom, t.prenom, t.telephone, t.telephone_secondaire, t.email,
            t.profession, t.employeur, t.adresse, t.quartier, t.sexe::text AS sexe,
@@ -319,7 +340,13 @@ export async function chargerDossierTuteur(tuteurId: string): Promise<DossierTut
            fn_canal_tuteur(t.id)::text AS canal_joignable,
            (SELECT count(*) FROM appareils a
              WHERE a.utilisateur_id = t.utilisateur_id AND a.actif) AS nb_appareils,
-           (SELECT count(*) FROM eleve_tuteur et WHERE et.tuteur_id = t.id) AS nb_enfants
+           (SELECT count(*) FROM eleve_tuteur et
+             WHERE et.tuteur_id = t.id
+               AND (${anneeFiltre}::uuid IS NULL OR EXISTS (
+                 SELECT 1 FROM inscriptions ic
+                  WHERE ic.eleve_id = et.eleve_id AND ic.active
+                    AND ic.annee_id = ${anneeFiltre}::uuid
+               ))) AS nb_enfants
       FROM tuteurs t
       LEFT JOIN utilisateurs u ON u.id = t.utilisateur_id
      WHERE t.id = ${tuteurId}::uuid
@@ -335,9 +362,21 @@ export async function chargerDossierTuteur(tuteurId: string): Promise<DossierTut
            et.est_tuteur_legal, et.est_contact_urgence, et.autorise_retrait
       FROM eleve_tuteur et
       JOIN eleves e ON e.id = et.eleve_id
-      LEFT JOIN inscriptions i ON i.eleve_id = e.id AND i.active
-      LEFT JOIN classes c      ON c.id = i.classe_id
+      LEFT JOIN LATERAL (
+        SELECT i1.classe_id
+          FROM inscriptions i1
+         WHERE i1.eleve_id = e.id AND i1.active
+           AND (${anneeFiltre}::uuid IS NULL OR i1.annee_id = ${anneeFiltre}::uuid)
+         ORDER BY i1.date_inscription DESC, i1.cree_le DESC
+         LIMIT 1
+      ) i ON TRUE
+      LEFT JOIN classes c ON c.id = i.classe_id
      WHERE et.tuteur_id = ${tuteurId}::uuid
+       AND (${anneeFiltre}::uuid IS NULL OR EXISTS (
+         SELECT 1 FROM inscriptions i2
+          WHERE i2.eleve_id = e.id AND i2.active
+            AND i2.annee_id = ${anneeFiltre}::uuid
+       ))
      ORDER BY e.nom, e.prenom
   `);
 

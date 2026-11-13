@@ -1,7 +1,7 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 
 import { grilleImpression } from "@/server/domain/emploi-du-temps";
-import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
+import { listerAnnees } from "@/server/domain/parametres";
 import { requirePermission } from "@/server/guard";
 import { DocumentEmploiDuTemps } from "@/server/pdf/emploi-du-temps";
 
@@ -41,8 +41,13 @@ export async function GET(
   }
 
   try {
-    const annee = await chargerAnneeCourante();
-    if (!annee) return new Response("Aucune année scolaire courante", { status: 404 });
+    const annees = await listerAnnees();
+    const anneeDemandee = new URL(requete.url).searchParams.get("annee");
+    const annee = annees.find((option) => option.id === anneeDemandee)
+      ?? annees.find((option) => option.estCourante)
+      ?? annees[0]
+      ?? null;
+    if (!annee) return new Response("Aucune année scolaire configurée", { status: 404 });
 
     const grille = await grilleImpression(annee.id, {
       type: vue as "classe" | "enseignant" | "salle",

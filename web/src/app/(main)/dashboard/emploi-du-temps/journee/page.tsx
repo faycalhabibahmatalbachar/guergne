@@ -5,11 +5,12 @@ import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 
 import { EnTetePage, Page } from "@/components/socle/en-tete-page";
+import { SelecteurAnnee } from "@/components/socle/selecteur-annee";
 import { Button } from "@/components/ui/button";
 import { sessionCourante } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { coursDuJour, enseignantsDisponibles } from "@/server/domain/remplacements";
-import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
+import { listerAnnees } from "@/server/domain/parametres";
 import { exigerPage, peut } from "@/server/guard";
 
 import { VueJournee } from "./vue-journee";
@@ -34,13 +35,14 @@ export const dynamic = "force-dynamic";
 export default async function PageJournee({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; classe?: string; enseignant?: string; cours?: string }>;
+  searchParams: Promise<{ date?: string; classe?: string; enseignant?: string; cours?: string; annee?: string }>;
 }) {
   await exigerPage("emploi_du_temps:lire");
   const principal = await sessionCourante();
 
   const params = await searchParams;
-  const annee = await chargerAnneeCourante();
+  const annees = await listerAnnees();
+  const annee = annees.find((a) => a.id === params.annee) ?? annees.find((a) => a.estCourante) ?? annees[0] ?? null;
 
   if (!annee) {
     return (
@@ -51,7 +53,10 @@ export default async function PageJournee({
     );
   }
 
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(params.date ?? "") ? params.date! : new Date().toISOString().slice(0, 10);
+  const aujourdHui = new Date().toISOString().slice(0, 10);
+  const dateProposee = aujourdHui >= annee.dateDebut && aujourdHui <= annee.dateFin ? aujourdHui : annee.dateDebut;
+  const dateDemandee = /^\d{4}-\d{2}-\d{2}$/.test(params.date ?? "") ? params.date! : dateProposee;
+  const date = dateDemandee >= annee.dateDebut && dateDemandee <= annee.dateFin ? dateDemandee : dateProposee;
 
   const [cours, classes, enseignants, peutGerer] = await Promise.all([
     coursDuJour(annee.id, date, {
@@ -68,6 +73,12 @@ export default async function PageJournee({
       SELECT en.id, en.prenom || ' ' || en.nom AS libelle
         FROM enseignants en
        WHERE en.actif
+         AND EXISTS (
+           SELECT 1 FROM affectations a
+            WHERE a.enseignant_id = en.id
+              AND a.annee_id = ${annee.id}::uuid
+              AND a.active
+         )
        ORDER BY en.nom, en.prenom
     `),
     peut(principal, "emploi_du_temps:gerer"),
@@ -87,8 +98,9 @@ export default async function PageJournee({
         description={<>Qui est où aujourd&apos;hui, et qui prend le cours d&apos;un professeur absent.</>}
         actions={
           <>
+            <SelecteurAnnee anneeId={annee.id} annees={annees} />
             <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/emploi-du-temps">
+              <Link href={`/dashboard/emploi-du-temps?annee=${encodeURIComponent(annee.id)}`}>
                 <ArrowLeft aria-hidden />
                 Grille hebdomadaire
               </Link>

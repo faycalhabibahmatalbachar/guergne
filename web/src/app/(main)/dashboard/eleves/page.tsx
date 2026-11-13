@@ -15,6 +15,7 @@ import {
 import type { Metadata } from "next";
 
 import { EnTetePage } from "@/components/socle/en-tete-page";
+import { SelecteurAnnee } from "@/components/socle/selecteur-annee";
 import { RangeeStatistiques, Statistique } from "@/components/socle/statistique";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -100,7 +101,8 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
   const principal = await sessionCourante();
   const p = await searchParams;
   const annees = await listerAnneesEleves();
-  const anneeId = annees.find((a) => a.id === p.annee)?.id;
+  const anneeSelectionnee = annees.find((a) => a.id === p.annee) ?? annees.find((a) => a.estCourante) ?? annees[0] ?? null;
+  const anneeId = anneeSelectionnee?.id;
   const dossier = DOSSIERS.find((v) => v === p.dossier);
   const rapide = RAPIDES.find((v) => v === p.rapide);
   const statut = p.statut && Object.hasOwn(LIBELLES_STATUT, p.statut) ? (p.statut as StatutEleve) : undefined;
@@ -150,6 +152,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
   if (p.q) exportParams.set("recherche", p.q);
   if (classeId) exportParams.set("classe", classeId);
   if (statut) exportParams.set("statut", statut);
+  if (anneeId) exportParams.set("annee", anneeId);
   const lienExport = "/api/export/eleves?" + exportParams.toString();
 
   return (
@@ -164,6 +167,9 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
         description={<>{stats.total.toLocaleString("fr-FR")} dossiers au fichier</>}
         actions={
           <>
+            {anneeSelectionnee ? (
+              <SelecteurAnnee anneeId={anneeSelectionnee.id} annees={annees} reinitialiser={["classe", "niveau"]} />
+            ) : null}
             <div className="order-last flex items-center gap-2 sm:order-first">
               {peutModifier ? (
                 <Button asChild variant="outline">
@@ -255,7 +261,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
           aide="Pièces manquantes"
           ton={stats.incomplets > 0 ? "alerte" : "neutre"}
           icone={ClipboardList}
-          href="/dashboard/eleves?dossier=incomplet"
+          href={`/dashboard/eleves?dossier=INCOMPLET${anneeId ? `&annee=${encodeURIComponent(anneeId)}` : ""}`}
         />
         <Statistique
           libelle="Suspendus"
@@ -279,14 +285,12 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
           niveauId: c.niveauId,
           niveauLibelle: c.niveauLibelle,
         }))}
-        annees={annees}
         valeurs={{
           q: p.q ?? "",
           classe: classeId ?? "",
           niveau: niveauId ?? "",
           statut: statut ?? "",
           dossier: dossier ?? "",
-          annee: anneeId ?? "",
           rapide: rapide ?? "",
         }}
         statistiques={stats}
@@ -333,7 +337,9 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
                 </p>
                 {filtreActif ? (
                   <Button asChild variant="outline" size="sm">
-                    <Link href="/dashboard/eleves">Effacer les filtres</Link>
+                    <Link href={anneeId ? `/dashboard/eleves?annee=${encodeURIComponent(anneeId)}` : "/dashboard/eleves"}>
+                    Effacer les filtres
+                  </Link>
                   </Button>
                 ) : peutCreer ? (
                   <Button asChild size="sm">
@@ -378,7 +384,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
                       {peutAffecter || peutEnvoyer ? <CaseSelection id={e.id} className="px-3 py-2" /> : null}
                       <td className="px-3 py-2">
                         <Link
-                          href={`/dashboard/eleves/${e.id}`}
+                          href={`/dashboard/eleves/${e.id}${anneeId ? `?annee=${encodeURIComponent(anneeId)}` : ""}`}
                           className="flex items-center gap-2.5 font-semibold text-foreground hover:text-info"
                         >
                           <Avatar className="size-9 shrink-0">
@@ -411,7 +417,7 @@ export default async function PageEleves({ searchParams }: { searchParams: Promi
                         <div className="max-w-[185px] truncate font-medium">
                           {e.parentId && peutVoirParents ? (
                             <Link
-                              href={"/dashboard/parents/" + e.parentId}
+                              href={"/dashboard/parents/" + e.parentId + (anneeId ? "?annee=" + encodeURIComponent(anneeId) : "")}
                               title={"Ouvrir la fiche du tuteur " + (e.parentNom ?? "")}
                               className="rounded-sm text-foreground underline-offset-4 hover:text-succes hover:underline focus-visible:outline-2 focus-visible:outline-emerald-600 dark:hover:text-succes"
                             >

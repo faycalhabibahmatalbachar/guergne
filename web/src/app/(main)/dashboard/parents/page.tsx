@@ -1,11 +1,12 @@
 import { Download, House, Send } from "lucide-react";
 import type { Metadata } from "next";
 
+import { SelecteurAnnee } from "@/components/socle/selecteur-annee";
 import { Button } from "@/components/ui/button";
 import { listerTuteurs, statistiquesParents } from "@/server/domain/parents";
 import { listerClassesEtMatieres } from "@/server/domain/personnel";
 import { lireSuiviParents } from "@/server/domain/suivi-notifications-parents";
-import { chargerAnneeCourante } from "@/server/domain/tableau-de-bord";
+import { listerAnnees } from "@/server/domain/parametres";
 import { exigerPage, peut } from "@/server/guard";
 
 import { CreerParent } from "./_components/creer-parent";
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
 export default async function PageParents({
   searchParams,
 }: {
-  searchParams: Promise<{ recherche?: string; etat?: string; classe?: string; page?: string; parPage?: string }>;
+  searchParams: Promise<{ recherche?: string; etat?: string; classe?: string; page?: string; parPage?: string; annee?: string }>;
 }) {
   const principal = await exigerPage("tuteur:gerer");
   const [peutInviter, peutNotifier] = await Promise.all([
@@ -27,7 +28,8 @@ export default async function PageParents({
   ]);
 
   const params = await searchParams;
-  const annee = await chargerAnneeCourante();
+  const annees = await listerAnnees();
+  const annee = annees.find((a) => a.id === params.annee) ?? annees.find((a) => a.estCourante) ?? annees[0] ?? null;
   const parPage = [8, 16, 25, 50, 100].includes(Number(params.parPage)) ? Number(params.parPage) : 25;
 
   const filtres = {
@@ -41,10 +43,11 @@ export default async function PageParents({
       recherche: filtres.recherche,
       etat: filtres.etat,
       classeId: filtres.classeId,
+      anneeId: annee?.id,
       page: Number(params.page) || 1,
       parPage,
     }),
-    statistiquesParents(),
+    statistiquesParents(annee?.id),
     annee ? listerClassesEtMatieres(annee.id) : Promise.resolve({ classes: [], matieres: [] }),
     peutNotifier ? lireSuiviParents() : Promise.resolve(null),
   ]);
@@ -71,6 +74,7 @@ export default async function PageParents({
           aria-label="Actions sur les comptes parents"
           className="flex flex-wrap items-center gap-2 sm:justify-end"
         >
+          {annee ? <SelecteurAnnee anneeId={annee.id} annees={annees} reinitialiser={["classe"]} /> : null}
           {peutInviter && (
             <Button asChild variant="outline" className="font-semibold">
               <a href="/dashboard/parents/invitations">
@@ -86,7 +90,7 @@ export default async function PageParents({
             </a>
           </Button>
           <Button asChild variant="outline">
-            <a href="/api/export/parents" title="Export Excel de tous les responsables">
+            <a href={`/api/export/parents${annee ? `?annee=${encodeURIComponent(annee.id)}` : ""}`} title="Export Excel des responsables de l’année sélectionnée">
               <Download className="size-4" aria-hidden />
               Exporter Excel
             </a>
@@ -103,6 +107,7 @@ export default async function PageParents({
         parPage={resultat.parPage}
         classes={referentiel.classes.map((c) => ({ id: c.id, libelle: c.libelle }))}
         stats={stats}
+        anneeId={annee?.id ?? ""}
         peutInviter={peutInviter}
         peutNotifier={peutNotifier}
         filtres={filtres}

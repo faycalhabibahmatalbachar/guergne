@@ -25,9 +25,14 @@ const filtresSchema = z.object({
   recherche: z.string().max(150).default(""),
   etat: z.enum(["", "sans_compte", "invite", "actif", "revoque", "doublon"]).default(""),
   classeId: z.union([z.literal(""), z.string().uuid()]).default(""),
+  anneeId: z.union([z.literal(""), z.string().uuid()]).default(""),
 });
 const selectionSchema = z.discriminatedUnion("mode", [
-  z.object({ mode: z.literal("ids"), ids: idsSchema }),
+  z.object({
+    mode: z.literal("ids"),
+    ids: idsSchema,
+    anneeId: z.union([z.literal(""), z.string().uuid()]).default(""),
+  }),
   z.object({
     mode: z.literal("filtres"),
     filtres: filtresSchema,
@@ -35,8 +40,8 @@ const selectionSchema = z.discriminatedUnion("mode", [
   }),
 ]);
 export type SelectionGroupe =
-  | { mode: "ids"; ids: string[] }
-  | { mode: "filtres"; filtres: { recherche: string; etat: string; classeId: string }; exclureIds: string[] };
+  | { mode: "ids"; ids: string[]; anneeId: string }
+  | { mode: "filtres"; filtres: { recherche: string; etat: string; classeId: string; anneeId: string }; exclureIds: string[] };
 const canalSchema = z.enum(["AUTO", "APP", "SMS", "APP_ET_SMS"]);
 type Canal = z.infer<typeof canalSchema>;
 const contenuSchema = z.object({
@@ -98,7 +103,7 @@ async function lireContacts(
       ? sql`t.id IN (${sql.join(
           selection.ids.map((id) => sql`${id}::uuid`),
           sql`, `,
-        )})`
+        )}) AND ${construireFiltreTuteurs({ recherche: "", etat: "", classeId: "", anneeId: selection.anneeId })}`
       : sql`${construireFiltreTuteurs(selection.filtres)} ${
           selection.exclureIds.length
             ? sql`AND t.id NOT IN (${sql.join(

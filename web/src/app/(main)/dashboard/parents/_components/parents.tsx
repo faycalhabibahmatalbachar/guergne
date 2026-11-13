@@ -123,6 +123,7 @@ export function Parents({
   classes,
   stats,
   filtres,
+  anneeId,
   peutInviter,
   peutNotifier,
 }: {
@@ -135,6 +136,7 @@ export function Parents({
   peutInviter: boolean;
   peutNotifier: boolean;
   filtres: { recherche: string; etat: string; classeId: string };
+  anneeId: string;
 }) {
   const routeur = useRouter();
   const [recherche, setRecherche] = useState(filtres.recherche);
@@ -187,26 +189,28 @@ export function Parents({
           recherche: filtres.recherche,
           etat: filtres.etat,
           classeId: filtres.classeId,
+          anneeId,
         },
         exclureIds: exclusions,
       }
-    : { mode: "ids" as const, ids: selection };
+    : { mode: "ids" as const, ids: selection, anneeId };
 
   const naviguer = (params: Record<string, string>) => {
     const url = new URLSearchParams({
       recherche: filtres.recherche,
       etat: filtres.etat,
       classe: filtres.classeId,
+      annee: anneeId,
       parPage: String(parPage),
       ...params,
     });
     for (const [cle, valeur] of [...url.entries()]) if (!valeur) url.delete(cle);
     // Conserver une sélection entre les pages ; effacer quand le périmètre des filtres change.
     if (
-      ["recherche", "etat", "classe"].some(
+      ["recherche", "etat", "classe", "annee"].some(
         (k) =>
           Object.hasOwn(params, k) &&
-          params[k] !== (k === "classe" ? filtres.classeId : filtres[k as "recherche" | "etat"]),
+          params[k] !== (k === "classe" ? filtres.classeId : k === "annee" ? anneeId : filtres[k as "recherche" | "etat"]),
       )
     ) {
       effacerSelection();
@@ -537,7 +541,7 @@ export function Parents({
                           </span>
                           <div className="min-w-0">
                             <Link
-                              href={`/dashboard/parents/${t.id}`}
+                              href={`/dashboard/parents/${t.id}${anneeId ? `?annee=${encodeURIComponent(anneeId)}` : ""}`}
                               className="block max-w-[225px] truncate font-semibold text-foreground hover:text-succes hover:underline"
                               title={t.prenom + " " + t.nom}
                             >
