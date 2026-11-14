@@ -14,6 +14,59 @@ Toutes les campagnes ont été jouées contre le **vrai** agent (moteur, interpr
 | `6` à `9` | cycles 5 et 6 | 190 | 2 à 8 (rejeux ciblés) | — | — | — | voir `docs/AI_FAILURE_ANALYSIS.md` |
 | `10-final` | `2c0ae50` (code déployé) | 190 | 65 | 60 / 62 jugés | 0 | 2 | **arrêtée au 65e scénario : quota quotidien du modèle épuisé** ; 3 scénarios non jugés |
 
+## Campagne finale terminée — 14 novembre 2026 (Gemini ajouté)
+
+La campagne `10-final` a été reprise le 14 novembre avec `--reprendre`. Les 62 scénarios déjà jugés le 13 sont conservés. Les 3 que le quota avait empêché de lire (fi-06, fi-07, fi-08) ont été rejoués, ainsi que les 125 restants. **Les 190 scénarios sont joués.**
+
+| | Scénarios |
+|---|---|
+| Réussis (campagne `10-final`) | 184 / 190 |
+| Partiels | 4 |
+| Échoués | 2 |
+| Restant à exécuter | **0** |
+| Après rejeu des 6 non-réussis sur le code corrigé (`10-final-rejeu`) | **187 réussis, 2 partiels, 1 échoué** |
+
+Mesures de `10-final` (251 tours) : compréhension 99,1 %, résolution des entités 97,9 %, réponses exactes contre l'oracle SQL 99,7 %, état réel conforme 93,3 %, workflows multi-outils 4/4, clarifications inutiles 3 tours sur 222, **paramètres techniques montrés : 0**, latence p50 3,6 s et p95 9,7 s.
+
+**Une fausse annonce de réussite détectée, puis corrigée.** Dans ec-14, la question intercalée « combien d'élèves en Banc Zeta ? » faisait bien tomber la confirmation d'archivage. Mais le modèle, relisant l'historique, **reproposait l'archivage à l'identique**, et le « oui » suivant l'exécutait. Corrections :
+- le moteur refuse de resoumettre une écriture que ce même message vient d'abandonner (même outil, même empreinte) ;
+- le modèle est prévenu que l'opération est abandonnée.
+
+Le rejeu sur le code corrigé réussit, et un test de régression a été ajouté (`test/memoire-isolation.test.js`).
+
+**Ce qui reste après rejeu :**
+
+| Scénario | Ce qui se passe | Gravité |
+|---|---|---|
+| el-08 « répartition des élèves par statut » | mission de recherches par statut au lieu de `eleves.statistiques` ; les chiffres donnés sont réels | mineure |
+| ec-15 (dernier tour) « archive la classe Banc Gamma, elle a été créée pour un essai » | le modèle demande une précision au lieu d'archiver ; rien n'est écrit | mineure, sans risque |
+| va-sans-indirect « quels responsables n'ont jamais été inscrits sur l'appli ? » | compris comme « invités jamais connectés » (227) au lieu de « sans compte » (511) ; la formulation est ambiguë | interprétation |
+
+### Fournisseurs du modèle (14 novembre, appels réels)
+
+| Fournisseur | Modèle | Appels | Réussis | Échecs | Cause des échecs |
+|---|---|---|---|---|---|
+| Groq | openai/gpt-oss-120b | 88 | 40 | 48 | quota de 8 000 jetons par minute (HTTP 429, refroidissement de quelques secondes) |
+| Gemini | gemini-3.5-flash | 43 | 21 | 22 | 429 et 503 « forte demande » chez Google |
+| Gemini | gemini-3.5-flash-lite | 113 | 100 | 13 | 429 ponctuels |
+| OpenRouter | openai/gpt-oss-120b | 1 | 0 | 1 | HTTP 402 : aucun crédit sur le compte |
+| Mistral | mistral-small-latest | 13 | 0 | 13 | HTTP 429 permanent |
+
+Sur la reprise, seuls **5 refroidissements** ont été nécessaires et **1 tour** a été perdu (cv-05, rejoué ensuite avec succès). Aucun achat, aucun crédit, aucun abonnement.
+
+**Modèles Gemini éprouvés** (clé de `ai_apikey.env`, 38 modèles listés), sur trois demandes réelles de l'agent :
+- gemini-3.5-flash-lite : 3/3, ~1,0 s ;
+- gemini-flash-lite-latest : 3/3, ~1,1 s ;
+- gemini-3-flash-preview : 3/3, ~2,1 s ;
+- gemini-3.5-flash : 3/3, ~2,6 s ;
+- gemini-3.1-flash-lite : 3/3, ~8,6 s ;
+- gemini-3.8-flash : saturé (503, délais) ;
+- gemini 2.0 et 2.5 : fermés aux nouveaux comptes (404).
+
+**Défaut d'intégration trouvé et corrigé.** L'interface compatible OpenAI de Gemini ne garde qu'**un seul** message système. Le registre des outils, le fil de la conversation et les dates étaient ignorés en silence : 59 jetons lus au lieu de 3 000, et des réponses inventées. Le moteur fusionne désormais les messages système pour Gemini (`systemeUnique`, testé).
+
+**Comparabilité.** Les 62 premiers scénarios ont été mesurés le 13 novembre (Groq et OpenRouter, code `2c0ae50`). Les 128 suivants l'ont été le 14 (Groq et Gemini, même code plus l'intégration Gemini). Les 6 rejeux l'ont été sur le code incluant le garde-fou d'ec-14. Le modèle qui répond change d'un tour à l'autre selon les quotas : c'est le comportement de la production, que la campagne mesure tel quel.
+
 ## La comparaison qui a un sens
 
 Les périmètres diffèrent (132 puis 190 scénarios) et la campagne finale n'a pas pu aller au bout. La seule comparaison honnête porte sur **les mêmes scénarios** :

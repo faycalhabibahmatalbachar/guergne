@@ -73,7 +73,10 @@ let arret = null;
 const cheminPartiel = join(racineAgent, "banc", "rapports", etiquette + ".partiel.json");
 if (reprendre) {
   try {
-    const deja = JSON.parse(readFileSync(cheminPartiel, "utf8")).scenarios.filter((s) => s.verdict);
+    // Un scénario que le modèle saturé n'a pas pu lire n'a PAS été mesuré :
+    // il est rejoué. Seuls les scénarios réellement jugés sont conservés.
+    const nonJuge = (s) => s.tours?.some((x) => x.controles?.some((c) => c.categorie === "infrastructure"));
+    const deja = JSON.parse(readFileSync(cheminPartiel, "utf8")).scenarios.filter((s) => s.verdict && !nonJuge(s));
     resultats.push(...deja);
     const faits = new Set(deja.map((s) => s.id));
     scenarios = scenarios.filter((s) => !faits.has(s.id));

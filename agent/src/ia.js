@@ -136,10 +136,39 @@ export const FOURNISSEURS = {
     jsonNatif: true,
     champMaxTokens: "max_tokens",
   },
+  // Google Gemini, par son interface compatible OpenAI. DEUX entrées pour une
+  // même clé : chez Google, le quota gratuit se compte PAR MODÈLE. Quand le
+  // premier est en quota, le second en a encore.
+  //
+  // Modèles retenus le 14 novembre 2026 d'après `GET /models` du compte et un
+  // essai réel sur trois demandes de l'agent : gemini-3.5-flash (3/3,
+  // ~2,6 s), gemini-3.5-flash-lite (3/3, ~1 s). Les 2.x ne sont plus ouverts
+  // aux nouveaux comptes (404) ; gemini-3.8-flash répondait 503 (saturé).
+  gemini: {
+    nom: "gemini",
+    base: "https://generativelanguage.googleapis.com/v1beta/openai",
+    modele: "gemini-3.5-flash",
+    transcription: null,
+    jsonNatif: true,
+    champMaxTokens: "max_tokens",
+    // Constaté : cette interface ne garde qu'UN message système. Les autres
+    // (registre des outils, fil, dates) étaient ignorés en silence — 59 jetons
+    // consommés au lieu de 3 000, et des réponses inventées.
+    systemeUnique: true,
+  },
+  gemini_lite: {
+    nom: "gemini_lite",
+    base: "https://generativelanguage.googleapis.com/v1beta/openai",
+    modele: "gemini-3.5-flash-lite",
+    transcription: null,
+    jsonNatif: true,
+    champMaxTokens: "max_tokens",
+    systemeUnique: true,
+  },
 };
 
 /** Ordre par défaut : le plus rapide d'abord, le plus large en repli. */
-export const ORDRE_DEFAUT = ["groq", "xai", "openrouter", "mistral"];
+export const ORDRE_DEFAUT = ["groq", "gemini", "gemini_lite", "xai", "openrouter", "mistral"];
 
 /** Nom d'environnement de la clé de chaque fournisseur, et ses alias tolérés. */
 const CLES_ENV = {
@@ -147,6 +176,8 @@ const CLES_ENV = {
   xai: ["XAI_API_KEY", "GROK_API_KEY"], // `GROK_API_KEY` : alias de compatibilité
   openrouter: ["OPENROUTER_API_KEY"],
   mistral: ["MISTRAL_API_KEY"],
+  gemini: ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
+  gemini_lite: ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
 };
 
 const MODELES_ENV = {
@@ -154,6 +185,8 @@ const MODELES_ENV = {
   xai: "XAI_MODEL",
   openrouter: "OPENROUTER_MODEL",
   mistral: "MISTRAL_MODEL",
+  gemini: "GEMINI_MODEL",
+  gemini_lite: "GEMINI_LITE_MODEL",
 };
 
 /**
@@ -421,6 +454,14 @@ export class MoteurIA {
         { role: "system", content: "Reponds UNIQUEMENT par un objet JSON valide, sans aucun texte autour." },
       ];
       if (f.jsonNatif) corps.response_format = { type: "json_object" };
+    }
+    if (f.systemeUnique) {
+      // Tous les messages système fusionnés en UN, en tête, dans leur ordre.
+      const systeme = corps.messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+      corps.messages = [
+        ...(systeme ? [{ role: "system", content: systeme }] : []),
+        ...corps.messages.filter((m) => m.role !== "system"),
+      ];
     }
     if (maxTokens != null) corps[f.champMaxTokens ?? "max_tokens"] = maxTokens;
     return corps;

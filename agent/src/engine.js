@@ -635,6 +635,11 @@ export class Agent {
         runId: waiting.runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role,
         channel: msg.kind, intent: waiting.tool.name, result: "SUPERSEDED", durationMs: Date.now() - started,
       });
+      // Retenue pour CE message : le modèle, qui relit l'historique, peut
+      // reproposer à l'identique l'écriture qu'on vient d'abandonner (observé
+      // au banc : « combien d'élèves en Banc Zeta ? » → l'archivage de Yara,
+      // de nouveau soumis à confirmation, puis exécuté sur le « oui » suivant).
+      msg.abandonnee = { outil: waiting.tool.name, empreinte: waiting.empreinte };
     }
 
     // 4 ter. Un « oui » ou un « non » qui ne répond à RIEN.
@@ -689,6 +694,7 @@ export class Agent {
         facts: memoryContext?.facts ?? [],
         lastTask: memoryContext?.lastTask ?? null,
         foyer: memoryContext?.foyer ?? null,
+        abandonnee: msg.abandonnee?.outil ?? null,
       },
     });
     let plan = normaliserPlan(brut, this.tools);
@@ -984,6 +990,23 @@ export class Agent {
     if (exigeConfirmation && !dejaConfirme) {
       this._metriques.confirmationsDemandees += 1;
       const attente = creerAttente({ tool, params: plan.params ?? {}, runId, staffId: staff.id });
+      // L'écriture que ce même message vient de faire tomber, reproposée à
+      // l'identique : ce n'est pas une nouvelle demande, c'est l'historique
+      // relu. On ne la resoumet pas ; on le dit, et rien n'est en attente.
+      if (msg.abandonnee && msg.abandonnee.outil === tool.name && msg.abandonnee.empreinte === attente.empreinte) {
+        this.journalEtape?.({ event: "ecriture_abandonnee_non_reproposee", run: runId, outil: tool.name });
+        await this._clearMemoryState(memoryContext);
+        await this._sendText(
+          msg,
+          "L'opération précédente (" + tool.name + ") est abandonnée : rien n'a été fait. " +
+            "Je n'ai pas compris votre nouveau message comme une autre demande — reformulez-le, s'il vous plaît.",
+        );
+        this.audit.record({
+          runId, sender: msg.senderMsisdn, identity: staff.id, role: staff.role, channel: msg.kind,
+          intent: tool.name, result: "CANCELLED", durationMs: Date.now() - started,
+        });
+        return { status: Status.CANCELLED, runId, raison: "ecriture_abandonnee" };
+      }
       this.pending.set(msg.fromJid, attente);
       // Persistée pour survivre à un redémarrage — mais AVEC ce qui la rend
       // sûre : l'empreinte des paramètres figés, l'expiration et l'utilisateur.

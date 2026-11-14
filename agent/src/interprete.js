@@ -126,6 +126,13 @@ export function creerInterprete({ ia, outils, referentiel, guergne, resolutionCe
     }
     const fil = contexteFil(mem, listes);
     if (fil) messages.push({ role: "system", content: fil });
+    if (mem.abandonnee) {
+      messages.push({
+        role: "system",
+        content: "ATTENTION : une confirmation de l'operation " + mem.abandonnee + " attendait un oui ou un non, et le message " +
+          "n'y repond pas. Cette operation est ABANDONNEE. Ne la repropose PAS : traite le nouveau message pour lui-meme.",
+      });
+    }
     if (pending?.intention === "clarification" && pending.tool) {
       const { __choix, ...deja } = pending.params ?? {};
       messages.push({

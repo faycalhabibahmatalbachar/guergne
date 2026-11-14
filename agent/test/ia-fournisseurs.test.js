@@ -276,7 +276,8 @@ test("le moteur sait dire quel fournisseur a répondu, et avec quel modèle", as
 
 test("la transcription a sa propre liste, et elle n'est pas celle des LLM", () => {
   const m = new MoteurIA({ cles: QUATRE, fetch: tracant([]), ...sansPause });
-  assert.deepEqual(m.fournisseurs, ORDRE_DEFAUT);
+  // Seuls les fournisseurs AYANT une clé sont essayés, dans l'ordre par défaut.
+  assert.deepEqual(m.fournisseurs, ORDRE_DEFAUT.filter((n) => QUATRE[n]));
   // Trois des quatre fournisseurs savent discuter sans savoir transcrire.
   assert.deepEqual(m.transcripteurs, ["groq"]);
 });
@@ -339,9 +340,10 @@ test("les modèles et l'ordre se lisent dans l'environnement", () => {
 });
 
 test("un fournisseur inconnu dans IA_ORDRE est signalé, pas silencieusement ignoré", () => {
-  const c = configurerDepuisEnv({ GROQ_API_KEY: "g", IA_ORDRE: "gemini,groq" });
+  // « gemini » est connu depuis le 14 novembre 2026 : l'exemple prend un nom inventé.
+  const c = configurerDepuisEnv({ GROQ_API_KEY: "g", IA_ORDRE: "claude3000,groq" });
   assert.match(c.avertissements.join(" "), /inconnu/);
-  assert.ok(!c.ordre.includes("gemini"));
+  assert.ok(!c.ordre.includes("claude3000"));
 });
 
 test("IA_DESACTIVES exclut un fournisseur sans supprimer sa clé", () => {
@@ -387,4 +389,33 @@ test("contenu vide SANS finish_reason=length reste transitoire", async () => {
   const m = new MoteurIA({ cles: { groq: "a", mistral: "d" }, fetch: f, ...sansPause });
   assert.equal((await m.completer([{ role: "user", content: "x" }])).fournisseur, "mistral");
   assert.equal(f.appels.length, 4, "une reponse vide inexpliquee merite d'etre reessayee");
+});
+
+
+test("gemini : tous les messages système fusionnés en un seul, en tête", async () => {
+  const corps = [];
+  const fetch = async (_url, init) => {
+    corps.push(JSON.parse(init.body));
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"ok":true}' } }], usage: { total_tokens: 10 } }) };
+  };
+  const ia = new MoteurIA({ cles: { gemini: "k" }, ordre: ["gemini"], fetch });
+  await ia.completerJson([
+    { role: "system", content: "A" },
+    { role: "system", content: "B" },
+    { role: "user", content: "question" },
+  ]);
+  const m = corps[0].messages;
+  assert.equal(m.filter((x) => x.role === "system").length, 1);
+  assert.equal(m[0].role, "system");
+  assert.match(m[0].content, /^A\n\nB\n\nReponds UNIQUEMENT/);
+  assert.equal(m[1].content, "question");
+  assert.equal(corps[0].model, "gemini-3.5-flash");
+});
+
+test("gemini et gemini_lite partagent la clé GEMINI_API_KEY, et rien ne change pour les autres", () => {
+  const c = configurerDepuisEnv({ GEMINI_API_KEY: "g", GROQ_API_KEY: "q" });
+  assert.equal(c.cles.gemini, "g");
+  assert.equal(c.cles.gemini_lite, "g");
+  assert.deepEqual(c.ordre.slice(0, 3), ["groq", "gemini", "gemini_lite"]);
+  assert.deepEqual(c.avertissements, []);
 });

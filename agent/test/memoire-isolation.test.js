@@ -251,3 +251,18 @@ test("une confirmation persistée ne se rejoue pas pour un autre acteur après r
   await apres.dire(B, "oui");
   assert.equal(apres.guergne.countOf("supprimerAbsence"), 0);
 });
+
+
+test("une écriture abandonnée par une autre question n'est pas reproposée telle quelle", async () => {
+  // Le modèle relit l'historique et repropose l'archivage : observé au banc (ec-14).
+  const { dire, guergne, provider, vus } = monter();
+  const suppression = { intention: "outil", outil: "assiduite.supprimer_absence", params: { absenceId: "abs-1", motif: "saisie en double" } };
+  const r1 = await dire(A, "supprime l'absence", suppression);
+  assert.equal(r1.status, "WAITING_APPROVAL");
+  const r2 = await dire(A, "combien d'absences en 6e A ?", suppression);
+  assert.equal(r2.status, "CANCELLED", JSON.stringify(r2));
+  assert.equal(vus.at(-1).memoire.abandonnee, "assiduite.supprimer_absence", "le modèle doit savoir que l'opération est abandonnée");
+  assert.match(provider.lastTextTo(A), /abandonnée : rien n'a été fait/);
+  await dire(A, "oui");
+  assert.equal(guergne.countOf("supprimerAbsence"), 0, "le « oui » tardif ne doit rien exécuter");
+});
